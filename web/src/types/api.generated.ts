@@ -1310,6 +1310,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves the customer's OK and the public settings of one order with the version the window was opened with. An order is shown only
+         *     with the customer's OK, and removing the OK also takes it off the website. Who recorded the OK and when come from the token and
+         *     the clock; any such member in the body is ignored. A Completed order can be shown; a Cancelled order answers 422
+         *     `orders.public-cancelled`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a save is
+         *     never retried. A save with no change keeps the version. The answer is the whole order.
+         */
+        put: operations["SetOrderPublicSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/refunds": {
         parameters: {
             query?: never;
@@ -3779,6 +3802,8 @@ export interface components {
             orderDate: string;
             /** @description The payments, oldest payment date first. */
             payments: components["schemas"]["OrderPaymentResponse"][];
+            /** @description The order's place on the public website. */
+            publicWebsite: components["schemas"]["OrderPublicWebsiteDto"];
             /**
              * Format: date-time
              * @description When it was created.
@@ -4267,6 +4292,51 @@ export interface components {
             recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The reference, such as a transfer number; null when none. */
             reference: null | string;
+        };
+        /**
+         * @description An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is
+         *     shown, the line it is shown under and the name shown. The pieces and the auto line are worked out by the server from the items.
+         */
+        OrderPublicWebsiteDto: {
+            /**
+             * Format: uuid
+             * @description The line with the most pieces among the items; null when no item is filed under a line.
+             */
+            autoProductLineId: null | string;
+            /** @description False for a Cancelled order, which cannot be shown (D-38). */
+            canShow: boolean;
+            /**
+             * Format: date-time
+             * @description When the OK was recorded; null while there is none.
+             */
+            consentRecordedAtUtc: null | string;
+            /** @description Who recorded the OK; null while there is none. */
+            consentRecordedByName: null | string;
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /** @description True when the order has at least one photo; an order with none does not show until it has one. */
+            hasPhoto: boolean;
+            /**
+             * Format: int32
+             * @description The sum of the item quantities.
+             */
+            pieces: number | string;
+            /**
+             * Format: uuid
+             * @description The line the order is shown under: the one staff chose, else the auto line; null when there is none.
+             */
+            productLineId: null | string;
+            /** @description The title of that line; null when there is none. */
+            productLineTitle: null | string;
+            /** @description The name shown instead of the team; null when the team shows. */
+            publicName: null | string;
+            /** @description True while the order is put on the website. */
+            shownOnWebsite: boolean;
+            /**
+             * Format: date-time
+             * @description When the order was put on the website; null while it is not shown.
+             */
+            shownSinceUtc: null | string;
         };
         /** @description One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in. */
         OrderRefundResponse: {
@@ -4930,6 +5000,25 @@ export interface components {
         SetNewPasswordRequest: {
             /** @description The new password as typed. */
             newPassword: null | string;
+        };
+        /**
+         * @description The Public Website window of an order (D-09 to D-16). It carries the version the window was opened with. Any other member in the body,
+         *     such as a forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock.
+         */
+        SetOrderPublicSettingsRequest: {
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /**
+             * Format: uuid
+             * @description The line to show the order under; null to use the auto line from the items.
+             */
+            productLineId: null | string;
+            /** @description The name shown instead of the team, at most 80 characters; null or empty to show the team. */
+            publicName: null | string;
+            /** @description True to show the order on the website; needs the customer's OK. */
+            showOnWebsite: boolean;
+            /** @description The base64 of the eight-byte row version the window was opened with. */
+            version: null | string;
         };
         /**
          * @description The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account
@@ -9810,6 +9899,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetOrderPublicSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+                "application/json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+                "text/json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */

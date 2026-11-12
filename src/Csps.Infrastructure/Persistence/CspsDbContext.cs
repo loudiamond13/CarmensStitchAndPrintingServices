@@ -45,6 +45,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The customer testimonials the Home page can show, typed in by a Manager (D-05). None exist until a Manager adds one.</summary>
     public DbSet<Testimonial> Testimonials => Set<Testimonial>();
 
+    /// <summary>The places in the public gallery: shown orders and direct uploads in one manual order (D-10, GAL-03). None exist until an order is shown.</summary>
+    public DbSet<GalleryEntry> GalleryEntries => Set<GalleryEntry>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

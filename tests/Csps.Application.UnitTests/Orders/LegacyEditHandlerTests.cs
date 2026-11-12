@@ -226,6 +226,7 @@ public sealed class LegacyEditHandlerTests
             [],
             [],
             new OrderTotalsResponse(order.Subtotal, order.DiscountTotal, order.Total, order.PaidTotal, order.RefundedTotal, order.Balance, order.CustomerCredit, order.ExpensesTotal, order.Profit, order.FullyPaid),
+            new OrderPublicWebsiteDto(false, null, null, false, null, null, null, null, null, 0, false, true),
             person,
             Now,
             null,

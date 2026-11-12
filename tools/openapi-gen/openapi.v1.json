@@ -3108,6 +3108,10 @@
             },
             "type": "array"
           },
+          "publicWebsite": {
+            "$ref": "#/components/schemas/OrderPublicWebsiteDto",
+            "description": "The order's place on the public website."
+          },
           "recordedAt": {
             "description": "When it was created.",
             "format": "date-time",
@@ -3189,6 +3193,7 @@
           "statusHistory",
           "images",
           "totals",
+          "publicWebsite",
           "recordedBy",
           "recordedAt",
           "lastChangedBy",
@@ -4272,6 +4277,104 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderPublicWebsiteDto": {
+        "description": "An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is\nshown, the line it is shown under and the name shown. The pieces and the auto line are worked out by the server from the items.",
+        "properties": {
+          "autoProductLineId": {
+            "description": "The line with the most pieces among the items; null when no item is filed under a line.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "canShow": {
+            "description": "False for a Cancelled order, which cannot be shown (D-38).",
+            "type": "boolean"
+          },
+          "consentRecordedAtUtc": {
+            "description": "When the OK was recorded; null while there is none.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "consentRecordedByName": {
+            "description": "Who recorded the OK; null while there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "hasPhoto": {
+            "description": "True when the order has at least one photo; an order with none does not show until it has one.",
+            "type": "boolean"
+          },
+          "pieces": {
+            "description": "The sum of the item quantities.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productLineId": {
+            "description": "The line the order is shown under: the one staff chose, else the auto line; null when there is none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productLineTitle": {
+            "description": "The title of that line; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team; null when the team shows.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shownOnWebsite": {
+            "description": "True while the order is put on the website.",
+            "type": "boolean"
+          },
+          "shownSinceUtc": {
+            "description": "When the order was put on the website; null while it is not shown.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerConsent",
+          "consentRecordedAtUtc",
+          "consentRecordedByName",
+          "shownOnWebsite",
+          "shownSinceUtc",
+          "productLineId",
+          "productLineTitle",
+          "autoProductLineId",
+          "publicName",
+          "pieces",
+          "hasPhoto",
+          "canShow"
         ],
         "type": "object"
       },
@@ -6020,6 +6123,49 @@
         },
         "required": [
           "newPassword"
+        ],
+        "type": "object"
+      },
+      "SetOrderPublicSettingsRequest": {
+        "description": "The Public Website window of an order (D-09 to D-16). It carries the version the window was opened with. Any other member in the body,\nsuch as a forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock.",
+        "properties": {
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "productLineId": {
+            "description": "The line to show the order under; null to use the auto line from the items.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team, at most 80 characters; null or empty to show the team.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showOnWebsite": {
+            "description": "True to show the order on the website; needs the customer's OK.",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the window was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "customerConsent",
+          "showOnWebsite",
+          "productLineId",
+          "publicName"
         ],
         "type": "object"
       },
@@ -13925,6 +14071,130 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/public": {
+      "put": {
+        "operationId": "SetOrderPublicSettings",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Saves the customer's OK and the public settings of one order with the version the window was opened with. An order is shown only\nwith the customer's OK, and removing the OK also takes it off the website. Who recorded the OK and when come from the token and\nthe clock; any such member in the body is ignored. A Completed order can be shown; a Cancelled order answers 422\n`orders.public-cancelled`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a save is\nnever retried. A save with no change keeps the version. The answer is the whole order.",
+        "tags": [
+          "OrderPublicSettings"
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}/refunds": {
       "post": {
         "operationId": "AddOrderRefund",
@@ -19631,6 +19901,9 @@
     },
     {
       "name": "OrderPayments"
+    },
+    {
+      "name": "OrderPublicSettings"
     },
     {
       "name": "OrderRefunds"

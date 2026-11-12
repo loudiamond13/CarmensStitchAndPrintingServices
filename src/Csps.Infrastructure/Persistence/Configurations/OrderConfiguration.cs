@@ -1,3 +1,4 @@
+using Csps.Domain.Content;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.DueDate).HasColumnType("date");
         builder.Property(order => order.Notes).IsUnicode().HasMaxLength(OrderRules.NotesMaxLength);
         builder.Property(order => order.Status).HasColumnType("tinyint");
+        builder.Property(order => order.PublicName).IsUnicode().HasMaxLength(OrderPublicSettings.PublicNameMaxLength);
 
         builder.Property(order => order.Subtotal).HasPrecision(18, 2);
         builder.Property(order => order.DiscountTotal).HasPrecision(18, 2);
@@ -51,6 +53,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.RowVersion).IsRowVersion();
         builder.Ignore(order => order.Totals);
         builder.Ignore(order => order.IsDeleted);
+        builder.Ignore(order => order.HasCustomerConsent);
+        builder.Ignore(order => order.IsShownOnWebsite);
 
         // D-26: every default query leaves out soft-deleted orders; the Deleted view and restore opt out by name.
         builder.HasQueryFilter("SoftDelete", order => order.DeletedAtUtc == null);
@@ -74,11 +78,17 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(order => order.CreatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(order => order.UpdatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(order => order.DeletedById).OnDelete(DeleteBehavior.NoAction);
+        builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(order => order.PublicConsentById).OnDelete(DeleteBehavior.NoAction);
+
+        // A line that orders are filed under cannot be deleted (D-09); the public settings keep the id of a line staff chose.
+        builder.HasOne<ProductLine>().WithMany().HasForeignKey(order => order.PublicProductLineId).OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(order => order.Number).IsUnique().HasDatabaseName("IX_Orders_Number");
         builder.HasIndex(order => order.CreatedById).HasDatabaseName("IX_Orders_CreatedById");
         builder.HasIndex(order => order.UpdatedById).HasDatabaseName("IX_Orders_UpdatedById");
         builder.HasIndex(order => order.DeletedById).HasDatabaseName("IX_Orders_DeletedById");
+        builder.HasIndex(order => order.PublicConsentById).HasDatabaseName("IX_Orders_PublicConsentById");
+        builder.HasIndex(order => order.PublicProductLineId).HasDatabaseName("IX_Orders_PublicProductLineId");
 
         // The order list (ORD-01, ORD-02, PERF-04). Every index keeps live orders only, because the list never shows a deleted one.
         // The due index is the default sort and covers every column of a list row, so the default page reads from one index.
