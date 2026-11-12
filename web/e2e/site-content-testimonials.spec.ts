@@ -73,10 +73,10 @@ test('@site-content-testimonials a Manager adds E2E-Ana, moves it to the top, an
       await seedDemoSiteContent(request);
       await openTestimonialsTab(page);
       const table = page.getByRole('table', { name: 'Testimonials' });
-      await expect(table.getByRole('row')).toHaveCount(5);
+      await expect(table.locator('tbody tr')).toHaveCount(4);
 
       await addE2eTestimonial(page);
-      await expect(table.getByRole('row')).toHaveCount(6);
+      await expect(table.locator('tbody tr')).toHaveCount(5);
       await expect(page.getByRole('button', { name: `Edit testimonial from ${E2E_NAME}` })).toBeFocused();
       // The demo has three shown testimonials and one hidden: the new one is last, so it is not on the Home page yet.
       expect(await publicHomeQuotes(request)).not.toContain(E2E_QUOTE);
@@ -99,8 +99,8 @@ test('@site-content-testimonials a Manager adds E2E-Ana, moves it to the top, an
         'true',
       );
       await expect(page.getByRole('button', { name: `Move testimonial from ${E2E_NAME} down` })).toBeFocused();
-      await expect(table.getByRole('row').nth(1)).toContainText(E2E_NAME);
-      await expect(table.getByRole('row').nth(1)).toContainText('On the Home page');
+      await expect(table.locator('tbody tr').first()).toContainText(E2E_NAME);
+      await expect(table.locator('tbody tr').first()).toContainText('On the Home page');
 
       // PUB-03: the public Home data, which the Home page draws from, now starts with the new quote.
       expect((await publicHomeQuotes(request))[0]).toBe(E2E_QUOTE);
