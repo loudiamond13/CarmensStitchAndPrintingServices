@@ -60,13 +60,35 @@ internal sealed record PublicGalleryRead(IReadOnlyList<PublicGalleryRow> Items, 
 /// </summary>
 internal static class PublicGalleryProjection
 {
-    /// <summary>Reads the public items in gallery order (the entry position, then the entry id) and the shown lines.</summary>
+    /// <summary>How many times the read is tried when SQL Server picks it as the loser of a deadlock with a writer.</summary>
+    internal const int ReadAttempts = 3;
+
+    /// <summary>
+    /// Reads the public items in gallery order (the entry position, then the entry id) and the shown lines. The read is several queries
+    /// over the tables a staff write changes, so it can lose a deadlock to that write. It changes nothing, so it is read again, up to
+    /// <see cref="ReadAttempts"/> times, and a visitor never meets a 500 for it.
+    /// </summary>
     /// <param name="db">The context to read with.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The public items and the shown lines.</returns>
     public static async Task<PublicGalleryRead> LoadAsync(CspsDbContext db, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(db);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await ReadAsync(db, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception error) when (attempt < ReadAttempts && SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+            {
+                // The server rolled the statement back; the next attempt starts clean.
+            }
+        }
+    }
+
+    private static async Task<PublicGalleryRead> ReadAsync(CspsDbContext db, CancellationToken cancellationToken)
+    {
 
         // The lines in display order give the auto line its tie break; the shown ones carry the pills.
         var lines = await db.ProductLines
