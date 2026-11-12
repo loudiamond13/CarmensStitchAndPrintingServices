@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T10:36:41-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T13:04:30-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -226,6 +226,42 @@ The Contact page's first download is 149.97 KB of its 150 KB limit (compressed).
 - **A (recommended):** after Phase 11, plan a small task to regroup the shared public code so Contact gets room back (see also P11-BL-17).
 - **B:** raise the Contact limit a little (for example to 155 KB). This trades a small amount of phone load time.
 
+## P11-BL-25 · Words on the product line photo boxes (plan 11-22, owner item 2)
+
+**Status:** open · **Blocks:** nothing. Built as option A. Staff screens only.
+
+The photo boxes use words the spec does not fully give: "Remove the back view?" and "Remove the fabric detail?" with "The empty box shows instead.", "Removing" while it works, "Drawn jersey (no photo yet)" for an empty main photo, and picture names such as "Main photo of Polo Shirts".
+
+- **A (built, recommended):** keep these.
+- **B:** give your own words for any of them.
+
+## P11-BL-26 · All three photo boxes wait while one photo saves (plan 11-22, owner item 3)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+While one photo uploads or is removed, the other two boxes on the same line also wait. All three share one server lock, so a second save would only be refused.
+
+- **A (built, recommended):** keep it.
+- **B:** let the other boxes start and show the server's busy message if they clash.
+
+## P11-BL-27 · The test-data reset keeps a photo on the demo Polo line (plan 11-22, owner item 4)
+
+**Status:** open · **Blocks:** nothing. Test data only, never live data.
+
+The plan said the test-data reset removes a photo added in the tests. The reset only clears lines whose name starts with "E2E-", so a photo added to the demo Polo line would stay. The end-to-end tests remove their own photos instead, so nothing is left behind today.
+
+- **A (recommended):** keep it as built.
+- **B:** make the reset also clear photos on the six demo lines (a small server change to the test seeder).
+
+## P11-BL-28 · Removing a photo that is already gone (plan 11-22, owner item 5)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+If someone else already removed the photo, the screen treats Remove as done and shows the empty box.
+
+- **A (built, recommended):** treat it as removed.
+- **B:** show the "no photo there" message from P11-BL-18.
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -237,5 +273,6 @@ The Contact page's first download is 149.97 KB of its 150 KB limit (compressed).
 | 4 (in 11-12) | web `admin/routes.test.tsx` "/dev/public" title | failed once | passed twice |
 | 5 (in 11-13) | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` | failed once | passed 20 of 20 (class alone) |
 | 6 | web `scripts/third-party-notices.test.ts` "--check exits 1 ... and --write fixes it" | failed once (245 s under load) | passed in 9.5 s |
+| 9 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (second time, see wave 5) | failed once | passed 5 of 5; the gate now keeps the full output so the cause can be read next time |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
