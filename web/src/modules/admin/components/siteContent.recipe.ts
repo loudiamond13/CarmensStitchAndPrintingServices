@@ -44,3 +44,40 @@ export const hoursClosedCellClasses = tw('col-span-2 flex min-h-11 items-center 
 
 /** The "Visitors see" lines under the rows (14px muted). */
 export const hoursPreviewClasses = tw('flex flex-col gap-0.5 text-[14px] leading-5 text-ink-muted');
+
+// ---- Products tab and product line editor (S3, S4; plan 11-20) ----
+
+/** The lead cell of the product line table: the 44px photo, then the title over the short name. */
+export const lineCellClasses = tw('flex min-w-0 items-center gap-3');
+
+/** The 44 x 44 main photo, or its placeholder. */
+export const lineThumbClasses = tw('size-11 shrink-0 overflow-hidden rounded-sm bg-surface-2');
+
+/** The title and the short name under it. */
+export const lineTextClasses = tw('flex min-w-0 flex-col');
+
+/** The title as a link to the editor (`--accent-ink`). */
+export const lineTitleLinkClasses = tw(
+  'font-semibold wrap-anywhere text-accent-ink hover:underline hover:underline-offset-4',
+);
+
+/** The short name under the title (12px muted). */
+export const lineShortNameClasses = tw('text-[12px] leading-4 text-ink-muted');
+
+/** The price over the minimum, end-aligned like every money cell. */
+export const linePriceCellClasses = tw('flex flex-col items-end');
+
+/** "min. 10 pcs" under the price. */
+export const linePriceMinimumClasses = tw('text-[12px] leading-4 font-normal text-ink-muted');
+
+/** One customize field's label: the 18px icon and the card title. */
+export const lineCustomizeLabelClasses = tw('inline-flex items-center gap-2');
+
+/** The order product type checklist: a fieldset with no border, the boxes 12px apart. */
+export const lineTypesFieldsetClasses = tw('m-0 flex min-w-0 flex-col gap-3 border-0 p-0');
+
+/** The checklist's legend: the field label look (14px 600). */
+export const lineTypesLegendClasses = tw('mb-3 p-0 text-[14px] leading-5 font-semibold text-ink');
+
+/** " (now under Volleyball Jerseys)" after a type's name (muted). */
+export const lineTypeNoteClasses = tw('text-[12px] leading-4 font-normal text-ink-muted');

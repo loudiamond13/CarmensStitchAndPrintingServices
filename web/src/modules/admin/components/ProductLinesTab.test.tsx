@@ -77,9 +77,7 @@ describe('the Product lines card (S3, CONT-02)', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Product lines' })).toBeVisible();
     expect(
-      screen.getByText(
-        'Shown on the Home and Products pages, in this order. The Gallery filters use the short names.',
-      ),
+      screen.getByText('Shown on the Home and Products pages, in this order. The Gallery filters use the short names.'),
     ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Add Product Line' })).toHaveAttribute(
       'href',
@@ -107,14 +105,11 @@ describe('the Product lines card (S3, CONT-02)', () => {
     productLinesBackend();
     const { table } = await openTab();
 
-    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'Product line',
-      'Starts at',
-      'Order types',
-      'Gallery',
-      'Status',
-      'Actions',
-    ]);
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Product line', 'Starts at', 'Order types', 'Gallery', 'Status', 'Actions']);
   });
 
   it('writes each title as a link to its editor, named by the title alone', async () => {
@@ -136,8 +131,7 @@ describe('the Product lines card (S3, CONT-02)', () => {
     const { table } = await openTab();
 
     const rows = bodyRows(table);
-    expect(cellText(rows[0] as HTMLElement, 'Starts at')).toBe('₱650.00min. 10 pcs');
-    expect(cellText(rows[1] as HTMLElement, 'Starts at')).toBe('Not set');
+    expect(rows.map((row) => cellText(row, 'Starts at')).slice(0, 2)).toEqual(['₱650.00min. 10 pcs', 'Not set']);
   });
 
   it('counts the order types and the gallery items filed under each line, a zero as "0"', async () => {
@@ -151,7 +145,10 @@ describe('the Product lines card (S3, CONT-02)', () => {
   });
 
   it('says Shown or Hidden in each status badge, and a hidden row keeps its words', async () => {
-    productLinesBackend([...demoLines().filter((line) => line.id !== LINE_IDS.polo), demoLineDetail('polo', { isActive: false })]);
+    productLinesBackend([
+      ...demoLines().filter((line) => line.id !== LINE_IDS.polo),
+      demoLineDetail('polo', { isActive: false }),
+    ]);
     const { table } = await openTab();
 
     const statuses = bodyRows(table).map((row) => cellText(row, 'Status'));

@@ -209,6 +209,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'settings', loader: requireManager, lazy: settingsPage },
           // D-27: the Manager-only Site Content page (the public website's words, hours, products and gallery); an Admin is sent to /admin by the loader.
           { path: 'site-content', loader: requireManager, lazy: siteContentPage },
+          // D-34, CONT-02: the Manager-only product line editor, `products/new` for a new line and `products/{id}` for one that exists. One route in the Site Content chunk, so the shared entry grows by almost nothing (PERF-01: Contact has no room); the page checks the id before it asks the server.
+          { path: 'site-content/products/:lineId', loader: requireManager, lazy: siteContentPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },

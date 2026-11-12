@@ -7,6 +7,7 @@
 //     then ask first ("Discard changes?", 08 D-58; `beforeunload`).
 //   - `panels` names the tabs that exist and how each one is drawn. The route gives it the built tabs; a later plan adds its tab there.
 import { useEffect, useState, type ReactNode } from 'react';
+import { useParams } from 'react-router';
 import { ButtonLink } from '@/components/actions';
 import { getTabPanelProps, Tabs, type TabItem } from '@/components/choice';
 import {
@@ -20,11 +21,13 @@ import { ConfirmDialog } from '@/components/overlays';
 import { Badge } from '@/components/status';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
 import { HoursTab } from '@/modules/admin/components/HoursTab';
+import { ProductLinesTab } from '@/modules/admin/components/ProductLinesTab';
 import { expensesHeadActionsClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import { profilePageClasses } from '@/modules/admin/components/profile.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { SITE_CONTENT_TABS, useSiteContentTab, type SiteContentTab } from '@/modules/admin/hooks/useSiteContentTab';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
+import { ProductLineRoute } from '@/modules/admin/pages/ProductLinePage';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 
 const COPY = SITE_CONTENT_COPY;
@@ -33,10 +36,11 @@ const ID_BASE = 'content';
 /** How one tab's panel is drawn: it receives the callback that reports unsaved changes. */
 export type SiteContentPanels = Partial<Record<SiteContentTab, (onDirtyChange: (dirty: boolean) => void) => ReactNode>>;
 
-/** The tabs that are built so far: 'business' and 'hours'. */
+/** The tabs that are built so far: 'business', 'hours' and 'products'. The Products tab edits nothing itself, so it reports no unsaved changes. */
 const BUILT_PANELS: SiteContentPanels = {
   business: (onDirtyChange) => <BusinessInfoTab onDirtyChange={onDirtyChange} />,
   hours: (onDirtyChange) => <HoursTab onDirtyChange={onDirtyChange} />,
+  products: () => <ProductLinesTab />,
 };
 
 export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {
@@ -124,6 +128,8 @@ export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {
   );
 }
 
+/** The Site Content route: the tabs page, or, under `products/:lineId`, the product line editor (`new` or the id of a line). */
 export function SiteContentRoute() {
-  return <SiteContentPage panels={BUILT_PANELS} />;
+  const { lineId } = useParams();
+  return lineId === undefined ? <SiteContentPage panels={BUILT_PANELS} /> : <ProductLineRoute />;
 }

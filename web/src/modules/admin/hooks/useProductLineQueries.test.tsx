@@ -130,6 +130,7 @@ describe('useProductLineListQuery and useProductLineQuery', () => {
 describe('useUpdateProductLine', () => {
   it('saves with PUT, puts the answer in the line cache, reads the list again and clears the public data in this browser', async () => {
     const backend = productLinesBackend();
+    queryClient.setQueryData(productLinesKey, []);
     const onSuccess = vi.fn();
     const { result } = renderHook(() => useUpdateProductLine({ onSuccess }), { wrapper });
 
@@ -229,8 +230,7 @@ describe('useMoveProductLine, useSetProductLineShown and useDeleteProductLine', 
 
   it('deletes with DELETE and clears the public data; a 422 in use clears nothing and hands the failure on', async () => {
     const backend = productLinesBackend(undefined, {
-      onDelete: (id) =>
-        id === LINE_IDS.volleyball ? problemAnswer(422, { code: 'product-lines.in-use' }) : undefined,
+      onDelete: (id) => (id === LINE_IDS.volleyball ? problemAnswer(422, { code: 'product-lines.in-use' }) : undefined),
     });
     const onFailure = vi.fn();
     const { result } = renderHook(() => useDeleteProductLine({ onFailure }), { wrapper });

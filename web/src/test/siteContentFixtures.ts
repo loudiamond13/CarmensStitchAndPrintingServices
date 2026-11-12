@@ -403,7 +403,16 @@ const demoLineRows: readonly DemoLineRow[] = [
     art: 'longSleeves',
     types: [],
   },
-  { key: 'polo', title: 'Polo Shirts', shortName: 'Polo', number: '', price: null, minimum: null, art: 'polo', types: [] },
+  {
+    key: 'polo',
+    title: 'Polo Shirts',
+    shortName: 'Polo',
+    number: '',
+    price: null,
+    minimum: null,
+    art: 'polo',
+    types: [],
+  },
   {
     key: 'custom',
     title: 'Custom Designs',

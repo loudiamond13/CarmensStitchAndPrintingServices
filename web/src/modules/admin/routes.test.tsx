@@ -26,12 +26,7 @@ import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
-import {
-  LINE_IDS,
-  lineProductTypesAre,
-  productLinesBackend,
-  siteSettingsBackend,
-} from '@/test/siteContentFixtures';
+import { LINE_IDS, lineProductTypesAre, productLinesBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -263,18 +258,15 @@ describe('Manager-only routes (USER-08)', () => {
     '/admin/site-content',
     '/admin/site-content/products/new',
     `/admin/site-content/products/${LINE_IDS.basketball}`,
-  ])(
-    'a visitor without a session opening %s goes to sign-in with the return path',
-    async (path) => {
-      answerRefresh();
-      const router = createMemoryRouter(routes, { initialEntries: [path] });
-      render(<RouterProvider router={router} />);
+  ])('a visitor without a session opening %s goes to sign-in with the return path', async (path) => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
-      expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
-    },
-  );
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
+  });
 
   it('a session with an unknown role is sent to sign-in, never shown the Manager pages', async () => {
     answerRefresh(sessionResponse({ user: { ...sessionResponse().user, role: 'Owner' } }));

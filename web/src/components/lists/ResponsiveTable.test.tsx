@@ -466,7 +466,9 @@ describe('list cells (App. E.7/E.12)', () => {
 
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).not.toBeDisabled();
-    expect(tokens(button.className)).toEqual(expect.arrayContaining(['aria-disabled:opacity-45']));
+    expect(tokens(button.className)).toEqual(
+      expect.arrayContaining(['aria-disabled:cursor-not-allowed', 'aria-disabled:text-line-strong']),
+    );
     act(() => {
       button.focus();
     });
