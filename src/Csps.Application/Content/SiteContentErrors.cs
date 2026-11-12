@@ -20,6 +20,21 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a product line that does not exist.</summary>
     public static Error LineNotFound { get; } = Error.NotFound(LineNotFoundCode, LineNotFoundMessage);
 
+    /// <summary>The text for a short name another product line already uses.</summary>
+    public const string ShortNameTakenMessage = "Another product line already uses this short name.";
+
+    /// <summary>Gets the 400 for a short name another product line already uses, under <c>shortName</c>.</summary>
+    public static Error ShortNameTaken { get; } = Error.Validation(
+        InvalidCode,
+        SiteSettings.InvalidMessage,
+        new Dictionary<string, string[]>(StringComparer.Ordinal) { ["shortName"] = [ShortNameTakenMessage] });
+
+    /// <summary>Gets the 400 for an order product type id that no longer exists, under <c>productTypeIds</c>. The form is stale, so the text is the shared reload line.</summary>
+    public static Error ProductTypesUnknown { get; } = Error.Validation(
+        InvalidCode,
+        SiteSettings.InvalidMessage,
+        new Dictionary<string, string[]>(StringComparer.Ordinal) { ["productTypeIds"] = [RowVersions.InvalidMessage] });
+
     /// <summary>Turns a failed validation into the 400 that names every broken field.</summary>
     /// <param name="validation">The failed validation.</param>
     /// <returns>The error.</returns>

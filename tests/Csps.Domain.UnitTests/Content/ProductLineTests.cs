@@ -235,6 +235,10 @@ public sealed class ProductLineTests
     }
 
     [Fact]
+    public void CreateKeepsAnEmptyNumberWhenNoneIsGiven() =>
+        ProductLine.Create(Valid with { Number = null }, "shorts", 7, Now).Value.Number.ShouldBe(string.Empty);
+
+    [Fact]
     public void CreateShowsTheLineWhenAskedTo() =>
         ProductLine.Create(Valid with { IsActive = true }, "shorts", 7, Now).Value.IsActive.ShouldBeTrue();
 

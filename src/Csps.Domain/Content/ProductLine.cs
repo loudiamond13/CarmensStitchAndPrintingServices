@@ -46,8 +46,50 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
     /// <summary>The message for a missing title.</summary>
     public const string TitleRequiredMessage = "Enter the title.";
 
+    /// <summary>The message for a title over the limit.</summary>
+    public const string TitleTooLongMessage = "Keep the title to 60 characters or fewer.";
+
     /// <summary>The message for a missing short name.</summary>
     public const string ShortNameRequiredMessage = "Enter a short name.";
+
+    /// <summary>The message for a short name over the limit.</summary>
+    public const string ShortNameTooLongMessage = "Keep the short name to 20 characters or fewer.";
+
+    /// <summary>The message for a number that is not up to two letters or digits.</summary>
+    public const string NumberInvalidMessage = "Use up to 2 letters or digits, like 23 or 3X.";
+
+    /// <summary>The message for a missing card text.</summary>
+    public const string CardTextRequiredMessage = "Enter the card text.";
+
+    /// <summary>The message for a card text over the limit.</summary>
+    public const string CardTextTooLongMessage = "Keep the card text to 140 characters or fewer.";
+
+    /// <summary>The message for a missing description.</summary>
+    public const string DescriptionRequiredMessage = "Enter the description.";
+
+    /// <summary>The message for a description over the limit.</summary>
+    public const string DescriptionTooLongMessage = "Keep the description to 300 characters or fewer.";
+
+    /// <summary>The message for a "what you can customize" text over the limit.</summary>
+    public const string CustomizeTooLongMessage = "Keep this to 120 characters or fewer.";
+
+    /// <summary>The message for a price with more than two decimals.</summary>
+    public const string PriceDecimalsMessage = "Use at most 2 decimal places.";
+
+    /// <summary>The title of the Fabric card.</summary>
+    public const string FabricLabel = "Fabric";
+
+    /// <summary>The title of the Collar style card.</summary>
+    public const string CollarLabel = "Collar style";
+
+    /// <summary>The title of the Cut and fit card.</summary>
+    public const string CutLabel = "Cut & fit";
+
+    /// <summary>The title of the Names and numbers card.</summary>
+    public const string NamesLabel = "Names & numbers";
+
+    /// <summary>The title of the Logos and sponsors card.</summary>
+    public const string LogosLabel = "Logos & sponsors";
 
     /// <summary>The message for a price below the lowest.</summary>
     public const string PriceTooLowMessage = "Enter a price of at least ₱0.01.";
@@ -143,19 +185,28 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
         ArgumentNullException.ThrowIfNull(values);
 
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        if (string.IsNullOrWhiteSpace(values.Title))
+        CheckText(errors, "title", values.Title, TitleMaxLength, TitleRequiredMessage, TitleTooLongMessage);
+        CheckText(errors, "shortName", values.ShortName, ShortNameMaxLength, ShortNameRequiredMessage, ShortNameTooLongMessage);
+        if (!IsNumberOk(values.Number))
         {
-            errors["title"] = [TitleRequiredMessage];
+            errors["number"] = [NumberInvalidMessage];
         }
 
-        if (string.IsNullOrWhiteSpace(values.ShortName))
-        {
-            errors["shortName"] = [ShortNameRequiredMessage];
-        }
+        CheckText(errors, "cardText", values.CardText, CardTextMaxLength, CardTextRequiredMessage, CardTextTooLongMessage);
+        CheckText(errors, "description", values.Description, DescriptionMaxLength, DescriptionRequiredMessage, DescriptionTooLongMessage);
+        CheckText(errors, "fabricText", values.FabricText, CustomizeTextMaxLength, CustomizeRequiredMessage(FabricLabel), CustomizeTooLongMessage);
+        CheckText(errors, "collarText", values.CollarText, CustomizeTextMaxLength, CustomizeRequiredMessage(CollarLabel), CustomizeTooLongMessage);
+        CheckText(errors, "cutText", values.CutText, CustomizeTextMaxLength, CustomizeRequiredMessage(CutLabel), CustomizeTooLongMessage);
+        CheckText(errors, "namesText", values.NamesText, CustomizeTextMaxLength, CustomizeRequiredMessage(NamesLabel), CustomizeTooLongMessage);
+        CheckText(errors, "logosText", values.LogosText, CustomizeTextMaxLength, CustomizeRequiredMessage(LogosLabel), CustomizeTooLongMessage);
 
         if (values.StartsAtPrice is { } price)
         {
-            if (price < MinPrice)
+            if (decimal.Round(price, 2) != price)
+            {
+                errors["startsAtPrice"] = [PriceDecimalsMessage];
+            }
+            else if (price < MinPrice)
             {
                 errors["startsAtPrice"] = [PriceTooLowMessage];
             }
@@ -172,6 +223,11 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
 
         return errors;
     }
+
+    /// <summary>Writes the message for a missing "what you can customize" text, naming its card.</summary>
+    /// <param name="label">The card title, such as "Fabric".</param>
+    /// <returns>The message.</returns>
+    public static string CustomizeRequiredMessage(string label) => string.Concat("Enter the ", label, " text.");
 
     /// <summary>Builds a new line from what a Manager typed. It gets the custom drawing and no photos.</summary>
     /// <param name="values">What was typed; the line is hidden unless <see cref="ProductLineValues.IsActive"/> is true.</param>
@@ -296,6 +352,27 @@ public sealed class ProductLine : IAttributedRecord, IPublicContentRecord
         Position = entry.Position;
         IsActive = true;
         PlaceholderArt = entry.PlaceholderArt;
+    }
+
+    // A text is required, and at most max characters after trimming.
+    private static void CheckText(Dictionary<string, string[]> errors, string field, string? text, int max, string required, string tooLong)
+    {
+        var length = text?.Trim().Length ?? 0;
+        if (length == 0)
+        {
+            errors[field] = [required];
+        }
+        else if (length > max)
+        {
+            errors[field] = [tooLong];
+        }
+    }
+
+    // The number is optional: up to two ASCII letters or digits, so it always draws on the jersey.
+    private static bool IsNumberOk(string? number)
+    {
+        var trimmed = number?.Trim() ?? string.Empty;
+        return trimmed.Length <= NumberMaxLength && trimmed.All(char.IsAsciiLetterOrDigit);
     }
 
     private static bool Differs(string current, string? typed, out string next)

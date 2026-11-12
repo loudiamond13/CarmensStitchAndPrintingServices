@@ -1,5 +1,6 @@
 using Csps.Application.Ports;
 using Csps.Domain.Content;
+using Csps.Domain.OrderLists;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -86,6 +87,32 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
         return up
             ? context.ProductLines.Where(other => other.Position < position).OrderByDescending(other => other.Position).ThenBy(other => other.Id).FirstOrDefaultAsync(cancellationToken)
             : context.ProductLines.Where(other => other.Position > position).OrderBy(other => other.Position).ThenBy(other => other.Id).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    // The comparison is the database's own, the same collation the unique short name index uses, so a name the index would refuse is refused here first.
+    public Task<bool> ShortNameTakenAsync(string shortName, Guid? excluding, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(shortName);
+        var trimmed = shortName.Trim();
+        return context.ProductLines.AsNoTracking().AnyAsync(line => line.ShortName == trimmed && line.Id != excluding, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ProductType>> GetLinkedTypesAsync(Guid lineId, CancellationToken cancellationToken) =>
+        await context.ProductTypes.Where(type => type.ProductLineId == lineId).ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<ProductType>> FindTypesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        return await context.ProductTypes.Where(type => ids.Contains(type.Id)).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        return await context.ProductLines.AsNoTracking()
+            .Where(line => ids.Contains(line.Id))
+            .ToDictionaryAsync(line => line.Id, line => line.Title, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<IReadOnlySet<string>> GetKeysAsync(CancellationToken cancellationToken)

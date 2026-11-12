@@ -1,4 +1,5 @@
 using Csps.Domain.Content;
+using Csps.Domain.OrderLists;
 
 namespace Csps.Application.Ports;
 
@@ -36,6 +37,31 @@ public interface IProductLines
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The keys, compared without regard to letter case.</returns>
     Task<IReadOnlySet<string>> GetKeysAsync(CancellationToken cancellationToken);
+
+    /// <summary>Tells whether another line already uses a short name, comparing without regard to letter case and trailing spaces, the same way the unique index does.</summary>
+    /// <param name="shortName">The trimmed short name.</param>
+    /// <param name="excluding">A line to leave out, so an edit can keep its own short name; none when null.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>True when another line uses the short name.</returns>
+    Task<bool> ShortNameTakenAsync(string shortName, Guid? excluding, CancellationToken cancellationToken);
+
+    /// <summary>Loads the order product types filed under a line as tracked rows.</summary>
+    /// <param name="lineId">The line id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The product types.</returns>
+    Task<IReadOnlyList<ProductType>> GetLinkedTypesAsync(Guid lineId, CancellationToken cancellationToken);
+
+    /// <summary>Loads the order product types with the given ids as tracked rows.</summary>
+    /// <param name="ids">The ids.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The product types that exist; an unknown id has none.</returns>
+    Task<IReadOnlyList<ProductType>> FindTypesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+
+    /// <summary>Reads the titles of the lines with the given ids.</summary>
+    /// <param name="ids">The ids.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The title of each line that exists, by id.</returns>
+    Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
 
     /// <summary>Gives the place at the end of the display order.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
