@@ -211,6 +211,36 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         twice.ShouldBe(once);
     }
 
+    [Fact]
+    public async Task APostLeavesTheFourDemoShownOrdersAndTheOneNotShownEvenWhenRunTwiceAndTheGalleryListsTheFour()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var first = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var second = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var read = await client.GetAsync(new Uri("/api/v1/public/gallery", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using (var context = database.CreateContext())
+        {
+            var demo = await context.Orders.AsNoTracking().Where(order => order.Number.StartsWith("DEMO-GALLERY-")).ToListAsync(TestContext.Current.CancellationToken);
+            demo.Count.ShouldBe(5);
+            demo.Count(order => order.ShownOnWebsiteSinceUtc != null).ShouldBe(4);
+            demo.Where(order => order.ShownOnWebsiteSinceUtc == null).ShouldHaveSingleItem().PublicConsentAtUtc.ShouldNotBeNull();
+            (await context.GalleryEntries.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(4);
+        }
+
+        using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var items = document.RootElement.GetProperty("items").EnumerateArray().ToList();
+        items.Select(item => item.GetProperty("team").GetString()).ShouldBe(["Brgy. Sample Ballers", "Sample City Spikers", "Sample Riders MC", "Tondo Sample Hoopers"]);
+        items.Select(item => item.GetProperty("lineKey").GetString()).ShouldBe(["basketball", "volleyball", "moto", "basketball"]);
+        items.Select(item => item.GetProperty("photos").GetArrayLength()).ShouldBe([4, 1, 2, 1]);
+        document.RootElement.GetProperty("pills").EnumerateArray().Select(pill => pill.GetProperty("count").GetInt32()).ShouldBe([2, 1, 1]);
+    }
+
     private async Task<List<string>> TestimonialFactsAsync()
     {
         await using var context = database.CreateContext();

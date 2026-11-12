@@ -303,6 +303,40 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
     }
 
     [Fact]
+    public async Task ShowingAPhotoAddOnAShownOrderTakingItOffAndALineHideEachGiveANewGalleryETagOnTheNextRead()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        var etags = new List<string>();
+
+        async Task StepAsync(Func<Task> write)
+        {
+            await write();
+            var (document, etag) = await rig.GalleryAsync();
+            document.Dispose();
+            etags.Add(etag);
+        }
+
+        var (empty, firstEtag) = await rig.GalleryAsync();
+        empty.Dispose();
+        etags.Add(firstEtag);
+        var created = await rig.CreateOrderAsync("Brgy. Sample Ballers", 10);
+        var orderId = created.GetProperty("id").GetGuid();
+        await rig.UploadPhotoAsync(orderId, 800, 600);
+        await StepAsync(() => rig.SavePublicAsync(orderId, consent: true, show: true));
+        await StepAsync(() => rig.UploadPhotoAsync(orderId, 600, 800));
+        await StepAsync(() => rig.SavePublicAsync(orderId, consent: true, show: false));
+        await StepAsync(() => rig.SavePublicAsync(orderId, consent: true, show: true));
+        await StepAsync(async () =>
+        {
+            using var response = await rig.HideLineAsync(PublicGalleryRig.LineId("basketball"));
+            response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        });
+
+        etags.Count.ShouldBe(6);
+        etags.Zip(etags.Skip(1)).ShouldAllBe(pair => pair.First != pair.Second, "showing, a photo add on a shown order, taking off, showing again and hiding the line must each move the gallery ETag");
+    }
+
+    [Fact]
     public async Task EveryWriteToAShownOrderClearsThePublicCache()
     {
         var clears = await RunOrderWritesAsync(shown: true);

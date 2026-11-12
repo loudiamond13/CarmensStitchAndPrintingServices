@@ -111,6 +111,15 @@ internal sealed class PublicGalleryRig : IAsyncDisposable
         return id;
     }
 
+    /// <summary>Hides a product line through the Manager route.</summary>
+    public async Task<HttpResponseMessage> HideLineAsync(Guid lineId)
+    {
+        using var client = Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Post, $"/api/v1/product-lines/{lineId:D}/hide", Manager.AccessToken);
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("D"));
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Reads the anonymous gallery answer and its ETag.</summary>
     public async Task<(JsonDocument Document, string ETag)> GalleryAsync() => await ReadAsync(GalleryRoute);
 

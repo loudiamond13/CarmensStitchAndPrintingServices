@@ -3,9 +3,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Csps.Application.Content;
+using Csps.Application.Ports;
 using Csps.Domain.Content;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Content;
@@ -202,6 +204,37 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
 
         counter.Count.ShouldBe(0);
         second.ShouldBeSameAs(first);
+    }
+
+    [Fact]
+    public async Task TheSecondGalleryReadOfThreeHundredShownItemsRunsNoDatabaseCommand()
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await GallerySeeding.LinkProductTypesAsync(database);
+        var staff = await OrderSeeding.AddStaffAsync(database, "Gallery", new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero));
+        await GallerySeeding.AddOrdersAsync(
+            database,
+            [.. Enumerable.Range(1, 300).Select(number => new SeedGalleryOrder($"Sample Team {number}") { Photos = [(800, 600), (600, 800)], Position = number })],
+            staff,
+            new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero));
+        var counter = new CommandCounter();
+        await using var services = PublicContentServices.Build(database.ConnectionString, counter);
+
+        var first = await ReadGalleryAsync(services);
+        counter.Reset();
+        var second = await ReadGalleryAsync(services);
+
+        first.Gallery.Total.ShouldBe(300);
+        Encoding.UTF8.GetByteCount(first.Json.Json).ShouldBeGreaterThan(64 * 1024, "the payload must be bigger than the cache's 64 KB cap, or this test proves nothing about the cap");
+        counter.Count.ShouldBe(0);
+        second.ShouldBeSameAs(first);
+    }
+
+    private static async Task<PublicGallerySnapshot> ReadGalleryAsync(ServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<IPublicContentReader>().GetGalleryAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
