@@ -20,6 +20,15 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a product line that does not exist.</summary>
     public static Error LineNotFound { get; } = Error.NotFound(LineNotFoundCode, LineNotFoundMessage);
 
+    /// <summary>The machine code of a testimonial that does not exist.</summary>
+    public const string TestimonialNotFoundCode = "testimonials.not-found";
+
+    /// <summary>The plain-English text for a testimonial that does not exist.</summary>
+    public const string TestimonialNotFoundMessage = "This testimonial wasn't found.";
+
+    /// <summary>Gets the 404 for a testimonial that does not exist.</summary>
+    public static Error TestimonialNotFound { get; } = Error.NotFound(TestimonialNotFoundCode, TestimonialNotFoundMessage);
+
     /// <summary>The machine code of a photo slot that holds no photo.</summary>
     public const string PhotoNotFoundCode = "product-lines.photo-not-found";
 

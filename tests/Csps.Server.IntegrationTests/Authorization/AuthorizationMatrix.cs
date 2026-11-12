@@ -84,6 +84,7 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
         // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
         new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
         new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
@@ -104,6 +105,14 @@ public static class AuthorizationMatrix
         // Line photos (D-02): Manager only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 images.file-missing before the line is looked up.
         new("POST", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/c8e41d72-9a05-4b3f-8d16-72f0a5b9e3c1/photos/main", Anonymous: 401, Admin: 403, Manager: 400),
         new("DELETE", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/4f9b2a68-d317-4e50-a1c4-8b6d0e7f5a29/photos/main", Anonymous: 401, Admin: 403, Manager: 404),
+        // Testimonials (CONT-03, D-05): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add, edit and move, and a fresh random id is no testimonial (404) on hide, show and delete.
+        new("GET", "/api/v1/testimonials", "/api/v1/testimonials", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/testimonials", "/api/v1/testimonials", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/testimonials/{id:guid}", "/api/v1/testimonials/3b6e0d94-5a27-4c81-9f03-d8a1c7e2b645", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/testimonials/{id:guid}/move", "/api/v1/testimonials/a7d3f150-2e68-4b94-8c07-1f5b9e3a6d82/move", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/testimonials/{id:guid}/hide", "/api/v1/testimonials/e1c84a07-9d35-4f26-b6a0-5d2f8c7b3e19/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/testimonials/{id:guid}/show", "/api/v1/testimonials/52f9b3c8-0a46-4d71-8e95-c3a7d1f6b024/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/testimonials/{id:guid}", "/api/v1/testimonials/d09a6e43-7b18-4c52-a3f7-6e8b1d4c9a50", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
@@ -366,6 +375,7 @@ public static class AuthorizationMatrix
             "GET /api/v1/public/site",
             "GET /api/v1/public/open-status",
             "GET /api/v1/public/product-lines",
+            "GET /api/v1/public/home",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

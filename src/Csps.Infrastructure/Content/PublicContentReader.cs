@@ -26,6 +26,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
     internal const string LinesCacheKey = "csps:public:lines:v1";
 
+    internal const string HomeCacheKey = "csps:public:home:v1";
+
     internal const string MissingHoursMessage =
         "The seven OpeningHours rows are missing. Apply the EF migrations.";
 
@@ -47,6 +49,9 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
     public ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken) =>
         cache.GetOrCreateAsync(LinesCacheKey, LoadLinesAsync, EntryOptions, Tags, cancellationToken);
+
+    public ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(HomeCacheKey, LoadHomeAsync, EntryOptions, Tags, cancellationToken);
 
     private async ValueTask<PublicSiteSnapshot> LoadSiteAsync(CancellationToken cancellationToken)
     {
@@ -181,6 +186,61 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         }
     }
 
+    // The Home page: the shown lines as cards with their main photo at the card sizes, and the first three shown testimonials in order.
+    private async ValueTask<PublicHomeSnapshot> LoadHomeAsync(CancellationToken cancellationToken)
+    {
+        var db = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var rows = await db.ProductLines
+                .AsNoTracking()
+                .Where(row => row.IsActive)
+                .OrderBy(row => row.Position)
+                .ThenBy(row => row.Id)
+                .Select(row => new HomeLineRow(row.Id, row.Key, row.Number, row.Title, row.CardText, row.PlaceholderArt, row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var lineIds = rows.Select(row => row.Id).ToList();
+            var mains = await db.ProductLinePhotos
+                .AsNoTracking()
+                .Where(photo => lineIds.Contains(photo.LineId) && photo.Slot == ProductLinePhotoSlot.Main)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var testimonials = await db.Testimonials
+                .AsNoTracking()
+                .Where(row => row.IsShown)
+                .OrderBy(row => row.Position)
+                .ThenBy(row => row.Id)
+                .Take(GetPublicHomeHandler.TestimonialLimit)
+                .Select(row => new TestimonialRow(row.Quote, row.Name, row.TeamOrRole, row.Stars, row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var home = new PublicHomeDto(
+                [
+                    .. rows.Select(row => new PublicHomeLineDto(
+                        row.Key,
+                        row.Number,
+                        row.Title,
+                        row.CardText,
+                        ArtName(row.PlaceholderArt),
+                        mains.Find(photo => photo.LineId == row.Id) is { } main ? ProductLinePhotoMapper.ToPublicCard(main, delivery) : null)),
+                ],
+                rows.Count,
+                [.. testimonials.Select(row => new PublicTestimonialDto(row.Quote, row.Name, row.TeamOrRole, row.Stars))],
+                [],
+                null);
+            var json = JsonSerializer.Serialize(home, JsonOptions);
+            var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+            var lastChanged = rows.Select(row => row.ChangedAtUtc)
+                .Concat(mains.Select(photo => photo.UpdatedAtUtc ?? photo.CreatedAtUtc))
+                .Concat(testimonials.Select(row => row.ChangedAtUtc))
+                .DefaultIfEmpty(DateTimeOffset.MinValue)
+                .Max();
+            return new PublicHomeSnapshot(home, new PublicJsonSnapshot(json, etag, lastChanged));
+        }
+    }
+
     // The first shown line's main photo as the link preview picture; none when it has no main photo or the delivery has no address.
     private string? ShareImageOf(List<LineRow> rows, List<ProductLinePhoto> photos)
     {
@@ -274,6 +334,10 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         int? MinimumQuantity,
         PlaceholderArt PlaceholderArt,
         DateTimeOffset ChangedAtUtc);
+
+    private sealed record HomeLineRow(Guid Id, string Key, string Number, string Title, string CardText, PlaceholderArt PlaceholderArt, DateTimeOffset ChangedAtUtc);
+
+    private sealed record TestimonialRow(string Quote, string Name, string? TeamOrRole, int Stars, DateTimeOffset ChangedAtUtc);
 
     private sealed record ClosureRow(DateOnly FirstDay, DateOnly LastDay, string? Note, DateTimeOffset ChangedAtUtc);
 

@@ -140,6 +140,60 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task APostLeavesThreeShownDemoTestimonialsInOrderAndOneHiddenAndTheHomeReadShowsTheShownOnes()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var read = await client.GetAsync(new Uri("/api/v1/public/home", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using (var context = database.CreateContext())
+        {
+            var rows = await context.Testimonials.AsNoTracking().OrderBy(row => row.Position).ThenBy(row => row.Id).ToListAsync(TestContext.Current.CancellationToken);
+            rows.Count.ShouldBe(4);
+            rows.Select(row => row.IsShown).ShouldBe([true, true, true, false]);
+            rows.Select(row => row.Position).ShouldBe([1, 2, 3, 4]);
+            rows.ShouldAllBe(row => row.Stars >= 1 && row.Stars <= 5 && row.Quote.Length > 0 && row.Name.Length > 0);
+        }
+
+        using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var shown = document.RootElement.GetProperty("testimonials").EnumerateArray().ToList();
+        shown.Count.ShouldBe(3);
+        shown[0].GetProperty("name").GetString().ShouldBe("Juan Dela Cruz");
+        shown[0].GetProperty("teamOrRole").GetString().ShouldBe("Captain, Brgy. Sample Ballers");
+    }
+
+    [Fact]
+    public async Task APostRemovesTheTestimonialsNamedWithTheE2EPrefixAndRunningItTwiceLeavesTheSameFour()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await database.ResetAsync();
+        await using (var context = database.CreateContext())
+        {
+            context.Testimonials.Add(Testimonial.Create(new TestimonialValues("A quote typed by a test.", "E2E-Ana", null, 4, true), 1, new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero)).Value);
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var first = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        var once = await TestimonialFactsAsync();
+        using var second = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        var twice = await TestimonialFactsAsync();
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        once.Count.ShouldBe(4);
+        once.ShouldNotContain(fact => fact.StartsWith("E2E-", StringComparison.Ordinal));
+        twice.ShouldBe(once);
+    }
+
+    [Fact]
     public async Task RunningItTwiceLeavesTheSameRows()
     {
         Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
@@ -155,6 +209,13 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         once.ShouldBe(["+639171234567", "+63281234567"]);
         twice.ShouldBe(once);
+    }
+
+    private async Task<List<string>> TestimonialFactsAsync()
+    {
+        await using var context = database.CreateContext();
+        var rows = await context.Testimonials.AsNoTracking().OrderBy(row => row.Position).ThenBy(row => row.Id).ToListAsync(TestContext.Current.CancellationToken);
+        return [.. rows.Select(row => $"{row.Name}|{row.Quote}|{row.TeamOrRole}|{row.Stars}|{row.IsShown}|{row.Position}")];
     }
 
     private async Task<List<string>> PhoneNumbersAsync()

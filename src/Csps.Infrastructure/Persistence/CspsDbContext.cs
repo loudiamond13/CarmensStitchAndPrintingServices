@@ -42,6 +42,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The photos of the product lines, at most one in each of three slots (D-02).</summary>
     public DbSet<ProductLinePhoto> ProductLinePhotos => Set<ProductLinePhoto>();
 
+    /// <summary>The customer testimonials the Home page can show, typed in by a Manager (D-05). None exist until a Manager adds one.</summary>
+    public DbSet<Testimonial> Testimonials => Set<Testimonial>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

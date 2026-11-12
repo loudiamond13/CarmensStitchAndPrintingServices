@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-12T05:30:00-06:00
+updated: 2026-11-12T11:45:00-06:00
 ---
 
 # The public site
@@ -79,11 +79,16 @@ encoder, which escapes `<`, `>` and `&`, so typed text can never close the scrip
 
 Every public page and the 404 shell carry `<script type="application/json" id="csps-boot">` holding `{ "site": ... }`, where the
 value is the same JSON as `GET /api/v1/public/site` (below). The `/products` page also carries `"productLines"`, the same JSON as
-`GET /api/v1/public/product-lines` (below), so the Products page needs no request on the first visit. No other page has that key. The
+`GET /api/v1/public/product-lines` (below), so the Products page needs no request on the first visit. The `/` page also carries
+`"home"`, the same JSON as `GET /api/v1/public/home` (below), so the Home page needs no request on the first visit. No other page has
+those keys. The
 browser does not run a data block, so the first visit needs no request. `/admin` and `/dev` pages carry no boot block.
 
 If the product lines cannot be read, `/products` is still sent with the `site` data and no `productLines` key, and that answer is not
 cached, so the next visit tries again. The page then fetches the lines from the API.
+
+The same holds for `/` and the Home data: when it cannot be read, `/` is sent with the `site` data and no `home` key, that answer is not
+cached, and the page fetches the Home data from the API.
 
 ### Caching
 
@@ -221,6 +226,49 @@ A new database gets six lines from the `AddProductLines` migration, once: basket
 shown, with no price and no minimum. Production gets them through the reviewed idempotent migration script, which holds the six
 inserts and runs them only when the migration is not yet recorded. The model has no `HasData` for them, nothing seeds or migrates at
 startup, and a later deploy never overwrites a Manager's edits. A Manager adds the prices before the site goes live.
+
+## GET /api/v1/public/home
+
+What the Home page shows besides its fixed words: one card for each shown product line, the first three shown testimonials, and (later)
+the Recent work strip and the hero tag. Anonymous, never compressed, limited per address like the site read. Operation name
+`GetPublicHome`.
+
+```json
+{
+  "lines": [
+    {
+      "key": "basketball",
+      "number": "23",
+      "title": "Basketball Jerseys",
+      "cardText": "Full sublimation tops and shorts, any colorway, names and numbers included.",
+      "placeholderArt": "basketball",
+      "cardPhoto": null
+    }
+  ],
+  "lineCount": 6,
+  "testimonials": [
+    {
+      "quote": "Seventeen pieces, names and numbers perfect.",
+      "name": "Juan Dela Cruz",
+      "teamOrRole": "Captain, Brgy. Sample Ballers",
+      "stars": 5
+    }
+  ],
+  "recentWork": [],
+  "heroTag": null
+}
+```
+
+- **Lines.** Only shown lines, in display order, each with the data a card needs. A card links to `/products#{key}`. `cardPhoto` is the
+  line's main photo at the 4:5 category card sizes (`{ src, srcSet, width, height }`), or `null` until a Manager adds one; the page then
+  draws `placeholderArt`. With no line shown, `lines` is empty and `lineCount` is `0`, and the page leaves the whole section out.
+- **Testimonials.** The first three shown testimonials in display order. A hidden one is left out and the next shown one takes its
+  place. With none shown the list is empty and the page leaves the section out. The shop never invents a testimonial: a new database
+  has none.
+- **`recentWork` and `heroTag`.** Always `[]` and `null` for now. A later plan fills them from the shown orders.
+- **Caching and limit** are the same as the other public reads: a strong `ETag`, `Cache-Control: no-cache`, `304` on a match, one
+  cached snapshot under the `public-content` tag, and 600 reads a minute per address. A committed change to a line, a line photo or a
+  testimonial clears the snapshot after the commit.
 
 ## GET /api/v1/public/open-status
 

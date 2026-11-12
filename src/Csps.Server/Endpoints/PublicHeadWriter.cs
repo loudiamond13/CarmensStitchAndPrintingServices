@@ -147,19 +147,29 @@ internal static class PublicHeadWriter
     }
 
     /// <summary>
-    /// Wraps the site JSON the API serves as <c>{ "site": ... }</c> for the boot data block, and the product lines JSON as
-    /// <c>"productLines"</c> when the page needs it (the Products page). Both texts are already written by the default JSON encoder, so
-    /// they hold no raw <c>&lt;</c>.
+    /// Wraps the site JSON the API serves as <c>{ "site": ... }</c> for the boot data block, the product lines JSON as
+    /// <c>"productLines"</c> when the page needs it (the Products page) and the Home JSON as <c>"home"</c> when the page needs it (the
+    /// Home page). The texts are already written by the default JSON encoder, so they hold no raw <c>&lt;</c>.
     /// </summary>
     /// <param name="siteJson">The site JSON text.</param>
     /// <param name="productLinesJson">The product lines JSON text; the key is left out when null.</param>
+    /// <param name="homeJson">The Home JSON text; the key is left out when null.</param>
     /// <returns>The boot data text.</returns>
-    public static string BootData(string siteJson, string? productLinesJson = null)
+    public static string BootData(string siteJson, string? productLinesJson = null, string? homeJson = null)
     {
         ArgumentNullException.ThrowIfNull(siteJson);
-        return productLinesJson is null
-            ? "{\"site\":" + siteJson + "}"
-            : "{\"site\":" + siteJson + ",\"productLines\":" + productLinesJson + "}";
+        var boot = new StringBuilder("{\"site\":").Append(siteJson);
+        if (productLinesJson is not null)
+        {
+            boot.Append(",\"productLines\":").Append(productLinesJson);
+        }
+
+        if (homeJson is not null)
+        {
+            boot.Append(",\"home\":").Append(homeJson);
+        }
+
+        return boot.Append('}').ToString();
     }
 
     // The picture tags, and the card that goes with them: a large picture card with a picture, the plain summary card without (D-26).

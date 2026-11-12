@@ -15,4 +15,9 @@ public interface IPublicContentReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The snapshot; its list is empty when no line is shown.</returns>
     ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken);
+
+    /// <summary>Returns what the Home page shows: the line cards and the first three shown testimonials; served from the cache until a content change clears it.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The snapshot.</returns>
+    ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken);
 }

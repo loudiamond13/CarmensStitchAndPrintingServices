@@ -222,8 +222,92 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
         var boot = Boot(body).ShouldHaveSingleItem();
         using var document = JsonDocument.Parse(boot);
-        document.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(path == "/products" ? ["site", "productLines"] : ["site"]);
+        document.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(path switch
+        {
+            "/products" => ["site", "productLines"],
+            "/" => ["site", "home"],
+            _ => ["site"],
+        });
         document.RootElement.GetProperty("site").GetRawText().ShouldBe(api, path);
+    }
+
+    [Fact]
+    public async Task TheHomeShellCarriesTheSameHomeJsonAsTheApi()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/");
+        var api = await client.GetStringAsync(new Uri("/api/v1/public/home", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        document.RootElement.GetProperty("home").GetRawText().ShouldBe(api);
+        document.RootElement.GetProperty("home").GetProperty("lines").GetArrayLength().ShouldBeGreaterThan(0);
+    }
+
+    [Theory]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    [InlineData("/nope")]
+    public async Task OtherPagesCarryNoHomeKey(string path)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path, allowNotFound: path == "/nope");
+
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        document.RootElement.TryGetProperty("home", out _).ShouldBeFalse(path);
+    }
+
+    [Fact]
+    public async Task WhenOnlyTheHomeReadThrowsTheHomePageStillCarriesTheSiteAndTheFailureIsNotCached()
+    {
+        var reader = new StubPublicContentReader("Sample Shop") { HomeFailure = new InvalidOperationException("home is down") };
+        await using var factory = new ShellTestFactory(reader);
+        using var client = factory.CreateClient();
+
+        var failing = await GetBodyAsync(client, "/");
+        reader.HomeFailure = null;
+        var recovered = await GetBodyAsync(client, "/");
+
+        using var withoutHome = JsonDocument.Parse(Boot(failing).ShouldHaveSingleItem());
+        withoutHome.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site"]);
+        using var withHome = JsonDocument.Parse(Boot(recovered).ShouldHaveSingleItem());
+        withHome.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site", "home"]);
+    }
+
+    [Fact]
+    public async Task AfterATestimonialIsAddedTheNextHomeShellShowsItBecauseTheShellCacheWasCleared()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        (await TestimonialNamesInBootAsync(client)).ShouldBeEmpty();
+
+        try
+        {
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                context.Testimonials.Add(Testimonial.Create(new TestimonialValues("Seventeen pieces, names and numbers perfect.", "Juan Dela Cruz", null, 5, true), 1, new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero)).Value);
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            (await TestimonialNamesInBootAsync(client)).ShouldBe(["Juan Dela Cruz"]);
+        }
+        finally
+        {
+            await database.ResetAsync();
+        }
+    }
+
+    private static async Task<List<string>> TestimonialNamesInBootAsync(HttpClient client)
+    {
+        var body = await GetBodyAsync(client, "/");
+        using var document = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+        return [.. document.RootElement.GetProperty("home").GetProperty("testimonials").EnumerateArray().Select(item => item.GetProperty("name").GetString()!)];
     }
 
     [Fact]

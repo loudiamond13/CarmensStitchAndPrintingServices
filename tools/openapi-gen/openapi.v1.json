@@ -2826,6 +2826,22 @@
         ],
         "type": "object"
       },
+      "MoveTestimonialRequest": {
+        "description": "The move form: which way a testimonial goes in the order.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
       "NextOpeningDto": {
         "description": "When the shop opens next, as facts the page turns into words (D-22).",
         "properties": {
@@ -5196,6 +5212,128 @@
         ],
         "type": "object"
       },
+      "PublicHeroTagDto": {
+        "description": "The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it.",
+        "properties": {
+          "name": {
+            "description": "The public name of the order.",
+            "type": "string"
+          },
+          "pieces": {
+            "description": "The number of pieces.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "pieces"
+        ],
+        "type": "object"
+      },
+      "PublicHomeDto": {
+        "description": "What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three\nshown testimonials in display order, the Recent work strip and the hero tag. The last two are empty until a later plan fills them.",
+        "properties": {
+          "heroTag": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicHeroTagDto",
+                "description": "The hero tag; null for now."
+              }
+            ]
+          },
+          "lineCount": {
+            "description": "How many lines are shown.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "lines": {
+            "description": "The shown product lines in display order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicHomeLineDto"
+            },
+            "type": "array"
+          },
+          "recentWork": {
+            "description": "The Recent work tiles; empty for now.",
+            "items": {
+              "$ref": "#/components/schemas/PublicRecentWorkDto"
+            },
+            "type": "array"
+          },
+          "testimonials": {
+            "description": "The first three shown testimonials in display order; empty when none is shown.",
+            "items": {
+              "$ref": "#/components/schemas/PublicTestimonialDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines",
+          "lineCount",
+          "testimonials",
+          "recentWork",
+          "heroTag"
+        ],
+        "type": "object"
+      },
+      "PublicHomeLineDto": {
+        "description": "One product line card on the Home page (PUB-02, D-01): what a visitor needs to draw it and link to its place on Products.",
+        "properties": {
+          "cardPhoto": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The line's main photo at the 4:5 card sizes; null until a Manager adds one."
+              }
+            ]
+          },
+          "cardText": {
+            "description": "The card text.",
+            "type": "string"
+          },
+          "key": {
+            "description": "The key the card links to, such as \"basketball\" (`/products#basketball`).",
+            "type": "string"
+          },
+          "number": {
+            "description": "The number drawn on the jersey, such as \"23\".",
+            "type": "string"
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when the line has no photo: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The title, such as \"Basketball Jerseys\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "cardText",
+          "placeholderArt",
+          "cardPhoto"
+        ],
+        "type": "object"
+      },
       "PublicLinePhotosDto": {
         "description": "The three photo slots of a product line; a slot with no photo is null and the page shows the drawing.",
         "properties": {
@@ -5405,6 +5543,57 @@
         ],
         "type": "object"
       },
+      "PublicRecentWorkDto": {
+        "description": "One tile of the Home page's Recent work strip. It stays empty until the plan that reads shown orders fills it.",
+        "properties": {
+          "lineKey": {
+            "description": "The key of the order's line, which the tile links to in the Gallery.",
+            "type": "string"
+          },
+          "lineShortName": {
+            "description": "The short name of the order's line.",
+            "type": "string"
+          },
+          "photo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The cover photo; null when there is none."
+              }
+            ]
+          },
+          "pieces": {
+            "description": "The number of pieces; null when unknown.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when the order has no photo.",
+            "type": "string"
+          },
+          "team": {
+            "description": "The public name of the order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team",
+          "lineKey",
+          "lineShortName",
+          "pieces",
+          "placeholderArt",
+          "photo"
+        ],
+        "type": "object"
+      },
       "PublicSiteDto": {
         "description": "The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is\nnot a member (D-25). A value that is not set is null and the page leaves it out.",
         "properties": {
@@ -5523,6 +5712,42 @@
           "year",
           "hours",
           "upcomingClosures"
+        ],
+        "type": "object"
+      },
+      "PublicTestimonialDto": {
+        "description": "One testimonial a visitor sees (CONT-03, D-05).",
+        "properties": {
+          "name": {
+            "description": "The name shown under the quote.",
+            "type": "string"
+          },
+          "quote": {
+            "description": "The customer's words.",
+            "type": "string"
+          },
+          "stars": {
+            "description": "The rating, 1 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars"
         ],
         "type": "object"
       },
@@ -6244,6 +6469,127 @@
           "status",
           "balance",
           "today"
+        ],
+        "type": "object"
+      },
+      "TestimonialDto": {
+        "description": "One testimonial as the Manager's Testimonials tab reads it (CONT-03, D-05).",
+        "properties": {
+          "id": {
+            "description": "The testimonial id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isShown": {
+            "description": "True while the testimonial can show on the website.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The name shown under the quote.",
+            "type": "string"
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "quote": {
+            "description": "The customer's words.",
+            "type": "string"
+          },
+          "stars": {
+            "description": "The rating, 1 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars",
+          "position",
+          "isShown",
+          "version"
+        ],
+        "type": "object"
+      },
+      "TestimonialRequest": {
+        "description": "The testimonial form (CONT-03, SEC-07), for adding and for editing. Any other member in the body is ignored: the order, who changed\nthe testimonial and when come from the server (SEC-08).",
+        "properties": {
+          "isShown": {
+            "description": "True to show the testimonial on the website. A new testimonial is hidden when this is missing; an edit keeps it as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "name": {
+            "description": "The name, required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quote": {
+            "description": "The customer's words, required, at most 300 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stars": {
+            "description": "The rating, a whole number from 1 to 5.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line, at most 80 characters; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars",
+          "isShown",
+          "version"
         ],
         "type": "object"
       },
@@ -16437,6 +16783,43 @@
         ]
       }
     },
+    "/api/v1/public/home": {
+      "get": {
+        "operationId": "GetPublicHome",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicHomeDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its\n`key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main\nphoto), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,\n`teamOrRole` and `stars`), `recentWork` (empty for now) and `heroTag` (null for now). A hidden line or testimonial\nis left out. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/public/open-status": {
       "get": {
         "operationId": "GetOpenStatus",
@@ -17471,6 +17854,599 @@
         "summary": "Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's\nfigure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or\nManager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted\ntransfers. Nothing is cached.",
         "tags": [
           "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/testimonials": {
+      "get": {
+        "operationId": "ListTestimonials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestimonialDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists every testimonial, shown and hidden, in display order. Each has its id, quote, name, team or role (null when not set), stars,\nposition from 1, whether it is shown, and the version an edit must send back. The Home page shows the first three shown ones.",
+        "tags": [
+          "Testimonials"
+        ]
+      },
+      "post": {
+        "operationId": "CreateTestimonial",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestimonialDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a testimonial. It goes to the end of the order and is hidden unless `isShown` is true. A retry with the same\n`Idempotency-Key` and body answers with the stored 201 and adds nothing more. Who added it and when come from the token and\nthe clock; any such member in the body is ignored.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}": {
+      "delete": {
+        "operationId": "DeleteTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a testimonial for good. It takes no version. Deleting a testimonial that is already gone is a 404.",
+        "tags": [
+          "Testimonials"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestimonialDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a testimonial with the version the form was opened with. The values follow the same rules as when adding. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member in\nthe body is ignored.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/hide": {
+      "post": {
+        "operationId": "HideTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides a testimonial: it leaves the public Home page and nothing is lost. Hiding a hidden testimonial is a 204 that changes and\nrecords nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/move": {
+      "post": {
+        "operationId": "MoveTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves a testimonial one place up or down in the display order. A move at the end of the order is a 204 that changes and records\nnothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/show": {
+      "post": {
+        "operationId": "ShowTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden testimonial on the public site again. Showing a shown testimonial is a 204 that changes and records nothing. It\ntakes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
         ]
       }
     },
@@ -18700,6 +19676,9 @@
     },
     {
       "name": "StaffMoney"
+    },
+    {
+      "name": "Testimonials"
     },
     {
       "name": "Users"

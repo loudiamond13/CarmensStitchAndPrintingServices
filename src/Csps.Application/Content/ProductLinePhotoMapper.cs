@@ -74,6 +74,18 @@ public static class ProductLinePhotoMapper
         return thumb.Length == 0 ? null : thumb;
     }
 
+    /// <summary>Maps a line's main photo for the Home page card, at the 4:5 card sizes.</summary>
+    /// <param name="photo">The photo row.</param>
+    /// <param name="delivery">Makes the addresses.</param>
+    /// <returns>The DTO, or null when the delivery has no address to give, so the card shows the drawing instead of a broken picture.</returns>
+    public static PublicPhotoDto? ToPublicCard(ProductLinePhoto photo, IImageDelivery delivery)
+    {
+        ArgumentNullException.ThrowIfNull(photo);
+        ArgumentNullException.ThrowIfNull(delivery);
+        var source = delivery.ForLinePhoto(photo.PublicId, photo.Width, photo.Height).Card;
+        return source.Src.Length == 0 ? null : new PublicPhotoDto(source.Src, source.SrcSet, photo.Width, photo.Height);
+    }
+
     /// <summary>Maps one photo for a visitor.</summary>
     /// <param name="photo">The photo row.</param>
     /// <param name="delivery">Makes the addresses.</param>

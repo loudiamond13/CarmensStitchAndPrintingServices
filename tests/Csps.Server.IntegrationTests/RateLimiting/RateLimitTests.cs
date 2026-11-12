@@ -72,6 +72,7 @@ public sealed class RateLimitTests(CspsDatabase database) : IClassFixture<CspsDa
         { "GET", "/api/v1/public/site", 600 },
         { "GET", "/api/v1/public/open-status", 600 },
         { "GET", "/api/v1/public/product-lines", 600 },
+        { "GET", "/api/v1/public/home", 600 },
     };
 
     [Theory]

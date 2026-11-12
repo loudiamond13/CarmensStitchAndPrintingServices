@@ -147,6 +147,9 @@ internal sealed partial class ShellRenderer(
     // The same for the product lines read.
     private int _linesFailing;
 
+    // The same for the Home read.
+    private int _homeFailing;
+
     public async Task WriteAsync(HttpContext context)
     {
         var parts = template.Get();
@@ -217,27 +220,38 @@ internal sealed partial class ShellRenderer(
 
         var origin = links.Value.PublicBaseUrl.TrimEnd('/');
 
-        // The Products page also carries the product lines. When they cannot be read, the page keeps the site data and the head is
-        // not cached, so the next visit tries again.
+        // The Products page also carries the product lines and the Home page the Home data. When they cannot be read, the page keeps the
+        // site data and the head is not cached, so the next visit tries again.
         string? linesJson = null;
         string? shareImage = null;
+        string? homeJson = null;
         if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Products)
         {
             var lines = await ReadLinesAsync(context).ConfigureAwait(false);
             if (lines is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
             }
 
             linesJson = lines.Json.Json;
             shareImage = AbsoluteAddress(origin, lines.ShareImageUrl);
         }
+        else if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Home)
+        {
+            var home = await ReadHomeAsync(context).ConfigureAwait(false);
+            if (home is null)
+            {
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
+            }
+
+            homeJson = home.Json.Json;
+        }
 
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
         return await cache.GetOrCreateAsync(
             key,
-            (snapshot, match, origin, linesJson, shareImage),
-            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage)),
+            (snapshot, match, origin, linesJson, shareImage, homeJson),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage, state.homeJson)),
             HeadCacheOptions,
             Tags,
             context.RequestAborted).ConfigureAwait(false);
@@ -247,9 +261,9 @@ internal sealed partial class ShellRenderer(
     private static string? AbsoluteAddress(string origin, string? address) =>
         address is { Length: > 0 } && address[0] == '/' ? origin + address : address;
 
-    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage)
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage, string? homeJson)
     {
-        var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson);
+        var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson, homeJson);
         if (match.Kind == PublicRouteKind.NotFound)
         {
             return NotFoundHead(boot);
@@ -320,6 +334,26 @@ internal sealed partial class ShellRenderer(
         }
     }
 
+    // Null when the Home data cannot be read.
+    private async Task<PublicHomeSnapshot?> ReadHomeAsync(HttpContext context)
+    {
+        try
+        {
+            var snapshot = await reader.GetHomeAsync(context.RequestAborted).ConfigureAwait(false);
+            Interlocked.Exchange(ref _homeFailing, 0);
+            return snapshot;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (Interlocked.Exchange(ref _homeFailing, 1) == 0)
+            {
+                LogHomeFailed(exception);
+            }
+
+            return null;
+        }
+    }
+
     private static Task WriteMissingTemplateAsync(HttpContext context)
     {
         if (HttpMethods.IsHead(context.Request.Method))
@@ -337,4 +371,7 @@ internal sealed partial class ShellRenderer(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The product lines could not be read, so the Products page is sent without them")]
     private partial void LogLinesFailed(Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The Home data could not be read, so the Home page is sent without it")]
+    private partial void LogHomeFailed(Exception exception);
 }
