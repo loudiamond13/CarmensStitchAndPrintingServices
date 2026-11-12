@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T02:56:38-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T04:16:35-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -76,6 +76,15 @@ The opening hours save checks two rules the form can never break, so staff shoul
 
 The new `OpeningHours` migration is also forward only, the same as P11-BL-01; the ruling there covers it.
 
+## P11-BL-08 · Editing a closure that has already started (plan 11-13, owner item OI-1)
+
+**Status:** open · **Blocks:** nothing. Built as option A; plan 11-16's form follows the same rule.
+
+A closure such as "Dec 23 to Dec 27" may already be running when a Manager opens it. New closures, and any change to the first day, must still be today or later.
+
+- **A (built, recommended):** an edit may keep its past first day, so the note or the last day of a running closure can still be fixed.
+- **B:** refuse any edit whose first day is in the past; the Manager deletes and re-adds instead.
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -85,5 +94,6 @@ The new `OpeningHours` migration is also forward only, the same as P11-BL-01; th
 | 3 (in 11-10) | web `OrderFormPage` "cannot be left through the dialog while a save is pending" | failed once | passed |
 | 3 | `LastManagerGuardTests.TwoManagersLockingEachOtherTogetherLeaveExactlyOneActiveEveryTime` | failed once | passed; **fixed** (see below) |
 | 4 (in 11-12) | web `admin/routes.test.tsx` "/dev/public" title | failed once | passed twice |
+| 5 (in 11-13) | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` | failed once | passed 20 of 20 (class alone) |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
