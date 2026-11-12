@@ -1,13 +1,13 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 11
-current_phase_name: public-site-content-management
-status: "Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word"
+current_phase_name: Public Site & Content Management
+status: executing
 stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-11-12T00:36:30.906Z"
+last_updated: "2026-11-12T01:33:59.746Z"
 last_activity: 2026-11-11
-last_activity_desc: Phase 11 planning complete
-state_head: cc8ff1fbedbc440470965f3648e5a768be5615f1
+last_activity_desc: Phase 11 execution started
+state_head: 1a76f1f2f19c7a53041a9961b8155e7b1adac04e
 progress:
   total_phases: 18
   completed_phases: 8
@@ -25,14 +25,14 @@ updated: "2026-11-10T15:10:00-06:00"
 See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 10 — Admin Dashboard
+**Current focus:** Phase 11 — Public Site & Content Management
 
 ## Current Position
 
-Phase: 11 (public-site-content-management) — READY TO EXECUTE
-Plan: 1 of 21
-Status: Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word
-Last activity: 2026-11-11 — Phase 11 planning complete
+Phase: 11 (Public Site & Content Management) — EXECUTING
+Plan: 1 of 38
+Status: Executing Phase 11
+Last activity: 2026-11-11 — Phase 11 execution started
 
 Progress: [████░░░░░░] 44%
 
