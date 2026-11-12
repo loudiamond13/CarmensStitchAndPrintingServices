@@ -4,12 +4,12 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { demoLines, lineWithPhotos, makeLine, type PublicProductLineFixture } from '@/test/publicFixtures';
+import { demoLine, lineWithPhotos, makeLine, type PublicProductLineFixture } from '@/test/publicFixtures';
 import { PriceLine } from './PriceLine';
 import { ProductArticle } from './ProductArticle';
 import { ProductMedia } from './ProductMedia';
 
-const BASKETBALL = demoLines.lines[0] as PublicProductLineFixture;
+const BASKETBALL = demoLine('basketball');
 
 function renderArticle(line: PublicProductLineFixture, index = 0, total = 6) {
   return render(

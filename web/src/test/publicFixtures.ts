@@ -298,6 +298,15 @@ export const demoLines: PublicProductLinesFixture = {
   ],
 };
 
+/** One of the six starting lines by key. */
+export function demoLine(key: string): PublicProductLineFixture {
+  const found = demoLines.lines.find((line) => line.key === key);
+  if (found === undefined) {
+    throw new Error(`No demo line "${key}".`);
+  }
+  return found;
+}
+
 /** One shown line only. */
 export const oneLine: PublicProductLinesFixture = { lines: demoLines.lines.slice(0, 1) };
 

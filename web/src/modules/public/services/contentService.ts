@@ -11,8 +11,9 @@ export interface ContentService {
 }
 
 export function createContentService(client: HttpClient): ContentService {
-  void client;
-  return { getProductLines: () => Promise.resolve({ lines: [] }) };
+  return {
+    getProductLines: (signal) => client.get<PublicProductLines>('/public/product-lines', { signal }),
+  };
 }
 
 export const contentService: ContentService = createContentService(apiClient);
