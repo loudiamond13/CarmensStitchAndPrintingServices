@@ -71,6 +71,12 @@ public sealed class OpeningHoursEndpointTests(CspsDatabase database) : IClassFix
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var other = await TestSessions.StartAsync(factory, Roles.Admin);
         var version = (await ReadAsync(client, manager.AccessToken)).Version;
+        DateTimeOffset? tuesdayStampBefore;
+        await using (var before = database.CreateContext())
+        {
+            tuesdayStampBefore = (await before.OpeningHours.AsNoTracking().SingleAsync(row => row.DayOfWeek == 2, TestContext.Current.CancellationToken)).UpdatedAtUtc;
+        }
+
         var body = Body(version, Week((1, "09:00", "18:00")));
         body["createdById"] = other.UserId.ToString();
         body["updatedById"] = other.UserId.ToString();
@@ -85,7 +91,8 @@ public sealed class OpeningHoursEndpointTests(CspsDatabase database) : IClassFix
         monday.UpdatedAtUtc.ShouldNotBeNull().ShouldBeInRange(TimeProvider.System.GetUtcNow().AddMinutes(-2), TimeProvider.System.GetUtcNow().AddMinutes(1));
         monday.CreatedById.ShouldNotBe(other.UserId);
         var tuesday = await context.OpeningHours.AsNoTracking().SingleAsync(row => row.DayOfWeek == 2, TestContext.Current.CancellationToken);
-        tuesday.UpdatedAtUtc.ShouldBeNull("a day that did not change is not stamped");
+        // The setup may have stamped Tuesday already; this save must not stamp it again.
+        tuesday.UpdatedAtUtc.ShouldBe(tuesdayStampBefore, "a day that did not change is not stamped");
     }
 
     [Fact]
