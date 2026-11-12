@@ -255,7 +255,8 @@ public sealed class Testimonial : IAttributedRecord, IPublicContentRecord
             fields.Add("teamOrRole");
         }
 
-        var stars = values.Stars is { } typed ? (int)typed : 0;
+        // Check has already refused a missing or fractional count.
+        var stars = (int)values.Stars.GetValueOrDefault();
         if (stars != Stars)
         {
             Stars = stars;
