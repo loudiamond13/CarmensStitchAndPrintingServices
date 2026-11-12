@@ -26,7 +26,12 @@ import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
-import { siteSettingsBackend } from '@/test/siteContentFixtures';
+import {
+  LINE_IDS,
+  lineProductTypesAre,
+  productLinesBackend,
+  siteSettingsBackend,
+} from '@/test/siteContentFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -160,7 +165,14 @@ const adminSession = () =>
   });
 
 describe('Manager-only routes (USER-08)', () => {
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings', '/admin/site-content'])(
+  it.each([
+    '/admin/users',
+    '/admin/audit-log',
+    '/admin/settings',
+    '/admin/site-content',
+    '/admin/site-content/products/new',
+    `/admin/site-content/products/${LINE_IDS.basketball}`,
+  ])(
     'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
       answerRefresh(adminSession());
@@ -244,7 +256,14 @@ describe('Manager-only routes (USER-08)', () => {
     });
   });
 
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings', '/admin/site-content'])(
+  it.each([
+    '/admin/users',
+    '/admin/audit-log',
+    '/admin/settings',
+    '/admin/site-content',
+    '/admin/site-content/products/new',
+    `/admin/site-content/products/${LINE_IDS.basketball}`,
+  ])(
     'a visitor without a session opening %s goes to sign-in with the return path',
     async (path) => {
       answerRefresh();
@@ -639,6 +658,32 @@ describe('Site Content for Managers (D-27; plan 11-12)', () => {
     await waitFor(() => {
       expect(document.title).toBe('Site Content · CSPS Admin');
     });
+  }, 30_000);
+
+  it('a Manager who opens a product line stays and sees its editor, with Site Content the one current item', async () => {
+    answerRefresh(sessionResponse());
+    productLinesBackend();
+    lineProductTypesAre();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/site-content/products/${LINE_IDS.polo}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Polo Shirts' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe(`/admin/site-content/products/${LINE_IDS.polo}`);
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Site Content']);
+  }, 30_000);
+
+  it('a Manager who opens /admin/site-content/products/new sees the New Product Line editor', async () => {
+    answerRefresh(sessionResponse());
+    productLinesBackend();
+    lineProductTypesAre();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/site-content/products/new'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'New Product Line' }, { timeout: 10_000 }),
+    ).toBeVisible();
   }, 30_000);
 
   it('an Admin sees no Site Content item in the shell', async () => {

@@ -15,6 +15,7 @@ import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoSiteSettings,
   openingHoursBackend,
+  productLinesBackend,
   shopClosuresBackend,
   siteSettingsBackend,
 } from '@/test/siteContentFixtures';
@@ -94,16 +95,37 @@ describe('the tabs (WEB-10)', () => {
     await openPage();
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info', 'Hours & Closures']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info', 'Hours & Closures', 'Products']);
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Business Info' })).toBeVisible();
   });
 
   it('shows Business Info for a tab that does not exist yet', async () => {
-    await openPage('?tab=products');
+    await openPage('?tab=testimonials');
 
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/^Tagline/)).toBeVisible();
+  });
+
+  it('opens the Products tab from ?tab=products and shows the Product lines card in its panel', async () => {
+    productLinesBackend();
+    renderPage('?tab=products');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Products' });
+    expect(screen.getByRole('tab', { name: 'Products' })).toHaveAttribute('aria-selected', 'true');
+    await within(panel).findByRole('table', { name: 'Product lines' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Product lines' })).toBeVisible();
+    expect(within(panel).getByRole('link', { name: 'Add Product Line' })).toBeVisible();
+  });
+
+  it('changes to the Products tab at once from another tab, with nothing to discard', async () => {
+    productLinesBackend();
+    await openPage();
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Products' }));
+
+    expect(await screen.findByRole('table', { name: 'Product lines' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens the Hours & Closures tab from ?tab=hours and shows the Opening hours card in its panel', async () => {

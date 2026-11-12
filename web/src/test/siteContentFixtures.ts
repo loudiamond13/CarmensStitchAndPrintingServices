@@ -311,3 +311,377 @@ export function shopClosuresBackend(
 export function businessTodayIs(today: string): void {
   server.use(http.get('*/api/v1/orders', () => HttpResponse.json(buildOrderList([], { today }))));
 }
+
+// Product lines (plan 11-20): the Manager's list and detail as /api/v1/product-lines answers them, the order product types the editor files
+// under a line, and an MSW backend that keeps what each write left and records every call. Every value is made up.
+export type ProductLineListFixture = Schemas['ProductLineListItemDto'];
+export type ProductLineDetailFixture = Schemas['ProductLineDetailDto'];
+export type ProductLineBody = Schemas['ProductLineRequest'];
+export type MoveProductLineBody = Schemas['MoveProductLineRequest'];
+
+/** The id of each demo line, in the Manager's order. */
+export const LINE_IDS = {
+  basketball: '8c1f4a20-0000-4000-8000-000000000001',
+  volleyball: '8c1f4a20-0000-4000-8000-000000000002',
+  moto: '8c1f4a20-0000-4000-8000-000000000003',
+  longSleeves: '8c1f4a20-0000-4000-8000-000000000004',
+  polo: '8c1f4a20-0000-4000-8000-000000000005',
+  custom: '8c1f4a20-0000-4000-8000-000000000006',
+} as const;
+
+/** The order product types of the line editor. */
+export const LINE_TYPE_IDS = {
+  basketball: '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0001',
+  cycling: '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0002',
+  old: '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0003',
+  volleyball: '5d3a7c1e-0a41-4f6c-9d0b-2b1f6a8e0004',
+} as const;
+
+type ProductTypeFixture = Schemas['OrderListItem'];
+
+function productType(id: string, name: string, status: 'active' | 'retired', tone: string): ProductTypeFixture {
+  return { id, name, tone, status, isOthers: false, useCount: 0 };
+}
+
+/** The order product types as the API lists them: A to Z, one retired. */
+export const demoLineProductTypes: ProductTypeFixture[] = [
+  productType(LINE_TYPE_IDS.basketball, 'Basketball Jersey', 'active', 'accent'),
+  productType(LINE_TYPE_IDS.cycling, 'Cycling Jersey', 'active', 'info'),
+  productType(LINE_TYPE_IDS.old, 'Old Style Jersey', 'retired', 'neutral'),
+  productType(LINE_TYPE_IDS.volleyball, 'Volleyball Jersey', 'active', 'success'),
+];
+
+interface DemoLineRow {
+  key: keyof typeof LINE_IDS;
+  title: string;
+  shortName: string;
+  number: string;
+  price: number | null;
+  minimum: number | null;
+  art: string;
+  types: string[];
+}
+
+const demoLineRows: readonly DemoLineRow[] = [
+  {
+    key: 'basketball',
+    title: 'Basketball Jerseys',
+    shortName: 'Basketball',
+    number: '23',
+    price: 650,
+    minimum: 10,
+    art: 'basketball',
+    types: [LINE_TYPE_IDS.basketball],
+  },
+  {
+    key: 'volleyball',
+    title: 'Volleyball Jerseys',
+    shortName: 'Volleyball',
+    number: '7',
+    price: null,
+    minimum: null,
+    art: 'volleyball',
+    types: [LINE_TYPE_IDS.volleyball],
+  },
+  {
+    key: 'moto',
+    title: 'Moto and Riding Jerseys',
+    shortName: 'Moto',
+    number: '99',
+    price: null,
+    minimum: null,
+    art: 'moto',
+    types: [],
+  },
+  {
+    key: 'longSleeves',
+    title: 'Long Sleeves',
+    shortName: 'Long Sleeves',
+    number: '11',
+    price: null,
+    minimum: null,
+    art: 'longSleeves',
+    types: [],
+  },
+  { key: 'polo', title: 'Polo Shirts', shortName: 'Polo', number: '', price: null, minimum: null, art: 'polo', types: [] },
+  {
+    key: 'custom',
+    title: 'Custom Designs',
+    shortName: 'Custom',
+    number: '',
+    price: null,
+    minimum: null,
+    art: 'custom',
+    types: [],
+  },
+];
+
+/** One demo line as the editor reads it: shown, at its place in the order, with the five customize texts. */
+export function demoLineDetail(
+  key: keyof typeof LINE_IDS,
+  overrides: Partial<ProductLineDetailFixture> = {},
+): ProductLineDetailFixture {
+  const index = demoLineRows.findIndex((row) => row.key === key);
+  const row = demoLineRows[index];
+  if (row === undefined) {
+    throw new Error(`No demo line ${key}.`);
+  }
+  return {
+    id: LINE_IDS[key],
+    key: row.shortName.toLowerCase().replaceAll(' ', '-'),
+    title: row.title,
+    shortName: row.shortName,
+    number: row.number,
+    cardText: `Card text of ${row.title}.`,
+    description: `Description of ${row.title}.`,
+    fabricText: 'Light, stretchy fabric.',
+    collarText: 'Round or V collar.',
+    cutText: 'Regular or slim cut.',
+    namesText: 'Any font for names and numbers.',
+    logosText: 'Team and sponsor logos.',
+    startsAtPrice: row.price,
+    minimumQuantity: row.minimum,
+    isActive: true,
+    placeholderArt: row.art,
+    position: index + 1,
+    productTypeIds: row.types,
+    createdAtUtc: '2026-10-06T02:30:00Z',
+    updatedAtUtc: null,
+    updatedByName: null,
+    version: `AAAAAAAAE0${String(index + 1)}=`,
+    ...overrides,
+  };
+}
+
+/** The six demo lines, in order. */
+export function demoLines(): ProductLineDetailFixture[] {
+  return demoLineRows.map((row) => demoLineDetail(row.key));
+}
+
+/** What a line has filed under it besides product types: photos and shown gallery items, and the small main photo. */
+export interface LineUse {
+  photos?: number;
+  gallery?: number;
+  thumb?: string | null;
+}
+
+/** The list row of a line: Delete is offered when it has no product type, no photo and no gallery item. */
+export function lineListItem(line: ProductLineDetailFixture, use: LineUse = {}): ProductLineListFixture {
+  const photos = use.photos ?? 0;
+  const gallery = use.gallery ?? 0;
+  return {
+    id: line.id,
+    key: line.key,
+    title: line.title,
+    shortName: line.shortName,
+    startsAtPrice: line.startsAtPrice,
+    minimumQuantity: line.minimumQuantity,
+    isActive: line.isActive,
+    position: line.position,
+    productTypeIds: line.productTypeIds,
+    photoCount: photos,
+    shownGalleryCount: gallery,
+    mainPhotoThumb: use.thumb ?? null,
+    canDelete: line.productTypeIds.length === 0 && photos === 0 && gallery === 0,
+    version: line.version,
+  };
+}
+
+/** The version the fake API gives a line after save number `n`. */
+export function lineVersionAfter(n: number): string {
+  return `AAAAAAAAF${String(n).padStart(2, '0')}=`;
+}
+
+export interface ProductLinesBackend {
+  /** The lines the API holds, in order. */
+  lines: ProductLineDetailFixture[];
+  /** What is filed under a line besides product types, by line id (the list's counts). */
+  used: Record<string, LineUse>;
+  /** How many list reads and detail reads arrived. */
+  listGets: number;
+  gets: number;
+  posts: { body: ProductLineBody; key: string | null }[];
+  puts: { id: string; body: ProductLineBody }[];
+  moves: { id: string; direction: string | null; key: string | null }[];
+  hides: string[];
+  shows: string[];
+  deletes: string[];
+}
+
+type LineAnswer = Response | undefined | Promise<Response | undefined>;
+
+export interface ProductLinesBackendOptions {
+  onGetList?: (backend: ProductLinesBackend) => LineAnswer;
+  onGet?: (id: string, backend: ProductLinesBackend) => LineAnswer;
+  onPost?: (body: ProductLineBody, backend: ProductLinesBackend) => LineAnswer;
+  onPut?: (id: string, body: ProductLineBody, backend: ProductLinesBackend) => LineAnswer;
+  onMove?: (id: string, direction: string | null, backend: ProductLinesBackend) => LineAnswer;
+  onHide?: (id: string, backend: ProductLinesBackend) => LineAnswer;
+  onShow?: (id: string, backend: ProductLinesBackend) => LineAnswer;
+  onDelete?: (id: string, backend: ProductLinesBackend) => LineAnswer;
+}
+
+/** Gives the lines the places 1, 2, 3 in the order they are in. */
+function renumbered(lines: ProductLineDetailFixture[]): ProductLineDetailFixture[] {
+  return lines.map((line, index) => ({ ...line, position: index + 1 }));
+}
+
+/** Answers the eight /api/v1/product-lines routes from `initial`, keeps what each write left, and records every call. */
+export function productLinesBackend(
+  initial: ProductLineDetailFixture[] = demoLines(),
+  options: ProductLinesBackendOptions = {},
+): ProductLinesBackend {
+  const backend: ProductLinesBackend = {
+    lines: renumbered([...initial].sort((a, b) => Number(a.position) - Number(b.position))),
+    used: {},
+    listGets: 0,
+    gets: 0,
+    posts: [],
+    puts: [],
+    moves: [],
+    hides: [],
+    shows: [],
+    deletes: [],
+  };
+  const lineOf = (id: string): ProductLineDetailFixture | undefined => backend.lines.find((line) => line.id === id);
+  const replace = (made: ProductLineDetailFixture): void => {
+    backend.lines = backend.lines.map((line) => (line.id === made.id ? made : line));
+  };
+  const asLine = (
+    body: ProductLineBody,
+    base: ProductLineDetailFixture,
+    version: string,
+  ): ProductLineDetailFixture => ({
+    ...base,
+    title: body.title ?? '',
+    shortName: body.shortName ?? '',
+    number: body.number ?? '',
+    cardText: body.cardText ?? '',
+    description: body.description ?? '',
+    fabricText: body.fabricText ?? '',
+    collarText: body.collarText ?? '',
+    cutText: body.cutText ?? '',
+    namesText: body.namesText ?? '',
+    logosText: body.logosText ?? '',
+    startsAtPrice: body.startsAtPrice,
+    minimumQuantity: body.minimumQuantity,
+    isActive: body.isActive ?? base.isActive,
+    productTypeIds: body.productTypeIds ?? base.productTypeIds,
+    version,
+    updatedByName: 'Carmen Reyes',
+    updatedAtUtc: '2026-10-07T03:00:00Z',
+  });
+  const notFound = (): Response => problemAnswer(404, { code: 'product-lines.not-found' });
+  server.use(
+    http.get('*/api/v1/product-lines', async () => {
+      backend.listGets += 1;
+      const answer = await options.onGetList?.(backend);
+      return answer ?? HttpResponse.json(backend.lines.map((line) => lineListItem(line, backend.used[line.id])));
+    }),
+    http.get('*/api/v1/product-lines/:id', async ({ params }) => {
+      const id = String(params.id);
+      backend.gets += 1;
+      const answer = await options.onGet?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const line = lineOf(id);
+      return line === undefined ? notFound() : HttpResponse.json(line);
+    }),
+    http.post('*/api/v1/product-lines', async ({ request }) => {
+      const body = (await request.json()) as ProductLineBody;
+      backend.posts.push({ body, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onPost?.(body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const base = demoLineDetail('custom', {
+        id: `8c1f4a20-0000-4000-8000-0000000001${String(backend.posts.length).padStart(2, '0')}`,
+        position: backend.lines.length + 1,
+        isActive: false,
+        productTypeIds: [],
+      });
+      const made = asLine(body, base, lineVersionAfter(100 + backend.posts.length));
+      backend.lines = [...backend.lines, made];
+      return HttpResponse.json(made, { status: 201 });
+    }),
+    http.put('*/api/v1/product-lines/:id', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as ProductLineBody;
+      backend.puts.push({ id, body });
+      const answer = await options.onPut?.(id, body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const line = lineOf(id);
+      if (line === undefined) {
+        return notFound();
+      }
+      const made = asLine(body, line, lineVersionAfter(backend.puts.length));
+      replace(made);
+      return HttpResponse.json(made);
+    }),
+    http.post('*/api/v1/product-lines/:id/move', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as MoveProductLineBody;
+      backend.moves.push({ id, direction: body.direction, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onMove?.(id, body.direction, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const index = backend.lines.findIndex((line) => line.id === id);
+      const other = body.direction === 'up' ? index - 1 : index + 1;
+      const line = backend.lines[index];
+      const neighbour = backend.lines[other];
+      if (line !== undefined && neighbour !== undefined) {
+        const lines = [...backend.lines];
+        lines[index] = neighbour;
+        lines[other] = line;
+        backend.lines = renumbered(lines);
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/product-lines/:id/hide', async ({ params }) => {
+      const id = String(params.id);
+      backend.hides.push(id);
+      const answer = await options.onHide?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const line = lineOf(id);
+      if (line !== undefined) {
+        replace({ ...line, isActive: false });
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/product-lines/:id/show', async ({ params }) => {
+      const id = String(params.id);
+      backend.shows.push(id);
+      const answer = await options.onShow?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const line = lineOf(id);
+      if (line !== undefined) {
+        replace({ ...line, isActive: true });
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.delete('*/api/v1/product-lines/:id', async ({ params }) => {
+      const id = String(params.id);
+      backend.deletes.push(id);
+      const answer = await options.onDelete?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.lines = renumbered(backend.lines.filter((line) => line.id !== id));
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}
+
+/** Answers GET /api/v1/product-types with the editor's product types (both roles may list them). */
+export function lineProductTypesAre(types: ProductTypeFixture[] = demoLineProductTypes): void {
+  server.use(http.get('*/api/v1/product-types', () => HttpResponse.json(types)));
+}

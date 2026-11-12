@@ -2,7 +2,13 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { demoClosures, demoOpeningHours, demoSiteSettings } from '@/test/siteContentFixtures';
+import {
+  demoClosures,
+  demoLineDetail,
+  demoOpeningHours,
+  demoSiteSettings,
+  LINE_TYPE_IDS,
+} from '@/test/siteContentFixtures';
 import {
   businessInfoSchema,
   businessInfoValuesOf,
@@ -21,9 +27,13 @@ import {
   isMessengerLink,
   isTikTokLink,
   phoneE164,
+  productLineValuesOf,
+  readLineMinimum,
+  readLinePrice,
   reduceEmbedCode,
   toClosureRequest,
   toOpeningHoursRequest,
+  toProductLineRequest,
   toSiteSettingsRequest,
   weekOfValues,
   type BusinessInfoInput,
@@ -654,5 +664,79 @@ describe('the closure form values and request (plan 11-16)', () => {
       note: null,
       version: 'v1',
     });
+  });
+});
+
+describe('the product line form values and request (CONT-02; plan 11-20)', () => {
+  it('shows a saved line as text: the price with two decimals, the minimum as digits, no price as an empty box', () => {
+    const basketball = productLineValuesOf(demoLineDetail('basketball'));
+    expect(basketball).toMatchObject({
+      isActive: true,
+      title: 'Basketball Jerseys',
+      shortName: 'Basketball',
+      number: '23',
+      startsAtPrice: '650.00',
+      minimumQuantity: '10',
+      productTypeIds: [LINE_TYPE_IDS.basketball],
+    });
+    expect(productLineValuesOf(demoLineDetail('polo'))).toMatchObject({ startsAtPrice: '', minimumQuantity: '' });
+  });
+
+  it('starts a new line unticked (hidden), with every text empty and no product type', () => {
+    expect(productLineValuesOf(null)).toEqual({
+      isActive: false,
+      title: '',
+      shortName: '',
+      number: '',
+      cardText: '',
+      description: '',
+      fabricText: '',
+      collarText: '',
+      cutText: '',
+      namesText: '',
+      logosText: '',
+      startsAtPrice: '',
+      minimumQuantity: '',
+      productTypeIds: [],
+    });
+  });
+
+  it('sends an edit with the version, the texts trimmed, the price and minimum as numbers and an empty one as null', () => {
+    const values = {
+      ...productLineValuesOf(demoLineDetail('polo')),
+      title: '  Polo Shirts ',
+      startsAtPrice: '450.00',
+      minimumQuantity: '',
+    };
+    expect(toProductLineRequest(values, 'v1')).toMatchObject({
+      version: 'v1',
+      title: 'Polo Shirts',
+      startsAtPrice: 450,
+      minimumQuantity: null,
+      isActive: true,
+    });
+  });
+
+  it('sends an add with no version', () => {
+    expect(toProductLineRequest(productLineValuesOf(null), null).version).toBeNull();
+  });
+
+  it('keeps the product types the checklist does not show (retired ones) filed under the line', () => {
+    const values = { ...productLineValuesOf(demoLineDetail('moto')), productTypeIds: [LINE_TYPE_IDS.cycling] };
+    expect(toProductLineRequest(values, 'v1', [LINE_TYPE_IDS.old]).productTypeIds).toEqual([
+      LINE_TYPE_IDS.cycling,
+      LINE_TYPE_IDS.old,
+    ]);
+  });
+
+  it('reads the price and minimum a visitor would see, and nothing from a value the rules refuse', () => {
+    expect(readLinePrice('650.00')).toBe(650);
+    expect(readLinePrice('')).toBeNull();
+    expect(readLinePrice('0.00')).toBeNull();
+    expect(readLinePrice('1000000.00')).toBeNull();
+    expect(readLineMinimum('10')).toBe(10);
+    expect(readLineMinimum('')).toBeNull();
+    expect(readLineMinimum('0')).toBeNull();
+    expect(readLineMinimum('10000')).toBeNull();
   });
 });
