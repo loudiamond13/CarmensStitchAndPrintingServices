@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 5/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 8/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1196,9 +1196,9 @@ Plans:
 - [x] 11-05-PLAN.md — Weekly hours text for footer, Contact and admin preview (PUB-05, CONT-04)
 
 **Wave 2**
-- [ ] 11-06-PLAN.md — Owner reviews P10-BL-23 and P10-BL-20 item 3; UAT 18 and 19 reminder (carry-over)
-- [ ] 11-07-PLAN.md — Site contact details from the database, cached public read, JSON-LD and boot data (PUB-02, PUB-03, PUB-04, CONT-01, CONT-05)
-- [ ] 11-08-PLAN.md — Public layout, the four page heads, the 404 page and per-page budgets (PUB-01)
+- [x] 11-06-PLAN.md — Owner reviews P10-BL-23 and P10-BL-20 item 3; UAT 18 and 19 reminder (carry-over)
+- [x] 11-07-PLAN.md — Site contact details from the database, cached public read, JSON-LD and boot data (PUB-02, PUB-03, PUB-04, CONT-01, CONT-05)
+- [x] 11-08-PLAN.md — Public layout, the four page heads, the 404 page and per-page budgets (PUB-01)
 
 **Wave 3**
 - [ ] 11-09-PLAN.md — Manager Business Info write with every rule, audit and 409 (CONT-01, PUB-02, PUB-03)
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 5/38 | In Progress | - |
+| 11. Public Site & Content Management | 8/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
@@ -1593,6 +1593,15 @@ Plans:
 ### Phase 999.6: Owner items parked during Phase 10 execution (BACKLOG)
 
 **Goal:** Settle the owner decisions and manual checks parked while the owner was away during the Phase 10 run (2026-11-06 onward). Each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.7: Owner items parked during Phase 11 execution (BACKLOG)
+
+**Goal:** Settle the owner decisions and manual checks parked while the owner was away during the Phase 11 run (2026-11-11 onward). Each item is in `.planning/phases/999.7-owner-items-parked-during-phase-11-execution/DECISIONS.md`.
 **Requirements:** TBD
 **Plans:** 0 plans
 
