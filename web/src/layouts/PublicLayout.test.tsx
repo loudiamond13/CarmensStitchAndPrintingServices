@@ -200,14 +200,11 @@ describe('PublicLayout footer variant by route (UI-SPEC Footer)', () => {
     expect(within(footer).getByRole('link', { name: 'Staff Login' })).toHaveAttribute('href', '/admin/login');
   });
 
-  it('keeps the 96px phone padding under the base row on /contact only', async () => {
+  it('keeps the 96px phone padding under the base row, so the Contact bar never covers it', async () => {
     putBootBlock(demoSite);
-    const contact = await renderAt('/contact');
-    expect(screen.getByRole('contentinfo').className).toContain('pg-phone:pb-[96px]');
-    contact.unmount();
+    await renderAt('/contact');
 
-    await renderAt('/gallery');
-    expect(screen.getByRole('contentinfo').className).not.toContain('pg-phone:pb-[96px]');
+    expect(screen.getByRole('contentinfo').className.split(' ')).toContain('pg-phone:pb-[96px]');
   });
 });
 

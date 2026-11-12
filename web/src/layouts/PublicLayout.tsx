@@ -8,6 +8,7 @@
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
 //   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
 //     so a focused control stops 24px below it (WCAG 2.4.11).
+//   - Home and Products show the full footer; Gallery, Contact and the 404 page show the base row (UI-SPEC Footer).
 //   - On /contact the phone-only ContactBar sits after the footer (sticky to the bottom of the page root), and the page gets
 //     a bottom scroll padding at 767px and below, so a focused control stops clear of the bar (PUB-06, WCAG 2.4.11).
 //   - PERF-01: the components come from their own modules, not the `@/components/*` barrels. A barrel re-exports admin-only
@@ -37,13 +38,15 @@ function currentSiteLink(pathname: string): string {
 
 export function PublicLayout() {
   const { pathname } = useLocation();
-  const onContact = currentSiteLink(pathname) === 'Contact';
+  const link = currentSiteLink(pathname);
+  const onContact = link === 'Contact';
+  const fullFooter = link === 'Home' || link === 'Products';
   const loading = useNavigation().state === 'loading';
   return (
     <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
-        <SiteHeader active={currentSiteLink(pathname)} />
+        <SiteHeader active={link} />
         <main
           id="main"
           tabIndex={-1}
@@ -55,7 +58,7 @@ export function PublicLayout() {
         >
           <Outlet />
         </main>
-        <SiteFooter />
+        <SiteFooter variant={fullFooter ? 'full' : 'base'} />
         {onContact && (
           <Suspense fallback={null}>
             <ContactBarSlot />

@@ -36,6 +36,9 @@ const columnTitleClasses = tw('mb-4 font-display text-[16px] font-bold tracking-
 const columnListClasses = tw('flex flex-col gap-3 text-[14px] leading-5');
 const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
+const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
+/** The base footer: the full footer's shell (App. C `.s-foot`), with its 96px bottom padding on phones, which keeps the Contact bar off the last row. */
+const baseFooterClasses = tw('border-t border-line bg-bg pt-16 pb-8 pg-phone:pb-[96px]');
 
 /** The social squares for the links that are set, in the order FB, IG, TT. */
 function socialsOf(site: PublicSite) {
@@ -96,9 +99,36 @@ function ContactColumn({ site }: { site: PublicSite | undefined }) {
   );
 }
 
-export function SiteFooter() {
+function StaffLogin() {
+  return (
+    <UiLink to="/admin/login" className={staffLinkClasses}>
+      <Icon name="lock" size={14} />
+      {FOOTER.staffLogin}
+    </UiLink>
+  );
+}
+
+export interface SiteFooterProps {
+  /** The full four columns (Home, Products) or one row (Gallery, Contact, 404). */
+  variant?: 'full' | 'base';
+}
+
+export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
   const query = useSiteQuery();
   const site = query.status === 'success' ? query.data : undefined;
+  if (variant === 'base') {
+    return (
+      <footer className={baseFooterClasses}>
+        <div className="mx-auto max-w-(--container-max) px-6 pg-phone:px-4">
+          <div className="flex flex-wrap justify-between gap-3 text-[12px] leading-4 text-ink-subtle">
+            <Logo size="sm" />
+            {site !== undefined && <span>{FOOTER.baseCopyright(Number(site.year), site.businessName)}</span>}
+            <StaffLogin />
+          </div>
+        </div>
+      </footer>
+    );
+  }
   const failed = query.status === 'error';
   const socials = site === undefined ? [] : socialsOf(site);
   const showVisit = !failed && (site === undefined || addressLine(site.address) !== '');
@@ -144,13 +174,7 @@ export function SiteFooter() {
         </div>
         <div className="mt-12 flex flex-wrap justify-between gap-3 border-t-2 border-dashed border-line pt-6 text-[12px] leading-4 text-ink-subtle">
           {site !== undefined && <span>{FOOTER.copyright(Number(site.year), site.businessName)}</span>}
-          <UiLink
-            to="/admin/login"
-            className="inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink"
-          >
-            <Icon name="lock" size={14} />
-            {FOOTER.staffLogin}
-          </UiLink>
+          <StaffLogin />
         </div>
       </div>
     </footer>

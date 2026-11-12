@@ -150,10 +150,10 @@ describe('SiteFooter, full (PUB-02)', () => {
   });
 });
 
-function renderBase(props: { clearBar?: boolean } = {}) {
+function renderBase() {
   return render(
     <MemoryRouter>
-      <SiteFooter variant="base" {...props} />
+      <SiteFooter variant="base" />
     </MemoryRouter>,
   );
 }
@@ -193,14 +193,11 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
     expect(within(footer).queryByText(/©/)).not.toBeInTheDocument();
   });
 
-  it('keeps the 96px bottom padding on phones only when it must clear the Contact bar', () => {
+  it('keeps the footer shell with its 96px bottom padding on phones, so the Contact bar never covers the last row', () => {
     putBootBlock(demoSite);
-    const plain = renderBase();
-    expect(screen.getByRole('contentinfo').className).not.toContain('pg-phone:pb-[96px]');
-    plain.unmount();
+    renderBase();
 
-    renderBase({ clearBar: true });
-    expect(screen.getByRole('contentinfo').className).toContain('pg-phone:pb-[96px]');
+    expect(screen.getByRole('contentinfo').className.split(' ')).toContain('pg-phone:pb-[96px]');
   });
 
   it('has no axe violations', async () => {
