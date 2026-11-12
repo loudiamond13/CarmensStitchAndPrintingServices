@@ -2,7 +2,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NuqsTestingAdapter } from 'nuqs/adapters/testing';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, Link, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
@@ -128,7 +128,15 @@ function renderTwoTabs(search = '') {
   const router = createMemoryRouter(
     [
       { path: '/admin', element: <p>The dashboard</p> },
-      { path: '/admin/site-content', element: <SiteContentPage panels={TWO_TABS} /> },
+      {
+        path: '/admin/site-content',
+        element: (
+          <>
+            <Link to="/admin">Back to the dashboard</Link>
+            <SiteContentPage panels={TWO_TABS} />
+          </>
+        ),
+      },
       { path: '/admin/login', element: <p>Sign-in page</p> },
     ],
     { initialEntries: ['/admin/site-content'] },
@@ -244,9 +252,7 @@ describe('leaving a tab with unsaved changes (S0, 08 D-58)', () => {
     const { user, router } = await openTwoTabs();
     await typeTagline(user, 'Unsaved words.');
 
-    await act(async () => {
-      await router.navigate('/admin');
-    });
+    await user.click(screen.getByRole('link', { name: 'Back to the dashboard' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
     await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
@@ -257,9 +263,7 @@ describe('leaving a tab with unsaved changes (S0, 08 D-58)', () => {
   it('leaves for the other page on Discard Changes', async () => {
     const { user, router } = await openTwoTabs();
     await typeTagline(user, 'Unsaved words.');
-    await act(async () => {
-      await router.navigate('/admin');
-    });
+    await user.click(screen.getByRole('link', { name: 'Back to the dashboard' }));
 
     await user.click(
       within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {

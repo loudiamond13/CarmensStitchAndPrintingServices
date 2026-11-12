@@ -6,6 +6,9 @@
 //   - Every rule the server checks is checked here first (businessInfoSchema, OR-3): a field is checked when it is left, every rule runs
 //     on submit, and after a submit a field with an error is checked again as it is typed in. Focus goes to the first invalid field.
 //     Nothing is sent while a rule is broken. A server 400 lands on its own fields and wins.
+//   - A stale save (409 edit.stale, SEC-07) shows the shared ConflictBanner at the top of the panel and keeps every typed value. Load Latest asks
+//     "Discard changes?" first (08 D-58), then reads the settings again and replaces the typed values and the version (05 D-20).
+//   - Undo Changes puts every field, the phone rows included, back to the saved values at once; it is aria-disabled while nothing changed.
 //   - A save that goes through shows the toast, puts the saved settings in the query cache and clears the public data held in this
 //     browser (invalidatePublicContent). Focus stays on Save.
 //   - The tab tells its page whether anything is unsaved (`onDirtyChange`), so the page can ask before a tab change or a leave.
@@ -15,10 +18,13 @@ import { Controller, FormProvider, useForm, type Control, type Path } from 'reac
 import { Button } from '@/components/actions';
 import { useToast } from '@/components/feedback';
 import { Field } from '@/components/forms';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { ConfirmDialog } from '@/components/overlays';
 import { RecordMeta } from '@/components/data';
-import { ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
+import { ConflictBanner, ErrorState, LoadingRegion, SkeletonText } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
+import { describeHttpError } from '@/utils/describeHttpError';
 import { PhoneNumbersField } from '@/modules/admin/components/PhoneNumbersField';
 import {
   recordMetaClasses,
@@ -48,6 +54,12 @@ import {
 } from '@/modules/admin/siteContentSchemas';
 
 const COPY = SITE_CONTENT_COPY.business;
+
+/** The machine code of a save made against an old edit version (SEC-07). */
+const EDIT_STALE = 'edit.stale';
+
+/** The latest settings from the server, or why they could not be read. */
+export type ReloadResult = { readonly settings: SiteSettings } | { readonly error: unknown };
 
 /** The fields that hold one text. */
 type TextName = Exclude<keyof BusinessInfoInput, 'phones'>;
@@ -180,13 +192,23 @@ function Card({ title, hint, children }: CardProps) {
 interface BusinessInfoFormProps {
   settings: SiteSettings;
   onDirtyChange: ((dirty: boolean) => void) | undefined;
+  /** Reads the settings from the server again (Load Latest). */
+  reload: () => Promise<ReloadResult>;
 }
 
-function BusinessInfoForm({ settings, onDirtyChange }: BusinessInfoFormProps) {
+function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormProps) {
   const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   // The settings version this form was opened with: changed only by a save of this form.
   const [version, setVersion] = useState(settings.version);
+  // What Undo Changes goes back to: the values the form opened with, then those of the last save or of Load Latest.
+  const [baseline, setBaseline] = useState(() => businessInfoValuesOf(settings));
+  // How many stale saves the server has refused since the form was last current; the banner shows from the first.
+  const [conflicts, setConflicts] = useState(0);
+  const [loadingLatest, setLoadingLatest] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // The polite line read out after Load Latest.
+  const [status, setStatus] = useState('');
   // Counts the times focus should move to the first flagged field once its message is on screen.
   const [focusTick, setFocusTick] = useState(0);
   const form = useForm<BusinessInfoInput>({
@@ -220,11 +242,18 @@ function BusinessInfoForm({ settings, onDirtyChange }: BusinessInfoFormProps) {
 
   const { submit, pending } = useUpdateSiteSettings({
     onSuccess: (saved) => {
+      const savedValues = businessInfoValuesOf(saved);
       setVersion(saved.version);
-      reset(businessInfoValuesOf(saved));
+      setBaseline(savedValues);
+      setConflicts(0);
+      reset(savedValues);
       toast.show({ title: COPY.toast.title, message: COPY.toast.message });
     },
     onFailure: (copy, error) => {
+      if (isHttpError(error) && error.status === 409 && error.code === EDIT_STALE) {
+        setConflicts((count) => count + 1);
+        return;
+      }
       if (isHttpError(error) && error.status === 400) {
         let placed = 0;
         let other: string | undefined;
@@ -253,6 +282,27 @@ function BusinessInfoForm({ settings, onDirtyChange }: BusinessInfoFormProps) {
     },
   });
 
+  /** Load Latest, once the person has agreed to lose what was typed: the values are replaced only when the latest version has arrived. */
+  const loadLatest = async (): Promise<void> => {
+    setLoadingLatest(true);
+    const result = await reload();
+    setLoadingLatest(false);
+    if ('error' in result) {
+      const copy = describeHttpError(result.error);
+      if (copy !== null) {
+        toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+      }
+      return;
+    }
+    const latest = businessInfoValuesOf(result.settings);
+    setVersion(result.settings.version);
+    setBaseline(latest);
+    setConflicts(0);
+    reset(latest);
+    setStatus(COPY.latestLoaded);
+    formRef.current?.querySelector<HTMLElement>('input')?.focus();
+  };
+
   const onValid = async (values: BusinessInfoInput): Promise<void> => {
     await submit(toSiteSettingsRequest(values, version));
   };
@@ -273,6 +323,15 @@ function BusinessInfoForm({ settings, onDirtyChange }: BusinessInfoFormProps) {
           void handleSubmit(onValid, onInvalid)(event);
         }}
       >
+        {conflicts > 0 && (
+          <ConflictBanner
+            key={conflicts}
+            pending={loadingLatest}
+            onLoadLatest={() => {
+              setAsking(true);
+            }}
+          />
+        )}
         <Card title={COPY.cards.business.title} hint={COPY.cards.business.hint}>
           <div className={profileFormGridClasses}>
             <TextField
@@ -412,11 +471,39 @@ function BusinessInfoForm({ settings, onDirtyChange }: BusinessInfoFormProps) {
           lastChangedAt={settings.updatedAtUtc}
         />
         <div className={siteContentActionsClasses}>
+          <Button
+            variant="secondary"
+            aria-disabled={!isDirty || pending}
+            onClick={() => {
+              if (isDirty && !pending) {
+                reset(baseline);
+              }
+            }}
+          >
+            {COPY.actions.undo}
+          </Button>
           <Button type="submit" variant="primary" icon="check" pending={pending}>
             {pending ? COPY.actions.saving : COPY.actions.save}
           </Button>
         </div>
       </form>
+      <div role="status" aria-live="polite" className={srOnlyClasses}>
+        {status}
+      </div>
+      <ConfirmDialog
+        open={asking}
+        title={SITE_CONTENT_COPY.discard.title}
+        message={SITE_CONTENT_COPY.discard.loadLatestMessage}
+        cancelLabel={SITE_CONTENT_COPY.discard.keep}
+        confirmLabel={SITE_CONTENT_COPY.discard.discard}
+        onConfirm={() => {
+          setAsking(false);
+          void loadLatest();
+        }}
+        onCancel={() => {
+          setAsking(false);
+        }}
+      />
     </FormProvider>
   );
 }
@@ -440,9 +527,13 @@ export interface BusinessInfoTabProps {
 export function BusinessInfoTab({ onDirtyChange }: BusinessInfoTabProps) {
   const query = useSiteSettingsQuery();
   const settings = query.data;
+  const reload = async (): Promise<ReloadResult> => {
+    const result = await query.refetch();
+    return result.isError || result.data === undefined ? { error: result.error } : { settings: result.data };
+  };
   let content;
   if (settings !== undefined) {
-    content = <BusinessInfoForm settings={settings} onDirtyChange={onDirtyChange} />;
+    content = <BusinessInfoForm settings={settings} onDirtyChange={onDirtyChange} reload={reload} />;
   } else if (query.isError) {
     content = (
       <ErrorState
