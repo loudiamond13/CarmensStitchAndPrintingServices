@@ -1705,6 +1705,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/product-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,
+         *     `title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and
+         *     `minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each
+         *     null until a photo is added) and `hasGalleryItems`. A hidden line is left out; with none shown the list is empty. A request
+         *     whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicProductLines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/site": {
         parameters: {
             query?: never;
@@ -4123,6 +4146,25 @@ export interface components {
             /** @description A short reason shown to visitors; null when there is none. */
             note: null | string;
         };
+        /** @description The five "what you can customize" texts of a product line, always in this order on the page. */
+        PublicCustomizeDto: {
+            /** @description What the Collar style card says. */
+            collar: string;
+            /** @description What the Cut and fit card says. */
+            cut: string;
+            /** @description What the Fabric card says. */
+            fabric: string;
+            /** @description What the Logos and sponsors card says. */
+            logos: string;
+            /** @description What the Names and numbers card says. */
+            names: string;
+        };
+        /** @description The three photo slots of a product line; a slot with no photo is null and the page shows the drawing. */
+        PublicLinePhotosDto: {
+            back: null | components["schemas"]["PublicPhotoDto"];
+            fabric: null | components["schemas"]["PublicPhotoDto"];
+            main: null | components["schemas"]["PublicPhotoDto"];
+        };
         /** @description One public phone number. */
         PublicPhoneDto: {
             /** @description The number as people read it, such as "0917 123 4567". */
@@ -4133,6 +4175,61 @@ export interface components {
             isMain: boolean;
             /** @description An optional label such as "Globe"; null when not set. */
             label: null | string;
+        };
+        /** @description One photo of a product line, as the public page draws it. */
+        PublicPhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The address of the photo at its largest size. */
+            src: string;
+            /** @description The `srcset` text with the smaller sizes. */
+            srcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description One product line a visitor sees (PUB-02). */
+        PublicProductLineDto: {
+            /** @description The Home card text. */
+            cardText: string;
+            /** @description The five "what you can customize" texts. */
+            customize: components["schemas"]["PublicCustomizeDto"];
+            /** @description The Products page description. */
+            description: string;
+            /** @description True when the Gallery has a photo under this line, so "See {short name} work" has something to show. */
+            hasGalleryItems: boolean;
+            /** @description The key the page anchors and gallery filters use, such as "basketball". */
+            key: string;
+            /**
+             * Format: int32
+             * @description The minimum order in pieces; null when there is none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description The number drawn on the jersey and the empty photo boxes, such as "23". */
+            number: string;
+            /** @description The photos; each slot is null until a Manager adds one. */
+            photos: components["schemas"]["PublicLinePhotosDto"];
+            /** @description The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The short name, such as "Basketball". */
+            shortName: string;
+            /**
+             * Format: double
+             * @description The starting price per piece in pesos; null means "Message us for a price".
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title, such as "Basketball Jerseys". */
+            title: string;
+        };
+        /** @description The shown product lines in display order; empty when the Manager has hidden all of them (CONT-02). */
+        PublicProductLinesDto: {
+            /** @description The lines. */
+            lines: components["schemas"]["PublicProductLineDto"][];
         };
         /**
          * @description The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is
@@ -10587,6 +10684,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenStatusDto"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicProductLines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProductLinesDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Too Many Requests */

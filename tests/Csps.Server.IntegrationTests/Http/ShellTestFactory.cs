@@ -76,4 +76,14 @@ internal sealed class StubPublicContentReader : IPublicContentReader
 
     public ValueTask<PublicSiteSnapshot> GetSiteAsync(CancellationToken cancellationToken) =>
         _failure is not null ? throw _failure : ValueTask.FromResult(_snapshot!);
+
+    public ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken) =>
+        _failure is not null ? throw _failure : ValueTask.FromResult(Lines(new PublicProductLinesDto([])));
+
+    public static PublicProductLinesSnapshot Lines(PublicProductLinesDto lines)
+    {
+        var json = JsonSerializer.Serialize(lines, JsonOptions);
+        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+        return new PublicProductLinesSnapshot(lines, new PublicJsonSnapshot(json, etag, new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero)));
+    }
 }

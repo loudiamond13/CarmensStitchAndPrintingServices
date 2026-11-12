@@ -10,4 +10,9 @@ public interface IPublicContentReader
     /// <returns>The snapshot.</returns>
     /// <exception cref="InvalidOperationException">The site settings row is missing (the migrations were not applied).</exception>
     ValueTask<PublicSiteSnapshot> GetSiteAsync(CancellationToken cancellationToken);
+
+    /// <summary>Returns the shown product lines in display order; served from the cache until a content change clears it.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The snapshot; its list is empty when no line is shown.</returns>
+    ValueTask<PublicProductLinesSnapshot> GetProductLinesAsync(CancellationToken cancellationToken);
 }

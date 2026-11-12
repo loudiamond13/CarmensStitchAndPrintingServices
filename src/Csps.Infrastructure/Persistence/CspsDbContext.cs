@@ -36,6 +36,12 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The holidays and closures: days the shop is closed whatever its weekly hours say (CONT-04).</summary>
     public DbSet<ShopClosure> ShopClosures => Set<ShopClosure>();
 
+    /// <summary>The public product lines, six of them inserted by the migration (D-01, D-06).</summary>
+    public DbSet<ProductLine> ProductLines => Set<ProductLine>();
+
+    /// <summary>The photos of the product lines, at most one in each of three slots (D-02).</summary>
+    public DbSet<ProductLinePhoto> ProductLinePhotos => Set<ProductLinePhoto>();
+
     /// <summary>The append-only audit log. Add entries only; the database rejects changes and removals.</summary>
     public DbSet<AuditEntry> AuditLog => Set<AuditEntry>();
 

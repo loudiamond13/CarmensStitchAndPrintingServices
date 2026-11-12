@@ -17,12 +17,13 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="site">The site facts handler.</param>
 /// <param name="openStatus">The open-status handler.</param>
+/// <param name="productLines">The product lines handler.</param>
 [ApiController]
 [Route("api/v1/public")]
 [AllowAnonymous]
 [EnableRateLimiting(RateLimitPolicies.PublicRead)]
 [Produces("application/json")]
-public sealed class PublicSiteController(GetPublicSiteHandler site, GetOpenStatusHandler openStatus) : ControllerBase
+public sealed class PublicSiteController(GetPublicSiteHandler site, GetOpenStatusHandler openStatus, GetPublicProductLinesHandler productLines) : ControllerBase
 {
     private const string OpenStatusCacheControl = "public, max-age=60";
 
@@ -41,6 +42,26 @@ public sealed class PublicSiteController(GetPublicSiteHandler site, GetOpenStatu
     public async Task<IResult> GetPublicSite(CancellationToken cancellationToken)
     {
         var result = await site.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, snapshot => Conditional(snapshot.Json));
+    }
+
+    /// <summary>
+    /// Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): <c>lines</c>, each with its <c>key</c>, <c>number</c>,
+    /// <c>title</c>, <c>shortName</c>, <c>cardText</c>, <c>description</c>, the five <c>customize</c> texts, <c>startsAtPrice</c> and
+    /// <c>minimumQuantity</c> (null when not set), <c>placeholderArt</c>, <c>photos</c> (<c>main</c>, <c>back</c> and <c>fabric</c>, each
+    /// null until a photo is added) and <c>hasGalleryItems</c>. A hidden line is left out; with none shown the list is empty. A request
+    /// whose <c>If-None-Match</c> matches the current ETag gets 304.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the lines, 304 when the visitor's copy is current, or 429 when the address reads too often.</returns>
+    [HttpGet("product-lines")]
+    [EndpointName("GetPublicProductLines")]
+    [ProducesResponseType<PublicProductLinesDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> GetPublicProductLines(CancellationToken cancellationToken)
+    {
+        var result = await productLines.HandleAsync(cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, snapshot => Conditional(snapshot.Json));
     }
 
