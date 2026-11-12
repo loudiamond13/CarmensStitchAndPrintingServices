@@ -23,9 +23,11 @@ import {
   heroH1Classes,
   leadClasses,
 } from '../components/public.recipe';
+import { CategoriesError, CategorySkeletons } from '../components/CategoryStates';
 import { CategoryGrid } from '../components/CategoryGrid';
 import { HeroArt } from '../components/HeroArt';
 import { LazyHomeSections } from '../components/lazyHome';
+import { PublicLoadingRegion, type LoadingMessages } from '../components/ProductStates';
 import { PUBLIC_COPY } from '../copy';
 import { useHomeQuery } from '../hooks/useHomeQuery';
 import { usePageTitle } from '../hooks/usePageTitle';
@@ -34,6 +36,10 @@ import type { PublicTestimonial } from '../services/contentService';
 
 const CHIP_ICONS: readonly IconName[] = ['printer', 'shirt', 'users'];
 const NO_TESTIMONIALS: readonly PublicTestimonial[] = [];
+const PAGE_MESSAGES: LoadingMessages = {
+  loading: PUBLIC_COPY.states.loading.page,
+  loaded: PUBLIC_COPY.states.loaded.page,
+};
 
 export function HomePage() {
   usePageTitle(PUBLIC_COPY.titles.home);
@@ -45,7 +51,9 @@ export function HomePage() {
   const messengerUrl = context?.messengerUrl ?? null;
   const turnaroundLine = context?.turnaroundLine ?? null;
   const lines = query.status === 'success' ? query.data.lines : undefined;
-  const testimonials = query.status === 'success' ? query.data.testimonials : undefined;
+  // Loading: undefined (three frames). A failed read leaves the testimonials out, as a decorative section shows no error.
+  const testimonials =
+    query.status === 'success' ? query.data.testimonials : query.status === 'error' ? NO_TESTIMONIALS : undefined;
   return (
     <>
       <section className={heroClasses}>
@@ -78,14 +86,22 @@ export function HomePage() {
           <HeroArt />
         </div>
       </section>
-      {lines !== undefined && lines.length > 0 && <CategoryGrid lines={lines} />}
-      <Suspense fallback={null}>
-        <LazyHomeSections
-          testimonials={testimonials ?? NO_TESTIMONIALS}
-          turnaroundLine={turnaroundLine}
-          messengerUrl={messengerUrl}
-        />
-      </Suspense>
+      <PublicLoadingRegion
+        loading={query.status === 'loading'}
+        failed={query.status === 'error'}
+        messages={PAGE_MESSAGES}
+      >
+        {query.status === 'error' ? (
+          <CategoriesError onRetry={query.retry} />
+        ) : lines === undefined ? (
+          <CategorySkeletons />
+        ) : (
+          lines.length > 0 && <CategoryGrid lines={lines} />
+        )}
+        <Suspense fallback={null}>
+          <LazyHomeSections testimonials={testimonials} turnaroundLine={turnaroundLine} messengerUrl={messengerUrl} />
+        </Suspense>
+      </PublicLoadingRegion>
     </>
   );
 }

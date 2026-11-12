@@ -1,7 +1,8 @@
-// The Products loading region and error banner (UI-SPEC P1 States). They look and speak like the shared LoadingRegion and
+// The public loading region and error banner (UI-SPEC P1 and H1 States). They look and speak like the shared LoadingRegion and
 // ErrorState, but are written here: the Products page reading those two shared parts changed how the build groups the
 // chunks that Contact and the admin share, which cost every Contact visitor about 0.3 KB and put its bundle over the 150 KB
-// limit (PERF-01). Only parts the page already uses are imported.
+// limit (PERF-01). Only parts the page already uses are imported. The Home page uses the same two parts: its categories fail
+// with the same words, and its region announces "Loading the page…".
 import { useState, type ReactNode } from 'react';
 import { buttonClasses } from '@/components/actions/button.recipe';
 import { Icon } from '@/components/brand/Icon';
@@ -11,22 +12,36 @@ import { PUBLIC_COPY } from '../copy';
 
 const { errors, loading: LOADING, loaded: LOADED } = PUBLIC_COPY.states;
 
-export interface ProductsLoadingRegionProps {
+/** The two polite announcements of a loading region. */
+export interface LoadingMessages {
+  readonly loading: string;
+  readonly loaded: string;
+}
+
+const PRODUCT_MESSAGES: LoadingMessages = { loading: LOADING.products, loaded: LOADED.products };
+
+export interface PublicLoadingRegionProps {
   /** True while the first load runs. */
   loading: boolean;
+  /** What the region says when it starts and when it is done. */
+  messages: LoadingMessages;
+  /** The load that just ended failed: the error banner announces that, so the region says nothing. */
+  failed?: boolean;
   children?: ReactNode;
 }
 
+type Phase = 'idle' | 'loading' | 'loaded' | 'failed';
+
 /** The content with aria-busy while it loads, and one polite status line: "Loading the product lines…", then "The product lines loaded.". */
-export function ProductsLoadingRegion({ loading, children }: ProductsLoadingRegionProps) {
-  const [phase, setPhase] = useState<'idle' | 'loading' | 'loaded'>(loading ? 'loading' : 'idle');
+export function PublicLoadingRegion({ loading, messages, failed = false, children }: PublicLoadingRegionProps) {
+  const [phase, setPhase] = useState<Phase>(loading ? 'loading' : 'idle');
   const [wasLoading, setWasLoading] = useState(loading);
   // Track the loading edges during render, so the announcement changes in the same render as aria-busy.
   if (loading !== wasLoading) {
     setWasLoading(loading);
-    setPhase(loading ? 'loading' : 'loaded');
+    setPhase(loading ? 'loading' : failed ? 'failed' : 'loaded');
   }
-  const message = phase === 'loading' ? LOADING.products : phase === 'loaded' ? LOADED.products : '';
+  const message = phase === 'loading' ? messages.loading : phase === 'loaded' ? messages.loaded : '';
   return (
     <>
       <div aria-busy={loading || undefined}>{children}</div>
@@ -34,6 +49,21 @@ export function ProductsLoadingRegion({ loading, children }: ProductsLoadingRegi
         {message}
       </div>
     </>
+  );
+}
+
+export interface ProductsLoadingRegionProps {
+  /** True while the first load runs. */
+  loading: boolean;
+  children?: ReactNode;
+}
+
+/** The Products page's region: "Loading the product lines…", then "The product lines loaded.". */
+export function ProductsLoadingRegion({ loading, children }: ProductsLoadingRegionProps) {
+  return (
+    <PublicLoadingRegion loading={loading} messages={PRODUCT_MESSAGES}>
+      {children}
+    </PublicLoadingRegion>
   );
 }
 

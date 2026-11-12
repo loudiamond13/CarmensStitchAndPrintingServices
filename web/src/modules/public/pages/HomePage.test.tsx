@@ -20,6 +20,14 @@ import {
   siteWithoutOptionals,
 } from '@/test/publicFixtures';
 
+/** The first card's text: it shows only once the home data is in (the loading shape has the section head but no cards). */
+const FIRST_CARD_TEXT = 'Full sublimation tops and shorts, any colorway, names and numbers included.';
+
+/** Waits for the category cards to replace their loading shape. */
+async function cardsShown() {
+  return screen.findByText(FIRST_CARD_TEXT, undefined, { timeout: 15_000 });
+}
+
 /** The real route tree at /, settled once the hero h1 is on screen. */
 async function renderHome() {
   const router = createMemoryRouter(routes, { initialEntries: ['/'] });
@@ -93,7 +101,7 @@ describe('HomePage product categories (PUB-02, D-34, D-42)', { timeout: 20_000 }
   it('shows one category card per active line, each linking to its place on Products', async () => {
     await renderHome();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 })).toBeVisible();
+    await cardsShown();
     const main = within(screen.getByRole('main'));
     const cards = main.getAllByRole('link').filter((link) => link.getAttribute('href')?.startsWith('/products#'));
     expect(cards).toHaveLength(6);
@@ -115,13 +123,13 @@ describe('HomePage product categories (PUB-02, D-34, D-42)', { timeout: 20_000 }
 
     await renderHome();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeVisible();
+    expect(await cardsShown()).toBeVisible();
     expect(requests).toBe(0);
   });
 
   it('has no axe violations with the categories showing', async () => {
     const { container } = await renderHome();
-    await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 });
+    await cardsShown();
 
     await expectNoAxeViolations(container);
   });
@@ -133,7 +141,8 @@ describe('HomePage story (PUB-01, D-05, D-36, PUB-06)', { timeout: 20_000 }, () 
 
   async function renderSettled() {
     const view = await renderHome();
-    await screen.findByRole('heading', { level: 2, name: 'Teams that suit up with us.' }, { timeout: 15_000 });
+    await cardsShown();
+    await screen.findAllByRole('figure', undefined, { timeout: 15_000 });
     return view;
   }
 
@@ -226,7 +235,7 @@ describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }
     for (const frame of container.querySelectorAll('[data-home-skeleton="testimonial"]')) {
       expect(frame.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(4);
     }
-    expect(container.querySelectorAll('[data-home-skeleton="card"] [style*="--ratio: 4 / 5"]')).toHaveLength(6);
+    expect(container.querySelectorAll('[data-home-skeleton="card"] [class~="aspect-4/5"]')).toHaveLength(6);
     expect(screen.queryByRole('figure')).toBeNull();
     await expectNoAxeViolations(container);
 
@@ -246,9 +255,11 @@ describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Made to move. Made to last.' }, { timeout: 15_000 }),
     ).toBeVisible();
+    // The testimonials come with the same data: once they show, the loading shape of the categories is gone.
+    expect(await screen.findAllByRole('figure', undefined, { timeout: 15_000 })).toHaveLength(3);
     expect(screen.queryByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'All products' })).toBeNull();
-    expect(await screen.findByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
     await expectNoAxeViolations(container);
   });
 
@@ -257,7 +268,7 @@ describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }
 
     const { container } = await renderHome();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 })).toBeVisible();
+    await cardsShown();
     expect(await screen.findByRole('heading', { level: 2, name: "Got a team? Let's suit them up." })).toBeVisible();
     expect(screen.queryByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeNull();
     expect(screen.queryByRole('figure')).toBeNull();
@@ -287,7 +298,7 @@ describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }
     server.use(homeHandler(demoHome));
     await userEvent.click(retry);
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeVisible();
+    await cardsShown();
     expect(await screen.findAllByRole('figure')).toHaveLength(3);
     expect(screen.queryByRole('alert')).toBeNull();
   });

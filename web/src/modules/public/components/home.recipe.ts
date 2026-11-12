@@ -53,6 +53,17 @@ export const catSkeletonBodyClasses = tw(
 /** A skeleton card: the card's own frame around the 4:5 media. */
 export const catSkeletonClasses = tw('overflow-hidden rounded-md border border-line bg-surface');
 
+/** A skeleton card's media: the 4:5 box the photo or the placeholder fills, so the cards do not move when they land. */
+export const catSkeletonMediaClasses = tw('aspect-4/5');
+
+/** A skeleton card's text lines, 8px apart. */
+export const skeletonLinesClasses = tw('grid gap-2');
+
+/** A skeleton testimonial frame: the card's own look at about its height (stars, three lines of quote, the byline). */
+export const testimonialSkeletonClasses = tw(
+  'flex min-h-[232px] flex-col gap-4 rounded-md border border-line bg-surface p-6',
+);
+
 /* ───────────── hero drawing (App. C `.s-hero-art*`) ───────────── */
 
 /** `.s-hero-art`: a square the drawing is stacked in. */
