@@ -1465,6 +1465,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/product-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every product line, shown and hidden, in display order. Each has its id, key, title, short name, starting price and minimum
+         *     order (null when not set), whether it is shown, its position from 1, the small main photo (null until it has one), the ids of the
+         *     order product types filed under it, how many shown gallery items and photos it has, whether it can be deleted, and the version an
+         *     edit must send back.
+         */
+        get: operations["ListProductLines"];
+        put?: never;
+        /**
+         * Adds a product line. The line goes to the end of the order with the custom drawing and is hidden unless `isActive` is true.
+         *     Its URL key is made once from the short name and never changes. A retry with the same `Idempotency-Key` and body answers
+         *     with the stored 201 and adds nothing more. Who added it and when come from the token and the clock; any such member in the body
+         *     is ignored.
+         */
+        post: operations["CreateProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one product line with every field, the order product types filed under it, its version and who last changed it. */
+        get: operations["GetProductLine"];
+        /**
+         * Edits a product line with the version the form was opened with. The values follow the same rules as when adding. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. The key never changes. Who changed it and when come from the token and the
+         *     clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateProductLine"];
+        post?: never;
+        /** Deletes a product line for good. It takes no version. Deleting a line that is already gone is a 404. */
+        delete: operations["DeleteProductLine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides a line: it and everything filed under it leave the public site, and nothing is lost. Hiding a hidden line is a 204 that
+         *     changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["HideProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a line one place up or down in the display order. A move at the end of the order is a 204 that changes and records nothing.
+         *     It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["MoveProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden line on the public site again. Showing a shown line is a 204 that changes and records nothing. It takes no
+         *     version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["ShowProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/product-types": {
         parameters: {
             query?: never;
@@ -3385,6 +3497,11 @@ export interface components {
             /** @description The base64 of the eight-byte row version of the order the page was opened with. */
             version: null | string;
         };
+        /** @description The move form: which way a line goes in the order. */
+        MoveProductLineRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+        };
         /** @description When the shop opens next, as facts the page turns into words (D-22). */
         NextOpeningDto: {
             /** @description The business date of the opening, "yyyy-MM-dd". */
@@ -4097,6 +4214,162 @@ export interface components {
             status?: null | number | string;
             title?: null | string;
             type?: null | string;
+        };
+        /** @description One product line with every field, for the editor (CONT-02). */
+        ProductLineDetailDto: {
+            /** @description The Home card text. */
+            cardText: string;
+            /** @description What the Collar style card says. */
+            collarText: string;
+            /**
+             * Format: date-time
+             * @description When the line was added.
+             */
+            createdAtUtc: string;
+            /** @description What the Cut and fit card says. */
+            cutText: string;
+            /** @description The Products page description. */
+            description: string;
+            /** @description What the Fabric card says. */
+            fabricText: string;
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description True while the line shows on the website. */
+            isActive: boolean;
+            /** @description The URL key; it never changes. */
+            key: string;
+            /** @description What the Logos and sponsors card says. */
+            logosText: string;
+            /**
+             * Format: int32
+             * @description The minimum order; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description What the Names and numbers card says. */
+            namesText: string;
+            /** @description The number on the drawing; empty for none. */
+            number: string;
+            /** @description The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The order product types filed under the line, A to Z. */
+            productTypeIds: string[];
+            /** @description The short name. */
+            shortName: string;
+            /**
+             * Format: double
+             * @description The starting price; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the line was last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed the line; null when no person did. */
+            updatedByName: null | string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /** @description One row of the Manager's product line list (CONT-02): what the Products tab shows and what its actions need. */
+        ProductLineListItemDto: {
+            /** @description True when nothing is filed under the line, so Delete is offered. */
+            canDelete: boolean;
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description True while the line shows on the website. */
+            isActive: boolean;
+            /** @description The URL key. */
+            key: string;
+            /** @description The small main photo; null until the line has one. */
+            mainPhotoThumb: null | string;
+            /**
+             * Format: int32
+             * @description The minimum order; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /**
+             * Format: int32
+             * @description How many photos the line has.
+             */
+            photoCount: number | string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The order product types filed under the line, A to Z. */
+            productTypeIds: string[];
+            /** @description The short name. */
+            shortName: string;
+            /**
+             * Format: int32
+             * @description How many shown gallery items are filed under the line.
+             */
+            shownGalleryCount: number | string;
+            /**
+             * Format: double
+             * @description The starting price; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title. */
+            title: string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /**
+         * @description The product line form (CONT-02, SEC-07), for adding and for editing. Any other member in the body is ignored: the key, the order, the
+         *     drawing, who changed the line and when come from the server (SEC-08).
+         */
+        ProductLineRequest: {
+            /** @description The Home card text, required, at most 140 characters. */
+            cardText: null | string;
+            /** @description What the Collar style card says, required, at most 120 characters. */
+            collarText: null | string;
+            /** @description What the Cut and fit card says, required, at most 120 characters. */
+            cutText: null | string;
+            /** @description The Products page description, required, at most 300 characters. */
+            description: null | string;
+            /** @description What the Fabric card says, required, at most 120 characters. */
+            fabricText: null | string;
+            /** @description True to show the line on the website. A new line is hidden when this is missing; an edit keeps the line as it is when this is missing. */
+            isActive: null | boolean;
+            /** @description What the Logos and sponsors card says, required, at most 120 characters. */
+            logosText: null | string;
+            /**
+             * Format: double
+             * @description The minimum order, a whole number from 1 to 9,999; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description What the Names and numbers card says, required, at most 120 characters. */
+            namesText: null | string;
+            /** @description The number on the drawing, up to 2 letters or digits; empty for none. */
+            number: null | string;
+            /** @description The order product types filed under this line. Missing on an edit keeps the links as they are; a list sets them exactly. */
+            productTypeIds: null | string[];
+            /** @description The short name, required, at most 20 characters, and not used by another line. */
+            shortName: null | string;
+            /**
+             * Format: double
+             * @description The starting price per piece, 0.01 to 999,999.99 with at most two decimals; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title, required, at most 60 characters. */
+            title: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The signed-in staff member's own profile (PROF-01). */
         ProfileResponse: {
@@ -9819,6 +10092,475 @@ export interface operations {
             header?: never;
             path: {
                 /** @description The payment method id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductLines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineListItemDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ProductLineRequest"];
+                "application/json": null | components["schemas"]["ProductLineRequest"];
+                "text/json": null | components["schemas"]["ProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ProductLineRequest"];
+                "application/json": null | components["schemas"]["ProductLineRequest"];
+                "text/json": null | components["schemas"]["ProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveProductLineRequest"];
+                "application/json": null | components["schemas"]["MoveProductLineRequest"];
+                "text/json": null | components["schemas"]["MoveProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
                 id: string;
             };
             cookie?: never;

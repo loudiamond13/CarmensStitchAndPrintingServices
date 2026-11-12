@@ -11,6 +11,15 @@ public static class SiteContentErrors
     /// <summary>The machine code of a form that breaks field rules.</summary>
     public const string InvalidCode = "site-content.invalid-request";
 
+    /// <summary>The machine code of a product line that does not exist.</summary>
+    public const string LineNotFoundCode = "product-lines.not-found";
+
+    /// <summary>The plain-English text for a product line that does not exist.</summary>
+    public const string LineNotFoundMessage = "This product line wasn't found.";
+
+    /// <summary>Gets the 404 for a product line that does not exist.</summary>
+    public static Error LineNotFound { get; } = Error.NotFound(LineNotFoundCode, LineNotFoundMessage);
+
     /// <summary>Turns a failed validation into the 400 that names every broken field.</summary>
     /// <param name="validation">The failed validation.</param>
     /// <returns>The error.</returns>

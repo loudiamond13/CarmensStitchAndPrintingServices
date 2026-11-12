@@ -2810,6 +2810,22 @@
         ],
         "type": "object"
       },
+      "MoveProductLineRequest": {
+        "description": "The move form: which way a line goes in the order.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
       "NextOpeningDto": {
         "description": "When the shop opens next, as facts the page turns into words (D-22).",
         "properties": {
@@ -4534,6 +4550,405 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "ProductLineDetailDto": {
+        "description": "One product line with every field, for the editor (CONT-02).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text.",
+            "type": "string"
+          },
+          "collarText": {
+            "description": "What the Collar style card says.",
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "description": "When the line was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "cutText": {
+            "description": "What the Cut and fit card says.",
+            "type": "string"
+          },
+          "description": {
+            "description": "The Products page description.",
+            "type": "string"
+          },
+          "fabricText": {
+            "description": "What the Fabric card says.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "description": "True while the line shows on the website.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The URL key; it never changes.",
+            "type": "string"
+          },
+          "logosText": {
+            "description": "What the Logos and sponsors card says.",
+            "type": "string"
+          },
+          "minimumQuantity": {
+            "description": "The minimum order; null for none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "namesText": {
+            "description": "What the Names and numbers card says.",
+            "type": "string"
+          },
+          "number": {
+            "description": "The number on the drawing; empty for none.",
+            "type": "string"
+          },
+          "placeholderArt": {
+            "description": "The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under the line, A to Z.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "startsAtPrice": {
+            "description": "The starting price; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          },
+          "updatedAtUtc": {
+            "description": "When the line was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed the line; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "title",
+          "shortName",
+          "number",
+          "cardText",
+          "description",
+          "fabricText",
+          "collarText",
+          "cutText",
+          "namesText",
+          "logosText",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "position",
+          "placeholderArt",
+          "productTypeIds",
+          "version",
+          "updatedByName",
+          "createdAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object"
+      },
+      "ProductLineListItemDto": {
+        "description": "One row of the Manager's product line list (CONT-02): what the Products tab shows and what its actions need.",
+        "properties": {
+          "canDelete": {
+            "description": "True when nothing is filed under the line, so Delete is offered.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "description": "True while the line shows on the website.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The URL key.",
+            "type": "string"
+          },
+          "mainPhotoThumb": {
+            "description": "The small main photo; null until the line has one.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minimumQuantity": {
+            "description": "The minimum order; null for none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "photoCount": {
+            "description": "How many photos the line has.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under the line, A to Z.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "shownGalleryCount": {
+            "description": "How many shown gallery items are filed under the line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "startsAtPrice": {
+            "description": "The starting price; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "title",
+          "shortName",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "position",
+          "mainPhotoThumb",
+          "productTypeIds",
+          "shownGalleryCount",
+          "photoCount",
+          "canDelete",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ProductLineRequest": {
+        "description": "The product line form (CONT-02, SEC-07), for adding and for editing. Any other member in the body is ignored: the key, the order, the\ndrawing, who changed the line and when come from the server (SEC-08).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text, required, at most 140 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "collarText": {
+            "description": "What the Collar style card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cutText": {
+            "description": "What the Cut and fit card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "The Products page description, required, at most 300 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fabricText": {
+            "description": "What the Fabric card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isActive": {
+            "description": "True to show the line on the website. A new line is hidden when this is missing; an edit keeps the line as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "logosText": {
+            "description": "What the Logos and sponsors card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minimumQuantity": {
+            "description": "The minimum order, a whole number from 1 to 9,999; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "namesText": {
+            "description": "What the Names and numbers card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number on the drawing, up to 2 letters or digits; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under this line. Missing on an edit keeps the links as they are; a list sets them exactly.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "shortName": {
+            "description": "The short name, required, at most 20 characters, and not used by another line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startsAtPrice": {
+            "description": "The starting price per piece, 0.01 to 999,999.99 with at most two decimals; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title, required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "shortName",
+          "number",
+          "cardText",
+          "description",
+          "fabricText",
+          "collarText",
+          "cutText",
+          "namesText",
+          "logosText",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "productTypeIds",
+          "version"
+        ],
         "type": "object"
       },
       "ProfileResponse": {
@@ -13945,6 +14360,650 @@
         ]
       }
     },
+    "/api/v1/product-lines": {
+      "get": {
+        "operationId": "ListProductLines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductLineListItemDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists every product line, shown and hidden, in display order. Each has its id, key, title, short name, starting price and minimum\norder (null when not set), whether it is shown, its position from 1, the small main photo (null until it has one), the ids of the\norder product types filed under it, how many shown gallery items and photos it has, whether it can be deleted, and the version an\nedit must send back.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "post": {
+        "operationId": "CreateProductLine",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a product line. The line goes to the end of the order with the custom drawing and is hidden unless `isActive` is true.\nIts URL key is made once from the short name and never changes. A retry with the same `Idempotency-Key` and body answers\nwith the stored 201 and adds nothing more. Who added it and when come from the token and the clock; any such member in the body\nis ignored.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}": {
+      "delete": {
+        "operationId": "DeleteProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Deletes a product line for good. It takes no version. Deleting a line that is already gone is a 404.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "get": {
+        "operationId": "GetProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one product line with every field, the order product types filed under it, its version and who last changed it.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a product line with the version the form was opened with. The values follow the same rules as when adding. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. The key never changes. Who changed it and when come from the token and the\nclock; any such member in the body is ignored.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/hide": {
+      "post": {
+        "operationId": "HideProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides a line: it and everything filed under it leave the public site, and nothing is lost. Hiding a hidden line is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/move": {
+      "post": {
+        "operationId": "MoveProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves a line one place up or down in the display order. A move at the end of the order is a 204 that changes and records nothing.\nIt takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/show": {
+      "post": {
+        "operationId": "ShowProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden line on the public site again. Showing a shown line is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
     "/api/v1/product-types": {
       "get": {
         "operationId": "ListProductTypes",
@@ -17286,6 +18345,9 @@
     },
     {
       "name": "PaymentMethods"
+    },
+    {
+      "name": "ProductLines"
     },
     {
       "name": "ProductTypes"

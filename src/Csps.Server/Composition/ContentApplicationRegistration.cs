@@ -26,6 +26,15 @@ public static class ContentApplicationRegistration
         services.AddScoped<UpdateShopClosureHandler>();
         services.AddScoped<DeleteShopClosureHandler>();
         services.AddSingleton<IValidator<ShopClosureRequest>, ShopClosureRequestValidator>();
+        services.AddScoped<ListProductLinesHandler>();
+        services.AddScoped<GetProductLineHandler>();
+        services.AddScoped<CreateProductLineHandler>();
+        services.AddScoped<UpdateProductLineHandler>();
+        services.AddScoped<MoveProductLineHandler>();
+        services.AddScoped<SetProductLineShownHandler>();
+        services.AddScoped<DeleteProductLineHandler>();
+        services.AddSingleton<IValidator<ProductLineRequest>, ProductLineRequestValidator>();
+        services.AddSingleton<IValidator<MoveProductLineRequest>, MoveProductLineRequestValidator>();
         return services;
     }
 }
