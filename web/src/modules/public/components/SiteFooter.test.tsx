@@ -19,17 +19,17 @@ afterEach(() => {
   resetPublicData();
 });
 
-function renderFooter(variant?: 'full' | 'base') {
+function renderFooter() {
   return render(
     <MemoryRouter>
-      <SiteFooter {...(variant === undefined ? {} : { variant })} />
+      <SiteFooter />
     </MemoryRouter>,
   );
 }
 
 function renderFullFrom(site: PublicSiteFixture) {
   putBootBlock(site);
-  return renderFooter('full');
+  return renderFooter();
 }
 
 describe('SiteFooter, full (PUB-02)', () => {
@@ -60,7 +60,9 @@ describe('SiteFooter, full (PUB-02)', () => {
     renderFullFrom(demoSite);
     const footer = screen.getByRole('contentinfo');
 
-    expect(within(footer).getByText('12 Sample St., Poblacion, Sample City, Sample Province, Philippines')).toBeInTheDocument();
+    expect(
+      within(footer).getByText('12 Sample St., Poblacion, Sample City, Sample Province, Philippines'),
+    ).toBeInTheDocument();
     expect(within(footer).getByRole('link', { name: '0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
     expect(within(footer).getByRole('link', { name: 'Message us on Messenger' })).toHaveAttribute(
       'href',
@@ -108,7 +110,7 @@ describe('SiteFooter, full (PUB-02)', () => {
 
   it('with no boot block, reads the API: two skeleton lines each in Visit and Contact while it loads, then the facts', async () => {
     answerSite(demoSite);
-    const { container } = renderFooter('full');
+    const { container } = renderFooter();
 
     expect(container.querySelectorAll('div[aria-hidden="true"] > span[aria-hidden="true"]')).toHaveLength(4);
     expect(screen.getByText('Visit')).toBeInTheDocument();
@@ -121,7 +123,7 @@ describe('SiteFooter, full (PUB-02)', () => {
 
   it('when the read fails, keeps Shop and Staff Login and drops the rows that need the facts', async () => {
     server.use(siteFailureHandler(404));
-    renderFooter('full');
+    renderFooter();
     const footer = screen.getByRole('contentinfo');
 
     await waitFor(() => {

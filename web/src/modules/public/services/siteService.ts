@@ -10,8 +10,9 @@ export interface SiteService {
 }
 
 export function createSiteService(client: HttpClient): SiteService {
-  void client;
-  return { getSite: () => Promise.reject(new Error('Not built yet.')) };
+  return {
+    getSite: (signal) => client.get<PublicSite>('/public/site', { signal }),
+  };
 }
 
 export const siteService: SiteService = createSiteService(apiClient);

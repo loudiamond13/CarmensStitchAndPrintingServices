@@ -8,8 +8,8 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
-import { SITE_CONTACT } from '@/modules/public/components/siteContact';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { demoSite, putBootBlock } from '@/test/publicFixtures';
 
 /** The public layout route tree (src/test/publicLayoutRoutes.ts) in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
@@ -144,14 +144,18 @@ describe('PublicLayout skip link (A11Y-02)', () => {
   });
 });
 
-describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
-  it('names the social links "CSPS on Facebook", "CSPS on Instagram" and "CSPS on TikTok"', async () => {
+describe('PublicLayout footer (App. E.1, D-33, PUB-02)', () => {
+  it('names the social links from the stored links, "FB, CSPS on Facebook" and "IG, CSPS on Instagram"', async () => {
+    putBootBlock(demoSite);
     await renderAt('/');
     const footer = screen.getByRole('contentinfo');
-    for (const name of ['CSPS on Facebook', 'CSPS on Instagram', 'CSPS on TikTok']) {
-      expect(within(footer).getByRole('link', { name })).toHaveAttribute('href', '#');
-    }
-    expect(within(footer).getByRole('link', { name: 'CSPS on Facebook' })).toHaveTextContent('FB');
+
+    expect(within(footer).getByRole('link', { name: 'FB, CSPS on Facebook' })).toHaveAttribute(
+      'href',
+      'https://www.facebook.com/cspsdemo',
+    );
+    expect(within(footer).getByRole('link', { name: 'FB, CSPS on Facebook' })).toHaveTextContent('FB');
+    expect(within(footer).getByRole('link', { name: 'IG, CSPS on Instagram' })).toBeInTheDocument();
   });
 
   it('links "Staff Login" to /admin/login and the Shop column to the public pages', async () => {
@@ -163,7 +167,8 @@ describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
     expect(within(footer).getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
   });
 
-  it('shows the contact details from the one config module, under Shop, Visit and Contact', async () => {
+  it('shows the stored contact details under Shop, Visit and Contact, with no email row', async () => {
+    putBootBlock(demoSite);
     await renderAt('/');
     const footer = screen.getByRole('contentinfo');
     expect(
@@ -171,23 +176,20 @@ describe('PublicLayout footer (App. E.1, D-31 O-4)', () => {
         .getAllByRole('heading', { level: 2 })
         .map((heading) => heading.textContent),
     ).toEqual(['Shop', 'Visit', 'Contact']);
-    expect(within(footer).getByText(SITE_CONTACT.address)).toBeInTheDocument();
-    expect(within(footer).getByText(SITE_CONTACT.hours)).toBeInTheDocument();
-    expect(within(footer).getByRole('link', { name: SITE_CONTACT.phone.text })).toHaveAttribute(
-      'href',
-      SITE_CONTACT.phone.href,
-    );
-    expect(within(footer).getByRole('link', { name: SITE_CONTACT.messenger.text })).toBeInTheDocument();
-    expect(within(footer).getByRole('link', { name: SITE_CONTACT.email.text })).toBeInTheDocument();
-    expect(within(footer).getByRole('img', { name: "CSPS: Carmen's Stitch & Printing Services" })).toBeInTheDocument();
     expect(
-      within(footer).getByText("© 2026 Carmen's Stitch & Printing Services. All rights reserved."),
+      within(footer).getByText('12 Sample St., Poblacion, Sample City, Sample Province, Philippines'),
     ).toBeInTheDocument();
+    expect(within(footer).getByRole('link', { name: '0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
+    expect(within(footer).getByRole('link', { name: 'Message us on Messenger' })).toBeInTheDocument();
+    expect(footer.querySelector('a[href^="mailto:"]')).toBeNull();
+    expect(within(footer).getByRole('img', { name: "CSPS: Carmen's Stitch & Printing Services" })).toBeInTheDocument();
+    expect(within(footer).getByText('© 2026 Sample Shop. All rights reserved.')).toBeInTheDocument();
   });
 });
 
 describe('PublicLayout heading order (D-41 R2-17)', () => {
   it('goes h1 then h2: the footer column titles are h2 (not h4), after exactly one h1, with their look unchanged', async () => {
+    putBootBlock(demoSite);
     await renderAt('/');
     const footer = screen.getByRole('contentinfo');
     const titles = within(footer).getAllByRole('heading');
@@ -257,6 +259,7 @@ describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => 
   });
 
   it('SiteFooter re-renders from the React Compiler memo cache with the same output (L-13)', () => {
+    putBootBlock(demoSite);
     const footer = render(
       <MemoryRouter>
         <SiteFooter />

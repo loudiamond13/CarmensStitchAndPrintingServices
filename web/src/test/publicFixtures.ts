@@ -16,7 +16,12 @@ export const demoSite: PublicSiteFixture = {
   tagline: 'Custom tailoring and full-sublimation printing for teams, leagues and riding groups.',
   aboutText: 'A demo shop for tests.',
   turnaroundLine: null,
-  address: { street: '12 Sample St., Poblacion', townOrCity: 'Sample City', province: 'Sample Province', postalCode: '1000' },
+  address: {
+    street: '12 Sample St., Poblacion',
+    townOrCity: 'Sample City',
+    province: 'Sample Province',
+    postalCode: '1000',
+  },
   phones: [
     { display: '0917 123 4567', e164: '+639171234567', label: 'Globe', isMain: true },
     { display: '02 8123 4567', e164: '+63281234567', label: null, isMain: false },
@@ -36,7 +41,12 @@ export const siteWithoutOptionals: PublicSiteFixture = {
   tagline: 'Sample tagline',
   aboutText: null,
   turnaroundLine: null,
-  address: { street: '12 Sample St., Poblacion', townOrCity: 'Sample City', province: 'Sample Province', postalCode: null },
+  address: {
+    street: '12 Sample St., Poblacion',
+    townOrCity: 'Sample City',
+    province: 'Sample Province',
+    postalCode: null,
+  },
   phones: [{ display: '0917 123 4567', e164: '+639171234567', label: null, isMain: true }],
   messengerUrl: null,
   facebookUrl: null,
@@ -65,7 +75,10 @@ export function siteHandler(site: PublicSiteFixture) {
 /** An MSW handler that answers GET /api/v1/public/site with a failure. */
 export function siteFailureHandler(status = 500) {
   return http.get('*/api/v1/public/site', () =>
-    HttpResponse.json({ title: 'Something went wrong.', status }, { status, headers: { 'Content-Type': 'application/problem+json' } }),
+    HttpResponse.json(
+      { title: 'Something went wrong.', status },
+      { status, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
   );
 }
 

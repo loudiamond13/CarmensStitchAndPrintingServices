@@ -252,6 +252,12 @@ export const PUBLIC_COPY = {
     columns: { shop: 'Shop', visit: 'Visit', contact: 'Contact' },
     links: { products: 'Products', gallery: 'Gallery', getQuote: 'Get a Quote' },
     messenger: 'Message us on Messenger',
+    // D-33 (OQ-4): the squares show the short letters; the spoken name is the letters and the network.
+    socials: {
+      facebook: { short: 'FB', name: 'FB, CSPS on Facebook' },
+      instagram: { short: 'IG', name: 'IG, CSPS on Instagram' },
+      tiktok: { short: 'TT', name: 'TT, CSPS on TikTok' },
+    },
     staffLogin: 'Staff Login',
     copyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}. All rights reserved.`,
     baseCopyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}`,
