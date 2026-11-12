@@ -789,3 +789,220 @@ export function linePhotosBackend(
 export function lineProductTypesAre(types: ProductTypeFixture[] = demoLineProductTypes): void {
   server.use(http.get('*/api/v1/product-types', () => HttpResponse.json(types)));
 }
+
+// Testimonials (plan 11-24): the Manager's list as /api/v1/testimonials answers it and an MSW backend that keeps what each write left and
+// records every call. Every value is made up.
+export type TestimonialFixture = Schemas['TestimonialDto'];
+export type TestimonialBody = Schemas['TestimonialRequest'];
+export type MoveTestimonialBody = Schemas['MoveTestimonialRequest'];
+
+export const TESTIMONIAL_IDS = {
+  juan: '3a7d9e10-0000-4000-8000-000000000001',
+  ana: '3a7d9e10-0000-4000-8000-000000000002',
+  ben: '3a7d9e10-0000-4000-8000-000000000003',
+  carlo: '3a7d9e10-0000-4000-8000-000000000004',
+} as const;
+
+/** The four demo testimonials the Testing seed makes: three shown in order, then one hidden. */
+export function demoTestimonials(): TestimonialFixture[] {
+  return [
+    {
+      id: TESTIMONIAL_IDS.juan,
+      quote: 'Seventeen pieces, names and numbers perfect.',
+      name: 'Juan Dela Cruz',
+      teamOrRole: 'Captain, Brgy. Sample Ballers',
+      stars: 5,
+      position: 1,
+      isShown: true,
+      version: 'AAAAAAAAG01=',
+    },
+    {
+      id: TESTIMONIAL_IDS.ana,
+      quote: 'The mockup came back in a day and the colors matched our crest.',
+      name: 'Ana Reyes',
+      teamOrRole: 'Coach, Sample City Spikers',
+      stars: 5,
+      position: 2,
+      isShown: true,
+      version: 'AAAAAAAAG02=',
+    },
+    {
+      id: TESTIMONIAL_IDS.ben,
+      quote: 'Light jerseys, and the sponsor logos printed sharp.',
+      name: 'Ben Santos',
+      teamOrRole: 'President, Sample Riders MC',
+      stars: 4,
+      position: 3,
+      isShown: true,
+      version: 'AAAAAAAAG03=',
+    },
+    {
+      id: TESTIMONIAL_IDS.carlo,
+      quote: 'A hidden demo testimonial for tests.',
+      name: 'Carlo Mendoza',
+      teamOrRole: null,
+      stars: 1,
+      position: 4,
+      isShown: false,
+      version: 'AAAAAAAAG04=',
+    },
+  ];
+}
+
+/** The version the fake API gives a testimonial after save number `n`. */
+export function testimonialVersionAfter(n: number): string {
+  return `AAAAAAAAG${String(50 + n)}=`;
+}
+
+export interface TestimonialsBackend {
+  /** The testimonials the API holds, in display order. */
+  items: TestimonialFixture[];
+  /** How many list reads arrived. */
+  gets: number;
+  posts: { body: TestimonialBody; key: string | null }[];
+  puts: { id: string; body: TestimonialBody }[];
+  moves: { id: string; direction: string | null; key: string | null }[];
+  hides: string[];
+  shows: string[];
+  deletes: string[];
+}
+
+type TestimonialAnswer = Response | undefined | Promise<Response | undefined>;
+
+export interface TestimonialsBackendOptions {
+  onGet?: (backend: TestimonialsBackend) => TestimonialAnswer;
+  onPost?: (body: TestimonialBody, backend: TestimonialsBackend) => TestimonialAnswer;
+  onPut?: (id: string, body: TestimonialBody, backend: TestimonialsBackend) => TestimonialAnswer;
+  onMove?: (id: string, direction: string | null, backend: TestimonialsBackend) => TestimonialAnswer;
+  onHide?: (id: string, backend: TestimonialsBackend) => TestimonialAnswer;
+  onShow?: (id: string, backend: TestimonialsBackend) => TestimonialAnswer;
+  onDelete?: (id: string, backend: TestimonialsBackend) => TestimonialAnswer;
+}
+
+/** Gives the testimonials the places 1, 2, 3 in the order they are in. */
+function renumberedTestimonials(items: TestimonialFixture[]): TestimonialFixture[] {
+  return items.map((item, index) => ({ ...item, position: index + 1 }));
+}
+
+/** Answers the seven /api/v1/testimonials routes from `initial`, keeps what each write left, and records every call. */
+export function testimonialsBackend(
+  initial: TestimonialFixture[] = demoTestimonials(),
+  options: TestimonialsBackendOptions = {},
+): TestimonialsBackend {
+  const backend: TestimonialsBackend = {
+    items: renumberedTestimonials([...initial].sort((a, b) => Number(a.position) - Number(b.position))),
+    gets: 0,
+    posts: [],
+    puts: [],
+    moves: [],
+    hides: [],
+    shows: [],
+    deletes: [],
+  };
+  const itemOf = (id: string): TestimonialFixture | undefined => backend.items.find((item) => item.id === id);
+  const asItem = (body: TestimonialBody, base: TestimonialFixture, version: string): TestimonialFixture => ({
+    ...base,
+    quote: body.quote ?? '',
+    name: body.name ?? '',
+    teamOrRole: body.teamOrRole === '' ? null : body.teamOrRole,
+    stars: Number(body.stars ?? 1),
+    isShown: body.isShown ?? base.isShown,
+    version,
+  });
+  const notFound = (): Response => problemAnswer(404, { code: 'testimonials.not-found' });
+  server.use(
+    http.get('*/api/v1/testimonials', async () => {
+      backend.gets += 1;
+      const answer = await options.onGet?.(backend);
+      return answer ?? HttpResponse.json(backend.items);
+    }),
+    http.post('*/api/v1/testimonials', async ({ request }) => {
+      const body = (await request.json()) as TestimonialBody;
+      backend.posts.push({ body, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onPost?.(body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const base: TestimonialFixture = {
+        id: `3a7d9e10-0000-4000-8000-0000000001${String(backend.posts.length).padStart(2, '0')}`,
+        quote: '',
+        name: '',
+        teamOrRole: null,
+        stars: 5,
+        position: backend.items.length + 1,
+        isShown: false,
+        version: '',
+      };
+      const made = asItem(body, base, testimonialVersionAfter(100 + backend.posts.length));
+      backend.items = [...backend.items, made];
+      return HttpResponse.json(made, { status: 201 });
+    }),
+    http.put('*/api/v1/testimonials/:id', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as TestimonialBody;
+      backend.puts.push({ id, body });
+      const answer = await options.onPut?.(id, body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const item = itemOf(id);
+      if (item === undefined) {
+        return notFound();
+      }
+      const made = asItem(body, item, testimonialVersionAfter(backend.puts.length));
+      backend.items = backend.items.map((candidate) => (candidate.id === id ? made : candidate));
+      return HttpResponse.json(made);
+    }),
+    http.post('*/api/v1/testimonials/:id/move', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as MoveTestimonialBody;
+      backend.moves.push({ id, direction: body.direction, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onMove?.(id, body.direction, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const index = backend.items.findIndex((item) => item.id === id);
+      const other = body.direction === 'up' ? index - 1 : index + 1;
+      const item = backend.items[index];
+      const neighbour = backend.items[other];
+      if (item !== undefined && neighbour !== undefined) {
+        const items = [...backend.items];
+        items[index] = neighbour;
+        items[other] = item;
+        backend.items = renumberedTestimonials(items);
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/testimonials/:id/hide', async ({ params }) => {
+      const id = String(params.id);
+      backend.hides.push(id);
+      const answer = await options.onHide?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = backend.items.map((item) => (item.id === id ? { ...item, isShown: false } : item));
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/testimonials/:id/show', async ({ params }) => {
+      const id = String(params.id);
+      backend.shows.push(id);
+      const answer = await options.onShow?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = backend.items.map((item) => (item.id === id ? { ...item, isShown: true } : item));
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.delete('*/api/v1/testimonials/:id', async ({ params }) => {
+      const id = String(params.id);
+      backend.deletes.push(id);
+      const answer = await options.onDelete?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = renumberedTestimonials(backend.items.filter((item) => item.id !== id));
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}

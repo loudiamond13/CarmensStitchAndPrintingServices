@@ -18,6 +18,7 @@ import {
   productLinesBackend,
   shopClosuresBackend,
   siteSettingsBackend,
+  testimonialsBackend,
 } from '@/test/siteContentFixtures';
 
 // S0 Site Content, /admin/site-content (D-27, WEB-10; plan 11-12): the Manager's header and tabs.
@@ -95,16 +96,42 @@ describe('the tabs (WEB-10)', () => {
     await openPage();
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Business Info', 'Hours & Closures', 'Products']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Business Info',
+      'Hours & Closures',
+      'Products',
+      'Testimonials',
+    ]);
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Business Info' })).toBeVisible();
   });
 
   it('shows Business Info for a tab that does not exist yet', async () => {
-    await openPage('?tab=testimonials');
+    await openPage('?tab=gallery');
 
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/^Tagline/)).toBeVisible();
+  });
+
+  it('opens the Testimonials tab from ?tab=testimonials and shows the Testimonials card in its panel', async () => {
+    testimonialsBackend();
+    renderPage('?tab=testimonials');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Testimonials' });
+    expect(screen.getByRole('tab', { name: 'Testimonials' })).toHaveAttribute('aria-selected', 'true');
+    await within(panel).findByRole('table', { name: 'Testimonials' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Testimonials' })).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Add Testimonial' })).toBeVisible();
+  });
+
+  it('changes to the Testimonials tab at once from another tab, with nothing to discard', async () => {
+    testimonialsBackend();
+    await openPage();
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'Testimonials' }));
+
+    expect(await screen.findByRole('table', { name: 'Testimonials' })).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens the Products tab from ?tab=products and shows the Product lines card in its panel', async () => {
