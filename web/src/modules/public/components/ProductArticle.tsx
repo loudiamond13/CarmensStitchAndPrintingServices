@@ -2,13 +2,16 @@
 // comes first (and stays first in one column), the copy has the number, title, description, the five fixed customize cards
 // and the price line. Even articles (the second, fourth, ...) put the media on the right on wide screens.
 import clsx from 'clsx';
+import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import type { IconName } from '@/components/brand/icons';
 import { PUBLIC_COPY } from '../copy';
+import { isLineKey } from '../lineKey';
 import type { PublicProductLine } from '../services/contentService';
 import { PriceLine } from './PriceLine';
 import { ProductMedia } from './ProductMedia';
 import {
+  articleButtonsClasses,
   articleClasses,
   articleTitleClasses,
   copyClasses,
@@ -22,7 +25,7 @@ import {
   flipMediaClasses,
   numberClasses,
 } from './products.recipe';
-import { eyebrowClasses, leadClasses } from './public.recipe';
+import { aBtnPrimaryClasses, aBtnSecondaryClasses, eyebrowClasses, leadClasses } from './public.recipe';
 
 const { article: COPY } = PUBLIC_COPY.products;
 
@@ -79,6 +82,17 @@ export function ProductArticle({ line, index, total }: ProductArticleProps) {
           ))}
         </div>
         <PriceLine price={line.startsAtPrice} minimum={line.minimumQuantity} />
+        <div className={articleButtonsClasses}>
+          <UiLink to="/contact" className={aBtnPrimaryClasses}>
+            {PUBLIC_COPY.actions.getQuote}
+            <Icon name="arrow-right" size={20} />
+          </UiLink>
+          {line.hasGalleryItems && isLineKey(line.key) && (
+            <UiLink to={`/gallery?category=${line.key}`} className={aBtnSecondaryClasses}>
+              {COPY.seeWork(line.shortName)}
+            </UiLink>
+          )}
+        </div>
       </div>
     </article>
   );

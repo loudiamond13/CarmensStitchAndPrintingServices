@@ -122,6 +122,16 @@ describe('ProductsPage product articles (PUB-02, D-42)', { timeout: 20_000 }, ()
   });
 });
 
+/** The help card's section, found by its heading. */
+async function helpCard(): Promise<HTMLElement> {
+  const heading = await screen.findByRole('heading', { level: 2, name: "Tell us the sport. We'll suggest the rest." });
+  const section = heading.closest('section');
+  if (section === null) {
+    throw new Error('The help card heading is not inside a section.');
+  }
+  return section;
+}
+
 describe('ProductsPage pills and help card (D-19, D-32)', { timeout: 20_000 }, () => {
   it('shows the Product lines pill bar above the articles, one link per line', async () => {
     await renderProducts();
@@ -134,19 +144,11 @@ describe('ProductsPage pills and help card (D-19, D-32)', { timeout: 20_000 }, (
   it('shows the help card with Get a Quote to /contact and Message us to the Messenger link', async () => {
     await renderProducts();
 
-    expect(
-      await screen.findByRole('heading', { level: 2, name: "Tell us the sport. We'll suggest the rest." }),
-    ).toBeVisible();
+    const help = await helpCard();
     expect(screen.getByText('Not sure what to pick?')).toBeInTheDocument();
-    const help = screen.getByRole('heading', { name: /Tell us the sport/ }).closest('section');
-    expect(help).not.toBeNull();
-    const quote = within(help as HTMLElement).getByRole('link', { name: 'Get a Quote' });
-    expect(quote).toHaveAttribute('href', '/contact');
+    expect(within(help).getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
     await vi.waitFor(() => {
-      expect(within(help as HTMLElement).getByRole('link', { name: 'Message us' })).toHaveAttribute(
-        'href',
-        'https://m.me/cspsdemo',
-      );
+      expect(within(help).getByRole('link', { name: 'Message us' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
     });
   });
 
@@ -154,9 +156,9 @@ describe('ProductsPage pills and help card (D-19, D-32)', { timeout: 20_000 }, (
     answerSite(siteWithoutOptionals);
     await renderProducts();
 
-    const help = (await screen.findByRole('heading', { name: /Tell us the sport/ })).closest('section');
+    const help = await helpCard();
     await vi.waitFor(() => {
-      expect(within(help as HTMLElement).getByRole('link', { name: 'Message us' })).toHaveAttribute('href', '/contact');
+      expect(within(help).getByRole('link', { name: 'Message us' })).toHaveAttribute('href', '/contact');
     });
   });
 

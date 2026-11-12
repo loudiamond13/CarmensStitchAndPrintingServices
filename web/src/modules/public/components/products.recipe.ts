@@ -6,9 +6,13 @@ import { tw } from '@/ui/tw';
 /** `.s-wrap`: the 1200px column with 24px sides (16px on phones). */
 export const prodWrapClasses = tw('mx-auto max-w-(--container-max) px-6 pg-phone:px-4');
 
+// SPEC-GAP: UI-SPEC P1 gives the article a scroll-margin-top of header + pill bar + 16px and the page a top scroll padding of
+// header + 1px + 24px + the pill bar. Browsers add the two when they scroll to an address, which would stop an article
+// about 300px down the screen. The page padding already keeps everything clear of both sticky bars, so the article adds
+// only its own 16px.
 /** `.s-prod`: media and copy side by side (1.1fr to .9fr), one column up to 1023px, dashed rule below. */
 export const articleClasses = tw(
-  'grid grid-cols-[1.1fr_.9fr] items-start gap-12 border-b-2 border-dashed border-line py-16 pg-phone:gap-6 pg-phone:py-12 pg-lt-lg:grid-cols-[minmax(0,1fr)]',
+  'grid scroll-mt-4 grid-cols-[1.1fr_.9fr] items-start gap-12 border-b-2 border-dashed border-line py-16 pg-phone:gap-6 pg-phone:py-12 pg-lt-lg:grid-cols-[minmax(0,1fr)]',
 );
 
 /** `.s-prod.is-flip .s-prod-media`: the media on the right, back to the left in one column. */
@@ -84,3 +88,37 @@ export const priceStrongClasses = tw('font-display text-[28px] font-bold');
 
 /** `.s-muted.s-small`. */
 export const priceMutedClasses = tw('text-[14px] leading-5 text-ink-muted');
+
+/** `.s-anchors`: the bar sticks under the header (56px on phones) on a blurred page ground with a rule below. */
+export const anchorsClasses = tw(
+  'sticky top-(--header-height) z-5 border-b border-line bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] backdrop-blur-[12px] pg-phone:top-14',
+);
+
+// SPEC-GAP: App. C `.s-anchors-in` sets its side padding to 0, so the first pill sat against the screen edge and 24px left of
+// the page text. The pills keep the page's own side padding. The bar is 69px: 12px, the 44px pill, 12px and the 1px rule.
+/** `.s-anchors-in`: the pills in one row that scrolls inside itself, with no scrollbar drawn. */
+export const anchorsInClasses = tw(
+  'mx-auto flex max-w-(--container-max) [scrollbar-width:none] gap-2 overflow-x-auto px-6 py-3 pg-phone:px-4',
+);
+
+/** `.s-pill`: a 44px pill link (OQ-3 A) that never wraps its title. */
+export const pillClasses = tw(
+  'inline-flex min-h-11 items-center gap-[6px] rounded-sm border border-line bg-surface px-4 text-[14px] font-semibold whitespace-nowrap text-ink-muted no-underline hover:border-line-strong hover:text-ink',
+);
+
+/** `.s-btnrow`: the article's buttons. */
+export const articleButtonsClasses = tw('flex flex-wrap items-center gap-3');
+
+/** `.s-sec`: the help card's band, 96px above and below (48px on phones). */
+export const helpSectionClasses = tw('relative py-24 pg-phone:py-12');
+
+/** The help `.s-card`: padding 40, radius 18, text on the left and buttons on the right. */
+export const helpCardClasses = tw(
+  'flex flex-wrap items-center justify-between gap-6 rounded-lg border border-line bg-surface p-10 [box-shadow:var(--shadow-1)]',
+);
+
+/** The help card's text block: the eyebrow over the title, at most 620px wide. */
+export const helpTextClasses = tw('flex max-w-[620px] flex-col gap-2');
+
+/** The help card's `.s-h2` at 40px. */
+export const helpTitleClasses = tw('font-display text-[40px] leading-none font-heavy uppercase');

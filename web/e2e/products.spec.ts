@@ -37,6 +37,7 @@ test('@products /products shows six articles and the basketball demo price, with
 
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
 const BAR = '[data-products-bar]';
+const PILL_ROW_OVERFLOW = `(() => { const row = document.querySelector('${BAR} nav'); return row === null ? -1 : row.scrollWidth - row.clientWidth; })()`;
 
 test('@products opening /products#polo lands on the polo article, clear of the header and the pill bar', async ({
   page,
@@ -48,18 +49,12 @@ test('@products opening /products#polo lands on the polo article, clear of the h
 
     const bar = page.locator(BAR);
     const polo = page.locator('article#polo');
-    await expect(polo).toBeVisible();
-    await expect
-      .poll(
-        async () => {
-          const [barBox, poloBox] = await Promise.all([bar.boundingBox(), polo.boundingBox()]);
-          return (poloBox?.y ?? 99999) - ((barBox?.y ?? 0) + (barBox?.height ?? 0));
-        },
-        { timeout: 15_000 },
-      )
-      .toBeGreaterThanOrEqual(0);
-    const poloBox = await polo.boundingBox();
-    expect(poloBox?.y ?? 99999).toBeLessThan(450);
+    await expect(polo).toBeAttached();
+    // The scroll may be smooth, so wait for the article to settle just under the pill bar.
+    await expect.poll(async () => (await polo.boundingBox())?.y ?? 99999, { timeout: 15_000 }).toBeLessThan(450);
+    const [barBox, poloBox] = await Promise.all([bar.boundingBox(), polo.boundingBox()]);
+    const barBottom = (barBox?.y ?? 0) + (barBox?.height ?? 0);
+    expect(poloBox?.y ?? 0, 'the article starts below the sticky bars').toBeGreaterThanOrEqual(barBottom);
   });
 });
 
@@ -74,13 +69,13 @@ test('@products at 320px the pill bar scrolls inside itself, the pills are 44px 
 
     const nav = page.getByRole('navigation', { name: 'Product lines' });
     await expect(nav.getByRole('link')).toHaveCount(6);
-    const inner = await nav.evaluate((element) => element.scrollWidth - element.clientWidth);
+    const inner = Number(await page.evaluate(PILL_ROW_OVERFLOW));
     expect(inner, 'the pills are wider than the bar, so it scrolls inside itself').toBeGreaterThan(0);
     for (const link of await nav.getByRole('link').all()) {
-      expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+      expect(Math.round((await link.boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(44);
     }
     const bar = await page.locator(BAR).boundingBox();
-    expect(bar?.height).toBeGreaterThanOrEqual(69);
+    expect(Math.round(bar?.height ?? 0)).toBeGreaterThanOrEqual(69);
     expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
   });
 });

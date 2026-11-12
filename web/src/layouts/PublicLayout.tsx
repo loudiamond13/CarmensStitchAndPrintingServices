@@ -7,7 +7,7 @@
 //   - `main` keeps at least the viewport height minus the header, so the footer stays put while a route chunk loads;
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
 //   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
-//     so a focused control stops 24px below it (WCAG 2.4.11).
+//     so a focused control stops 24px below it (WCAG 2.4.11); on /products it also clears the sticky pill bar.
 //   - Home and Products show the full footer; Gallery, Contact and the 404 page show the base row (UI-SPEC Footer).
 //   - On /contact the phone-only ContactBar sits after the footer (sticky to the bottom of the page root), and the page gets
 //     a bottom scroll padding at 767px and below, so a focused control stops clear of the bar (PUB-06, WCAG 2.4.11).
@@ -22,6 +22,8 @@ import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation/SiteHeader';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
+import type { PublicOutletContext } from '@/modules/public/outletContext';
 import { tw } from '@/ui/tw';
 
 // The sticky bar loads as its own chunk, only on /contact, so the other pages never carry it (public bundle budget, PERF-01).
@@ -29,6 +31,14 @@ const ContactBarSlot = lazy(() => import('@/modules/public/components/ContactBar
 
 /** The bottom scroll padding for the bar at 767px and below: the bar's 77px plus 24px, so focus never hides under it. */
 const contactScrollPaddingClasses = tw('vp-lt-md:[:root:has(&)]:scroll-pb-[calc(77px+var(--space-6))]');
+
+// The page's top scroll padding: the sticky header, 1px and 24px, plus --bar-top: 0 here and the 69px pill bar (44px pill,
+// 12px above and below, 1px rule) on Products, so a focused control or an address target stops clear of both bars (WCAG
+// 2.4.11). One padding rule and one extra property keep the shared layout chunk small (PERF-01).
+const topScrollPaddingClasses = tw(
+  '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6)+var(--bar-top,0px))]',
+);
+const productsBarClasses = tw('[:root:has(&)]:[--bar-top:69px]');
 
 /** The label of the header link for `pathname`, or '' (no link current) for any other path. */
 function currentSiteLink(pathname: string): string {
@@ -40,6 +50,11 @@ export function PublicLayout() {
   const { pathname } = useLocation();
   const link = currentSiteLink(pathname);
   const onContact = link === 'Contact';
+  const onProducts = link === 'Products';
+  const site = useSiteQuery();
+  const outletContext: PublicOutletContext = {
+    messengerUrl: site.status === 'success' ? site.data.messengerUrl : null,
+  };
   const fullFooter = link === 'Home' || link === 'Products';
   const loading = useNavigation().state === 'loading';
   return (
@@ -52,11 +67,13 @@ export function PublicLayout() {
           tabIndex={-1}
           aria-busy={loading ? true : undefined}
           className={clsx(
-            'min-h-[calc(100dvh-var(--header-height))] [:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6))]',
+            'min-h-[calc(100dvh-var(--header-height))]',
+            topScrollPaddingClasses,
+            onProducts && productsBarClasses,
             onContact && contactScrollPaddingClasses,
           )}
         >
-          <Outlet />
+          <Outlet context={outletContext} />
         </main>
         <SiteFooter variant={fullFooter ? 'full' : 'base'} />
         {onContact && (
