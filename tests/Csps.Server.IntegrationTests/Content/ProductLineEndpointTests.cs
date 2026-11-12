@@ -422,6 +422,125 @@ public sealed class ProductLineEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task HidingALineTakesItOffThePublicReadWritesTheAuditAndShowingBringsItBack()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+        var polo = (await rig.ListAsync())[4];
+        var (before, oldEtag) = await rig.PublicLinesAsync();
+        before.Dispose();
+
+        using var hidden = await rig.HideAsync(polo.Id);
+        using var hiddenAgain = await rig.HideAsync(polo.Id);
+
+        hidden.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        hiddenAgain.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await rig.PublicKeysAsync()).ShouldBe(["basketball", "volleyball", "moto", "longsleeves", "custom"]);
+        (await rig.ListAsync())[4].IsActive.ShouldBeFalse();
+        var (during, hiddenEtag) = await rig.PublicLinesAsync();
+        during.Dispose();
+        hiddenEtag.ShouldNotBe(oldEtag);
+
+        using var shown = await rig.ShowAsync(polo.Id);
+        using var shownAgain = await rig.ShowAsync(polo.Id);
+
+        shown.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        shownAgain.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await rig.PublicKeysAsync()).ShouldBe(SeededKeys);
+        await using var context = database.CreateContext();
+        var entries = await context.AuditLog.AsNoTracking()
+            .Where(row => row.ActorUserId == rig.Manager.UserId && row.TargetType == "ProductLine")
+            .OrderBy(row => row.Id)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        entries.Select(row => row.Action).ShouldBe(["product-line.hidden", "product-line.shown"]);
+        entries.ShouldAllBe(row => row.TargetId == polo.Id.ToString("D") && row.Detail == "key=polo;title=Polo Shirts");
+    }
+
+    [Fact]
+    public async Task HidingOrShowingAnUnknownLineIs404()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+
+        using var hide = await rig.HideAsync(Guid.NewGuid());
+        using var show = await rig.ShowAsync(Guid.NewGuid());
+
+        hide.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        show.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeletingALineWithAFiledProductTypeIs422AndNothingIsDeleted()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+        var type = await rig.ProductTypeIdAsync("Basketball Jersey");
+        var volleyball = await rig.DetailAsync((await rig.ListAsync())[1].Id);
+        using var filed = await rig.PutAsync(volleyball.Id, volleyball.ToBody() with { ProductTypeIds = [type] });
+        filed.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var response = await rig.DeleteAsync(volleyball.Id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("product-lines.in-use");
+        problem.GetProperty("detail").GetString().ShouldBe("This product line is in use. Hide it instead.");
+        var lines = await rig.ListAsync();
+        lines.Count.ShouldBe(6);
+        lines[1].CanDelete.ShouldBeFalse();
+        lines.Where(line => line.Id != volleyball.Id).ShouldAllBe(line => line.CanDelete);
+    }
+
+    [Fact]
+    public async Task DeletingALineWithAPhotoIs422()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+        var moto = (await rig.ListAsync())[2];
+        await using (var context = database.CreateContext())
+        {
+            context.ProductLinePhotos.Add(Csps.Domain.Content.ProductLinePhoto.Create(moto.Id, Csps.Domain.Content.ProductLinePhotoSlot.Main, "csps/lines/test-photo", 800, 1000, 120_000, "webp", new DateTimeOffset(2026, 11, 12, 9, 0, 0, TimeSpan.Zero)));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var response = await rig.DeleteAsync(moto.Id);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        (await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("product-lines.in-use");
+        var after = (await rig.ListAsync())[2];
+        after.PhotoCount.ShouldBe(1);
+        after.CanDelete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AnUnusedLineIsDeletedWithItsAuditAndASecondDeleteIs404()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+        var added = await rig.AddAsync(LineBody.Shorts with { IsActive = true });
+        (await rig.PublicKeysAsync()).ShouldContain("shorts");
+        (await rig.ListAsync()).Single(line => line.Id == added.Id).CanDelete.ShouldBeTrue();
+
+        using var first = await rig.DeleteAsync(added.Id);
+        using var second = await rig.DeleteAsync(added.Id);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await rig.PublicKeysAsync()).ShouldBe(SeededKeys);
+        (await rig.ListAsync()).Count.ShouldBe(6);
+        await using var context = database.CreateContext();
+        var deleted = await context.AuditLog.AsNoTracking()
+            .SingleAsync(row => row.ActorUserId == rig.Manager.UserId && row.Action == "product-line.deleted", TestContext.Current.CancellationToken);
+        deleted.TargetId.ShouldBe(added.Id.ToString("D"));
+        deleted.Detail.ShouldBe("key=shorts;title=Shorts");
+    }
+
+    [Fact]
+    public async Task AnUnknownLineIs404OnDelete()
+    {
+        await using var rig = await ProductLineRig.StartAsync(database);
+
+        using var response = await rig.DeleteAsync(Guid.NewGuid());
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task AnUnknownLineIs404OnReadAndOnEdit()
     {
         await using var rig = await ProductLineRig.StartAsync(database);
