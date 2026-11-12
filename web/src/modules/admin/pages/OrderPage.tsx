@@ -1,6 +1,6 @@
 // O1 Order page, /admin/orders/:id (ORD-07, ORD-12, ORD-19; plans 08-10, 08-12). The header, the phone balance card, the Images card
 // (the photo manager, ORD-04), the tab card (Items, Payments, Discounts, Expenses, and Refunds when it applies) and the side with the totals
-// panel, the customer card and the status history. Every figure is the server's answer: Subtotal to Balance, and the internal Order
+// panel, the customer card, the Public website card (plan 11-27) and the status history. Every figure is the server's answer: Subtotal to Balance, and the internal Order
 // Expenses and Estimated Profit, which only this staff page and the deleted view show (ORD-19, D-06, D-08). The tab is the URL
 // `tab` parameter. The first load shows skeletons, a failed load an ErrorState with Try Again, and a missing or deleted order a
 // message with Back to Orders. The back link returns to the list view the user left, when the navigation state holds a same-app
@@ -28,6 +28,7 @@ import { OrderPaymentsTab } from '@/modules/admin/components/OrderPaymentsTab';
 import { OrderRefundModal } from '@/modules/admin/components/OrderRefundModal';
 import { OrderRefundsTab } from '@/modules/admin/components/OrderRefundsTab';
 import { OrderStatusHistory } from '@/modules/admin/components/OrderStatusHistory';
+import { PublicWebsiteCard } from '@/modules/admin/components/PublicWebsiteCard';
 import { ReopenOrderModal } from '@/modules/admin/components/ReopenOrderModal';
 import {
   orderCardClasses,
@@ -267,6 +268,7 @@ function OrderBody({ order, backTo }: OrderBodyProps) {
             />
           </section>
           <OrderCustomerCard order={order} />
+          <PublicWebsiteCard order={order} />
           <OrderStatusHistory history={order.statusHistory} />
         </div>
       </div>

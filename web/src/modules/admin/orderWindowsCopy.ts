@@ -4,7 +4,7 @@
 import { formatCount } from '@/utils/format';
 
 /** The things an order window saves, as the toast titles name them. */
-export type OrderThing = 'item' | 'payment' | 'discount' | 'expense' | 'refund' | 'photo';
+export type OrderThing = 'item' | 'payment' | 'discount' | 'expense' | 'refund' | 'photo' | 'order';
 
 /** What happened to it. */
 export type OrderVerb = 'added' | 'updated' | 'deleted';
@@ -16,6 +16,7 @@ const THING_TITLES: Readonly<Record<OrderThing, string>> = {
   expense: 'Expense',
   refund: 'Refund',
   photo: 'Photo',
+  order: 'Order',
 };
 
 export const ORDER_WINDOWS_COPY = {
