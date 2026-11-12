@@ -230,12 +230,6 @@ export const PUBLIC_COPY = {
         'Your design, logo or a rough idea. A phone photo is fine.',
       ],
     },
-    hours: {
-      title: 'Business hours',
-      open: 'Open now',
-      closed: 'Closed now',
-      closedOn: 'Closed on',
-    },
     phones: {
       title: 'Call or text',
       main: 'Main',

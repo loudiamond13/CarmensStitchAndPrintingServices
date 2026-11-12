@@ -32,6 +32,20 @@ describe('createPublicResource', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
+  it('a resource with no boot key ignores the boot block and loads', async () => {
+    putBootBlock(demoSite);
+    const load = vi.fn(() => Promise.resolve('loaded'));
+    const resource = createPublicResource<string>({ load, staleMs: STALE_MS });
+
+    const { result } = renderHook(() => resource.useResource());
+
+    expect(result.current.status).toBe('loading');
+    await waitFor(() => {
+      expect(data(result.current)).toBe('loaded');
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
   it('an unprimed resource loads once and shares the result between two hooks', async () => {
     const load = vi.fn(() => Promise.resolve('hello'));
     const resource = createPublicResource<string>({ key: 'site', load, staleMs: STALE_MS });

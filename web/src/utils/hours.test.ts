@@ -1,6 +1,6 @@
 // Weekly hours text for the footer, the Contact card and the admin preview (D-21). No clock is read (D-22).
 import { describe, expect, it } from 'vitest';
-import { callButtonSummary, formatTime, groupWeek, summarizeOpenDays, type WeekDayHours } from './hours';
+import { callButtonSummary, dayName, formatTime, groupWeek, summarizeOpenDays, type WeekDayHours } from './hours';
 
 const OPEN_9_TO_6 = { opensAt: '09:00', closesAt: '18:00' } as const;
 const OPEN_9_TO_5 = { opensAt: '09:00', closesAt: '17:00' } as const;
@@ -173,5 +173,25 @@ describe('long dashes (OR-4)', () => {
     ]);
     const longDash = new RegExp(`[${String.fromCharCode(0x2012)}-${String.fromCharCode(0x2015)}]`);
     expect(outputs.join('\n')).not.toMatch(longDash);
+  });
+});
+
+describe('dayName', () => {
+  it('gives the full weekday for the server day number, Monday 1 to Sunday 7', () => {
+    expect([1, 2, 3, 4, 5, 6, 7].map(dayName)).toEqual([
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ]);
+  });
+
+  it('gives null for a number that is not a day', () => {
+    expect(dayName(0)).toBeNull();
+    expect(dayName(8)).toBeNull();
+    expect(dayName(1.5)).toBeNull();
   });
 });
