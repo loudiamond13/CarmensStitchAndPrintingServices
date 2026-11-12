@@ -29,6 +29,16 @@ public sealed record OpenStatus(
     /// <returns>The open status.</returns>
     public static OpenStatus Compute(BusinessClock clock, IReadOnlyList<DayHours> week, IReadOnlyList<ClosureSpan> closures)
     {
-        return new OpenStatus(false, null, false, null, null);
+        var now = TimeOnly.FromDateTime(clock.LocalNow.DateTime);
+        var today = clock.Today;
+        var closedToday = closures.Any(c => c.Covers(today));
+        var hours = week.FirstOrDefault(d => d.Day == today.DayOfWeek);
+
+        if (!closedToday && hours is { OpensAt: { } opensAt, ClosesAt: { } closesAt } && now >= opensAt && now < closesAt)
+        {
+            return new OpenStatus(true, closesAt, false, null, null);
+        }
+
+        return new OpenStatus(false, null, closedToday, null, null);
     }
 }
