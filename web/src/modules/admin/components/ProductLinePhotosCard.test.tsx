@@ -12,7 +12,14 @@ import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoLineDetail, LINE_IDS, linePhotosBackend, productLinesBackend } from '@/test/siteContentFixtures';
+import {
+  demoLineDetail,
+  LINE_IDS,
+  linePhotosBackend,
+  lineWithPhotos,
+  problemAnswer,
+  productLinesBackend,
+} from '@/test/siteContentFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
 vi.mock('@/utils/images', async (importOriginal) => ({
@@ -157,9 +164,9 @@ describe('adding a main photo (CONT-02, PUB-03)', () => {
     expect(photos.uploads[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
     expect(upload).toHaveBeenCalledTimes(1);
     const [lineId, slot, blob, name, key] = upload.mock.calls[0] ?? [];
+    if (blob === undefined) throw new Error('No file was sent');
     expect(lineId).toBe(LINE_IDS.polo);
     expect(slot).toBe('main');
-    if (blob === undefined) throw new Error('No file was sent');
     expect(await blob.text()).toBe('prepared');
     expect(name).toBe('front.jpg');
     expect(key).toBe(photos.uploads[0]?.key);
@@ -184,5 +191,136 @@ describe('adding a main photo (CONT-02, PUB-03)', () => {
 
     await screen.findByText('Photo saved');
     expect(queryClient.getQueryState(['product-lines'])?.isInvalidated).toBe(true);
+  });
+});
+
+const withPhotos = lineWithPhotos('polo').photos;
+
+describe('replacing and removing (D-02, PUB-03)', () => {
+  it('shows each saved photo with Replace Photo and Remove Photo', () => {
+    renderCard(withPhotos);
+
+    for (const [name, alt] of [
+      ['Main photo', 'Main photo of Polo Shirts'],
+      ['Back view', 'Back view of Polo Shirts'],
+      ['Fabric detail', 'Fabric detail of Polo Shirts'],
+    ] as const) {
+      const group = screen.getByRole('group', { name });
+      expect(within(group).getByRole('img', { name: alt })).toBeVisible();
+      expect(within(group).getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+      expect(within(group).getByRole('button', { name: 'Remove Photo' })).toBeVisible();
+    }
+  });
+
+  it('removes the main photo after the question: DELETE photos/main, the toast, the drawn jersey back and the public data cleared', async () => {
+    const lines = productLinesBackend([lineWithPhotos('polo')]);
+    const photos = linePhotosBackend(lines);
+    const { user } = renderCard(withPhotos);
+    const main = screen.getByRole('group', { name: 'Main photo' });
+
+    await user.click(within(main).getByRole('button', { name: 'Remove Photo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove the main photo?' });
+    expect(within(dialog).getByText('The drawn jersey shows instead.')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Photo' }));
+
+    expect(await screen.findByText('Photo removed')).toBeVisible();
+    expect(screen.getByText('The drawing shows instead.')).toBeVisible();
+    expect(photos.removals).toEqual([{ lineId: LINE_IDS.polo, slot: 'main' }]);
+    expect(invalidatePublicContent).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(within(main).getByRole('img', { name: 'Drawn jersey (no photo yet)' })).toBeVisible();
+    });
+    expect(within(main).getByRole('button', { name: 'Choose Photo' })).toBeVisible();
+    // The other two slots keep their photos.
+    expect(
+      within(screen.getByRole('group', { name: 'Back view' })).getByRole('img', { name: 'Back view of Polo Shirts' }),
+    ).toBeVisible();
+  });
+
+  it('asks in the words of the slot for the back view and the fabric detail', async () => {
+    productLinesBackend([lineWithPhotos('polo')]);
+    const { user } = renderCard(withPhotos);
+
+    await user.click(
+      within(screen.getByRole('group', { name: 'Back view' })).getByRole('button', { name: 'Remove Photo' }),
+    );
+    expect(await screen.findByRole('dialog', { name: 'Remove the back view?' })).toBeVisible();
+    expect(screen.getByText('The empty box shows instead.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    await user.click(
+      within(screen.getByRole('group', { name: 'Fabric detail' })).getByRole('button', { name: 'Remove Photo' }),
+    );
+    expect(await screen.findByRole('dialog', { name: 'Remove the fabric detail?' })).toBeVisible();
+  });
+
+  it('treats a photo that is already gone (404) as removed', async () => {
+    const lines = productLinesBackend([lineWithPhotos('polo')]);
+    linePhotosBackend(lines, { onRemove: () => problemAnswer(404, { code: 'product-lines.photo-not-found' }) });
+    const { user } = renderCard(withPhotos);
+    const main = screen.getByRole('group', { name: 'Main photo' });
+
+    await user.click(within(main).getByRole('button', { name: 'Remove Photo' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove Photo' }));
+
+    await waitFor(() => {
+      expect(within(main).getByRole('img', { name: 'Drawn jersey (no photo yet)' })).toBeVisible();
+    });
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('keeps the photo and says so in the question when the removal fails (5xx)', async () => {
+    const lines = productLinesBackend([lineWithPhotos('polo')]);
+    linePhotosBackend(lines, { onRemove: () => problemAnswer(500) });
+    const { user } = renderCard(withPhotos);
+    const main = screen.getByRole('group', { name: 'Main photo' });
+
+    await user.click(within(main).getByRole('button', { name: 'Remove Photo' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Photo' }));
+
+    expect(await within(dialog).findByText(/Something went wrong/)).toBeVisible();
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+    expect(within(main).getByRole('img', { name: 'Main photo of Polo Shirts' })).toBeVisible();
+  });
+
+  it('holds the other two slots while one saves, and frees them when it is done', async () => {
+    const lines = productLinesBackend([lineWithPhotos('polo')]);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    linePhotosBackend(lines, { onUpload: () => gate.then(() => undefined) });
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = renderCard(withPhotos);
+    const main = screen.getByRole('group', { name: 'Main photo' });
+    const back = screen.getByRole('group', { name: 'Back view' });
+
+    await user.upload(inputOf('Main photo'), new File(['jpeg'], 'front.jpg', { type: 'image/jpeg' }));
+
+    await waitFor(() => {
+      expect(within(main).getByRole('button', { name: 'Replace Photo' })).toHaveAttribute('aria-busy', 'true');
+    });
+    expect(within(main).getByRole('button', { name: 'Remove Photo' })).toHaveAttribute('aria-disabled', 'true');
+    for (const other of [back, screen.getByRole('group', { name: 'Fabric detail' })]) {
+      expect(within(other).getByRole('button', { name: 'Replace Photo' })).toHaveAttribute('aria-disabled', 'true');
+      expect(within(other).getByRole('button', { name: 'Remove Photo' })).toHaveAttribute('aria-disabled', 'true');
+      expect(within(other).getByRole('button', { name: 'Replace Photo' })).not.toHaveAttribute('aria-busy');
+    }
+
+    release();
+    await screen.findByText('Photo saved');
+    await waitFor(() => {
+      expect(within(back).getByRole('button', { name: 'Replace Photo' })).not.toHaveAttribute('aria-disabled');
+    });
+  });
+
+  it('has no axe violation with photos', async () => {
+    const { container } = renderCard(withPhotos);
+
+    await expectNoAxeViolations(container);
   });
 });

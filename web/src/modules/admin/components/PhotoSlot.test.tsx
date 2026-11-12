@@ -2,6 +2,7 @@ import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { MediaPlaceholder } from '@/components/brand';
@@ -310,5 +311,196 @@ describe('a slot with a photo', () => {
     expect(screen.getByRole('button', { name: 'Replace Photo' })).toBeVisible();
     expect(screen.queryByRole('img', { name: 'Main photo (no image yet)' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Take Photo' })).not.toBeInTheDocument();
+  });
+
+  it('has Replace Photo and a Remove Photo button, and an empty slot has no Remove Photo', () => {
+    const { unmount } = renderSlot({ photo: linePhoto(LINE_IDS.polo, 'main') });
+
+    expect(screen.getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Remove Photo' })).toBeVisible();
+    unmount();
+
+    renderSlot();
+    expect(screen.queryByRole('button', { name: 'Remove Photo' })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violation with a photo', async () => {
+    const { container } = renderSlot({ photo: linePhoto(LINE_IDS.polo, 'main') });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+/** A slot whose photo the test controls, so a removal can leave it empty as the card does. */
+function ControlledSlot(props: Partial<PhotoSlotProps> & { onRemoved?: () => void }) {
+  const [photo, setPhoto] = useState<PhotoSlotProps['photo']>(linePhoto(LINE_IDS.polo, 'main'));
+  const { onRemoved, ...rest } = props;
+  const merged = baseProps(rest);
+  return (
+    <PhotoSlot
+      {...merged}
+      photo={photo}
+      onRemove={async () => {
+        const outcome = await (merged.onRemove?.() ?? Promise.resolve<SlotOutcome>(OK));
+        if (outcome.ok) {
+          setPhoto(null);
+          onRemoved?.();
+        }
+        return outcome;
+      }}
+    />
+  );
+}
+
+function renderControlled(props: Partial<PhotoSlotProps> = {}) {
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <ControlledSlot {...props} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, user: userEvent.setup() };
+}
+
+describe('removing a photo (D-02)', () => {
+  it('asks first with the slot words and Cancel focused, and Cancel changes nothing', async () => {
+    const onRemove = vi.fn(() => Promise.resolve(OK));
+    const { user } = renderControlled({ onRemove });
+
+    await user.click(screen.getByRole('button', { name: 'Remove Photo' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Remove the main photo?' });
+    expect(within(dialog).getByText('The drawn jersey shows instead.')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Remove Photo' })).toBeVisible();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(onRemove).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+  });
+
+  it('removes on confirm, says Photo removed, shows the placeholder and puts focus on Choose Photo', async () => {
+    const onRemove = vi.fn(() => Promise.resolve(OK));
+    const { user } = renderControlled({ onRemove });
+
+    await user.click(screen.getByRole('button', { name: 'Remove Photo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove the main photo?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Photo' }));
+
+    await waitFor(() => {
+      expect(onRemove).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText('Photo removed')).toBeVisible();
+    expect(screen.getByText('The drawing shows instead.')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('img', { name: 'Main photo (no image yet)' })).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Choose Photo' })).toHaveFocus();
+    });
+    expect(statusLine()).toBeEmptyDOMElement();
+  });
+
+  it('keeps the photo and shows the failure in the question when the removal fails', async () => {
+    const onRemove = vi.fn(() =>
+      Promise.resolve<SlotOutcome>({ ok: false, error: new HttpError({ kind: 'network' }) }),
+    );
+    const { user } = renderControlled({ onRemove });
+
+    await user.click(screen.getByRole('button', { name: 'Remove Photo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove the main photo?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Photo' }));
+
+    expect(await within(dialog).findByText(/Couldn't reach the server/)).toBeVisible();
+    expect(screen.queryByText('Photo removed')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Main photo of Polo Shirts' })).toBeVisible();
+  });
+
+  it('shows Removing on the confirm button while it goes, and holds the slot actions', async () => {
+    let finish: (outcome: SlotOutcome) => void = () => undefined;
+    const onRemove = vi.fn(
+      () =>
+        new Promise<SlotOutcome>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { user } = renderControlled({ onRemove });
+
+    await user.click(screen.getByRole('button', { name: 'Remove Photo' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove the main photo?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Photo' }));
+
+    expect(await within(dialog).findByRole('button', { name: 'Removing' })).toHaveAttribute('aria-busy', 'true');
+    finish(OK);
+    await screen.findByText('Photo removed');
+  });
+});
+
+describe('one action at a time (WEB-09)', () => {
+  it('while a file goes up, Replace Photo is the busy control with its focus kept, and Remove Photo is aria-disabled and does nothing', async () => {
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    let finish: (outcome: SlotOutcome) => void = () => undefined;
+    const onUpload = vi.fn(
+      () =>
+        new Promise<SlotOutcome>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { container, props, user } = renderSlot({ photo: linePhoto(LINE_IDS.polo, 'main'), onUpload });
+    const replace = screen.getByRole('button', { name: 'Replace Photo' });
+    replace.focus();
+
+    await user.upload(fileInput(container), pickedImage());
+
+    await waitFor(() => {
+      expect(replace).toHaveAttribute('aria-busy', 'true');
+    });
+    expect(replace).toHaveAttribute('aria-disabled', 'true');
+    expect(replace).toHaveFocus();
+    const remove = screen.getByRole('button', { name: 'Remove Photo' });
+    expect(remove).toHaveAttribute('aria-disabled', 'true');
+    expect(remove).not.toHaveAttribute('aria-busy');
+    await user.click(remove);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(props.onRemove).not.toHaveBeenCalled();
+
+    finish(OK);
+    await waitFor(() => {
+      expect(replace).not.toHaveAttribute('aria-disabled');
+    });
+    expect(remove).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('while the slot is locked by another slot, every action is aria-disabled and a press picks nothing', async () => {
+    const { container, user } = renderSlot({ locked: true });
+    const input = fileInput(container);
+    const clicked = vi.fn();
+    input.addEventListener('click', clicked);
+
+    const choose = screen.getByRole('button', { name: 'Choose Photo' });
+    expect(choose).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Take Photo' })).toHaveAttribute('aria-disabled', 'true');
+    await user.click(choose);
+
+    expect(clicked).not.toHaveBeenCalled();
+  });
+
+  it('tells its card when it is busy and when it is free again', async () => {
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const onBusyChange = vi.fn();
+    const { container, user } = renderSlot({ onBusyChange });
+
+    await user.upload(fileInput(container), pickedImage());
+
+    await waitFor(() => {
+      expect(onBusyChange).toHaveBeenLastCalledWith(false);
+    });
+    expect(onBusyChange).toHaveBeenCalledWith(true);
   });
 });

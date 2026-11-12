@@ -13,6 +13,7 @@ import {
   useMoveProductLine,
   useProductLineListQuery,
   useProductLineQuery,
+  useRemoveLinePhoto,
   useSetProductLineShown,
   useUpdateProductLine,
   useUploadLinePhoto,
@@ -26,6 +27,7 @@ import {
   demoLineDetail,
   LINE_IDS,
   linePhotosBackend,
+  lineWithPhotos,
   lineVersionAfter,
   problemAnswer,
   productLinesBackend,
@@ -320,5 +322,57 @@ describe('useUploadLinePhoto (CONT-02, PUB-03; plan 11-22)', () => {
 
     expect(photos.uploads).toHaveLength(2);
     expect(photos.uploads[0]?.key).not.toBe(photos.uploads[1]?.key);
+  });
+});
+
+describe('useRemoveLinePhoto (CONT-02, PUB-03; plan 11-22)', () => {
+  const withPhotos = lineWithPhotos('polo');
+
+  it('deletes the slot, empties it in the line cache, clears the public data and reads the list again', async () => {
+    const lines = productLinesBackend([withPhotos]);
+    const photos = linePhotosBackend(lines);
+    queryClient.setQueryData(productLineKey(LINE_IDS.polo), withPhotos);
+    queryClient.setQueryData(productLinesKey, []);
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'back'), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(photos.removals).toEqual([{ lineId: LINE_IDS.polo, slot: 'back' }]);
+    const cached = queryClient.getQueryData<typeof polo>(productLineKey(LINE_IDS.polo));
+    expect(cached?.photos.back).toBeNull();
+    expect(cached?.photos.main?.slot).toBe('main');
+    expect(queryClient.getQueryState(productLinesKey)?.isInvalidated).toBe(true);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('a slot that is already empty (404) clears nothing and hands the failure on', async () => {
+    const lines = productLinesBackend();
+    linePhotosBackend(lines, { onRemove: () => problemAnswer(404, { code: 'product-lines.photo-not-found' }) });
+    const onFailure = vi.fn();
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'main', { onFailure }), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(onFailure.mock.calls[0]?.[1]).toMatchObject({ status: 404 });
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('removing the same slot again after a success is a new removal', async () => {
+    const lines = productLinesBackend([withPhotos]);
+    const photos = linePhotosBackend(lines);
+    const { result } = renderHook(() => useRemoveLinePhoto(LINE_IDS.polo, 'fabric'), { wrapper });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(photos.removals).toHaveLength(2);
   });
 });

@@ -300,3 +300,104 @@ test('@site-content-photos a Manager picks a main photo for Polo, it uploads, an
     }
   });
 });
+
+test('@site-content-photos a Manager replaces then removes Polo main photo, and /products shows the drawn jersey again', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const first = await drawJpeg(page, 'polo-one.jpg', 60);
+  const second = await drawJpeg(page, 'polo-two.jpg', 200);
+  await withSiteContentLock(async () => {
+    let lineId: string | null = null;
+    try {
+      await seedDemoSiteContent(request);
+      await openProductsTab(page);
+      await page.getByRole('link', { name: 'Edit Polo Shirts' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible();
+      lineId = lineIdOf(page.url());
+
+      const main = slotOf(page, 'Main photo');
+      const preview = main.getByRole('img', { name: 'Main photo of Polo Shirts' });
+      await withPhotoHost(async () => {
+        await pickIn(main, first);
+        await expect(preview).toBeVisible({ timeout: SAVE_WAIT_MS });
+        const before = await preview.getAttribute('src');
+
+        // Replace: the same slot takes the second file and the preview moves to the new photo.
+        await pickIn(main, second);
+        await expect.poll(() => preview.getAttribute('src'), { timeout: SAVE_WAIT_MS }).not.toBe(before);
+        await expect(main.getByRole('status')).toContainText('Saved');
+      });
+
+      // Remove asks first, with Cancel focused, and the drawing comes back.
+      await press(page, main.getByRole('button', { name: 'Remove Photo' }));
+      const question = page.getByRole('dialog', { name: 'Remove the main photo?' });
+      await expect(question.getByText('The drawn jersey shows instead.')).toBeVisible();
+      await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
+      await press(page, question.getByRole('button', { name: 'Remove Photo' }));
+      await expect(page.getByText('Photo removed')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByText('The drawing shows instead.')).toBeVisible();
+      await expect(main.getByRole('img', { name: 'Drawn jersey (no photo yet)' })).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Choose Photo' })).toBeFocused();
+
+      await page.goto('/products');
+      const polo = page.getByRole('article', { name: 'Polo Shirts' });
+      await expect(polo).toBeVisible();
+      await expect(polo.getByRole('img', { name: 'Polo Shirts, front' })).toHaveCount(0);
+    } finally {
+      if (lineId !== null) {
+        await page.goto('/admin');
+        await clearLinePhotos(page, lineId);
+      }
+      await seedDemoSiteContent(request);
+    }
+  });
+});
+
+// This one only looks at the layout, which any line gives, so it takes no lock and uploads nothing.
+test('@site-content-photos the three photo slots sit in a row on a tablet and stack at 390px, with no sideways scroll and no axe finding', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await openProductsTab(page);
+  await page.getByRole('link', { name: 'Edit Polo Shirts' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible();
+
+  const labels = ['Main photo', 'Back view', 'Fabric detail'] as const;
+  const boxes = async () => {
+    const found = [];
+    for (const label of labels) {
+      const box = await slotOf(page, label).boundingBox();
+      expect(box, `${label} is on the page`).not.toBeNull();
+      found.push(box as { x: number; y: number; width: number; height: number });
+    }
+    return found;
+  };
+
+  const row = await boxes();
+  expect(Math.abs(row[1].y - row[0].y)).toBeLessThan(2);
+  expect(Math.abs(row[2].y - row[0].y)).toBeLessThan(2);
+  expect(row[1].x).toBeGreaterThan(row[0].x);
+  expect(row[2].x).toBeGreaterThan(row[1].x);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(slotOf(page, 'Fabric detail')).toBeVisible();
+  const column = await boxes();
+  expect(Math.abs(column[1].x - column[0].x)).toBeLessThan(2);
+  expect(Math.abs(column[2].x - column[0].x)).toBeLessThan(2);
+  expect(column[1].y).toBeGreaterThan(column[0].y + column[0].height - 2);
+  expect(column[2].y).toBeGreaterThan(column[1].y + column[1].height - 2);
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  await page.setViewportSize({ width: 320, height: 640 });
+  await expect(slotOf(page, 'Main photo')).toBeVisible();
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});

@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
@@ -9,17 +10,26 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { ProductLineRoute } from '@/modules/admin/pages/ProductLinePage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { IMAGE_RULES } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoLineDetail,
   demoLines,
   LINE_IDS,
   LINE_TYPE_IDS,
+  linePhotosBackend,
   lineProductTypesAre,
   lineWithPhotos,
   problemAnswer,
   productLinesBackend,
 } from '@/test/siteContentFixtures';
+import { prepareImage, type PrepareResult } from '@/utils/images';
+
+vi.mock('@/utils/images', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/images')>()),
+  prepareImage: vi.fn(),
+}));
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
@@ -45,6 +55,7 @@ afterEach(() => {
   queryClient.clear();
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
+  vi.mocked(prepareImage).mockReset();
 });
 
 function renderPage(path: string) {
@@ -153,6 +164,132 @@ describe('setting a price (D-04, D-34)', () => {
     // The page stays on the line, with the saved price.
     expect(screen.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible();
     expect(screen.getByLabelText(PRICE)).toHaveValue('450.00');
+  });
+});
+
+/** A prepared photo, as prepareImage would answer for a good file. */
+function readyFile(file: File): PrepareResult {
+  return {
+    ok: true,
+    file: new Blob(['prepared'], { type: 'image/jpeg' }),
+    name: file.name,
+    type: 'image/jpeg',
+    width: 2000,
+    height: 1500,
+    preview: null,
+    previewUnavailable: true,
+  };
+}
+
+function slotInput(label: string): HTMLInputElement {
+  const input = screen
+    .getByRole('group', { name: label })
+    .querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
+  if (input === null) throw new Error(`No file input in ${label}`);
+  return input;
+}
+
+describe('the Photos card in the editor (D-02, WEB-09)', () => {
+  beforeEach(() => {
+    // The photo rules a pick is checked against.
+    server.use(http.get('*/api/v1/orders/image-rules', () => HttpResponse.json(IMAGE_RULES)));
+  });
+
+  it('has the three slots on a line that exists and no save-first note, and none of the slots on a new line', async () => {
+    productLinesBackend();
+    const existing = await openLine(LINE_IDS.polo);
+
+    expect(
+      within(screen.getByRole('group', { name: 'Main photo' })).getByRole('img', {
+        name: 'Drawn jersey (no photo yet)',
+      }),
+    ).toBeVisible();
+    expect(screen.getByRole('group', { name: 'Back view' })).toBeVisible();
+    expect(screen.getByRole('group', { name: 'Fabric detail' })).toBeVisible();
+    expect(screen.queryByText('Save the product line first, then add photos.')).toBeNull();
+    existing.unmount();
+
+    await openNewLine();
+    expect(screen.getByText('Save the product line first, then add photos.')).toBeVisible();
+    expect(screen.queryByRole('group', { name: 'Main photo' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Back view' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Fabric detail' })).toBeNull();
+  });
+
+  it('saves a photo at once and leaves the form clean: leaving the page asks nothing', async () => {
+    const lines = productLinesBackend();
+    const photos = linePhotosBackend(lines);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user, router } = await openLine(LINE_IDS.polo);
+
+    await user.upload(slotInput('Main photo'), new File(['jpeg'], 'front.jpg', { type: 'image/jpeg' }));
+
+    expect(await screen.findByText('Photo saved')).toBeVisible();
+    expect(photos.uploads).toHaveLength(1);
+    await user.click(screen.getByRole('link', { name: 'Site Content' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/admin/site-content');
+    });
+    expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).toBeNull();
+  });
+
+  it('a photo does not change the version a later Save Changes sends, and the photo stays after the save', async () => {
+    const lines = productLinesBackend();
+    linePhotosBackend(lines);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openLine(LINE_IDS.polo);
+    const polo = demoLineDetail('polo');
+
+    await user.upload(slotInput('Back view'), new File(['jpeg'], 'back.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo saved');
+    await user.type(screen.getByLabelText(PRICE), '450');
+    await user.tab();
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Product line saved')).toBeVisible();
+    expect(lines.puts[0]?.body.version).toBe(polo.version);
+    expect(
+      within(screen.getByRole('group', { name: 'Back view' })).getByRole('img', { name: 'Back view of Polo Shirts' }),
+    ).toBeVisible();
+  });
+
+  it('shows the photos the server holds, each slot with its own button', async () => {
+    productLinesBackend([lineWithPhotos('polo', ['main', 'fabric'])]);
+    await openLine(LINE_IDS.polo);
+
+    expect(
+      within(screen.getByRole('group', { name: 'Main photo' })).getByRole('button', { name: 'Replace Photo' }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole('group', { name: 'Back view' })).getByRole('button', { name: 'Choose Photo' }),
+    ).toBeVisible();
+    expect(
+      within(screen.getByRole('group', { name: 'Fabric detail' })).getByRole('button', { name: 'Replace Photo' }),
+    ).toBeVisible();
+  });
+
+  it('has no axe violation with photos, and none while a photo uploads', async () => {
+    const lines = productLinesBackend([lineWithPhotos('polo', ['main', 'back'])]);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    linePhotosBackend(lines, { onUpload: () => gate.then(() => undefined) });
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { container, user } = await openLine(LINE_IDS.polo);
+    await expectNoAxeViolations(container);
+
+    await user.upload(slotInput('Fabric detail'), new File(['jpeg'], 'fabric.jpg', { type: 'image/jpeg' }));
+    await waitFor(() => {
+      expect(within(screen.getByRole('group', { name: 'Fabric detail' })).getByRole('status')).toHaveTextContent(
+        'Uploading',
+      );
+    });
+    await expectNoAxeViolations(container);
+
+    release();
+    await screen.findByText('Photo saved');
   });
 });
 
