@@ -13,6 +13,7 @@
 // SPEC-DEVIATION: D-41 R2-17 (owner, 2026-10-13) the column titles Shop, Visit and Contact are h2 instead of App. E.1's
 // h4, so the page's headings go h1 → h2 (Lighthouse heading order). Preflight resets heading size, weight and margin,
 // and the look comes from the classes, so nothing visible changes.
+import { Suspense } from 'react';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Logo } from '@/components/brand/Logo';
@@ -21,6 +22,7 @@ import { PUBLIC_COPY } from '../copy';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import { addressLine, mainPhone, telHref } from '../siteFacts';
 import type { PublicSite } from '../services/siteService';
+import { LazyFooterHours } from './lazyHours';
 import { SkeletonLines } from './SkeletonLines';
 
 const { footer: FOOTER } = PUBLIC_COPY;
@@ -32,6 +34,8 @@ const SHOP_LINKS = [
   { text: FOOTER.links.getQuote, to: '/contact' },
 ] as const;
 
+// The clock row (summarizeOpenDays, in FooterHours) loads on its own, so no page's first download carries the hours
+// formatters (PERF-01).
 const columnTitleClasses = tw('mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase');
 const columnListClasses = tw('flex flex-col gap-3 text-[14px] leading-5');
 const rowClasses = tw('flex items-start gap-2');
@@ -62,6 +66,9 @@ function VisitColumn({ site }: { site: PublicSite | undefined }) {
             <Icon name="map-pin" size={16} className="mt-px text-ink-muted" />
             <span>{address}</span>
           </li>
+          <Suspense fallback={null}>
+            <LazyFooterHours site={site} />
+          </Suspense>
         </ul>
       )}
     </div>

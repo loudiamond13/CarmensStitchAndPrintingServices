@@ -3,10 +3,11 @@
 // list and the map. The hours card (plan 11-14) leads the aside. The sticky bar is PublicLayout's.
 // States: while the shop facts load the cards show their skeletons inside one loading region; if the read fails the whole
 // area becomes one error with Try Again.
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { ErrorState } from '@/components/states/ErrorState';
 import { LoadingRegion } from '@/components/states/LoadingRegion';
 import { ContactNowCard } from '../components/ContactNowCard';
+import { LazyHoursCard } from '../components/lazyHours';
 import { MapCard } from '../components/MapCard';
 import { PageHead } from '../components/PageHead';
 import { PhoneListCard } from '../components/PhoneListCard';
@@ -21,9 +22,6 @@ import {
 import { PUBLIC_COPY } from '../copy';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { useSiteQuery } from '../hooks/useSiteQuery';
-
-// The hours card loads on its own after the page, so the page's first download stays inside the public budget (PERF-01).
-const HoursCard = lazy(async () => ({ default: (await import('../components/HoursCard')).HoursCard }));
 
 export function ContactPage() {
   usePageTitle(PUBLIC_COPY.titles.contact);
@@ -54,7 +52,7 @@ export function ContactPage() {
                   </div>
                 }
               >
-                <HoursCard site={site} />
+                <LazyHoursCard site={site} />
               </Suspense>
               {site !== undefined && <PhoneListCard phones={site.phones} />}
               <MapCard site={site} />

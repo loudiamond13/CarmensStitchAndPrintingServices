@@ -3,7 +3,10 @@
 // form sits, in the `.s-formcard` look, so Phase 13 can put the form in its place and move the two buttons back to the aside.
 // SPEC-DEVIATION: D-18 App. E.4's left column is the inquiry form; here it is this card (owner ruling).
 // SPEC-DEVIATION: D-23 the Call button dials the main number, and every number is in "Call or text".
+// The Call button's second line is the open days (callButtonSummary, in CallHoursNote), left out when no day is open. It
+// loads on its own so the page's first download stays inside the public budget (PERF-01).
 // While the shop facts load the card shows its title and intro and two 92px skeleton blocks in place of the buttons.
+import { Suspense } from 'react';
 import { Icon } from '@/components/brand/Icon';
 import type { IconName } from '@/components/brand/icons';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -11,6 +14,7 @@ import { PUBLIC_COPY } from '../copy';
 import type { PublicSite } from '../services/siteService';
 import { mainPhone, telHref } from '../siteFacts';
 import { BigContactButton } from './BigContactButton';
+import { LazyCallHoursNote } from './lazyHours';
 import {
   bigButtonsClasses,
   cardHeadClasses,
@@ -64,6 +68,11 @@ export function ContactNowCard({ site }: ContactNowCardProps) {
                 icon="phone"
                 iconSize={24}
                 title={NOW.call(phone.display)}
+                note={
+                  <Suspense fallback={null}>
+                    <LazyCallHoursNote site={site} />
+                  </Suspense>
+                }
               />
             )}
           </>

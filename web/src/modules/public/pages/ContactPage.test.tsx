@@ -64,7 +64,9 @@ describe('ContactPage content from the stored facts (PUB-02, PUB-06, D-18, D-20,
       'href',
       'https://m.me/cspsdemo',
     );
-    expect(within(main).getByRole('link', { name: 'Call 0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
+    expect(
+      await within(main).findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' }),
+    ).toHaveAttribute('href', 'tel:+639171234567');
     expect(within(main).getByRole('heading', { level: 2, name: 'Call or text' })).toBeInTheDocument();
     expect(within(main).getByRole('img', { name: 'Map placeholder showing the shop location' })).toBeInTheDocument();
     expect(container.textContent).not.toContain('@');

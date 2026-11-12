@@ -72,3 +72,5 @@ export function HoursCard({ site }: HoursCardProps) {
     </div>
   );
 }
+
+export default HoursCard;

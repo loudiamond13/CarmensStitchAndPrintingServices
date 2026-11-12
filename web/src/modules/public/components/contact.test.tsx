@@ -51,7 +51,7 @@ describe('ContactNowCard (D-18)', () => {
     const messenger = screen.getByRole('link', { name: /^Message us on Messenger/ });
     expect(messenger).toHaveAttribute('href', 'https://m.me/cspsdemo');
     expect(messenger).not.toHaveAttribute('target');
-    expect(screen.getByRole('link', { name: 'Call 0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
+    expect(screen.getByRole('link', { name: /^Call 0917 123 4567/ })).toHaveAttribute('href', 'tel:+639171234567');
     expect(screen.getByRole('heading', { level: 3, name: 'What to send' })).toBeInTheDocument();
     expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'Your team or group name',
