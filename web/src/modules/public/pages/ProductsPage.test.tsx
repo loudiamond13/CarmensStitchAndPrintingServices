@@ -1,5 +1,6 @@
-import { render, screen, within } from '@testing-library/react';
-import { http } from 'msw';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +12,11 @@ import {
   answerSite,
   demoLines,
   demoSite,
+  makeLine,
+  noLines,
   oneLine,
+  productLinesFailureHandler,
+  productLinesHandler,
   putBootBlock,
   siteWithoutOptionals,
 } from '@/test/publicFixtures';
@@ -232,5 +237,153 @@ describe('ProductsPage hash on load (UI-SPEC P1 Hash on load)', { timeout: 20_00
     await screen.findAllByRole('article');
 
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+/** The 44px pill skeletons of the loading bar (each sets its height through --sk-h). */
+function pillSkeletons(container: HTMLElement): Element[] {
+  return [...container.querySelectorAll('[style*="--sk-h: 44px"]')];
+}
+
+describe('ProductsPage states (CONT-02, PUB-01, UI spec P1 States)', { timeout: 20_000 }, () => {
+  it('while the lines load shows six 44px pill skeletons and two article skeletons in "Loading the product lines…"', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get('*/api/v1/public/product-lines', async () => {
+        await gate;
+        return HttpResponse.json(demoLines);
+      }),
+    );
+
+    const { container } = await renderProducts();
+
+    expect(screen.getByText('Loading the product lines…')).toBeInTheDocument();
+    expect(pillSkeletons(container)).toHaveLength(6);
+    expect(container.querySelectorAll('[data-product-skeleton="article"]')).toHaveLength(2);
+    expect(screen.queryByRole('navigation', { name: 'Product lines' })).toBeNull();
+    expect(screen.queryByRole('article')).toBeNull();
+    await expectNoAxeViolations(container);
+
+    release();
+    expect(await screen.findAllByRole('article')).toHaveLength(6);
+    expect(container.querySelectorAll('[data-product-skeleton]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(screen.getByText('The product lines loaded.')).toBeInTheDocument();
+    });
+  });
+
+  it('a failed read shows "Couldn\'t load the product lines." with Try Again instead of the pills and articles, and keeps the help card', async () => {
+    server.use(productLinesFailureHandler(500));
+
+    const { container } = await renderProducts();
+
+    const alert = await screen.findByRole('alert', undefined, { timeout: 10_000 });
+    expect(alert).toHaveTextContent("Couldn't load the product lines.");
+    expect(alert).toHaveTextContent('Check your internet connection and try again.');
+    expect(screen.queryByRole('navigation', { name: 'Product lines' })).toBeNull();
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(await helpCard()).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('Try Again reads the lines again and shows them', async () => {
+    server.use(productLinesFailureHandler(500));
+    await renderProducts();
+    const retry = await screen.findByRole('button', { name: 'Try Again' }, { timeout: 10_000 });
+
+    server.use(productLinesHandler(demoLines));
+    await userEvent.click(retry);
+
+    expect(await screen.findAllByRole('article')).toHaveLength(6);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('with no active line shows no pill bar and the empty state with Message Us to Messenger, and keeps the help card', async () => {
+    answerProductLines(noLines);
+
+    const { container } = await renderProducts();
+
+    const title = await screen.findByRole('heading', { level: 2, name: 'Our product list is being updated' });
+    expect(
+      screen.getByText("Message us on Messenger or call the shop, and we'll tell you what we can make for your team."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Product lines' })).toBeNull();
+    expect(screen.queryByRole('article')).toBeNull();
+    expect(screen.queryByText(/product lines, all printed/)).toBeNull();
+    const empty = title.parentElement;
+    expect(empty).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(within(empty ?? container).getByRole('link', { name: 'Message Us' })).toHaveAttribute(
+        'href',
+        'https://m.me/cspsdemo',
+      );
+    });
+    expect(await helpCard()).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('with no active line and no Messenger link the empty state offers Get a Quote to /contact', async () => {
+    answerProductLines(noLines);
+    answerSite(siteWithoutOptionals);
+
+    await renderProducts();
+
+    const title = await screen.findByRole('heading', { level: 2, name: 'Our product list is being updated' });
+    await vi.waitFor(() => {
+      expect(within(title.parentElement ?? document.body).getByRole('link', { name: 'Get a Quote' })).toHaveAttribute(
+        'href',
+        '/contact',
+      );
+    });
+    expect(within(title.parentElement ?? document.body).queryByRole('link', { name: 'Message Us' })).toBeNull();
+  });
+
+  it('one line reads "One product line, ..." with the number "01 / 01"', async () => {
+    answerProductLines(oneLine);
+
+    await renderProducts();
+
+    expect(await screen.findByText('01 / 01')).toBeInTheDocument();
+    expect(screen.getByText(/^One product line, printed by full sublimation/)).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Product lines' })).getAllByRole('link')).toHaveLength(1);
+  });
+
+  it('a line with no price, no minimum and no photos shows the price prompt, the drawn jersey and the two placeholders', async () => {
+    answerProductLines({
+      lines: [makeLine({ key: 'polo', title: 'Polo Shirts', shortName: 'Polo', placeholderArt: 'polo' })],
+    });
+
+    await renderProducts();
+
+    const article = await screen.findByRole('article', { name: 'Polo Shirts' });
+    expect(within(article).getByText('Message us for a price')).toBeInTheDocument();
+    expect(article).not.toHaveTextContent('min.');
+    expect(article.querySelector('svg[viewBox="0 0 400 480"]')).not.toBeNull();
+    expect(within(article).getAllByRole('img', { name: /no image yet/ })).toHaveLength(2);
+  });
+
+  it('long customize texts and a long description wrap instead of overflowing (overflow-wrap anywhere)', async () => {
+    const long = 'a'.repeat(120);
+    answerProductLines({
+      lines: [
+        makeLine({
+          key: 'polo',
+          title: 'Polo Shirts',
+          shortName: 'Polo',
+          description: 'd'.repeat(300),
+          customize: { fabric: long, collar: long, cut: long, names: long, logos: long },
+        }),
+      ],
+    });
+
+    await renderProducts();
+
+    const article = await screen.findByRole('article', { name: 'Polo Shirts' });
+    const copy = within(article).getByText('d'.repeat(300)).parentElement;
+    expect(copy?.className.split(' ')).toContain('wrap-anywhere');
+    expect(within(article).getAllByText(long)).toHaveLength(5);
   });
 });
