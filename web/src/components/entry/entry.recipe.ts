@@ -40,8 +40,8 @@ export const checkInputClasses = tw(
   'peer col-start-1 row-start-1 m-0 size-5 cursor-pointer appearance-none rounded-xs border-2 border-ink bg-surface-2 checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
 );
 
-/** A checkbox that is aria-disabled: dimmed like a disabled one, yet still focusable (its hint explains why). */
-export const checkInactiveClasses = tw('opacity-60');
+/** A checkbox that is aria-disabled: the box dims as a disabled button does (D-02 allows aria-disabled:opacity-45), yet stays focusable (its hint explains why). */
+export const checkInactiveClasses = tw('aria-disabled:opacity-45');
 
 /**
  * D-03 (C-35) tick in --on-accent, geometry from 74621f5 (D-37): a 10×5px box with 2px bottom and left borders, 3px up
