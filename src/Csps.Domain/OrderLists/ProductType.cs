@@ -17,6 +17,11 @@ public sealed class ProductType : OrderListEntry
     /// <summary>The public product line orders of this type are filed under (D-09); null until a Manager links it.</summary>
     public Guid? ProductLineId { get; private set; }
 
+    /// <summary>Files the product type under a public product line, or under none.</summary>
+    /// <param name="lineId">The line, or null to unlink it.</param>
+    /// <returns>True when the link changed.</returns>
+    public bool LinkToLine(Guid? lineId) => throw new NotImplementedException();
+
     /// <inheritdoc />
     private protected override string ErrorPrefix => Prefix;
 
