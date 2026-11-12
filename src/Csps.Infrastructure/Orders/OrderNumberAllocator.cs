@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Domain.Orders;
@@ -72,7 +73,13 @@ internal sealed class OrderNumberAllocator : IOrderNumbers
             await DatabaseLocks.TakeAsync(_context, DatabaseLocks.OrderNumbers, now, _lockWait, OrderErrors.BusyMessage, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (InvalidOperationException error) when (error.Message == OrderErrors.BusyMessage)
+        catch (DatabaseLockTimeoutException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+        {
+            // P10-BL-22: a lost deadlock is a lost race, as in StaffMoneyLock: the unit of work marks an outer transaction ended.
+            _context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+        catch (DatabaseLockTimeoutException)
         {
             throw new OrderNumberBusyException();
         }
