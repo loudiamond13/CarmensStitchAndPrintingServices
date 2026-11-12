@@ -458,6 +458,7 @@ export function demoLineDetail(
     updatedAtUtc: null,
     updatedByName: null,
     version: `AAAAAAAAE0${String(index + 1)}=`,
+    photos: { main: null, back: null, fabric: null },
     ...overrides,
   };
 }
