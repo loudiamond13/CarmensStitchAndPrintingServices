@@ -33,7 +33,8 @@ export function HomePage() {
         <div className={heroCopyClasses}>
           <span className={eyebrowClasses}>{eyebrow}</span>
           <h1 className={heroH1Classes}>
-            {headline.plain} <em className={h1EmClasses}>{headline.accent}</em>
+            {`${headline.plain} `}
+            <em className={h1EmClasses}>{headline.accent}</em>
           </h1>
           <p className={leadClasses}>{lead}</p>
           <div className={btnRowClasses}>

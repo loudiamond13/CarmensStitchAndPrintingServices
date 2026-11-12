@@ -46,8 +46,10 @@ export function PageHead({ eyebrow, headline, crumb, lead, actions, flat = false
           </nav>
         )}
         <span className={eyebrowClasses}>{eyebrow}</span>
+        {/* The plain part and its space are one text node, as App. E.2 writes it: a separate space node shapes 0.01 px wider in Chromium. */}
         <h1 className={pageH1Classes}>
-          {headline.plain} <em className={h1EmClasses}>{headline.accent}</em>
+          {`${headline.plain} `}
+          <em className={h1EmClasses}>{headline.accent}</em>
         </h1>
         {lead !== undefined && <p className={leadClasses}>{lead}</p>}
         {actions !== undefined && <div className={btnRowClasses}>{actions}</div>}
