@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 22/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 24/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1229,9 +1229,9 @@ Plans:
 - [x] 11-22-PLAN.md — PhotoSlot and the editor's Photos card (CONT-02, GAL-03)
 
 **Wave 10**
-- [ ] 11-23-PLAN.md — Order public settings: customer OK, show on the website, gallery entries (GAL-03, CONT-03, PUB-03)
-- [ ] 11-24-PLAN.md — Testimonials tab (CONT-03, PUB-03)
-- [ ] 11-25-PLAN.md — Home page (PUB-01, PUB-02, CONT-03)
+- [ ] 11-23-PLAN.md — Order public settings: customer OK, show on the website, gallery entries (GAL-03, CONT-03, PUB-03) (Tasks 1-2 done; Task 3 continuation running; restore ruling parked as P11-BL-29)
+- [x] 11-24-PLAN.md — Testimonials tab (CONT-03, PUB-03)
+- [x] 11-25-PLAN.md — Home page (PUB-01, PUB-02, CONT-03)
 
 **Wave 11**
 - [ ] 11-26-PLAN.md — Public gallery read, Recent work, hero tag, privacy backstop (GAL-01, CONT-03, PUB-02, PUB-04)
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 22/38 | In Progress | - |
+| 11. Public Site & Content Management | 25/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |

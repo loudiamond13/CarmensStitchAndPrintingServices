@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T13:04:30-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T14:41:26-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -261,6 +261,40 @@ If someone else already removed the photo, the screen treats Remove as done and 
 
 - **A (built, recommended):** treat it as removed.
 - **B:** show the "no photo there" message from P11-BL-18.
+
+## P11-BL-29 · What restoring a deleted order does to the website (plan 11-23, Task 3) · IMPORTANT
+
+**Status:** open · **Blocks:** nothing now, but it must be answered before Phase 11 ships. Nothing was decided for you.
+
+Deleting an order takes it off the website at once (D-15). Nothing says what happens when a Manager restores it. Today's code restores the order exactly as it was, so an order that was shown on the website would come back on the website by itself. The run leaves restore as it is and finishes everything else.
+
+- **A (recommended):** deleting also turns "Show on the website" off (the customer's OK stays). A restore never puts the order back on the website by itself, the same as cancelling (D-41). Nothing goes public without a deliberate step. This is a small, separate change.
+- **B:** a restore brings the order back on the website exactly as it was (today's behaviour, no change).
+
+## P11-BL-30 · When "name shown" is required on an order (plan 11-23, owner item O-2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+- **A (built, recommended):** "name shown" is required only when the order is being shown on the website, so staff can record the customer's OK first on an order with no team name.
+- **B:** require it whenever the OK is recorded.
+
+## P11-BL-31 · Removing the customer's OK on a cancelled order (plan 11-23, owner item O-3)
+
+**Status:** open · **Blocks:** nothing. Built as option B for now.
+
+Today every website setting is refused on a cancelled order, including taking the customer's OK away.
+
+- **A (recommended):** allow removing the OK on a cancelled order (it only makes the order more private). Small change.
+- **B (built):** refuse every website setting on a cancelled order.
+
+## P11-BL-32 · Testimonials tab wording (plan 11-24, owner items OI-1 to OI-3)
+
+**Status:** open · **Blocks:** nothing. Built as option A. The spec has no words for these.
+
+The move announcement and the failure messages, the "not found" line, the delete question showing the first 50 characters of the quote, and Edit waiting while a move, hide or show saves.
+
+- **A (built, recommended):** keep them as built.
+- **B:** give your own words or rules.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
