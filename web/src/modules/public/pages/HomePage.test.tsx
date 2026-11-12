@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -6,7 +7,18 @@ import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { demoHome, demoSite, putBootBlock, siteHandler, siteWithoutOptionals } from '@/test/publicFixtures';
+import {
+  answerHome,
+  demoHome,
+  demoSite,
+  homeFailureHandler,
+  homeHandler,
+  homeNoLines,
+  homeNoTestimonials,
+  putBootBlock,
+  siteHandler,
+  siteWithoutOptionals,
+} from '@/test/publicFixtures';
 
 /** The real route tree at /, settled once the hero h1 is on screen. */
 async function renderHome() {
@@ -47,7 +59,8 @@ describe('HomePage at / (PUB-01, UI-SPEC H1 item 1)', { timeout: 20_000 }, () =>
   it('takes "Get a Quote" to /contact and "View Our Work" to /gallery (D-19)', async () => {
     await renderHome();
     const main = within(screen.getByRole('main'));
-    // The hero's button and the final call to action's button (11-25) both go to /contact.
+    // The hero's button and the final call to action's button (11-25, a lazy part) both go to /contact.
+    await screen.findByRole('heading', { level: 2, name: "Got a team? Let's suit them up." }, { timeout: 15_000 });
     const quotes = main.getAllByRole('link', { name: 'Get a Quote' });
     expect(quotes).toHaveLength(2);
     for (const quote of quotes) {
@@ -185,5 +198,97 @@ describe('HomePage story (PUB-01, D-05, D-36, PUB-06)', { timeout: 20_000 }, () 
     const { container } = await renderSettled();
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }, () => {
+  it('while the home data loads, the hero shows at once and the cards and testimonials hold their place in "Loading the page…"', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get('*/api/v1/public/home', async () => {
+        await gate;
+        return HttpResponse.json(demoHome);
+      }),
+    );
+
+    const { container } = await renderHome();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Built for the whole team.' })).toBeVisible();
+    expect(screen.getByText('Loading the page…')).toBeInTheDocument();
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-home-skeleton="card"]')).toHaveLength(6);
+    await waitFor(() => {
+      expect(container.querySelectorAll('[data-home-skeleton="testimonial"]')).toHaveLength(3);
+    });
+    for (const frame of container.querySelectorAll('[data-home-skeleton="testimonial"]')) {
+      expect(frame.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(4);
+    }
+    expect(container.querySelectorAll('[data-home-skeleton="card"] [style*="--ratio: 4 / 5"]')).toHaveLength(6);
+    expect(screen.queryByRole('figure')).toBeNull();
+    await expectNoAxeViolations(container);
+
+    release();
+    await screen.findAllByRole('figure');
+    expect(container.querySelectorAll('[data-home-skeleton]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(screen.getByText('The page loaded.')).toBeInTheDocument();
+    });
+  });
+
+  it('with no active line shows no categories section and keeps the rest of the page', async () => {
+    answerHome(homeNoLines);
+
+    const { container } = await renderHome();
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Made to move. Made to last.' }, { timeout: 15_000 }),
+    ).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'All products' })).toBeNull();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeVisible();
+    await expectNoAxeViolations(container);
+  });
+
+  it('with no shown testimonial shows no testimonials section and keeps the rest of the page', async () => {
+    answerHome(homeNoTestimonials);
+
+    const { container } = await renderHome();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' }, { timeout: 15_000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 2, name: "Got a team? Let's suit them up." })).toBeVisible();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeNull();
+    expect(screen.queryByRole('figure')).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it('a failed read shows "Couldn\'t load the product lines." with Try Again in the categories and no testimonials', async () => {
+    server.use(homeFailureHandler(500));
+
+    const { container } = await renderHome();
+
+    const alert = await screen.findByRole('alert', undefined, { timeout: 15_000 });
+    expect(alert).toHaveTextContent("Couldn't load the product lines.");
+    expect(within(alert).getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeNull();
+    expect(screen.queryByRole('figure')).toBeNull();
+    expect(await screen.findByRole('heading', { level: 2, name: "Got a team? Let's suit them up." })).toBeVisible();
+    expect(container.querySelectorAll('[data-home-skeleton]')).toHaveLength(0);
+    await expectNoAxeViolations(container);
+  });
+
+  it('Try Again reads the home data again and shows the cards and the testimonials', async () => {
+    server.use(homeFailureHandler(500));
+    await renderHome();
+    const retry = await screen.findByRole('button', { name: 'Try Again' }, { timeout: 15_000 });
+
+    server.use(homeHandler(demoHome));
+    await userEvent.click(retry);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Pick your kit.' })).toBeVisible();
+    expect(await screen.findAllByRole('figure')).toHaveLength(3);
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

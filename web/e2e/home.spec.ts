@@ -1,7 +1,7 @@
 // Home page E2E (PUB-01, PUB-02, CONT-03, D-05, D-34, D-36, D-42): the product lines and the testimonials reach a visitor's
 // page from the server's own HTML with no extra request. Every test resets the demo shop facts, the six lines and the demo
 // testimonials (the Testing seeder) and runs under the site content lock, because they are shared by all five projects.
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
 
@@ -136,3 +136,22 @@ test('@home at 390px Why CSPS is one column of rows', async ({ page, request }) 
     expect(await page.evaluate<number>(WHY_COLUMNS)).toBe(1);
   });
 });
+
+// The guard fixture fails each test on any console, page, CSP or response finding, so these also prove a clean console.
+for (const width of [390, 1440]) {
+  test(`@home at ${String(width)}px there are no axe, console or CSP findings and no sideways scroll`, async ({
+    page,
+    request,
+  }) => {
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/');
+      await expect(page.getByRole('heading', { level: 2, name: "Got a team? Let's suit them up." })).toBeVisible();
+      await expect(page.getByRole('main').locator('a[href^="/products#"]')).toHaveCount(6);
+
+      expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+      await expectNoAxeViolations(page);
+    });
+  });
+}
