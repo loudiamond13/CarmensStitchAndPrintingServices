@@ -64,7 +64,8 @@ internal sealed class StubPublicContentReader : IPublicContentReader
         null,
         null,
         2026,
-        [.. Enumerable.Range(1, 7).Select(day => new DayHoursDto(day, null, null))]);
+        [.. Enumerable.Range(1, 7).Select(day => new DayHoursDto(day, null, null))],
+        []);
 
     public static PublicSiteSnapshot Snapshot(PublicSiteDto site, DateTimeOffset lastChangedUtc)
     {

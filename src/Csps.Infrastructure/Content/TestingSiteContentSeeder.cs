@@ -6,7 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Infrastructure.Content;
 
 /// <summary>
-/// Puts the demo business info and the two demo phone numbers in place for E2E specs (QUAL-05). Every value is clearly fake. It saves
+/// Puts the demo business info, the two demo phone numbers and the demo week (Monday to Saturday 09:00 to 18:00, Sunday closed) in place
+/// for E2E specs (QUAL-05). Every value is clearly fake. It saves
 /// through the context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans
 /// extend it for their own tables, deleting rows whose name starts with "E2E-"; this plan's tables have no such rows.
 /// </summary>
@@ -15,6 +16,10 @@ namespace Csps.Infrastructure.Content;
 public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
+
+    private static readonly TimeOnly DemoOpens = new(9, 0);
+
+    private static readonly TimeOnly DemoCloses = new(18, 0);
 
     private static readonly BusinessInfo Demo = new(
         SiteSettingsDefaults.BusinessName,
@@ -34,7 +39,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         "demo-shop@csps.test",
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
-    /// <summary>Sets the demo settings and replaces the phone list with the two demo numbers.</summary>
+    /// <summary>Sets the demo settings, replaces the phone list with the two demo numbers and sets the demo week.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes when the demo content is saved.</returns>
     public async Task ResetAsync(CancellationToken cancellationToken)
@@ -50,6 +55,14 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             context.SitePhoneNumbers.RemoveRange(await context.SitePhoneNumbers.ToListAsync(cancellationToken).ConfigureAwait(false));
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             context.SitePhoneNumbers.AddRange(changes.Phones);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            foreach (var day in await context.OpeningHours.ToListAsync(cancellationToken).ConfigureAwait(false))
+            {
+                // The demo hours are always valid, so the result carries no error to handle.
+                _ = day.SetHours(day.DayOfWeek <= 6 ? DemoOpens : null, day.DayOfWeek <= 6 ? DemoCloses : null);
+            }
+
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         finally

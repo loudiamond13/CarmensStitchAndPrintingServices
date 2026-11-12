@@ -4630,6 +4630,32 @@
         ],
         "type": "object"
       },
+      "PublicClosureDto": {
+        "description": "One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included.",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "lastDay": {
+            "description": "The last closed day, \"yyyy-MM-dd\"; the same as the first for a single day.",
+            "type": "string"
+          },
+          "note": {
+            "description": "A short reason shown to visitors; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstDay",
+          "lastDay",
+          "note"
+        ],
+        "type": "object"
+      },
       "PublicPhoneDto": {
         "description": "One public phone number.",
         "properties": {
@@ -4746,6 +4772,13 @@
               "string"
             ]
           },
+          "upcomingClosures": {
+            "description": "The closures in the next 30 days; empty until a Manager adds one.",
+            "items": {
+              "$ref": "#/components/schemas/PublicClosureDto"
+            },
+            "type": "array"
+          },
           "year": {
             "description": "The current business-calendar year, for the footer's copyright line.",
             "format": "int32",
@@ -4770,7 +4803,8 @@
           "directionsUrl",
           "mapEmbedUrl",
           "year",
-          "hours"
+          "hours",
+          "upcomingClosures"
         ],
         "type": "object"
       },

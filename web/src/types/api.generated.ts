@@ -4061,6 +4061,15 @@ export interface components {
             /** @description Town or city. */
             townOrCity: null | string;
         };
+        /** @description One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included. */
+        PublicClosureDto: {
+            /** @description The first closed day, "yyyy-MM-dd". */
+            firstDay: string;
+            /** @description The last closed day, "yyyy-MM-dd"; the same as the first for a single day. */
+            lastDay: string;
+            /** @description A short reason shown to visitors; null when there is none. */
+            note: null | string;
+        };
         /** @description One public phone number. */
         PublicPhoneDto: {
             /** @description The number as people read it, such as "0917 123 4567". */
@@ -4103,6 +4112,8 @@ export interface components {
             tiktokUrl: null | string;
             /** @description The turnaround promise; null makes no time promise. */
             turnaroundLine: null | string;
+            /** @description The closures in the next 30 days; empty until a Manager adds one. */
+            upcomingClosures: components["schemas"]["PublicClosureDto"][];
             /**
              * Format: int32
              * @description The current business-calendar year, for the footer's copyright line.

@@ -112,7 +112,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
             settings.DirectionsUrl,
             settings.MapEmbedUrl,
             year,
-            [.. hours.Select(day => new DayHoursDto(day.Day, DayHoursDto.FormatTime(day.OpensAt), DayHoursDto.FormatTime(day.ClosesAt)))]);
+            [.. hours.Select(day => new DayHoursDto(day.Day, DayHoursDto.FormatTime(day.OpensAt), DayHoursDto.FormatTime(day.ClosesAt)))],
+            []);
 
         var json = JsonSerializer.Serialize(site, JsonOptions);
         var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";

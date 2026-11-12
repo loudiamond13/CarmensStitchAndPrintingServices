@@ -45,6 +45,7 @@ export const demoSite: PublicSiteFixture = {
     opensAt: day <= 6 ? '09:00' : null,
     closesAt: day <= 6 ? '18:00' : null,
   })),
+  upcomingClosures: [],
 };
 
 /** The same shop with every optional value left out: one number, no links, no postal code. */
@@ -68,6 +69,7 @@ export const siteWithoutOptionals: PublicSiteFixture = {
   mapEmbedUrl: null,
   year: 2026,
   hours: closedWeek,
+  upcomingClosures: [],
 };
 
 /** The demo shop with three numbers: the main one, a landline and a labelled mobile. */

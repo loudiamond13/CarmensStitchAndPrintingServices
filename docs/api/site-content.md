@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-11T23:50:00-06:00
+updated: 2026-11-12T03:13:00-05:00
 ---
 
 # The site content API
@@ -11,8 +11,8 @@ Android app will use. Everything here is under `/api/v1`. The OpenAPI document (
 (`web/src/types/api.generated.ts`). Sign-in and the access token are in [auth.md](auth.md). What visitors read is in
 [public-site.md](public-site.md).
 
-Right now this page covers the Business Info save. The hours, closures, product lines, testimonials and gallery routes join this
-page in later plans.
+Right now this page covers the Business Info save and the weekly opening hours. The closures, product lines, testimonials and
+gallery routes join this page in later plans.
 
 ## In plain words
 
@@ -27,6 +27,8 @@ page in later plans.
 |---|---|---|
 | `GET /api/v1/site-settings` | Staff (Admin or Manager) | `200` the settings below; `401`. |
 | `PUT /api/v1/site-settings` | Manager | `200` the settings as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
+| `GET /api/v1/opening-hours` | Manager | `200` the seven days below; `401`; `403` for an Admin. |
+| `PUT /api/v1/opening-hours` | Manager | `200` the hours as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. An `Admin` can read the settings
 but cannot save them. No token is `401`.
@@ -126,6 +128,84 @@ A form with the same values as the stored ones stores nothing, writes no audit e
 After a save that changes something, the next `GET /api/v1/public/site` answers the new values with a new `ETag`, and the next page
 head carries the new name and tagline. A save that only changes the phone list also moves the settings row, so the version and the
 sitemap date follow it.
+
+## The opening hours
+
+The shop has one opening time and one closing time for each weekday (D-21). The hours are Manager only, for reading and for saving
+(CONT-01, D-27): an Admin gets `403` and no token gets `401`. Until a Manager saves hours, every day is closed. The migration creates the
+seven closed rows, and the shop never shows hours the owner did not enter.
+
+### Reading the hours
+
+`GET /api/v1/opening-hours` (operation `GetOpeningHours`):
+
+```json
+{
+  "days": [
+    { "day": 1, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 2, "opensAt": null, "closesAt": null },
+    { "day": 3, "opensAt": null, "closesAt": null },
+    { "day": 4, "opensAt": null, "closesAt": null },
+    { "day": 5, "opensAt": null, "closesAt": null },
+    { "day": 6, "opensAt": null, "closesAt": null },
+    { "day": 7, "opensAt": null, "closesAt": null }
+  ],
+  "version": "AAAAAAAAB9EAAAAAAAAH0gAA...",
+  "updatedByName": "Paolo Reyes",
+  "updatedAtUtc": "2026-11-12T08:00:00+00:00"
+}
+```
+
+- `day` runs from 1 (Monday) to 7 (Sunday). The list is always seven days, Monday first.
+- Times are `"HH:mm"` in 24 hours, local business time (Asia/Manila). A closed day has `null` for both.
+- `version` is the seven row versions joined and written as base64. The hours have their own version, so a Business Info save never
+  makes it stale (RESEARCH P-8). A change to any one day makes every older copy stale.
+- `updatedByName` and `updatedAtUtc` are the last change to any day, or `null` until a change.
+
+### Saving the hours
+
+`PUT /api/v1/opening-hours` (operation `UpdateOpeningHours`) saves all seven days at once:
+
+```json
+{
+  "version": "AAAAAAAAB9EAAAAAAAAH0gAA...",
+  "days": [
+    { "day": 1, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 2, "opensAt": null, "closesAt": null }
+  ]
+}
+```
+
+(The list must hold all seven days, each once, in any order. Two are shown to keep this short.) The answer is the saved hours, as above.
+Who saved and when come from the token and the clock; any such member in the body is ignored (SEC-08).
+
+| Rule | Message | Field |
+|---|---|---|
+| An open day needs an opening time | Choose the opening time. | `days[i].opensAt` |
+| An open day needs a closing time | Choose the closing time. | `days[i].closesAt` |
+| Closing must be after opening | Closing time must be after opening time. | `days[i].closesAt` |
+| A time must be on the hour or half hour, from 05:00 to 23:30, written `HH:mm` | Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM. | `days[i].opensAt` or `days[i].closesAt` |
+| All seven days, each once | Send the hours for all seven days, once each. | `days` |
+| The version is the stored one's shape | Reload the form and try again. | `version` |
+
+`i` is the day's place in the request list. The last two messages are not in the UI-SPEC; they are for callers that skip the form
+and are waiting for the owner's approval. The form never produces them, because it offers only half-hour choices and always sends
+seven days.
+
+A `version` that is not the stored one answers `409` with the code `edit.stale` and changes nothing. A save with no change stores
+nothing, writes no audit entry and keeps the version. The database also guards each row with two CHECK constraints (both times or
+neither, and closing after opening), never a trigger.
+
+### What visitors see
+
+After a save that changes something, the next `GET /api/v1/public/site`, the next `GET /api/v1/public/open-status` and the next page
+head show the new hours, because the server clears the public cache after the commit. The page head's JSON-LD lists each open weekday.
+
+### The hours audit entry
+
+Each save that changes something writes one entry with the action `opening-hours.changed` (target type `OpeningHours`, target id
+`week`), in the same save. The detail lists each changed day, Monday first, with its old and new times, for example
+`monday=closed>09:00-18:00;saturday=09:00-17:00>closed`. A closed day reads `closed`. No person's name is copied.
 
 ## The audit entry
 

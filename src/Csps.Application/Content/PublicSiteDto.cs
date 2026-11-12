@@ -7,6 +7,12 @@ namespace Csps.Application.Content;
 /// <param name="IsMain">True for the number the Call buttons dial; the main number is listed first.</param>
 public sealed record PublicPhoneDto(string Display, string E164, string? Label, bool IsMain);
 
+/// <summary>One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included.</summary>
+/// <param name="FirstDay">The first closed day, "yyyy-MM-dd".</param>
+/// <param name="LastDay">The last closed day, "yyyy-MM-dd"; the same as the first for a single day.</param>
+/// <param name="Note">A short reason shown to visitors; null when there is none.</param>
+public sealed record PublicClosureDto(string FirstDay, string LastDay, string? Note);
+
 /// <summary>The shop address as parts; a part that is not set is null.</summary>
 /// <param name="Street">Street and barangay.</param>
 /// <param name="TownOrCity">Town or city.</param>
@@ -32,6 +38,7 @@ public sealed record PublicAddressDto(string? Street, string? TownOrCity, string
 /// <param name="MapEmbedUrl">The map embed link.</param>
 /// <param name="Year">The current business-calendar year, for the footer's copyright line.</param>
 /// <param name="Hours">The weekly hours, seven days with Monday (1) first; a closed day has no times.</param>
+/// <param name="UpcomingClosures">The closures in the next 30 days; empty until a Manager adds one.</param>
 public sealed record PublicSiteDto(
     string BusinessName,
     string Tagline,
@@ -46,4 +53,5 @@ public sealed record PublicSiteDto(
     string? DirectionsUrl,
     string? MapEmbedUrl,
     int Year,
-    IReadOnlyList<DayHoursDto> Hours);
+    IReadOnlyList<DayHoursDto> Hours,
+    IReadOnlyList<PublicClosureDto> UpcomingClosures);

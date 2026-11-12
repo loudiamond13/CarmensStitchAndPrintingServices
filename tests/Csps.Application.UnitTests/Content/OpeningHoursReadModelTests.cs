@@ -151,7 +151,7 @@ public sealed class OpeningHoursReadModelTests
     private static GetOpenStatusHandler Handler(List<DayHoursDto> week, DateTimeOffset utcNow)
     {
         var site = new PublicSiteDto(
-            "Sample Shop", "Sample tagline", null, null, new PublicAddressDto(null, null, null, null), [], null, null, null, null, null, null, 2026, week);
+            "Sample Shop", "Sample tagline", null, null, new PublicAddressDto(null, null, null, null), [], null, null, null, null, null, null, 2026, week, []);
         var reader = Substitute.For<IPublicContentReader>();
         var calendar = Substitute.For<IBusinessCalendar>();
 #pragma warning disable CA2012 // NSubstitute only records the call here; the arranged ValueTask is consumed once, by the handler.
