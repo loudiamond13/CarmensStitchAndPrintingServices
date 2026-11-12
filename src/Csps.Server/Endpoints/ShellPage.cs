@@ -220,28 +220,34 @@ internal sealed partial class ShellRenderer(
         // The Products page also carries the product lines. When they cannot be read, the page keeps the site data and the head is
         // not cached, so the next visit tries again.
         string? linesJson = null;
+        string? shareImage = null;
         if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Products)
         {
             var lines = await ReadLinesAsync(context).ConfigureAwait(false);
             if (lines is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null);
             }
 
             linesJson = lines.Json.Json;
+            shareImage = AbsoluteAddress(origin, lines.ShareImageUrl);
         }
 
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
         return await cache.GetOrCreateAsync(
             key,
-            (snapshot, match, origin, linesJson),
-            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson)),
+            (snapshot, match, origin, linesJson, shareImage),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage)),
             HeadCacheOptions,
             Tags,
             context.RequestAborted).ConfigureAwait(false);
     }
 
-    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson)
+    // A Cloudinary address is already absolute; the Testing image route is a path on this site, so it gets the site's own origin.
+    private static string? AbsoluteAddress(string origin, string? address) =>
+        address is { Length: > 0 } && address[0] == '/' ? origin + address : address;
+
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage)
     {
         var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson);
         if (match.Kind == PublicRouteKind.NotFound)
@@ -261,7 +267,8 @@ internal sealed partial class ShellRenderer(
                 site.BusinessName,
                 NoIndex: false,
                 JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin),
-                BootJson: boot));
+                BootJson: boot,
+                ShareImageUrl: shareImage));
         return head.ToString();
     }
 

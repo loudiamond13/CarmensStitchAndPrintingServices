@@ -46,6 +46,25 @@ public sealed partial class CloudinaryImageDelivery(IOptions<CloudinarySettings>
         return ImageCandidates.ForCover(width, height, size => Address(publicId, size));
     }
 
+    /// <inheritdoc />
+    public LinePhotoUrls ForLinePhoto(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return new LinePhotoUrls(NoSource, NoSource, NoSource, string.Empty);
+        }
+
+        return ImageCandidates.ForLinePhoto(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
+    public string ForShare(string publicId)
+    {
+        CheckInput(publicId, 1, 1);
+        return NoCloudName() ? string.Empty : Address(publicId, ImageNamedSizes.Share);
+    }
+
     private string Address(string publicId, ImageNamedSize size) =>
         $"https://res.cloudinary.com/{_cloudName}/image/private/t_{size.Name}/v1/{publicId}";
 

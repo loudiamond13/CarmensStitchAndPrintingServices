@@ -37,8 +37,9 @@ public sealed record ProductLineListItemDto(
 {
     /// <summary>Maps a list row to the DTO (manual mapping, PRD section 3.3).</summary>
     /// <param name="row">The row.</param>
+    /// <param name="delivery">Makes the address of the main photo thumb.</param>
     /// <returns>The DTO.</returns>
-    public static ProductLineListItemDto From(ProductLineListRow row)
+    public static ProductLineListItemDto From(ProductLineListRow row, IImageDelivery delivery)
     {
         ArgumentNullException.ThrowIfNull(row);
         var line = row.Line;
@@ -51,7 +52,7 @@ public sealed record ProductLineListItemDto(
             line.MinimumQuantity,
             line.IsActive,
             line.Position,
-            null,
+            ProductLinePhotoMapper.ToThumb(row.MainPhoto, delivery),
             row.ProductTypeIds,
             row.GalleryItemCount,
             row.PhotoCount,
@@ -79,6 +80,7 @@ public sealed record ProductLineListItemDto(
 /// <param name="Position">The place in the order, from 1.</param>
 /// <param name="PlaceholderArt">The drawing shown until there are photos: <c>basketball</c>, <c>volleyball</c>, <c>moto</c>, <c>longSleeves</c>, <c>polo</c> or <c>custom</c>.</param>
 /// <param name="ProductTypeIds">The order product types filed under the line, A to Z.</param>
+/// <param name="Photos">The photos of the three slots; a slot with no photo is null.</param>
 /// <param name="Version">The text an edit must send back.</param>
 /// <param name="UpdatedByName">The name of the person who last changed the line; null when no person did.</param>
 /// <param name="CreatedAtUtc">When the line was added.</param>
@@ -102,6 +104,7 @@ public sealed record ProductLineDetailDto(
     int Position,
     string PlaceholderArt,
     IReadOnlyList<Guid> ProductTypeIds,
+    ProductLinePhotosDto Photos,
     string Version,
     string? UpdatedByName,
     DateTimeOffset CreatedAtUtc,
@@ -109,8 +112,9 @@ public sealed record ProductLineDetailDto(
 {
     /// <summary>Maps a detail row to the DTO (manual mapping, PRD section 3.3).</summary>
     /// <param name="row">The row.</param>
+    /// <param name="delivery">Makes the photo addresses.</param>
     /// <returns>The DTO.</returns>
-    public static ProductLineDetailDto From(ProductLineDetailRow row)
+    public static ProductLineDetailDto From(ProductLineDetailRow row, IImageDelivery delivery)
     {
         ArgumentNullException.ThrowIfNull(row);
         var line = row.Line;
@@ -134,6 +138,7 @@ public sealed record ProductLineDetailDto(
             line.Position,
             string.Concat(char.ToLowerInvariant(art[0]).ToString(), art.AsSpan(1)),
             row.ProductTypeIds,
+            ProductLinePhotoMapper.ToAdmin(row.Photos, delivery),
             RowVersions.ToText(line.RowVersion),
             row.UpdatedByName,
             line.CreatedAtUtc,

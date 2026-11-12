@@ -23,12 +23,14 @@ namespace Csps.Application.Content;
 /// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="validator">The form rules.</param>
+/// <param name="delivery">Makes the photo addresses of the answer.</param>
 public sealed class UpdateProductLineHandler(
     IProductLines lines,
     ISiteContentLock siteLock,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
-    IValidator<ProductLineRequest> validator)
+    IValidator<ProductLineRequest> validator,
+    IImageDelivery delivery)
 {
     /// <summary>Saves the edit.</summary>
     /// <param name="id">The line to edit.</param>
@@ -68,7 +70,7 @@ public sealed class UpdateProductLineHandler(
         var row = await lines.GetDetailAsync(id, cancellationToken).ConfigureAwait(false);
         return row is null
             ? Result.Failure<ProductLineDetailDto>(SiteContentErrors.LineNotFound)
-            : Result.Success(ProductLineDetailDto.From(row));
+            : Result.Success(ProductLineDetailDto.From(row, delivery));
     }
 
     private async Task<Result<bool>> AttemptAsync(Guid id, byte[] version, ProductLineRequest request, CancellationToken cancellationToken)

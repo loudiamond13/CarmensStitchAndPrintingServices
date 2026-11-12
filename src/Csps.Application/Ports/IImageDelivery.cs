@@ -21,4 +21,16 @@ public interface IImageDelivery
     /// <param name="height">The stored upright height in pixels.</param>
     /// <returns>The card and table addresses.</returns>
     CoverUrls ForCover(string publicId, int width, int height);
+
+    /// <summary>Builds the addresses of a product line photo for the public pages and the admin screens.</summary>
+    /// <param name="publicId">The stored public id.</param>
+    /// <param name="width">The stored upright width in pixels.</param>
+    /// <param name="height">The stored upright height in pixels.</param>
+    /// <returns>The card, large and small candidates and the 44 px thumb.</returns>
+    LinePhotoUrls ForLinePhoto(string publicId, int width, int height);
+
+    /// <summary>Builds the one address of a photo as a 1200 x 630 link preview picture.</summary>
+    /// <param name="publicId">The stored public id.</param>
+    /// <returns>The address, or an empty text when the account has no cloud name set. In the Testing environment it is a path on this site.</returns>
+    string ForShare(string publicId);
 }

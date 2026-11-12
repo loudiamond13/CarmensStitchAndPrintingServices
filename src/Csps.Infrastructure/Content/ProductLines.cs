@@ -29,8 +29,6 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .ConfigureAwait(false);
         var photos = await context.ProductLinePhotos
             .AsNoTracking()
-            .GroupBy(photo => photo.LineId)
-            .Select(group => new { LineId = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -40,8 +38,9 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .. lines.Select(line => new ProductLineListRow(
                 line,
                 [.. types.Where(type => type.LineId == line.Id).Select(type => type.Id)],
-                photos.Where(photo => photo.LineId == line.Id).Select(photo => photo.Count).FirstOrDefault(),
-                0)),
+                photos.Count(photo => photo.LineId == line.Id),
+                0,
+                photos.Find(photo => photo.LineId == line.Id && photo.Slot == ProductLinePhotoSlot.Main))),
         ];
     }
 
@@ -73,7 +72,12 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .Select(type => type.Id)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new ProductLineDetailRow(row.Line, typeIds, row.ChangerFirst is null ? null : $"{row.ChangerFirst} {row.ChangerLast}");
+        var photos = await context.ProductLinePhotos
+            .AsNoTracking()
+            .Where(photo => photo.LineId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return new ProductLineDetailRow(row.Line, typeIds, row.ChangerFirst is null ? null : $"{row.ChangerFirst} {row.ChangerLast}", photos);
     }
 
     public Task<ProductLine?> FindAsync(Guid id, CancellationToken cancellationToken) =>
@@ -131,6 +135,13 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
 
     public async Task<int> GetNextPositionAsync(CancellationToken cancellationToken) =>
         (await context.ProductLines.MaxAsync(line => (int?)line.Position, cancellationToken).ConfigureAwait(false) ?? 0) + 1;
+
+    public Task<ProductLinePhoto?> FindPhotoAsync(Guid lineId, ProductLinePhotoSlot slot, CancellationToken cancellationToken) =>
+        context.ProductLinePhotos.SingleOrDefaultAsync(photo => photo.LineId == lineId && photo.Slot == slot, cancellationToken);
+
+    public void AddPhoto(ProductLinePhoto photo) => context.ProductLinePhotos.Add(photo);
+
+    public void RemovePhoto(ProductLinePhoto photo) => context.ProductLinePhotos.Remove(photo);
 
     public void Add(ProductLine line) => context.ProductLines.Add(line);
 

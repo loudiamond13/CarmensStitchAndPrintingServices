@@ -16,6 +16,7 @@ namespace Csps.Server.Endpoints;
 /// <param name="NoIndex">Whether the page asks search engines to skip it.</param>
 /// <param name="JsonLd">The <c>LocalBusiness</c> JSON-LD text from <see cref="PublicHeadWriter.LocalBusinessJsonLd"/>; none when null.</param>
 /// <param name="BootJson">The boot data text from <see cref="PublicHeadWriter.BootData"/>; none when null.</param>
+/// <param name="ShareImageUrl">The absolute address of the 1200 x 630 link preview picture; the picture tags are left out when null.</param>
 internal sealed record PublicHeadModel(
     string Title,
     string Description,
@@ -23,7 +24,8 @@ internal sealed record PublicHeadModel(
     string? SiteName,
     bool NoIndex,
     string? JsonLd = null,
-    string? BootJson = null);
+    string? BootJson = null,
+    string? ShareImageUrl = null);
 
 /// <summary>
 /// Writes a page's head block as HTML (PUB-04, D-42). Every attribute value goes through an HTML encoder, and every script block holds
@@ -40,6 +42,10 @@ internal static class PublicHeadWriter
     public const string BootBlockId = "csps-boot";
 
     private const string LineBreak = "\n    ";
+
+    // The size of the link preview picture, the csps_share_1200 named size.
+    private const string ShareWidth = "1200";
+    private const string ShareHeight = "630";
 
     // The default encoder escapes every non-ASCII letter. Latin-1 stays readable (the middle dot in the titles); the five
     // markup characters are always escaped whatever the allowed ranges.
@@ -79,6 +85,7 @@ internal static class PublicHeadWriter
             AppendMeta(head, "property", "og:title", model.Title);
             AppendMeta(head, "property", "og:description", model.Description);
             AppendMeta(head, "property", "og:url", canonical);
+            AppendSharePicture(head, model);
         }
 
         if (model.NoIndex)
@@ -153,6 +160,23 @@ internal static class PublicHeadWriter
         return productLinesJson is null
             ? "{\"site\":" + siteJson + "}"
             : "{\"site\":" + siteJson + ",\"productLines\":" + productLinesJson + "}";
+    }
+
+    // The picture tags, and the card that goes with them: a large picture card with a picture, the plain summary card without (D-26).
+    private static void AppendSharePicture(StringBuilder head, PublicHeadModel model)
+    {
+        if (model.ShareImageUrl is { } image)
+        {
+            AppendMeta(head, "property", "og:image", image);
+            AppendMeta(head, "property", "og:image:width", ShareWidth);
+            AppendMeta(head, "property", "og:image:height", ShareHeight);
+            if (!string.IsNullOrEmpty(model.SiteName))
+            {
+                AppendMeta(head, "property", "og:image:alt", model.SiteName);
+            }
+        }
+
+        AppendMeta(head, "name", "twitter:card", model.ShareImageUrl is null ? "summary" : "summary_large_image");
     }
 
     private static void AppendMeta(StringBuilder head, string attribute, string key, string value) =>

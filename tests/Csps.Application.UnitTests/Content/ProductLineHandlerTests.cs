@@ -680,8 +680,8 @@ public sealed class ProductLineHandlerTests
         Should.Throw<ArgumentNullException>(() => ProductLineAuditDetail.Named(null!));
         Should.Throw<ArgumentNullException>(() => ProductLineAuditDetail.Changed(null!));
         Should.Throw<ArgumentNullException>(() => ProductLineAuditDetail.Moved(null!, 1));
-        Should.Throw<ArgumentNullException>(() => ProductLineListItemDto.From(null!));
-        Should.Throw<ArgumentNullException>(() => ProductLineDetailDto.From(null!));
+        Should.Throw<ArgumentNullException>(() => ProductLineListItemDto.From(null!, Substitute.For<IImageDelivery>()));
+        Should.Throw<ArgumentNullException>(() => ProductLineDetailDto.From(null!, Substitute.For<IImageDelivery>()));
     }
 
     [Fact]
@@ -716,10 +716,11 @@ public sealed class ProductLineHandlerTests
             time.GetUtcNow().Returns(Now);
             var rules = validator ?? new ProductLineRequestValidator();
             var moveRules = new MoveProductLineRequestValidator();
-            List = new ListProductLinesHandler(Lines);
-            Get = new GetProductLineHandler(Lines);
-            Create = new CreateProductLineHandler(Lines, SiteLock, Audit, Unit, time, rules);
-            Update = new UpdateProductLineHandler(Lines, SiteLock, Audit, Unit, rules);
+            var delivery = Substitute.For<IImageDelivery>();
+            List = new ListProductLinesHandler(Lines, delivery);
+            Get = new GetProductLineHandler(Lines, delivery);
+            Create = new CreateProductLineHandler(Lines, SiteLock, Audit, Unit, time, rules, delivery);
+            Update = new UpdateProductLineHandler(Lines, SiteLock, Audit, Unit, rules, delivery);
             Move = new MoveProductLineHandler(Lines, SiteLock, Audit, Unit, moveRules);
             SetShown = new SetProductLineShownHandler(Lines, Audit, Unit);
             Delete = new DeleteProductLineHandler(Lines, Audit, Unit);

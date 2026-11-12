@@ -8,7 +8,8 @@ namespace Csps.Application.Content;
 /// (CONT-02). The list is read from the database, not the public cache.
 /// </summary>
 /// <param name="lines">The product line store.</param>
-public sealed class ListProductLinesHandler(IProductLines lines)
+/// <param name="delivery">Makes the photo addresses.</param>
+public sealed class ListProductLinesHandler(IProductLines lines, IImageDelivery delivery)
 {
     /// <summary>Returns the lines.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
@@ -16,6 +17,6 @@ public sealed class ListProductLinesHandler(IProductLines lines)
     public async Task<Result<IReadOnlyList<ProductLineListItemDto>>> HandleAsync(CancellationToken cancellationToken)
     {
         var rows = await lines.ListAsync(cancellationToken).ConfigureAwait(false);
-        return Result.Success<IReadOnlyList<ProductLineListItemDto>>([.. rows.Select(ProductLineListItemDto.From)]);
+        return Result.Success<IReadOnlyList<ProductLineListItemDto>>([.. rows.Select(row => ProductLineListItemDto.From(row, delivery))]);
     }
 }

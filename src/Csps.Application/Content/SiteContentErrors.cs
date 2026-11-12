@@ -20,6 +20,15 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a product line that does not exist.</summary>
     public static Error LineNotFound { get; } = Error.NotFound(LineNotFoundCode, LineNotFoundMessage);
 
+    /// <summary>The machine code of a photo slot that holds no photo.</summary>
+    public const string PhotoNotFoundCode = "product-lines.photo-not-found";
+
+    /// <summary>The plain-English text for a photo slot that holds no photo.</summary>
+    public const string PhotoNotFoundMessage = "This product line has no photo there.";
+
+    /// <summary>Gets the 404 for a photo slot that holds no photo.</summary>
+    public static Error PhotoNotFound { get; } = Error.NotFound(PhotoNotFoundCode, PhotoNotFoundMessage);
+
     /// <summary>The machine code of a delete refused because something is filed under the product line.</summary>
     public const string LineInUseCode = "product-lines.in-use";
 

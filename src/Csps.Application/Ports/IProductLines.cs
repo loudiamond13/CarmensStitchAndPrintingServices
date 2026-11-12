@@ -74,6 +74,21 @@ public interface IProductLines
     /// <returns>One more than the highest position, or 1 when there are no lines.</returns>
     Task<int> GetNextPositionAsync(CancellationToken cancellationToken);
 
+    /// <summary>Loads the photo in one slot of a line as a tracked row, so a change to it is saved by the unit of work.</summary>
+    /// <param name="lineId">The line id.</param>
+    /// <param name="slot">The slot.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The photo, or null when the slot is empty.</returns>
+    Task<ProductLinePhoto?> FindPhotoAsync(Guid lineId, ProductLinePhotoSlot slot, CancellationToken cancellationToken);
+
+    /// <summary>Marks a new photo for insert. The next save writes it.</summary>
+    /// <param name="photo">The new photo.</param>
+    void AddPhoto(ProductLinePhoto photo);
+
+    /// <summary>Marks a tracked photo for removal. The next save deletes the row; the file is queued for removal by the caller.</summary>
+    /// <param name="photo">The tracked photo.</param>
+    void RemovePhoto(ProductLinePhoto photo);
+
     /// <summary>Marks a new line for insert. The next save writes it.</summary>
     /// <param name="line">The new line.</param>
     void Add(ProductLine line);
@@ -88,7 +103,8 @@ public interface IProductLines
 /// <param name="ProductTypeIds">The order product types filed under it, A to Z.</param>
 /// <param name="PhotoCount">How many photos it has.</param>
 /// <param name="GalleryItemCount">How many gallery items are filed under it.</param>
-public sealed record ProductLineListRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, int PhotoCount, int GalleryItemCount);
+/// <param name="MainPhoto">Its main photo; null when the slot is empty.</param>
+public sealed record ProductLineListRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, int PhotoCount, int GalleryItemCount, ProductLinePhoto? MainPhoto = null);
 
 /// <summary>What is filed under a line, as the usage read returns it.</summary>
 /// <param name="PhotoCount">How many photos the line has.</param>
@@ -104,4 +120,5 @@ public sealed record ProductLineUsage(int PhotoCount, int ProductTypeCount, int 
 /// <param name="Line">The line.</param>
 /// <param name="ProductTypeIds">The order product types filed under it, A to Z.</param>
 /// <param name="UpdatedByName">The name of the person who last changed it; null when no person did.</param>
-public sealed record ProductLineDetailRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, string? UpdatedByName);
+/// <param name="Photos">The photos it has, in no set order; none or null when it has no photo.</param>
+public sealed record ProductLineDetailRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, string? UpdatedByName, IReadOnlyList<ProductLinePhoto>? Photos = null);
