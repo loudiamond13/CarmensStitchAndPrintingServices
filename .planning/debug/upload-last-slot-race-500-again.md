@@ -3,7 +3,7 @@ status: awaiting_human_verify
 trigger: "OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos: the losing upload sometimes answers 500 under full-suite load (3 times in full runs on 2026-11-12), after the 2601 fix in 89d723cd."
 goal: find_and_fix
 created: 2026-11-12T16:15:00-06:00
-updated: 2026-11-12T17:20:00-06:00
+updated: 2026-11-12T17:32:00-06:00
 ---
 
 # Two uploads for the last photo slot: a 500 still happens under load
@@ -84,7 +84,7 @@ verification:
   target_test: { result: pass, detail: "endpoint test 3 of 3 after the fix; handler tests 2 of 2" }
   mutation_check: { result: pass, detail: "no Stryker in the repo; a hand-seeded mutant (busy answer null) was killed by ACheckThatSeesTheOrderChangeTwiceAnswersTheConflictBeforeAnyFileIsStored" }
   no_op_deletion: { result: pass, detail: "the diff adds a retry around the check; no behaviour removed" }
-  adjacent_tests: { result: pass, detail: "OrderImagesEndpointTests 10 runs x 21 tests, Application unit 2897 of 2897, Domain unit 1809 of 1809, coverage gate PASS (Domain 100%/100%, Application line 98.1%), Server Orders folder 385 of 386; the one failure is OrderListTimingTests p95 324.5 ms over its 300 ms budget, which does not touch the upload path; re-run alone it read 320.8 ms while another session's integration run held the CPU at 100% (recorded as load, not fixed here)" }
+  adjacent_tests: { result: pass, detail: "OrderImagesEndpointTests 10 runs x 21 tests, Application unit 2897 of 2897, Domain unit 1809 of 1809, coverage gate PASS (Domain 100%/100%, Application line 98.1%), Server Orders folder 385 of 386; the one failure is OrderListTimingTests p95 324.5 ms over its 300 ms budget, which does not touch the upload path; re-run alone it read 320.8 ms while another session's integration run held the CPU at 100%, and passed (1 of 1) on a third run at lower load (a load flake, not fixed here)" }
   revert_and_reconfirm: { result: pass, detail: "fix reverted: handler tests 2 of 2 failed and the endpoint test answered 500; fix reapplied: green" }
   stress: { result: pass, detail: "isolated databases: 90 of 90 and 160 of 160 races answered 200/422 (before the fix 15 of 90 answered 200/500)" }
   guardrail_verdict: accepted
