@@ -17,16 +17,38 @@ public sealed record PhilippinePhone
 
     private const string CountryCode = "63";
 
+    // "+63" plus 10 digits.
+    private const int MobileE164Length = 13;
+
+    private const char MetroManilaAreaCode = '2';
+
     private PhilippinePhone(string e164) => E164 = e164;
 
     /// <summary>The number as "+639171234567": a plus sign and digits only.</summary>
     public string E164 { get; }
 
-    /// <summary>The number as people read it, for example "0917 123 4567".</summary>
-    public string Display => $"0{E164.AsSpan(3, 3)} {E164.AsSpan(6, 3)} {E164.AsSpan(9)}";
-
     /// <summary>True for a mobile number.</summary>
-    public bool IsMobile => E164[3] == '9';
+    public bool IsMobile => E164.Length == MobileE164Length;
+
+    /// <summary>
+    /// The number as people read it: mobile "0917 123 4567", Metro Manila landline "02 8123 4567", other landline
+    /// "088 123 4567".
+    /// </summary>
+    public string Display
+    {
+        get
+        {
+            var national = "0" + E164[(CountryCode.Length + 1)..];
+            if (IsMobile)
+            {
+                return $"{national[..4]} {national[4..7]} {national[7..]}";
+            }
+
+            return national[1] == MetroManilaAreaCode
+                ? $"{national[..2]} {national[2..6]} {national[6..]}"
+                : $"{national[..3]} {national[3..6]} {national[6..]}";
+        }
+    }
 
     /// <summary>Parses what a person typed.</summary>
     /// <param name="text">The typed text.</param>
@@ -41,7 +63,7 @@ public sealed record PhilippinePhone
         }
 
         var national = ToNational(text);
-        if (national is not { Length: 11 } || national[1] != '9')
+        if (national is null || !HasMobileOrLandlineShape(national))
         {
             return false;
         }
@@ -49,6 +71,14 @@ public sealed record PhilippinePhone
         phone = new PhilippinePhone("+" + CountryCode + national[1..]);
         return true;
     }
+
+    // Mobile: 11 digits starting 09. Landline: 10 digits starting 0 and then 1 to 8.
+    private static bool HasMobileOrLandlineShape(string national) => national.Length switch
+    {
+        11 => national[1] == '9',
+        10 => national[1] is >= '1' and <= '8',
+        _ => false,
+    };
 
     // Digits with a leading 0: spaces, dashes, dots and round brackets are dropped, +63 becomes 0. Null for anything else.
     private static string? ToNational(string text)
