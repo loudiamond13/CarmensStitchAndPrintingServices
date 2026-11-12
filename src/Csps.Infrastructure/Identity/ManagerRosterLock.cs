@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
@@ -10,12 +11,24 @@ namespace Csps.Infrastructure.Identity;
 internal sealed class ManagerRosterLock(CspsDbContext context, TimeProvider time) : IManagerRosterLock
 {
     // A lock row, so no trigger (OR-7) and no inline SQL (D-50).
-    public Task LockActiveManagersAsync(CancellationToken cancellationToken) =>
-        DatabaseLocks.TakeAsync(
-            context,
-            DatabaseLocks.ActiveManagers,
-            time.GetUtcNow(),
-            DatabaseLocks.DefaultWait,
-            "The Manager roster lock could not be taken.",
-            cancellationToken);
+    public async Task LockActiveManagersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DatabaseLocks.TakeAsync(
+                    context,
+                    DatabaseLocks.ActiveManagers,
+                    time.GetUtcNow(),
+                    DatabaseLocks.DefaultWait,
+                    "The Manager roster lock could not be taken.",
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (DatabaseLockTimeoutException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+        {
+            // P10-BL-22: a lost deadlock is a lost race, as in StaffMoneyLock: the unit of work marks an outer transaction ended.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+    }
 }

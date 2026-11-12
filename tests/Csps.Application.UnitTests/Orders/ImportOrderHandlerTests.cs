@@ -270,6 +270,19 @@ public sealed class ImportOrderHandlerTests
     }
 
     [Fact]
+    public async Task ADeadlockVictimOnTheNumberLockIsTheSame409()
+    {
+        var harness = new Harness();
+        harness.Numbers.ReserveLegacyAsync(Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException(new InvalidOperationException("A deadlock victim."), outerTransactionEnded: true));
+
+        var result = await harness.Handler.HandleAsync(Valid(), OrderImportRules.Default, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task ADeadlockVictimAtSaveIsTheSame409()
     {
         var harness = new Harness();

@@ -1,6 +1,6 @@
 # Owner items parked during Phase 10 execution
 
-*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T06:35:00-06:00*
+*Created: 2026-11-07T00:45:00-06:00 · Updated: 2026-11-11T19:58:00-05:00*
 
 The owner went away during the Phase 10 run (2026-11-06). Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -248,7 +248,7 @@ When you are back: approve or reject the sign-off, and I run the phase close (ph
 
 ## P10-BL-22 · A deadlock on the order-number lock answers 500 instead of 409 (found while fixing the PR 24 Copilot review)
 
-**Status:** moved to Phase 11 (D-119, owner 2026-11-11). Was open, parked by the owner (2026-11-10) · **Blocks:** nothing; today's behavior stays until it is fixed.
+**Status:** Fixed in plan 11-01 (2026-11-11): order-number lock fixed; roster lock fixed (it gave SQL error 3903, a 500, before); account-token lock fixed (same). Moved to Phase 11 by D-119 (owner 2026-11-11). Was open, parked by the owner (2026-11-10) · **Blocks:** nothing.
 
 - **What:** Copilot found that a deadlock on the staff-money lock, inside the idempotency gate's transaction, gave a 500 (fixed in eb3ad29a). The order-number lock has the same gap. `OrderNumberAllocator.TakeLockAsync` turns every lock failure, a deadlock included, into `OrderNumberBusyException`. Inside the gate's outer transaction (every order write, D-46) the server has already rolled the whole transaction back, so `CspsUnitOfWork.RunInSavepointAsync` fails when it rolls back to a savepoint that no longer exists (SQL error 3903). The caller gets a 500, not the order "busy" 409.
 - **When it happens:** only when two order creates or imports deadlock on the order-number row. That is rare, and a retry works.

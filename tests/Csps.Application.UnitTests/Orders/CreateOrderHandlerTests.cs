@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -286,6 +287,21 @@ public sealed class CreateOrderHandlerTests
         harness.Unit.Commits.ShouldBe(0);
         harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
         await harness.Reader.DidNotReceiveWithAnyArgs().GetDetailAsync(default, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ADeadlockVictimOnTheNumberLockIsTheSame409AsABusyNumberLockAndTheTransactionRollsBack()
+    {
+        var harness = new Harness();
+        harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException(new InvalidOperationException("A deadlock victim."), outerTransactionEnded: true));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        harness.Unit.Commits.ShouldBe(0);
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
     }
 
     [Fact]
