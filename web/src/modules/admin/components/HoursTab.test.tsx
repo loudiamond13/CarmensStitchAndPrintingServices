@@ -1,7 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
@@ -9,6 +9,8 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { createDeferred } from '@/test/fakeFetch';
+import { server } from '@/test/msw';
 
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
@@ -493,5 +495,283 @@ describe('deleting a closure (CONT-04)', () => {
     await screen.findByRole('dialog', { name: 'Delete this closure?' });
 
     await expectNoAxeViolations(baseElement);
+  });
+});
+
+// Conflicts, unsaved changes and failures (SEC-07, 05 D-20, 08 D-58; plan 11-16, Task 3).
+
+const hoursCard = (): HTMLElement => screen.getByRole('region', { name: 'Opening hours' });
+
+/** The save answers 409 once, with Saturday's closing time changed by someone else in the meantime. */
+function staleHoursOnce() {
+  let refused = false;
+  return openingHoursBackend(demoOpeningHours, {
+    onPut: (_body, backend) => {
+      if (refused) {
+        return undefined;
+      }
+      refused = true;
+      backend.current = {
+        ...demoOpeningHours,
+        days: demoOpeningHours.days.map((day) => (day.day === 6 ? { ...day, closesAt: '13:00' } : day)),
+        version: 'AAAAAAAAC77=',
+        updatedByName: 'Lito Santos',
+      };
+      return problemAnswer(409, { code: 'edit.stale' });
+    },
+  });
+}
+
+describe('a stale save of the hours (409, SEC-07, 05 D-20)', () => {
+  it('shows the conflict banner inside the Opening hours card and keeps every typed choice', async () => {
+    staleHoursOnce();
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.selectOptions(closes('Sunday'), '15:00');
+
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+
+    const banner = await within(hoursCard()).findByRole('alert');
+    expect(within(banner).getByText('This was changed by someone else.')).toBeVisible();
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).toBeChecked();
+    expect(closes('Sunday')).toHaveValue('15:00');
+    expect(screen.queryByText('Opening hours saved')).toBeNull();
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+    expect(within(screen.getByRole('region', { name: 'Holidays and closures' })).queryByRole('alert')).toBeNull();
+  });
+
+  it('puts focus on Load Latest', async () => {
+    staleHoursOnce();
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+
+    expect(await screen.findByRole('button', { name: 'Load Latest' })).toHaveFocus();
+  });
+
+  it('asks Discard changes? before Load Latest replaces what was typed, and Keep Editing leaves it all as it was', async () => {
+    const backend = staleHoursOnce();
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Discard changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Keep Editing' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Keep Editing' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Load Latest' })).toBeVisible();
+    expect(backend.gets).toBe(1);
+  });
+
+  it('shows the latest week after Discard Changes, drops the banner and sends the next save with the new version', async () => {
+    const backend = staleHoursOnce();
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Discard changes?' })).getByRole('button', {
+        name: 'Discard Changes',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(closes('Saturday')).toHaveValue('13:00');
+    });
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: 'Load Latest' })).toBeNull();
+    expect(backend.gets).toBe(2);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(2);
+    });
+    expect(backend.puts[1]?.version).toBe('AAAAAAAAC77=');
+  });
+
+  it('has no axe violations while the banner shows', async () => {
+    staleHoursOnce();
+    const { user, container } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+    await screen.findByRole('button', { name: 'Load Latest' });
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('Undo Changes (S2 card A)', () => {
+  it('is aria-disabled while nothing changed and does nothing when pressed', async () => {
+    const backend = openingHoursBackend();
+    const { user } = await openBoth();
+    const undo = screen.getByRole('button', { name: 'Undo Changes' });
+
+    expect(undo).toHaveAttribute('aria-disabled', 'true');
+    await user.click(undo);
+
+    expect(backend.puts).toHaveLength(0);
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).not.toBeChecked();
+  });
+
+  it('puts every day back to the saved week at once, with no question and no request', async () => {
+    const backend = openingHoursBackend();
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.selectOptions(opens('Monday'), '07:00');
+    const undo = screen.getByRole('button', { name: 'Undo Changes' });
+    expect(undo).toHaveAttribute('aria-disabled', 'false');
+
+    await user.click(undo);
+
+    expect(screen.getByRole('checkbox', { name: 'Sunday' })).not.toBeChecked();
+    expect(opens('Monday')).toHaveValue('09:00');
+    expect(screen.getByText('Visitors see: Mon-Sat · 9:00 AM - 6:00 PM')).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(backend.puts).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Undo Changes' })).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('unsaved hours (08 D-58)', () => {
+  it('tells its page when the week differs from the saved one, and when it is saved again', async () => {
+    openingHoursBackend();
+    const onDirtyChange = vi.fn();
+    const { user } = await openBoth(onDirtyChange);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+    await screen.findByText('Opening hours saved');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('is not unsaved when a day is ticked and unticked again, even though the form still holds its times', async () => {
+    openingHoursBackend();
+    const onDirtyChange = vi.fn();
+    const { user } = await openBoth(onDirtyChange);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('tells its page the week is clean again after Undo Changes and when the tab closes', async () => {
+    openingHoursBackend();
+    const onDirtyChange = vi.fn();
+    const { user, unmount } = await openBoth(onDirtyChange);
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+    await user.click(screen.getByRole('button', { name: 'Undo Changes' }));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    unmount();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe('what the server says about the hours (400)', () => {
+  it('puts the server message under the time it names, in place of the browser one, and focuses it', async () => {
+    const backend = openingHoursBackend(demoOpeningHours, {
+      onPut: () => problemAnswer(400, { errors: { 'Days[6].ClosesAt': ['Closing time must be after opening time.'] } }),
+    });
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+
+    expect(await screen.findByText('Closing time must be after opening time.')).toBeVisible();
+    expect(closes('Sunday')).toHaveFocus();
+    expect(closes('Sunday')).toHaveAttribute('aria-invalid', 'true');
+    expect(backend.puts).toHaveLength(1);
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('says what went wrong in a toast when no shown time matches the key', async () => {
+    openingHoursBackend(demoOpeningHours, { onPut: () => problemAnswer(500) });
+    const { user } = await openBoth();
+    await user.click(screen.getByRole('checkbox', { name: 'Sunday' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Hours' }));
+
+    expect(await screen.findByText('Something went wrong')).toBeVisible();
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+});
+
+describe('each card fails on its own (UI loading and error)', () => {
+  it('shows "Loading the opening hours…" and "Loading closures…" while each card waits', async () => {
+    const gate = createDeferred<undefined>();
+    server.use(
+      http.get('*/api/v1/opening-hours', async () => {
+        await gate.promise;
+        return HttpResponse.json(demoOpeningHours);
+      }),
+      http.get('*/api/v1/shop-closures', async () => {
+        await gate.promise;
+        return HttpResponse.json(demoClosures);
+      }),
+    );
+    renderTab();
+
+    expect(await screen.findByText('Loading the opening hours…')).toBeInTheDocument();
+    expect(screen.getByText('Loading closures…')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Monday' })).toBeNull();
+
+    gate.resolve(undefined);
+    await screen.findByRole('checkbox', { name: 'Monday' });
+    expect(await screen.findByRole('table', { name: 'Upcoming closures' })).toBeVisible();
+  });
+
+  it('shows "Couldn\'t load the opening hours." with Try Again while the closures card still loads', async () => {
+    server.use(http.get('*/api/v1/opening-hours', () => problemAnswer(500)));
+    const { user } = renderTab();
+
+    expect(await screen.findByText("Couldn't load the opening hours.")).toBeVisible();
+    expect(await screen.findByRole('table', { name: 'Upcoming closures' })).toBeVisible();
+    expect(within(screen.getByRole('region', { name: 'Holidays and closures' })).queryByRole('alert')).toBeNull();
+
+    openingHoursBackend();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('checkbox', { name: 'Monday' })).toBeVisible();
+  });
+
+  it('shows "Couldn\'t load closures." with Try Again while the hours card still works', async () => {
+    server.use(http.get('*/api/v1/shop-closures', () => problemAnswer(500)));
+    openingHoursBackend();
+    const { user } = renderTab();
+
+    expect(await screen.findByText("Couldn't load closures.")).toBeVisible();
+    expect(await screen.findByRole('checkbox', { name: 'Monday' })).toBeVisible();
+
+    shopClosuresBackend();
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('table', { name: 'Upcoming closures' })).toBeVisible();
+  });
+
+  it('has no axe violations in either error state', async () => {
+    server.use(
+      http.get('*/api/v1/opening-hours', () => problemAnswer(500)),
+      http.get('*/api/v1/shop-closures', () => problemAnswer(500)),
+    );
+    const { container } = renderTab();
+    await screen.findByText("Couldn't load the opening hours.");
+    await screen.findByText("Couldn't load closures.");
+
+    await expectNoAxeViolations(container);
   });
 });
