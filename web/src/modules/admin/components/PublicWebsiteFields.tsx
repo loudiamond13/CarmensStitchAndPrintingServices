@@ -1,7 +1,7 @@
 // The four fields of an order's public website settings (UI-SPEC O1; D-09, D-11, D-13, D-16; plan 11-27): "Customer said OK to show",
-// "Show on the website", "Show under" and "Name shown", and a labelled "Visitors see" preview. The Public Website window and, in plan 11-35, the card of the order form
-// draw them. Show waits for the OK: it is aria-disabled (focusable, so its hint is read) until the OK is ticked, and unticking the OK
-// unticks it (D-11). The line preset and the pieces are the server's answer; the browser works out neither.
+// "Show on the website", "Show under" and "Name shown", and a labelled "Visitors see" preview. The Public Website window and, in plan
+// 11-35, the card of the order form draw them. Show waits for the OK: it is aria-disabled (focusable, so its hint is read) until the OK
+// is ticked, and unticking the OK unticks it (D-11). The line preset and the pieces are the server's answer; the browser works out neither.
 import { type UseFormReturn, Controller, useWatch } from 'react-hook-form';
 import { Checkbox } from '@/components/entry';
 import { Field, Select, type SelectOption } from '@/components/forms';
@@ -27,7 +27,7 @@ export interface PublicWebsiteFieldsProps {
   showPreview: boolean;
 }
 
-/** The options of Show under: the active lines, and the order's current line first when it was hidden after the order chose it. */
+/** The options of Show under: the active lines, and the order's current line when it was hidden after the order chose it. */
 function lineChoices(
   lineOptions: readonly ProductLineOption[],
   order: PublicWebsiteFieldsOrder | null,
