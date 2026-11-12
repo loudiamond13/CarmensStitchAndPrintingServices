@@ -207,6 +207,90 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         }
     }
 
+    [Fact]
+    public async Task EveryTestimonialChangeAndAHiddenLineEachGiveANewHomeETagOnTheNextRead()
+    {
+        const string HomeRoute = "/api/v1/public/home";
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        var etags = new List<string> { await ETagAsync(client, HomeRoute) };
+        try
+        {
+            Guid first;
+            Guid second;
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                var ana = Csps.Domain.Content.Testimonial.Create(new Csps.Domain.Content.TestimonialValues("Quote from Ana.", "Ana", null, 5, true), 1, Later).Value;
+                context.Testimonials.Add(ana);
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+                first = ana.Id;
+            }
+
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await ChangeTestimonialAsync(contexts, first, testimonial => testimonial.Update(new Csps.Domain.Content.TestimonialValues("A new quote from Ana.", "Ana", null, 5, null)));
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                var ben = Csps.Domain.Content.Testimonial.Create(new Csps.Domain.Content.TestimonialValues("Quote from Ben.", "Ben", null, 4, true), 2, Later).Value;
+                context.Testimonials.Add(ben);
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+                second = ben.Id;
+            }
+
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                var a = await context.Testimonials.SingleAsync(row => row.Id == first, TestContext.Current.CancellationToken);
+                var b = await context.Testimonials.SingleAsync(row => row.Id == second, TestContext.Current.CancellationToken);
+                a.SwapPositionWith(b);
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await ChangeTestimonialAsync(contexts, second, testimonial => testimonial.Hide());
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                context.Testimonials.Remove(await context.Testimonials.SingleAsync(row => row.Id == first, TestContext.Current.CancellationToken));
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            etags.Add(await ETagAsync(client, HomeRoute));
+            await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+            {
+                (await context.ProductLines.SingleAsync(row => row.Key == "moto", TestContext.Current.CancellationToken)).Hide().ShouldBeTrue();
+                await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            etags.Add(await ETagAsync(client, HomeRoute));
+
+            etags.Count.ShouldBe(8);
+            etags.Zip(etags.Skip(1)).ShouldAllBe(pair => pair.First != pair.Second, "each add, edit, move, hide, delete and line hide must move the Home ETag");
+        }
+        finally
+        {
+            await database.ResetAsync();
+            await ProductLineSeeding.RestoreSixAsync(database);
+        }
+    }
+
+    private static async Task ChangeTestimonialAsync(IDbContextFactory<CspsDbContext> contexts, Guid id, Action<Csps.Domain.Content.Testimonial> change)
+    {
+        await using var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken);
+        change(await context.Testimonials.SingleAsync(row => row.Id == id, TestContext.Current.CancellationToken));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<string> ETagAsync(HttpClient client, string route)
+    {
+        using var response = await client.GetAsync(new Uri(route, UriKind.Relative), TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        return response.Headers.ETag.ShouldNotBeNull().ToString();
+    }
+
     private static async Task<decimal?> BasketballPriceAsync(HttpClient client, string route)
     {
         using var response = await client.GetAsync(new Uri(route, UriKind.Relative), TestContext.Current.CancellationToken);
