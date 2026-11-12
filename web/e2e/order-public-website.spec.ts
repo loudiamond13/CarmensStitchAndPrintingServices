@@ -3,9 +3,8 @@
 // order (with a photo, drawn in the page) through the Testing routes, runs under the shared guard (console, page errors, CSP, failed
 // responses), and checks the public gallery under the site content lock, because the gallery is one set for all projects.
 import type { APIRequestContext, Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { drawJpegs, openOrder, seedOrder, uploadAndWait } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, type StaffRole } from './testing-api.ts';
@@ -52,7 +51,7 @@ async function publicGalleryTeams(request: APIRequestContext): Promise<string[] 
 
 /** Opens the window, ticks the OK and Show, chooses a line when the items gave none, and saves. */
 async function showFromWindow(page: Page): Promise<void> {
-  await card(page).getByRole('button', { name: 'Edit public website settings' }).click();
+  await press(page, card(page).getByRole('button', { name: 'Edit public website settings' }));
   const dialog = page.getByRole('dialog', { name: 'Public Website' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('checkbox', { name: 'Customer said OK to show' }).check();
@@ -80,7 +79,7 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
   await expect(region).toContainText('Not shown');
   await expectNoAxeViolations(page);
 
-  await region.getByRole('button', { name: 'Edit public website settings' }).click();
+  await press(page, region.getByRole('button', { name: 'Edit public website settings' }));
   const dialog = page.getByRole('dialog', { name: 'Public Website' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText(`${order.number} · ${order.team}`);
@@ -91,6 +90,7 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
   await expectNoAxeViolations(page);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
+  await expect(region.getByRole('button', { name: 'Edit public website settings' })).toBeFocused();
 
   await showFromWindow(page);
   await expect(page.getByText('Order shown on the website')).toBeVisible();

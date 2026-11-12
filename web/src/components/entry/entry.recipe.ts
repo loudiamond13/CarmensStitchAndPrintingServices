@@ -40,6 +40,9 @@ export const checkInputClasses = tw(
   'peer col-start-1 row-start-1 m-0 size-5 cursor-pointer appearance-none rounded-xs border-2 border-ink bg-surface-2 checked:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
 );
 
+/** A checkbox that is aria-disabled: dimmed like a disabled one, yet still focusable (its hint explains why). */
+export const checkInactiveClasses = tw('opacity-60');
+
 /**
  * D-03 (C-35) tick in --on-accent, geometry from 74621f5 (D-37): a 10×5px box with 2px bottom and left borders, 3px up
  * from the centre of the cell, rotated -45deg. Shown only while the box is checked (`peer-checked:`); no image URL.

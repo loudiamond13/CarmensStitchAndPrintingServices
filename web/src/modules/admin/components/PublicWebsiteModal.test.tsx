@@ -19,7 +19,6 @@ import {
   publicWebsiteBlock,
   useOrderHandlers,
   type OrderBackend,
-  type OrderHandlerOptions,
 } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -31,11 +30,13 @@ const AUTO_LINE_ORDER = buildOrderDetail({
 });
 
 let queryClient: QueryClient;
+let backend: OrderBackend;
 
 beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  backend = useOrderHandlers({ detail: SHOWN_ANSWER });
 });
 
 afterEach(() => {
@@ -93,8 +94,7 @@ function Harness({
   );
 }
 
-function setup(order: OrderDetailResponse, options: OrderHandlerOptions = {}) {
-  const backend: OrderBackend = useOrderHandlers({ detail: SHOWN_ANSWER, ...options });
+function setup(order: OrderDetailResponse) {
   queryClient.setQueryData(orderKey(order.id), order);
   const user = userEvent.setup();
   const onClose = vi.fn();
@@ -108,7 +108,7 @@ function setup(order: OrderDetailResponse, options: OrderHandlerOptions = {}) {
       </ToastProvider>
     </QueryClientProvider>,
   );
-  return { user, backend, onClose, onSaved };
+  return { user, onClose, onSaved };
 }
 
 async function openWindow(user: ReturnType<typeof userEvent.setup>): Promise<HTMLElement> {
@@ -165,7 +165,7 @@ describe('the fields', () => {
 
 describe('saving', () => {
   it('sends the OK, Show, the preset line, no name and the order version; closes, returns focus to Edit and says the order is shown', async () => {
-    const { user, backend, onClose, onSaved } = setup(AUTO_LINE_ORDER);
+    const { user, onClose, onSaved } = setup(AUTO_LINE_ORDER);
     const dialog = await openWindow(user);
 
     await user.click(within(dialog).getByRole('checkbox', { name: 'Customer said OK to show' }));

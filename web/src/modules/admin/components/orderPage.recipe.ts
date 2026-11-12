@@ -105,6 +105,18 @@ export const orderStateActionClasses = tw('flex');
 /** The status history card spans both columns of the tablet side grid. */
 export const orderHistoryCardClasses = clsx(orderCardClasses, tw('pg-tablet:col-span-2'));
 
+/** The Public website card spans both columns of the tablet side grid, as the status history card does (UI-SPEC O1). */
+export const orderPublicCardClasses = clsx(orderCardClasses, tw('pg-tablet:col-span-2'));
+
+/** A tick box and its hint: 6px apart, so the hint stays with its box inside a column of fields. */
+export const orderPublicCheckClasses = tw('flex flex-col gap-1.5');
+
+/** "Visitors see" under the fields: a 14px muted line that may break anywhere in a long name. */
+export const orderPublicPreviewClasses = tw('m-0 text-[14px] leading-5 wrap-anywhere text-ink-muted');
+
+/** The muted words after a value: "since Oct 8, 2026", " (team name)". */
+export const orderMetaMutedClasses = tw('font-normal text-ink-muted');
+
 /** The title of a side card with an icon or a link beside it. */
 export const orderCardTitleRowClasses = tw('flex items-center gap-2');
 

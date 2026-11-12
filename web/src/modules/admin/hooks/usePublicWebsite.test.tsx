@@ -53,7 +53,7 @@ describe('useProductLineOptionsQuery', () => {
     });
   });
 
-  it('asks for nothing while the window is closed', async () => {
+  it('asks for nothing while the window is closed', () => {
     const backend = useOrderHandlers();
 
     const { result } = renderHook(() => useProductLineOptionsQuery(false), { wrapper });
