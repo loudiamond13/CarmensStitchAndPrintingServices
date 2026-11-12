@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Csps.Application.Content;
+using Csps.Domain.Content;
 using Csps.Infrastructure.Persistence;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -290,6 +291,87 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         withoutLines.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site"]);
         using var withLines = JsonDocument.Parse(Boot(recovered).ShouldHaveSingleItem());
         withLines.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site", "productLines"]);
+    }
+
+    [Fact]
+    public async Task TheProductsPageUsesTheFirstActiveLinesMainPhotoAsItsLinkPreviewPicture()
+    {
+        var publicId = $"csps-test/content/lines/{BasketballId:D}/abcdefghijklmnopqrstuvwxyz";
+        await AddMainPhotoAsync(publicId);
+        try
+        {
+            await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+            using var client = factory.CreateClient();
+
+            var body = await GetBodyAsync(client, "/products");
+
+            var name = Meta(body, "property", "og:site_name").ShouldNotBeNull();
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+            Meta(body, "property", "og:image:width").ShouldBe("1200");
+            Meta(body, "property", "og:image:height").ShouldBe("630");
+            Meta(body, "property", "og:image:alt").ShouldBe(name);
+            Meta(body, "name", "twitter:card").ShouldBe("summary_large_image");
+        }
+        finally
+        {
+            await RemovePhotosAsync();
+        }
+    }
+
+    [Fact]
+    public async Task WithNoMainPhotoOnTheFirstActiveLineTheProductsPageHasNoPreviewPictureAndTheSmallCard()
+    {
+        await RemovePhotosAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/products");
+
+        Meta(body, "property", "og:image").ShouldBeNull();
+        Meta(body, "property", "og:image:width").ShouldBeNull();
+        Meta(body, "property", "og:image:height").ShouldBeNull();
+        Meta(body, "property", "og:image:alt").ShouldBeNull();
+        Meta(body, "name", "twitter:card").ShouldBe("summary");
+    }
+
+    [Fact]
+    public async Task OnlyTheProductsPageCarriesALinkPreviewPictureAndEveryOtherPageHasTheSmallCard()
+    {
+        var publicId = $"csps-test/content/lines/{BasketballId:D}/abcdefghijklmnopqrstuvwxyz";
+        await AddMainPhotoAsync(publicId);
+        try
+        {
+            await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+            using var client = factory.CreateClient();
+
+            foreach (var path in new[] { "/", "/gallery", "/contact" })
+            {
+                var body = await GetBodyAsync(client, path);
+
+                Meta(body, "property", "og:image").ShouldBeNull(path);
+                Meta(body, "name", "twitter:card").ShouldBe("summary", path);
+            }
+        }
+        finally
+        {
+            await RemovePhotosAsync();
+        }
+    }
+
+    private static readonly Guid BasketballId = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
+
+    private async Task AddMainPhotoAsync(string publicId)
+    {
+        await RemovePhotosAsync();
+        await using var context = database.CreateContext();
+        context.ProductLinePhotos.Add(ProductLinePhoto.Create(BasketballId, ProductLinePhotoSlot.Main, publicId, 1600, 900, 120_000, "jpg", new DateTimeOffset(2026, 11, 12, 9, 0, 0, TimeSpan.Zero)));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task RemovePhotosAsync()
+    {
+        await using var context = database.CreateContext();
+        await context.ProductLinePhotos.ExecuteDeleteAsync(TestContext.Current.CancellationToken);
     }
 
     private static async Task<List<string>> TitlesInBootAsync(HttpClient client)

@@ -101,6 +101,9 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/product-lines/{id:guid}/hide", "/api/v1/product-lines/6c0e4f97-d238-4a15-b8e1-9a3b5d7c2f08/hide", Anonymous: 401, Admin: 403, Manager: 404),
         new("POST", "/api/v1/product-lines/{id:guid}/show", "/api/v1/product-lines/f4d2a6b8-1e90-4c37-a5d3-0b8e6c9f1a72/show", Anonymous: 401, Admin: 403, Manager: 404),
         new("DELETE", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/09a7e3c5-b641-4d82-8f10-e6c2d4a9b357", Anonymous: 401, Admin: 403, Manager: 404),
+        // Line photos (D-02): Manager only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 images.file-missing before the line is looked up.
+        new("POST", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/c8e41d72-9a05-4b3f-8d16-72f0a5b9e3c1/photos/main", Anonymous: 401, Admin: 403, Manager: 400),
+        new("DELETE", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/4f9b2a68-d317-4e50-a1c4-8b6d0e7f5a29/photos/main", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
