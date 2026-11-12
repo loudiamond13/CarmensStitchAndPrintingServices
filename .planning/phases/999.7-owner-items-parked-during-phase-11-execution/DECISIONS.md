@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T16:10:48-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T17:40:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -296,6 +296,34 @@ The move announcement and the failure messages, the "not found" line, the delete
 - **A (built, recommended):** keep them as built.
 - **B:** give your own words or rules.
 
+## P11-BL-33 · Order page website card: the empty "Show under" option (plan 11-27)
+
+**Status:** open · **Blocks:** nothing. Built as option A. The spec has no words for it.
+
+When staff have not picked a line yet, the "Show under" list shows "Choose a line".
+
+- **A (built, recommended):** keep "Choose a line".
+- **B:** give your own words.
+
+## P11-BL-34 · "Shown under" on an order that was never shown (plan 11-27)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+For an order that has never been on the website, the card already prints the line the server would use, worked out from the order items.
+
+- **A (built, recommended):** keep it. Staff see where the order would appear before they show it.
+- **B:** leave "Shown under" empty until the order is shown (a one-line change).
+
+## P11-BL-35 · Uploads to different orders at the same time can answer 500 (found while fixing the photo race) · IMPORTANT
+
+**Status:** open · **Blocks:** nothing in Phase 11. Not changed.
+
+A stress test with several hosts on one database showed database deadlocks (SQL error 1205) when staff upload photos to different orders at the same moment. The read before storage and the photo list read after the save can be picked as the deadlock victim. One case then fails its rollback (error 3903). The user sees "Something went wrong". Order creation showed the same under that load (likely the parked P10-BL-22). The app allows two uploads at once, so two staff could hit this in production. It is rare at the shop size.
+
+- **A (recommended first, code only):** treat a deadlock in these reads and in the savepoint rollback as the existing "busy, try again" answer (409), so the user can simply retry.
+- **B:** turn on READ_COMMITTED_SNAPSHOT for the database (a database setting; check the host allows it).
+- **C:** study the query plans and add an index (a schema change).
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -308,6 +336,6 @@ The move announcement and the failure messages, the "not found" line, the delete
 | 5 (in 11-13) | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` | failed once | passed 20 of 20 (class alone) |
 | 6 | web `scripts/third-party-notices.test.ts` "--check exits 1 ... and --write fixes it" | failed once (245 s under load) | passed in 9.5 s |
 | 9 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (second time, see wave 5) | failed once | passed 5 of 5; the gate now keeps the full output so the cause can be read next time |
-| 10 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (third time) | failed: the losing upload answered **500** instead of 409 or 422 | **not a flake: a real race in order photo uploads under load; a debugging fix is running** |
+| 10 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (third time) | failed: the losing upload answered **500** instead of 409 or 422 | **not a flake: a real race.** Fixed in ec98f325: the check before storage now reads the order again when another upload changes it, so the loser gets the photo limit (422). Confirm in the next gate. |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
