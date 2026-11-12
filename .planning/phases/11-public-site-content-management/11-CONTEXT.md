@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T17:06:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-11T21:00:00-05:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -94,6 +94,11 @@ All rulings below: owner, 2026-11-11, in this discussion.
 - Which gallery photo becomes an order's tile (its cover photo is the natural choice) and the masonry ratios for real photos.
 - The audit entries for content edits and public toggles.
 - How "pieces" is computed for a public order (the sum of item quantities is the natural reading).
+
+### Carry-over reviews (D-119)
+- **D-120 (P10-BL-23, plan 11-06):** the owner reviewed the faster expense list query (it picks the page's ids from the sorted index first) and the create-user race fix (every create takes the Manager roster lock, and two lost deadlocks answer 409 "busy, try again"), together with plan 11-01's roster and account-token lock findings. Answer: "Approve both". No changes asked, so no follow-up and no code changed in plan 11-06. (owner, 2026-11-11)
+- **D-121 (P10-BL-20 item 3, plan 11-06):** the owner reviewed the three choices quick 261109-vj6 made inside D-111: (a) the dashboard line "Showing figures from {time}. Couldn't refresh." with Try Again, (b) the Audit Log label "Money transfer added", (c) the WebKit-only e2e guard. Answer: "Approve all three". No changes asked, so no follow-up and no code changed in plan 11-06. (owner, 2026-11-11)
+- **D-122 (page head encoding, plan 11-02 deviation 4):** keep the narrower Latin-1-range HTML encoder in `PublicHeadWriter` instead of `HtmlEncoder.Default`, so titles such as "Products · CSPS" read exactly as written. The five markup characters (`<` `>` `&` `'` `"`) are still escaped, and a test covers that. (owner, 2026-11-11)
 
 </decisions>
 
