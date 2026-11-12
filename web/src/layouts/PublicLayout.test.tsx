@@ -176,6 +176,41 @@ describe('PublicLayout Contact sticky bar (PUB-06)', () => {
   });
 });
 
+describe('PublicLayout footer variant by route (UI-SPEC Footer)', () => {
+  it.each(['/', '/products'])('%s shows the full footer with its four columns', async (path) => {
+    putBootBlock(demoSite);
+    await renderAt(path);
+    const footer = screen.getByRole('contentinfo');
+
+    expect(
+      within(footer)
+        .getAllByRole('heading', { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Shop', 'Visit', 'Contact']);
+    expect(within(footer).getByText('© 2026 Sample Shop. All rights reserved.')).toBeInTheDocument();
+  });
+
+  it.each(['/gallery', '/contact', '/nope'])('%s shows the base row: logo, copyright and Staff Login', async (path) => {
+    putBootBlock(demoSite);
+    await renderAt(path);
+    const footer = screen.getByRole('contentinfo');
+
+    expect(within(footer).queryByRole('heading')).not.toBeInTheDocument();
+    expect(within(footer).getByText('© 2026 Sample Shop')).toBeInTheDocument();
+    expect(within(footer).getByRole('link', { name: 'Staff Login' })).toHaveAttribute('href', '/admin/login');
+  });
+
+  it('keeps the 96px phone padding under the base row on /contact only', async () => {
+    putBootBlock(demoSite);
+    const contact = await renderAt('/contact');
+    expect(screen.getByRole('contentinfo').className).toContain('pg-phone:pb-[96px]');
+    contact.unmount();
+
+    await renderAt('/gallery');
+    expect(screen.getByRole('contentinfo').className).not.toContain('pg-phone:pb-[96px]');
+  });
+});
+
 describe('PublicLayout footer (App. E.1, D-33, PUB-02)', () => {
   it('names the social links from the stored links, "FB, CSPS on Facebook" and "IG, CSPS on Instagram"', async () => {
     putBootBlock(demoSite);

@@ -140,4 +140,73 @@ describe('SiteFooter, full (PUB-02)', () => {
 
     await expectNoAxeViolations(container);
   });
+
+  it('shows the copyright year the server sends, not the device clock', () => {
+    renderFullFrom({ ...demoSite, year: 2031 });
+
+    expect(
+      within(screen.getByRole('contentinfo')).getByText('© 2031 Sample Shop. All rights reserved.'),
+    ).toBeInTheDocument();
+  });
+});
+
+function renderBase(props: { clearBar?: boolean } = {}) {
+  return render(
+    <MemoryRouter>
+      <SiteFooter variant="base" {...props} />
+    </MemoryRouter>,
+  );
+}
+
+describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => {
+  it('is one row: the small logo, "© {year} {business name}" and Staff Login', () => {
+    putBootBlock(demoSite);
+    renderBase();
+    const footer = screen.getByRole('contentinfo');
+
+    expect(within(footer).getByRole('img', { name: "CSPS: Carmen's Stitch & Printing Services" })).toBeInTheDocument();
+    expect(within(footer).getByText('© 2026 Sample Shop')).toBeInTheDocument();
+    expect(within(footer).getByRole('link', { name: 'Staff Login' })).toHaveAttribute('href', '/admin/login');
+    expect(within(footer).queryByRole('heading')).not.toBeInTheDocument();
+    expect(within(footer).queryByText(demoSite.tagline)).not.toBeInTheDocument();
+    expect(within(footer).queryByRole('link', { name: /CSPS on/ })).not.toBeInTheDocument();
+    expect(within(footer).queryByText(/All rights reserved/)).not.toBeInTheDocument();
+  });
+
+  it('shows Staff Login at once and the copyright line after the facts load', async () => {
+    renderBase();
+    const footer = screen.getByRole('contentinfo');
+
+    expect(within(footer).getByRole('link', { name: 'Staff Login' })).toBeInTheDocument();
+    expect(within(footer).queryByText(/©/)).not.toBeInTheDocument();
+    expect(await within(footer).findByText('© 2026 Sample Shop')).toBeInTheDocument();
+  });
+
+  it('keeps Staff Login and drops the copyright line when the read fails', async () => {
+    server.use(siteFailureHandler(404));
+    renderBase();
+    const footer = screen.getByRole('contentinfo');
+
+    await waitFor(() => {
+      expect(within(footer).getByRole('link', { name: 'Staff Login' })).toBeInTheDocument();
+    });
+    expect(within(footer).queryByText(/©/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the 96px bottom padding on phones only when it must clear the Contact bar', () => {
+    putBootBlock(demoSite);
+    const plain = renderBase();
+    expect(screen.getByRole('contentinfo').className).not.toContain('pg-phone:pb-[96px]');
+    plain.unmount();
+
+    renderBase({ clearBar: true });
+    expect(screen.getByRole('contentinfo').className).toContain('pg-phone:pb-[96px]');
+  });
+
+  it('has no axe violations', async () => {
+    putBootBlock(demoSite);
+    const { container } = renderBase();
+
+    await expectNoAxeViolations(container);
+  });
 });
