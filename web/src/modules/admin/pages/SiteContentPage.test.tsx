@@ -107,7 +107,8 @@ describe('the tabs (WEB-10)', () => {
 
     const panel = await screen.findByRole('tabpanel', { name: 'Hours & Closures' });
     expect(screen.getByRole('tab', { name: 'Hours & Closures' })).toHaveAttribute('aria-selected', 'true');
-    expect(await within(panel).findByRole('heading', { level: 2, name: 'Opening hours' })).toBeVisible();
+    await within(panel).findByRole('checkbox', { name: 'Monday' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Opening hours' })).toBeVisible();
   });
 
   it('has the Business Info card inside the tab panel', async () => {

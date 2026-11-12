@@ -19,6 +19,7 @@ import {
 import { ConfirmDialog } from '@/components/overlays';
 import { Badge } from '@/components/status';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
+import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { expensesHeadActionsClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
 import { profilePageClasses } from '@/modules/admin/components/profile.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
@@ -32,9 +33,10 @@ const ID_BASE = 'content';
 /** How one tab's panel is drawn: it receives the callback that reports unsaved changes. */
 export type SiteContentPanels = Partial<Record<SiteContentTab, (onDirtyChange: (dirty: boolean) => void) => ReactNode>>;
 
-/** The tabs that are built so far. */
+/** The tabs that are built so far: 'business' and 'hours'. */
 const BUILT_PANELS: SiteContentPanels = {
   business: (onDirtyChange) => <BusinessInfoTab onDirtyChange={onDirtyChange} />,
+  hours: (onDirtyChange) => <HoursTab onDirtyChange={onDirtyChange} />,
 };
 
 export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {

@@ -93,6 +93,32 @@ export const SITE_CONTENT_COPY = {
     latestLoaded: 'Latest version loaded. Make your changes again.',
     toast: { title: 'Business info saved', message: 'The website shows the new details now.' },
   },
+  /** S2 Hours & Closures, card A: the weekly hours (plan 11-16). */
+  hours: {
+    /** "Loading the opening hours…", "The opening hours loaded." and "Couldn't load the opening hours." */
+    things: 'the opening hours',
+    card: { title: 'Opening hours', hint: 'One opening and closing time per day.' },
+    /** The day labels, Monday first. */
+    days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    /** The visible words over a select, and the hidden words a screen reader hears first: "Monday opens". */
+    opens: { label: 'Opens', name: (day: string): string => `${day} opens` },
+    closes: { label: 'Closes', name: (day: string): string => `${day} closes` },
+    closed: 'Closed',
+    /** The line under the rows: the summary line of the current choices. */
+    preview: (summary: string): string => `Visitors see: ${summary}`,
+    previewClosed: 'Visitors see: Closed every day',
+    actions: { undo: 'Undo Changes', save: 'Save Hours', saving: 'Saving' },
+    /** The polite line after Load Latest. */
+    latestLoaded: 'Latest hours loaded. Make your changes again.',
+    toast: { title: 'Opening hours saved', message: 'The Contact page and the open status use them now.' },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      opensRequired: 'Choose the opening time.',
+      closesRequired: 'Choose the closing time.',
+      closesAfterOpens: 'Closing time must be after opening time.',
+      timeStep: 'Choose a time on the hour or half hour, from 5:00 AM to 11:30 PM.',
+    },
+  },
   /** Inline errors: the server's own words (UI-SPEC Validation). */
   errors: {
     businessNameRequired: 'Enter the business name.',
