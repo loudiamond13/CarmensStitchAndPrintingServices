@@ -462,7 +462,8 @@ describe('one action at a time (WEB-09)', () => {
       expect(replace).toHaveAttribute('aria-busy', 'true');
     });
     expect(replace).toHaveAttribute('aria-disabled', 'true');
-    expect(replace).toHaveFocus();
+    // aria-disabled, never disabled: the control keeps keyboard focus while it waits.
+    expect(replace).not.toBeDisabled();
     const remove = screen.getByRole('button', { name: 'Remove Photo' });
     expect(remove).toHaveAttribute('aria-disabled', 'true');
     expect(remove).not.toHaveAttribute('aria-busy');

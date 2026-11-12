@@ -253,6 +253,23 @@ async function pickIn(slot: Locator, file: PickedFile): Promise<void> {
   await slot.locator('input[type="file"]:not([capture])').setInputFiles(file);
 }
 
+/** The position and size of a slot on the page. */
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The box of a slot; the slot must be on the page. */
+async function boxOf(page: Page, label: 'Main photo' | 'Back view' | 'Fabric detail'): Promise<Box> {
+  const box = await slotOf(page, label).boundingBox();
+  if (box === null) {
+    throw new Error(` is not on the page`);
+  }
+  return box;
+}
+
 /** The natural width of an image once the browser has decoded it; 0 while it has not (a broken image stays 0). */
 const decodedWidth = (image: { complete: boolean; naturalWidth: number }): number =>
   image.complete ? image.naturalWidth : 0;
@@ -370,30 +387,26 @@ test('@site-content-photos the three photo slots sit in a row on a tablet and st
   await page.getByRole('link', { name: 'Edit Polo Shirts' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible();
 
-  const labels = ['Main photo', 'Back view', 'Fabric detail'] as const;
-  const boxes = async () => {
-    const found = [];
-    for (const label of labels) {
-      const box = await slotOf(page, label).boundingBox();
-      expect(box, `${label} is on the page`).not.toBeNull();
-      found.push(box as { x: number; y: number; width: number; height: number });
-    }
-    return found;
-  };
+  /** The boxes of the three slots, in order. */
+  const boxes = async (): Promise<[Box, Box, Box]> => [
+    await boxOf(page, 'Main photo'),
+    await boxOf(page, 'Back view'),
+    await boxOf(page, 'Fabric detail'),
+  ];
 
-  const row = await boxes();
-  expect(Math.abs(row[1].y - row[0].y)).toBeLessThan(2);
-  expect(Math.abs(row[2].y - row[0].y)).toBeLessThan(2);
-  expect(row[1].x).toBeGreaterThan(row[0].x);
-  expect(row[2].x).toBeGreaterThan(row[1].x);
+  const [mainRow, backRow, fabricRow] = await boxes();
+  expect(Math.abs(backRow.y - mainRow.y)).toBeLessThan(2);
+  expect(Math.abs(fabricRow.y - mainRow.y)).toBeLessThan(2);
+  expect(backRow.x).toBeGreaterThan(mainRow.x);
+  expect(fabricRow.x).toBeGreaterThan(backRow.x);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(slotOf(page, 'Fabric detail')).toBeVisible();
-  const column = await boxes();
-  expect(Math.abs(column[1].x - column[0].x)).toBeLessThan(2);
-  expect(Math.abs(column[2].x - column[0].x)).toBeLessThan(2);
-  expect(column[1].y).toBeGreaterThan(column[0].y + column[0].height - 2);
-  expect(column[2].y).toBeGreaterThan(column[1].y + column[1].height - 2);
+  const [mainColumn, backColumn, fabricColumn] = await boxes();
+  expect(Math.abs(backColumn.x - mainColumn.x)).toBeLessThan(2);
+  expect(Math.abs(fabricColumn.x - mainColumn.x)).toBeLessThan(2);
+  expect(backColumn.y).toBeGreaterThan(mainColumn.y + mainColumn.height - 2);
+  expect(fabricColumn.y).toBeGreaterThan(backColumn.y + backColumn.height - 2);
   expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
 
   await page.setViewportSize({ width: 320, height: 640 });

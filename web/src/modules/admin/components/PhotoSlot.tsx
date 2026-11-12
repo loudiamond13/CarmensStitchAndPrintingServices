@@ -8,7 +8,7 @@
 //   - The slot is reused by the link preview picture ("Picture" instead of "Photo") and the gallery window.
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { useToast } from '@/components/feedback';
@@ -22,6 +22,7 @@ import {
   spinnerClasses,
   statusIconClasses,
 } from '@/components/media/media.recipe';
+import { ConfirmDialog } from '@/components/overlays';
 import { LazyImage } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { imageRulesQuery } from '@/modules/admin/hooks/useImageRulesQuery';
@@ -100,6 +101,10 @@ export interface PhotoSlotProps {
   removedToast?: SlotToast | undefined;
   /** The type and size line under the preview. */
   hint?: string | undefined;
+  /** Another slot of the same card is saving: every action here waits (aria-disabled, focus kept). */
+  locked?: boolean | undefined;
+  /** Told when this slot starts and stops saving, so its card can hold the other slots. */
+  onBusyChange?: ((busy: boolean) => void) | undefined;
 }
 
 /** Why a send failed, in words the person can use: the server's own line for a refusal, plain words for the rest (as the order photo queue). */
@@ -143,8 +148,13 @@ export function PhotoSlot({
   alt,
   placeholder,
   onUpload,
+  onRemove,
+  removeConfirm,
   savedToast,
+  removedToast,
   hint,
+  locked = false,
+  onBusyChange,
 }: PhotoSlotProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -153,7 +163,24 @@ export function PhotoSlot({
   const [pressed, setPressed] = useState<Pressed | null>(null);
   const [saved, setSaved] = useState(false);
   const [refused, setRefused] = useState<readonly PickError[]>([]);
+  const [removing, setRemoving] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // Counts the removals, so focus moves to Choose Photo once the Remove button is gone.
+  const [focusTick, setFocusTick] = useState(0);
+  const chooseRef = useRef<HTMLButtonElement>(null);
   const working = pressed !== null;
+  const busy = working || removing;
+  const canRemove = onRemove !== undefined && removeConfirm !== undefined;
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+
+  useEffect(() => {
+    if (focusTick > 0) {
+      chooseRef.current?.focus();
+    }
+  }, [focusTick]);
 
   /** The picked file, checked and redrawn in the browser, then sent. */
   const run = async (file: File): Promise<void> => {
@@ -215,6 +242,29 @@ export function PhotoSlot({
     });
   };
 
+  /** The removal, once the person has agreed: the dialog stays open and shows the failure when it does not go through. */
+  const confirmRemove = async (): Promise<SlotOutcome> => {
+    if (onRemove === undefined) {
+      return { ok: true };
+    }
+    setRemoving(true);
+    const outcome = await onRemove();
+    setRemoving(false);
+    if (outcome.ok) {
+      setAsking(false);
+      setSaved(false);
+      setRefused([]);
+      setFocusTick((tick) => tick + 1);
+      if (removedToast !== undefined) {
+        toast.show({ title: removedToast.title, message: removedToast.message });
+      }
+    }
+    return outcome;
+  };
+
+  /** Whether a control other than the pressed one waits: another slot saves, or this one does. */
+  const waiting = (control: Pressed | 'remove'): boolean => locked || (busy && pressed !== control);
+
   return (
     <fieldset className={slotClasses}>
       <legend className={slotLabelClasses}>{label}</legend>
@@ -236,10 +286,12 @@ export function PhotoSlot({
       {hint !== undefined && <p className={slotHintClasses}>{hint}</p>}
       <div className={slotActionsClasses}>
         <Button
+          ref={chooseRef}
           variant="secondary"
           size="sm"
           icon="cloud-upload"
           pending={pressed === 'choose'}
+          aria-disabled={waiting('choose')}
           onClick={() => {
             chooseInputRef.current?.click();
           }}
@@ -253,6 +305,7 @@ export function PhotoSlot({
               size="sm"
               icon="camera"
               pending={pressed === 'take'}
+              aria-disabled={waiting('take')}
               onClick={() => {
                 takeInputRef.current?.click();
               }}
@@ -260,6 +313,19 @@ export function PhotoSlot({
               {COPY.take(noun)}
             </Button>
           </span>
+        )}
+        {photo !== null && canRemove && (
+          <Button
+            variant="ghost-danger"
+            size="sm"
+            icon="trash-2"
+            aria-disabled={waiting('remove')}
+            onClick={() => {
+              setAsking(true);
+            }}
+          >
+            {COPY.remove(noun)}
+          </Button>
         )}
       </div>
       <div role="status" aria-live="polite" className={slotStatusClasses}>
@@ -299,6 +365,19 @@ export function PhotoSlot({
       )}
       <input ref={chooseInputRef} type="file" accept={ACCEPT} hidden onChange={pick('choose')} />
       <input ref={takeInputRef} type="file" accept="image/*" capture="environment" hidden onChange={pick('take')} />
+      {canRemove && (
+        <ConfirmDialog
+          open={asking}
+          title={removeConfirm.title}
+          message={removeConfirm.message}
+          confirmLabel={removeConfirm.action}
+          pendingLabel={COPY.removing}
+          onConfirm={confirmRemove}
+          onCancel={() => {
+            setAsking(false);
+          }}
+        />
+      )}
     </fieldset>
   );
 }

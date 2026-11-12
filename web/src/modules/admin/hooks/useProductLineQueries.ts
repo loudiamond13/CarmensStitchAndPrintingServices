@@ -157,6 +157,33 @@ export function useUploadLinePhoto(
   );
 }
 
+/** Takes the photo out of one slot of a line (plan 11-22). A finished removal is a new intent the next time. */
+export function useRemoveLinePhoto(
+  lineId: string,
+  slot: LinePhotoSlot,
+  options: WriteOptions<undefined, undefined> = {},
+) {
+  const queryClient = useQueryClient();
+  const generation = useRef(0);
+  const afterWrite = useAfterWrite();
+  return useSubmission<undefined, undefined>(
+    async () => {
+      await productLinesService.removePhoto(lineId, slot);
+      return undefined;
+    },
+    {
+      identity: () => `remove:${slot}:${String(generation.current)}`,
+      onSuccess: (result, data) => {
+        generation.current += 1;
+        patchLinePhoto(queryClient, lineId, slot, null);
+        afterWrite();
+        options.onSuccess?.(result, data);
+      },
+      ...(options.onFailure === undefined ? {} : { onFailure: options.onFailure }),
+    },
+  );
+}
+
 /** What a move sends: the line and the way it goes. */
 export interface MoveProductLineData {
   id: string;

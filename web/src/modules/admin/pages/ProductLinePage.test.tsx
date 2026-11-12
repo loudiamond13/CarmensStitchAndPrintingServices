@@ -8,6 +8,7 @@ import { ToastProvider } from '@/components/feedback';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { ProductLineRoute } from '@/modules/admin/pages/ProductLinePage';
+import { productLinesService } from '@/modules/admin/services/productLinesService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -18,6 +19,7 @@ import {
   demoLines,
   LINE_IDS,
   LINE_TYPE_IDS,
+  linePhoto,
   linePhotosBackend,
   lineProductTypesAre,
   lineWithPhotos,
@@ -56,6 +58,7 @@ afterEach(() => {
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
   vi.mocked(prepareImage).mockReset();
+  vi.restoreAllMocks();
 });
 
 function renderPage(path: string) {
@@ -270,12 +273,15 @@ describe('the Photos card in the editor (D-02, WEB-09)', () => {
   });
 
   it('has no axe violation with photos, and none while a photo uploads', async () => {
-    const lines = productLinesBackend([lineWithPhotos('polo', ['main', 'back'])]);
+    productLinesBackend([lineWithPhotos('polo', ['main', 'back'])]);
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    linePhotosBackend(lines, { onUpload: () => gate.then(() => undefined) });
+    // The service is held back here: a form body from jsdom cannot wait on the wire in this test run.
+    vi.spyOn(productLinesService, 'uploadPhoto').mockImplementation(() =>
+      gate.then(() => linePhoto(LINE_IDS.polo, 'fabric')),
+    );
     vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
     const { container, user } = await openLine(LINE_IDS.polo);
     await expectNoAxeViolations(container);

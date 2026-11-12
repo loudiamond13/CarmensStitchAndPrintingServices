@@ -15,6 +15,7 @@ import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoLineDetail,
   LINE_IDS,
+  linePhoto,
   linePhotosBackend,
   lineWithPhotos,
   problemAnswer,
@@ -288,12 +289,15 @@ describe('replacing and removing (D-02, PUB-03)', () => {
   });
 
   it('holds the other two slots while one saves, and frees them when it is done', async () => {
-    const lines = productLinesBackend([lineWithPhotos('polo')]);
+    productLinesBackend([lineWithPhotos('polo')]);
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    linePhotosBackend(lines, { onUpload: () => gate.then(() => undefined) });
+    // The service is held back here: a form body from jsdom cannot wait on the wire in this test run.
+    vi.spyOn(productLinesService, 'uploadPhoto').mockImplementation(() =>
+      gate.then(() => linePhoto(LINE_IDS.polo, 'main')),
+    );
     vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
     const { user } = renderCard(withPhotos);
     const main = screen.getByRole('group', { name: 'Main photo' });
