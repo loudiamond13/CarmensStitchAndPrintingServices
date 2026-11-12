@@ -204,6 +204,39 @@ public sealed class OrderDeletionHandlerTests
     }
 
     [Fact]
+    public async Task PermanentAShownOrderClearsThePublicCacheOnceAfterTheSave()
+    {
+        var harness = new Harness(shown: true);
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Cache.SavesAtEachClear.ShouldBe([1]);
+    }
+
+    [Fact]
+    public async Task PermanentAnOrderThatWasNeverShownLeavesThePublicCacheAlone()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Cache.SavesAtEachClear.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task PermanentARefusedDeleteOfAShownOrderLeavesThePublicCacheAlone()
+    {
+        var harness = new Harness(shown: true);
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0149", TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        harness.Cache.SavesAtEachClear.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task PermanentARefusedDeleteQueuesNothing()
     {
         var noCaller = new Harness(noCaller: true, photos: 2);
@@ -217,6 +250,18 @@ public sealed class OrderDeletionHandlerTests
         noCaller.Queue.Entries.ShouldBeEmpty();
         unknown.Queue.Entries.ShouldBeEmpty();
         mismatch.Queue.Entries.ShouldBeEmpty();
+    }
+
+    // Notes how many saves had happened each time the public cache was cleared.
+    private sealed class RecordingCache(FakeUnitOfWork unit) : IPublicContentCache
+    {
+        public List<int> SavesAtEachClear { get; } = [];
+
+        public ValueTask InvalidateAsync(CancellationToken cancellationToken)
+        {
+            SavesAtEachClear.Add(unit.Saves);
+            return ValueTask.CompletedTask;
+        }
     }
 
     // Notes, for every entry, whether the remove and the save had already happened when it was queued.
@@ -272,13 +317,18 @@ public sealed class OrderDeletionHandlerTests
 
     private sealed class Harness
     {
-        public Harness(bool noCaller = false, int photos = 0)
+        public Harness(bool noCaller = false, int photos = 0, bool shown = false)
         {
             var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
             var payments = new[] { new NewOrderPayment(Today, 4000.00m, Guid.NewGuid(), null, null, Receiver) };
             var details = new OrderDetails("Juan Dela Cruz", "Brgy. San Roque Ballers", "0917 123 4567", "juan.dc@example.com", "Brgy. San Roque", Today, Today.AddDays(14), "rush job");
             Order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments }, CallerId, Now, Today).Value;
             Order.AssignNumber("ORD-2026-0148");
+            if (shown)
+            {
+                Order.SetPublicSettings(new OrderPublicSettings(true, true, null, null), CallerId, Guid.NewGuid(), Now).IsSuccess.ShouldBeTrue();
+            }
+
             for (var index = 0; index < photos; index++)
             {
                 Order.AddImage(new NewOrderImage($"csps-test/orders/photo-{index}", 640, 480, 1000, "jpg", null), Now).IsSuccess.ShouldBeTrue();
@@ -290,7 +340,8 @@ public sealed class OrderDeletionHandlerTests
             Queue = new RecordingQueue(Orders, Unit);
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Queue, Unit, request);
+            Cache = new RecordingCache(Unit);
+            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Queue, Cache, Unit, request);
         }
 
         public Order Order { get; }
@@ -302,6 +353,8 @@ public sealed class OrderDeletionHandlerTests
         public OrderAudit Audit { get; }
 
         public RecordingQueue Queue { get; }
+
+        public RecordingCache Cache { get; }
 
         public PermanentlyDeleteOrderHandler Permanent { get; }
     }

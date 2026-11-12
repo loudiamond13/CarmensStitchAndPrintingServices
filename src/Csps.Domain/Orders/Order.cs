@@ -1333,8 +1333,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <summary>
     /// Moves the order to another status by the owner's table (<see cref="OrderStatusRules.Check"/>), judged on the balance as it
     /// stands now. A real move or a reopen adds a history row, sets the status and the time it changed, works the figures out again
-    /// (a cancelled order keeps its cash and costs, D-36) and moves the edit version. A request for the status the order is already
-    /// in assigns nothing.
+    /// (a cancelled order keeps its cash and costs, D-36) and moves the edit version. A move to Cancelled also takes the order off the
+    /// website and keeps the customer's OK; a reopen does not put it back (D-41). A request for the status the order is already in
+    /// assigns nothing.
     /// </summary>
     /// <param name="to">The status to move to.</param>
     /// <param name="callerId">The staff member who moves it; the history row names them.</param>
@@ -1352,6 +1353,11 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         _statusChanges.Add(new OrderStatusChange(Guid.CreateVersion7(now), Id, Status, to, callerId, now) { Order = this });
         Status = to;
         StatusChangedAtUtc = now;
+        if (to == OrderStatus.Cancelled)
+        {
+            ShownOnWebsiteSinceUtc = null;
+        }
+
         Recalculate();
         Touch(now);
         return move;

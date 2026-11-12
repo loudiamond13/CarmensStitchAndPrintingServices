@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T11:45:00-06:00
+updated: 2026-11-12T15:25:00-06:00
 ---
 
 # The site content API
@@ -34,6 +34,7 @@ line photos, testimonials and gallery routes join this page in later plans.
 | `PUT /api/v1/shop-closures/{id}` | Manager | `200` the closure as saved; `400` field errors or an overlap; `401`; `403` for an Admin; `404`; `409 edit.stale` or busy. |
 | `DELETE /api/v1/shop-closures/{id}` | Manager | `204`; `401`; `403` for an Admin; `404` when it is already gone. |
 | `GET /api/v1/product-lines` | Manager | `200` every line, shown and hidden, in order; `401`; `403` for an Admin. |
+| `GET /api/v1/product-lines/options` | Staff | `200` the active lines as `{ id, title, shortName }` in display order, for the order window ([orders.md](orders.md)); `401`. An Admin may read it. |
 | `GET /api/v1/product-lines/{id}` | Manager | `200` one line with every field; `401`; `403`; `404`. |
 | `POST /api/v1/product-lines` | Manager | `201` the new line; `400` field errors or a short name in use; `401`; `403`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
 | `PUT /api/v1/product-lines/{id}` | Manager | `200` the line as saved; `400`; `401`; `403`; `404`; `409 edit.stale` or busy. |

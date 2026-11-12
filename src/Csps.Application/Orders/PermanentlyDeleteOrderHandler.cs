@@ -15,12 +15,14 @@ namespace Csps.Application.Orders;
 /// audit row and the delete share one save. Each photo file is queued for removal in that same save and nothing calls the photo storage
 /// here (D-20, JOB-02), so a rolled-back delete queues nothing. No version is sent: the delete applies to the latest state, so a lost race is read again
 /// and decided again, and an order that is already gone is a 404 that writes nothing. The 404 comes before the confirm check, so a
-/// wrong id never learns anything about the order.
+/// wrong id never learns anything about the order. An order that was shown on the website clears the public cache after the commit,
+/// so it is gone from the public site at once (D-15, PUB-03).
 /// </summary>
 public sealed class PermanentlyDeleteOrderHandler(
     IOrders orders,
     IAuditTrail audit,
     IImageDeletionQueue imageDeletions,
+    IPublicContentCache publicCache,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext)
 {
@@ -41,7 +43,18 @@ public sealed class PermanentlyDeleteOrderHandler(
                 () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, confirm, token), cancellationToken),
                 Result.Failure<bool>(EditErrors.Stale))
             .ConfigureAwait(false);
-        return outcome.IsFailure ? Result.Failure(outcome.Error) : Result.Success();
+        if (outcome.IsFailure)
+        {
+            return Result.Failure(outcome.Error);
+        }
+
+        // The tracked remove clears the cache by itself; this call keeps a shown order from outliving its own delete if that rule is ever missed.
+        if (outcome.Value)
+        {
+            await publicCache.InvalidateAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return Result.Success();
     }
 
     private async Task<Result<bool>> AttemptAsync(Guid id, string? confirm, CancellationToken cancellationToken)
@@ -67,8 +80,9 @@ public sealed class PermanentlyDeleteOrderHandler(
             imageDeletions.Enqueue(image.PublicId, ImageDeletionReason.OrderDeleted);
         }
 
+        var wasShown = order.IsShownOnWebsite;
         orders.Remove(order);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return Result.Success(true);
+        return Result.Success(wasShown);
     }
 }

@@ -324,6 +324,77 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
         (await ProblemJson.ReadAsync(delete, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("product-lines.in-use");
     }
 
+    [Fact]
+    public async Task CancellingAShownOrderTakesItOffTheWebsiteRemovesItsEntryKeepsTheOkAndAReopenDoesNotPutItBack()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreatePendingOrderAsync(factory, client, admin);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+        _ = await SaveAsync(client, admin, id, PublicBody(order, consent: true, show: true));
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "cancelled");
+
+        var settings = cancelled.GetProperty("publicWebsite");
+        settings.GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        settings.GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        OrderFixtures.IsNull(settings, "shownSinceUtc").ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var actions = await OrderAuditActionsAsync(id, admin.UserId);
+        actions.ShouldContain("order.taken-off-website");
+        (await OrderAuditDetailAsync(id, "order.taken-off-website")).ShouldContain($"number={number}");
+
+        var reopened = await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "pending");
+
+        reopened.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        reopened.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task CancellingAnOrderThatWasNotShownWritesNoTakenOffEntry()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var order = await CreatePendingOrderAsync(factory, client, admin);
+        var id = order.GetProperty("id").GetGuid();
+
+        _ = await OrderFixtures.ChangeStatusAndReadAsync(client, admin.AccessToken, id, "cancelled");
+
+        (await OrderAuditActionsAsync(id, admin.UserId)).ShouldNotContain("order.taken-off-website");
+    }
+
+    [Fact]
+    public async Task DeletingAShownOrderChangesNoStoredSettingAndARestoreKeepsTheWebsiteSettingsAsTheyWereP11BL29()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await CreatePendingOrderAsync(factory, client, manager);
+        var id = order.GetProperty("id").GetGuid();
+        _ = await SaveAsync(client, manager, id, PublicBody(order, consent: true, show: true));
+
+        using var deleted = await OrderFixtures.DeleteAsync(client, manager.AccessToken, id);
+
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var stored = await StoredSettingsAsync(id);
+        stored.ShownSince.ShouldNotBeNull();
+        stored.ConsentAt.ShouldNotBeNull();
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+
+        using var restored = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
+
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var detail = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        detail.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+        detail.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+    }
+
     private static Guid LineId(string key) => ProductLineSeed.All.Single(entry => entry.Key == key).Id;
 
     private static async Task<JsonElement> SaveAsync(HttpClient client, StartedSession who, Guid orderId, object body)
@@ -395,6 +466,50 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
         body["items"] = items.Select(item => OrderFixtures.Item(item.ProductTypeId, "Sample piece", null, item.Quantity, 0.00m)).ToArray();
         var created = await OrderFixtures.CreateAsync(client, who.AccessToken, body);
         return await OrderFixtures.ChangeStatusAndReadAsync(client, who.AccessToken, created.GetProperty("id").GetGuid(), "completed");
+    }
+
+    private static async Task<JsonElement> CreatePendingOrderAsync(CspsApiFactory factory, HttpClient client, StartedSession who)
+    {
+        var today = await OrderFixtures.TodayAsync(factory);
+        return await OrderFixtures.CreateAsync(client, who.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+    }
+
+    private async Task<List<string>> OrderAuditActionsAsync(Guid orderId, Guid actorId)
+    {
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.AuditLog.AsNoTracking()
+                .Where(row => row.ActorUserId == actorId && row.TargetId == orderId.ToString("D") && row.TargetType == "Order")
+                .Select(row => row.Action)
+                .ToListAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    private async Task<string> OrderAuditDetailAsync(Guid orderId, string action)
+    {
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.AuditLog.AsNoTracking()
+                .Where(row => row.TargetId == orderId.ToString("D") && row.TargetType == "Order" && row.Action == action)
+                .Select(row => row.Detail!)
+                .SingleAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    // Reads the stored columns past the soft-delete filter, so a deleted order can be checked.
+    private async Task<(DateTimeOffset? ShownSince, DateTimeOffset? ConsentAt)> StoredSettingsAsync(Guid orderId)
+    {
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var row = await context.Orders.IgnoreQueryFilters().AsNoTracking()
+                .Where(order => order.Id == orderId)
+                .Select(order => new { order.ShownOnWebsiteSinceUtc, order.PublicConsentAtUtc })
+                .SingleAsync(TestContext.Current.CancellationToken);
+            return (row.ShownOnWebsiteSinceUtc, row.PublicConsentAtUtc);
+        }
     }
 
     private static Dictionary<string, object?> PublicBody(JsonElement order, bool consent, bool show, Guid? lineId = null, string? name = null) => new()

@@ -96,6 +96,8 @@ public static class AuthorizationMatrix
         // Product lines (CONT-02, D-01): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add, edit and move, and a fresh random id is no line (404) on read, hide, show and delete.
         new("GET", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/8d3f5a21-0b64-4e97-a1c8-5f2e7b9d0c43", Anonymous: 401, Admin: 403, Manager: 404),
+        // The line options the order window lists (D-16): both roles, because Admin may show an order too.
+        new("GET", "/api/v1/product-lines/options", "/api/v1/product-lines/options", Anonymous: 401, Admin: 200, Manager: 200),
         new("POST", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 400),
         new("PUT", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/2e7c9b46-8a15-4d03-b6f2-c1a4e8d5f730", Anonymous: 401, Admin: 403, Manager: 400),
         new("POST", "/api/v1/product-lines/{id:guid}/move", "/api/v1/product-lines/b5a1d8e3-4c72-4f09-9e60-3d7f2a8c1b54/move", Anonymous: 401, Admin: 403, Manager: 400),
