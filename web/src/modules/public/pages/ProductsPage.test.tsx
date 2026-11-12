@@ -219,6 +219,30 @@ describe('ProductsPage hash on load (UI-SPEC P1 Hash on load)', { timeout: 20_00
     });
   });
 
+  it('waits for the fonts to be ready before it scrolls, so a late re-wrap cannot move the article', async () => {
+    reducedMotion(false);
+    let fontsReady: () => void = () => undefined;
+    const ready = new Promise<void>((resolve) => {
+      fontsReady = resolve;
+    });
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { ready } });
+    try {
+      const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+
+      await renderProducts('/products#polo');
+      await screen.findAllByRole('article');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(scroll).not.toHaveBeenCalled();
+
+      fontsReady();
+      await vi.waitFor(() => {
+        expect(scroll).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      Reflect.deleteProperty(document, 'fonts');
+    }
+  });
+
   it('does nothing for a hash that matches no article', async () => {
     reducedMotion(false);
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');

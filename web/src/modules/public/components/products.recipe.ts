@@ -106,6 +106,15 @@ export const pillClasses = tw(
   'inline-flex min-h-11 items-center gap-[6px] rounded-sm border border-line bg-surface px-4 text-[14px] font-semibold whitespace-nowrap text-ink-muted no-underline hover:border-line-strong hover:text-ink',
 );
 
+/** The column that holds the error or the empty state: 24px above, 48px below. */
+export const stateWrapClasses = tw('mx-auto max-w-(--container-max) px-6 pt-6 pb-12 pg-phone:px-4');
+
+/** A skeleton article's media: the 5:4 box the real grid fills, so the page does not shift when the photos land. */
+export const skeletonMediaClasses = tw('aspect-5/4 overflow-hidden rounded-md');
+
+/** A skeleton article's text lines, 8px apart. */
+export const skeletonCopyClasses = tw('grid min-w-0 gap-2');
+
 /** `.s-btnrow`: the article's buttons. */
 export const articleButtonsClasses = tw('flex flex-wrap items-center gap-3');
 

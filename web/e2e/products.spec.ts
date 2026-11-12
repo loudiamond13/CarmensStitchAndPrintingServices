@@ -8,6 +8,9 @@ import { seedDemoSiteContent } from './testing-api.ts';
 
 const LINES_API = '/api/v1/public/product-lines';
 
+// Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
+test.describe.configure({ timeout: 480_000 });
+
 test('@products /products shows six articles and the basketball demo price, with no lines request on the first load', async ({
   page,
   request,
@@ -50,11 +53,24 @@ test('@products opening /products#polo lands on the polo article, clear of the h
     const bar = page.locator(BAR);
     const polo = page.locator('article#polo');
     await expect(polo).toBeAttached();
-    // The scroll may be smooth, so wait for the article to settle just under the pill bar.
-    await expect.poll(async () => (await polo.boundingBox())?.y ?? 99999, { timeout: 15_000 }).toBeLessThan(450);
+    // The scroll may be smooth, so wait until the article stops moving (the same place twice, 400ms apart).
+    let last = Number.NaN;
+    await expect
+      .poll(
+        async () => {
+          const top = (await polo.boundingBox())?.y ?? 99999;
+          const settled = top === last;
+          last = top;
+          await page.waitForTimeout(400);
+          return settled;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
     const [barBox, poloBox] = await Promise.all([bar.boundingBox(), polo.boundingBox()]);
     const barBottom = (barBox?.y ?? 0) + (barBox?.height ?? 0);
-    expect(poloBox?.y ?? 0, 'the article starts below the sticky bars').toBeGreaterThanOrEqual(barBottom);
+    expect(poloBox?.y ?? 99999, 'the article starts below the sticky bars').toBeGreaterThanOrEqual(barBottom);
+    expect(poloBox?.y ?? 99999, 'the article was scrolled up to just under them').toBeLessThan(450);
   });
 });
 
