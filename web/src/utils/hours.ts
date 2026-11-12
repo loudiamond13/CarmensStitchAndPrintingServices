@@ -9,6 +9,8 @@ export interface WeekDayHours {
 
 const SHORT_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
+const LONG_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+
 const TIME_24H = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /** "9:00 AM" for "09:00", "12:00 AM" for "00:00". Text that is not a 24-hour time gives null. */
@@ -54,20 +56,31 @@ function shortDays(run: Run): string {
   return run.first === run.last ? first : `${first}-${last}`;
 }
 
+/** "Monday to Saturday" for a run of days, "Saturday" for a single day. */
+function longDays(run: Run): string {
+  const first = LONG_DAYS[run.first] ?? '';
+  const last = LONG_DAYS[run.last] ?? '';
+  return run.first === run.last ? first : `${first} to ${last}`;
+}
+
 /** One line per run of open days, closed days left out: "Mon-Sat · 9:00 AM - 6:00 PM". No open day gives []. */
 export function summarizeOpenDays(days: readonly WeekDayHours[]): string[] {
   return buildRuns(days).flatMap((run) => (run.hours === null ? [] : [`${shortDays(run)} · ${run.hours}`]));
 }
 
+/** One row of the hours card: the days as text and their hours, null when closed (the card writes Closed). */
 export interface HoursRow {
   readonly days: string;
   readonly hours: string | null;
 }
 
+/** The card rows, Monday first: runs of consecutive days with the same hours, closed runs included. */
 export function groupWeek(days: readonly WeekDayHours[]): HoursRow[] {
-  return days.length < 0 ? [{ days: '', hours: null }] : [];
+  return buildRuns(days).map((run) => ({ days: longDays(run), hours: run.hours }));
 }
 
+/** The Call button sub line: "Mon-Sat, 9:00 AM - 6:00 PM", runs joined by "; ". No open day gives null. */
 export function callButtonSummary(days: readonly WeekDayHours[]): string | null {
-  return days.length < 0 ? '' : null;
+  const parts = buildRuns(days).flatMap((run) => (run.hours === null ? [] : [`${shortDays(run)}, ${run.hours}`]));
+  return parts.length === 0 ? null : parts.join('; ');
 }

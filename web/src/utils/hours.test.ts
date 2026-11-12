@@ -171,6 +171,7 @@ describe('long dashes (OR-4)', () => {
       ...summarizeOpenDays(week),
       callButtonSummary(week) ?? '',
     ]);
-    expect(outputs.join('\n')).not.toMatch(/[‒-―]/);
+    const longDash = new RegExp(`[${String.fromCharCode(0x2012)}-${String.fromCharCode(0x2015)}]`);
+    expect(outputs.join('\n')).not.toMatch(longDash);
   });
 });
