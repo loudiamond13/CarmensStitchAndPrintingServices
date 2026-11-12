@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   answerSite,
+  closedWeek,
   demoSite,
+  mixedWeek,
   putBootBlock,
   resetPublicData,
   siteFailureHandler,
@@ -68,7 +70,6 @@ describe('SiteFooter, full (PUB-02)', () => {
       'href',
       'https://m.me/cspsdemo',
     );
-    expect(within(footer).queryByText(/Mon-Sat/)).not.toBeInTheDocument();
   });
 
   it('shows no email and no "@" anywhere in the footer (D-25)', () => {
@@ -147,6 +148,43 @@ describe('SiteFooter, full (PUB-02)', () => {
     expect(
       within(screen.getByRole('contentinfo')).getByText('© 2031 Sample Shop. All rights reserved.'),
     ).toBeInTheDocument();
+  });
+});
+
+describe('SiteFooter clock row (CONT-04, PUB-02, D-21)', () => {
+  it('shows one line for Monday to Saturday under the address', async () => {
+    renderFullFrom(demoSite);
+    const footer = screen.getByRole('contentinfo');
+
+    expect(await within(footer).findByText('Mon-Sat · 9:00 AM - 6:00 PM')).toBeInTheDocument();
+  });
+
+  it('shows two lines when Saturday keeps shorter hours', async () => {
+    renderFullFrom({ ...demoSite, hours: mixedWeek });
+    const footer = screen.getByRole('contentinfo');
+
+    expect(await within(footer).findByText('Mon-Fri · 9:00 AM - 6:00 PM')).toBeInTheDocument();
+    expect(within(footer).getByText('Sat · 9:00 AM - 5:00 PM')).toBeInTheDocument();
+  });
+
+  it('is not rendered when no day is open', async () => {
+    renderFullFrom({ ...demoSite, hours: closedWeek });
+    const footer = screen.getByRole('contentinfo');
+
+    await waitFor(() => {
+      expect(within(footer).getByText('Visit')).toBeInTheDocument();
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+    expect(within(footer).queryByText(/AM/)).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations with the clock row', async () => {
+    const { container } = renderFullFrom(demoSite);
+    await screen.findByText('Mon-Sat · 9:00 AM - 6:00 PM');
+
+    await expectNoAxeViolations(container);
   });
 });
 

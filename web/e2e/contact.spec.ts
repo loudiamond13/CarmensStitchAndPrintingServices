@@ -147,3 +147,37 @@ test('@contact-hours the hours card shows the demo week and the status the serve
     await expectNoAxeViolations(page);
   });
 });
+
+test('@contact-hours the demo closure is listed under Closed on with its date and note, and the call line and footer follow the hours', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const answer = await request.get(SITE_API);
+    expect(answer.status()).toBe(200);
+    const site = (await answer.json()) as {
+      upcomingClosures: { firstDay: string; lastDay: string; note: string | null }[];
+    };
+    const closure = site.upcomingClosures.find((item) => item.note === 'Demo holiday');
+    expect(closure, 'the seeded demo closure').toBeDefined();
+    const [year, month, day] = (closure?.firstDay ?? '').split('-').map(Number);
+    const date = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'UTC',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1)));
+
+    await page.goto('/contact');
+
+    const card = page.locator('[data-hours-card]');
+    await expect(card.getByRole('heading', { level: 3, name: 'Closed on' })).toBeVisible();
+    await expect(card.getByText(`${date} · Demo holiday`, { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' })).toBeVisible();
+
+    await page.goto('/');
+    await expect(page.getByRole('contentinfo').getByText('Mon-Sat · 9:00 AM - 6:00 PM', { exact: true })).toBeVisible();
+    await expectNoAxeViolations(page);
+  });
+});

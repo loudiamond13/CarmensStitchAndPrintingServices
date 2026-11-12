@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { demoSite, siteWithoutOptionals, siteWithThreePhones } from '@/test/publicFixtures';
+import { closedWeek, demoSite, mixedWeek, siteWithoutOptionals, siteWithThreePhones } from '@/test/publicFixtures';
 import { BigContactButton } from './BigContactButton';
 import { ContactBar } from './ContactBar';
 import { ContactNowCard } from './ContactNowCard';
@@ -75,8 +75,37 @@ describe('ContactNowCard (D-18)', () => {
     expect(container.querySelectorAll('span[aria-hidden="true"]').length).toBeGreaterThanOrEqual(2);
   });
 
+  it('adds the open days to the Call button as a second line', async () => {
+    inRouter(<ContactNowCard site={demoSite} />);
+
+    expect(await screen.findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' })).toHaveAttribute(
+      'href',
+      'tel:+639171234567',
+    );
+  });
+
+  it('joins mixed hours with a semicolon on the Call button', async () => {
+    inRouter(<ContactNowCard site={{ ...demoSite, hours: mixedWeek }} />);
+
+    expect(
+      await screen.findByRole('link', {
+        name: 'Call 0917 123 4567 Mon-Fri, 9:00 AM - 6:00 PM; Sat, 9:00 AM - 5:00 PM',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('leaves the second line out of the Call button when no day is open', async () => {
+    inRouter(<ContactNowCard site={{ ...demoSite, hours: closedWeek }} />);
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 50);
+    });
+    expect(screen.getByRole('link', { name: 'Call 0917 123 4567' })).toBeInTheDocument();
+  });
+
   it('has no axe violations', async () => {
     const { container } = inRouter(<ContactNowCard site={demoSite} />);
+    await screen.findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' });
 
     await expectNoAxeViolations(container);
   });
