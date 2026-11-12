@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 13/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 16/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1212,9 +1212,9 @@ Plans:
 - [x] 11-13-PLAN.md — Shop closures under the site-content lock (CONT-04, PUB-05, PUB-04)
 
 **Wave 6**
-- [ ] 11-14-PLAN.md — Contact hours card and open status (PUB-05, CONT-04, PUB-02)
-- [ ] 11-15-PLAN.md — Product lines table, six seeded lines and the public read (PUB-02, CONT-02)
-- [ ] 11-16-PLAN.md — Hours & Closures tab (CONT-04, CONT-01, PUB-05)
+- [x] 11-14-PLAN.md — Contact hours card and open status (PUB-05, CONT-04, PUB-02)
+- [x] 11-15-PLAN.md — Product lines table, six seeded lines and the public read (PUB-02, CONT-02)
+- [x] 11-16-PLAN.md — Hours & Closures tab (CONT-04, CONT-01, PUB-05)
 
 **Wave 7**
 - [ ] 11-17-PLAN.md — Product lines admin API: edit, move, hide, show, delete when unused, type links (CONT-02, PUB-03)
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 13/38 | In Progress | - |
+| 11. Public Site & Content Management | 16/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |

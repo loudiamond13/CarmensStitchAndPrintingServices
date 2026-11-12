@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T04:16:35-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T07:03:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -34,7 +34,7 @@ On a phone, Contact shows a sticky Call bar at the bottom, so its footer keeps 9
 
 ## P11-BL-04 · Wording of the "someone else changed this" banner on Site Content (plan 11-12, owner item 1)
 
-**Status:** open · **Blocks:** nothing. Built as option A.
+**Status:** open · **Blocks:** nothing. Built as option A. Plan 11-16 reuses the same shared banner on the hours card, so one ruling covers both.
 
 When two Managers edit Business Info at once, the second save is refused and a banner shows. The app's shared banner (used on orders and elsewhere) says "This was changed by someone else." The Phase 11 UI spec table words it differently.
 
@@ -46,7 +46,7 @@ The exact text is in 11-12-SUMMARY.md under the owner items.
 
 ## P11-BL-05 · Question shown before "Load Latest" throws away edits (plan 11-12, owner item 2)
 
-**Status:** open · **Blocks:** nothing. Built as option A.
+**Status:** open · **Blocks:** nothing. Built as option A. Plan 11-16 reuses the same question on the hours card (recommended: one wording for every Site Content tab).
 
 After a refused save, "Load Latest" would throw away the Manager's unsaved edits, so the page first asks "Discard changes?". The UI spec has no text for this question; the executor wrote it (marked SPEC-GAP in the code). The exact text is in 11-12-SUMMARY.md.
 
@@ -78,12 +78,39 @@ The new `OpeningHours` migration is also forward only, the same as P11-BL-01; th
 
 ## P11-BL-08 · Editing a closure that has already started (plan 11-13, owner item OI-1)
 
-**Status:** open · **Blocks:** nothing. Built as option A; plan 11-16's form follows the same rule.
+**Status:** open · **Blocks:** nothing. Built as option A; plan 11-16's form follows the same rule. Choosing B means removing the browser rule (zod `savedFirstDay`) and the server edit marker together.
 
 A closure such as "Dec 23 to Dec 27" may already be running when a Manager opens it. New closures, and any change to the first day, must still be today or later.
 
 - **A (built, recommended):** an edit may keep its past first day, so the note or the last day of a running closure can still be fixed.
 - **B:** refuse any edit whose first day is in the past; the Manager deletes and re-adds instead.
+
+## P11-BL-09 · Delete wording for a closure of several days (plan 11-16, owner item 1)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The approved delete lines say "{Dec 25, 2026}. The shop shows its normal hours that day." For a closure such as "Dec 30, 2026 to Jan 1, 2027" they still say "that day".
+
+- **A (built, recommended):** keep the approved words for every closure. They are the spec's words.
+- **B:** say "those days" when the closure covers several days.
+
+## P11-BL-10 · "Visitors see" label when the week has several groups of days (plan 11-16, owner item 4)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The hours card preview puts "Visitors see:" on the first line only. Each further group of days is its own line without the label.
+
+- **A (built, recommended):** keep it on the first line only.
+- **B:** put the label on its own line above all the groups.
+
+## P11-BL-11 · Message when a closure was deleted while it was open for editing (plan 11-16, owner item 5)
+
+**Status:** open · **Blocks:** nothing. Built as option A. The spec has no words for this (SPEC-GAP).
+
+The closure window shows "This closure wasn't found. It may have been deleted."
+
+- **A (built, recommended):** keep that line.
+- **B:** reuse the "Already deleted" words from the delete question.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
@@ -95,5 +122,6 @@ A closure such as "Dec 23 to Dec 27" may already be running when a Manager opens
 | 3 | `LastManagerGuardTests.TwoManagersLockingEachOtherTogetherLeaveExactlyOneActiveEveryTime` | failed once | passed; **fixed** (see below) |
 | 4 (in 11-12) | web `admin/routes.test.tsx` "/dev/public" title | failed once | passed twice |
 | 5 (in 11-13) | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` | failed once | passed 20 of 20 (class alone) |
+| 6 | web `scripts/third-party-notices.test.ts` "--check exits 1 ... and --write fixes it" | failed once (245 s under load) | passed in 9.5 s |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
