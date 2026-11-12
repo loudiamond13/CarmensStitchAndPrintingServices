@@ -18,29 +18,29 @@ public sealed record PublicHomeLineDto(string Key, string Number, string Title, 
 /// <param name="Stars">The rating, 1 to 5.</param>
 public sealed record PublicTestimonialDto(string Quote, string Name, string? TeamOrRole, int Stars);
 
-/// <summary>One tile of the Home page's Recent work strip. It stays empty until the plan that reads shown orders fills it.</summary>
+/// <summary>One tile of the Home page's Recent work strip: one of the six newest shown orders (D-14).</summary>
 /// <param name="Team">The public name of the order.</param>
 /// <param name="LineKey">The key of the order's line, which the tile links to in the Gallery.</param>
 /// <param name="LineShortName">The short name of the order's line.</param>
 /// <param name="Pieces">The number of pieces; null when unknown.</param>
 /// <param name="PlaceholderArt">The drawing shown when the order has no photo.</param>
-/// <param name="Photo">The cover photo; null when there is none.</param>
+/// <param name="Photo">The cover photo at the 4:5 strip sizes; null when the account has no address for it.</param>
 public sealed record PublicRecentWorkDto(string Team, string LineKey, string LineShortName, int? Pieces, string PlaceholderArt, PublicPhotoDto? Photo);
 
-/// <summary>The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it.</summary>
+/// <summary>The Home page's hero tag: the newest shown order (D-14).</summary>
 /// <param name="Name">The public name of the order.</param>
 /// <param name="Pieces">The number of pieces.</param>
 public sealed record PublicHeroTagDto(string Name, int Pieces);
 
 /// <summary>
 /// What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three
-/// shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty until a later plan fills them.
+/// shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty when no order is shown.
 /// </summary>
 /// <param name="Lines">The shown product lines in display order.</param>
 /// <param name="LineCount">How many lines are shown.</param>
 /// <param name="Testimonials">The first three shown testimonials in display order; empty when none is shown.</param>
-/// <param name="RecentWork">The Recent work tiles; empty for now.</param>
-/// <param name="HeroTag">The hero tag; null for now.</param>
+/// <param name="RecentWork">The Recent work tiles, newest first, at most six; empty when no order is shown.</param>
+/// <param name="HeroTag">The hero tag; null when no order is shown.</param>
 public sealed record PublicHomeDto(
     IReadOnlyList<PublicHomeLineDto> Lines,
     int LineCount,

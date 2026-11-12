@@ -1907,8 +1907,10 @@ export interface paths {
          * Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its
          *     `key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main
          *     photo), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,
-         *     `teamOrRole` and `stars`), `recentWork` (empty for now) and `heroTag` (null for now). A hidden line or testimonial
-         *     is left out. A request whose `If-None-Match` matches the current ETag gets 304.
+         *     `teamOrRole` and `stars`), `recentWork` (the six newest shown orders, newest first, each with its `team`,
+         *     `lineKey`, `lineShortName`, `pieces`, `placeholderArt` and cover `photo` at the strip sizes) and `heroTag`
+         *     (the newest shown order's `name` and `pieces`; null when none is shown). A hidden line or testimonial is left out. A request
+         *     whose `If-None-Match` matches the current ETag gets 304.
          */
         get: operations["GetPublicHome"];
         put?: never;
@@ -1952,7 +1954,7 @@ export interface paths {
          * Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,
          *     `title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and
          *     `minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each
-         *     null until a photo is added) and `hasGalleryItems`. A hidden line is left out; with none shown the list is empty. A request
+         *     null until a photo is added) and `hasGalleryItems` (true when the Gallery has a public item under the line). A hidden line is left out; with none shown the list is empty. A request
          *     whose `If-None-Match` matches the current ETag gets 304.
          */
         get: operations["GetPublicProductLines"];
@@ -4602,7 +4604,7 @@ export interface components {
             shortName: string;
             /**
              * Format: int32
-             * @description How many shown gallery items are filed under the line.
+             * @description How many public gallery items a visitor sees under the line.
              */
             shownGalleryCount: number | string;
             /**
@@ -4831,7 +4833,7 @@ export interface components {
             /** @description The short name on the pill. */
             shortName: string;
         };
-        /** @description The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it. */
+        /** @description The Home page's hero tag: the newest shown order (D-14). */
         PublicHeroTagDto: {
             /** @description The public name of the order. */
             name: string;
@@ -4843,7 +4845,7 @@ export interface components {
         };
         /**
          * @description What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three
-         *     shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty until a later plan fills them.
+         *     shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty when no order is shown.
          */
         PublicHomeDto: {
             heroTag: null | components["schemas"]["PublicHeroTagDto"];
@@ -4854,7 +4856,7 @@ export interface components {
             lineCount: number | string;
             /** @description The shown product lines in display order. */
             lines: components["schemas"]["PublicHomeLineDto"][];
-            /** @description The Recent work tiles; empty for now. */
+            /** @description The Recent work tiles, newest first, at most six; empty when no order is shown. */
             recentWork: components["schemas"]["PublicRecentWorkDto"][];
             /** @description The first three shown testimonials in display order; empty when none is shown. */
             testimonials: components["schemas"]["PublicTestimonialDto"][];
@@ -4945,7 +4947,7 @@ export interface components {
             /** @description The lines. */
             lines: components["schemas"]["PublicProductLineDto"][];
         };
-        /** @description One tile of the Home page's Recent work strip. It stays empty until the plan that reads shown orders fills it. */
+        /** @description One tile of the Home page's Recent work strip: one of the six newest shown orders (D-14). */
         PublicRecentWorkDto: {
             /** @description The key of the order's line, which the tile links to in the Gallery. */
             lineKey: string;

@@ -56,7 +56,7 @@ public sealed class PublicSiteController(
     /// Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): <c>lines</c>, each with its <c>key</c>, <c>number</c>,
     /// <c>title</c>, <c>shortName</c>, <c>cardText</c>, <c>description</c>, the five <c>customize</c> texts, <c>startsAtPrice</c> and
     /// <c>minimumQuantity</c> (null when not set), <c>placeholderArt</c>, <c>photos</c> (<c>main</c>, <c>back</c> and <c>fabric</c>, each
-    /// null until a photo is added) and <c>hasGalleryItems</c>. A hidden line is left out; with none shown the list is empty. A request
+    /// null until a photo is added) and <c>hasGalleryItems</c> (true when the Gallery has a public item under the line). A hidden line is left out; with none shown the list is empty. A request
     /// whose <c>If-None-Match</c> matches the current ETag gets 304.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
@@ -76,8 +76,10 @@ public sealed class PublicSiteController(
     /// Reads what the Home page shows (PUB-02, CONT-03): <c>lines</c>, one card for each shown product line in display order with its
     /// <c>key</c>, <c>number</c>, <c>title</c>, <c>cardText</c>, <c>placeholderArt</c> and <c>cardPhoto</c> (null until the line has a main
     /// photo), <c>lineCount</c>, <c>testimonials</c> (the first three shown ones in display order, each with <c>quote</c>, <c>name</c>,
-    /// <c>teamOrRole</c> and <c>stars</c>), <c>recentWork</c> (empty for now) and <c>heroTag</c> (null for now). A hidden line or testimonial
-    /// is left out. A request whose <c>If-None-Match</c> matches the current ETag gets 304.
+    /// <c>teamOrRole</c> and <c>stars</c>), <c>recentWork</c> (the six newest shown orders, newest first, each with its <c>team</c>,
+    /// <c>lineKey</c>, <c>lineShortName</c>, <c>pieces</c>, <c>placeholderArt</c> and cover <c>photo</c> at the strip sizes) and <c>heroTag</c>
+    /// (the newest shown order's <c>name</c> and <c>pieces</c>; null when none is shown). A hidden line or testimonial is left out. A request
+    /// whose <c>If-None-Match</c> matches the current ETag gets 304.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the Home data, 304 when the visitor's copy is current, or 429 when the address reads too often.</returns>

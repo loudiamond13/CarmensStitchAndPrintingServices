@@ -102,9 +102,10 @@ public interface IProductLines
 /// <param name="Line">The line.</param>
 /// <param name="ProductTypeIds">The order product types filed under it, A to Z.</param>
 /// <param name="PhotoCount">How many photos it has.</param>
-/// <param name="GalleryItemCount">How many gallery items are filed under it.</param>
+/// <param name="GalleryItemCount">How many gallery entries and orders that chose the line are filed under it, shown or not; the delete guard counts these.</param>
 /// <param name="MainPhoto">Its main photo; null when the slot is empty.</param>
-public sealed record ProductLineListRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, int PhotoCount, int GalleryItemCount, ProductLinePhoto? MainPhoto = null);
+/// <param name="ShownGalleryCount">How many public gallery items a visitor sees under it.</param>
+public sealed record ProductLineListRow(ProductLine Line, IReadOnlyList<Guid> ProductTypeIds, int PhotoCount, int GalleryItemCount, ProductLinePhoto? MainPhoto = null, int ShownGalleryCount = 0);
 
 /// <summary>What is filed under a line, as the usage read returns it.</summary>
 /// <param name="PhotoCount">How many photos the line has.</param>

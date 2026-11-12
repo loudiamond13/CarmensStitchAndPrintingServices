@@ -15,7 +15,7 @@ namespace Csps.Application.Content;
 /// <param name="Position">The place in the order, from 1.</param>
 /// <param name="MainPhotoThumb">The small main photo; null until the line has one.</param>
 /// <param name="ProductTypeIds">The order product types filed under the line, A to Z.</param>
-/// <param name="ShownGalleryCount">How many shown gallery items are filed under the line.</param>
+/// <param name="ShownGalleryCount">How many public gallery items a visitor sees under the line.</param>
 /// <param name="PhotoCount">How many photos the line has.</param>
 /// <param name="CanDelete">True when nothing is filed under the line, so Delete is offered.</param>
 /// <param name="Version">The text an edit must send back.</param>
@@ -54,7 +54,7 @@ public sealed record ProductLineListItemDto(
             line.Position,
             ProductLinePhotoMapper.ToThumb(row.MainPhoto, delivery),
             row.ProductTypeIds,
-            row.GalleryItemCount,
+            row.ShownGalleryCount,
             row.PhotoCount,
             row.PhotoCount == 0 && row.GalleryItemCount == 0 && row.ProductTypeIds.Count == 0,
             RowVersions.ToText(line.RowVersion));

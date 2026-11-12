@@ -1,12 +1,12 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-12T11:45:00-06:00
+updated: 2026-11-12T17:05:00-06:00
 ---
 
 # The public site
 
-This page says what the server sends to visitors and crawlers for the public website. Later Phase 11 plans add the public gallery
-read to this page.
+This page says what the server sends to visitors and crawlers for the public website: the page heads, the public reads (site, product
+lines, Home, Gallery and the open status) and the privacy rule that keeps customer details out of all of them.
 
 ## In plain words
 
@@ -48,7 +48,12 @@ the client tests in `tests/fixtures/public-paths.json`.
   `og:description`.
 - A `LocalBusiness` JSON-LD block and the boot data block (both below), on every public page.
 
-Every attribute value is HTML-encoded. Later plans add the share picture tags.
+Every attribute value is HTML-encoded.
+
+The Products and Gallery pages also carry a link preview picture (`og:image`, `og:image:width` 1200, `og:image:height` 630,
+`og:image:alt` the business name, and `twitter:card` `summary_large_image`). The Products picture is the first shown line's main photo.
+The Gallery picture is the cover photo of the item at the top of the gallery, at the 1200 x 630 share size. With no such photo the
+picture tags are left out and `twitter:card` is `summary`. Every other page has no picture tag.
 
 If the public site facts cannot be read, the page is still sent with the same status. It carries the template's own head (and the
 noindex tag where it applies) and no data blocks, and the failure is logged once until a read works again. It is never a 500.
@@ -82,6 +87,7 @@ value is the same JSON as `GET /api/v1/public/site` (below). The `/products` pag
 `GET /api/v1/public/product-lines` (below), so the Products page needs no request on the first visit. The `/` page also carries
 `"home"`, the same JSON as `GET /api/v1/public/home` (below), so the Home page needs no request on the first visit. No other page has
 those keys. The
+`/gallery` page carries only `"site"`, because the Gallery can be large: its page fetches `GET /api/v1/public/gallery`. The
 browser does not run a data block, so the first visit needs no request. `/admin` and `/dev` pages carry no boot block.
 
 If the product lines cannot be read, `/products` is still sent with the `site` data and no `productLines` key, and that answer is not
@@ -215,7 +221,8 @@ the site read. Operation name `GetPublicProductLines`.
   `polo` or `custom`.
 - **`photos`** has the three slots `main`, `back` and `fabric`. A slot is `null` until a photo is added (a later plan), or an object
   `{ src, srcSet, width, height }`.
-- **`hasGalleryItems`** is `false` until the Gallery plan lists items under the line.
+- **`hasGalleryItems`** is `true` when the Gallery has a public item under the line (see "What is public" below), so "See {short name}
+  work" has something to show; otherwise `false`.
 - **Caching and limit** are the same as the site read: a strong `ETag`, `Cache-Control: no-cache`, `304` on a match, one cached
   snapshot under the `public-content` tag, and 600 reads a minute per address. A committed change to a line or its photos clears the
   snapshot after the commit.
@@ -229,8 +236,8 @@ startup, and a later deploy never overwrites a Manager's edits. A Manager adds t
 
 ## GET /api/v1/public/home
 
-What the Home page shows besides its fixed words: one card for each shown product line, the first three shown testimonials, and (later)
-the Recent work strip and the hero tag. Anonymous, never compressed, limited per address like the site read. Operation name
+What the Home page shows besides its fixed words: one card for each shown product line, the first three shown testimonials, the Recent
+work strip and the hero tag. Anonymous, never compressed, limited per address like the site read. Operation name
 `GetPublicHome`.
 
 ```json
@@ -254,8 +261,17 @@ the Recent work strip and the hero tag. Anonymous, never compressed, limited per
       "stars": 5
     }
   ],
-  "recentWork": [],
-  "heroTag": null
+  "recentWork": [
+    {
+      "team": "Brgy. Sample Ballers",
+      "lineKey": "basketball",
+      "lineShortName": "Basketball",
+      "pieces": 17,
+      "placeholderArt": "basketball",
+      "photo": { "src": "...", "srcSet": "...", "width": 1600, "height": 1200 }
+    }
+  ],
+  "heroTag": { "name": "Brgy. Sample Ballers", "pieces": 17 }
 }
 ```
 
@@ -265,10 +281,82 @@ the Recent work strip and the hero tag. Anonymous, never compressed, limited per
 - **Testimonials.** The first three shown testimonials in display order. A hidden one is left out and the next shown one takes its
   place. With none shown the list is empty and the page leaves the section out. The shop never invents a testimonial: a new database
   has none.
-- **`recentWork` and `heroTag`.** Always `[]` and `null` for now. A later plan fills them from the shown orders.
+- **`recentWork`.** The six newest shown orders by the date they were put on the website, newest first (D-14). The Gallery's manual
+  order does not change it, and an upload never appears here. Each tile has the name shown, the line key and short name (the tile links
+  to the Gallery filtered to that line), the pieces and the cover photo at the 4:5 strip sizes (`{ src, srcSet, width, height }`, or
+  `null` when the account has no address for it; the page then draws `placeholderArt`). With no shown order the list is `[]`.
+- **`heroTag`.** The newest shown order's name and pieces, or `null` when none is shown; the page then leaves the tag out and never shows
+  a demo team.
 - **Caching and limit** are the same as the other public reads: a strong `ETag`, `Cache-Control: no-cache`, `304` on a match, one
-  cached snapshot under the `public-content` tag, and 600 reads a minute per address. A committed change to a line, a line photo or a
-  testimonial clears the snapshot after the commit.
+  cached snapshot under the `public-content` tag, and 600 reads a minute per address. A committed change to a line, a line photo, a
+  testimonial or a shown order clears the snapshot after the commit.
+
+## GET /api/v1/public/gallery
+
+Everything the Gallery page draws: every public item in gallery order, one pill for each shown line that has an item, and the total.
+Anonymous, never compressed, limited per address like the site read. Operation name `GetPublicGallery`.
+
+```json
+{
+  "items": [
+    {
+      "id": "0a1b2c3d-0000-7000-8000-000000000001",
+      "team": "Brgy. Sample Ballers",
+      "lineKey": "basketball",
+      "lineShortName": "Basketball",
+      "pieces": 17,
+      "note": null,
+      "placeholderArt": "basketball",
+      "photos": [
+        {
+          "src": "...", "srcSet": "...",
+          "viewerSrc": "...", "viewerSrcSet": "...",
+          "thumbSrc": "...",
+          "width": 1600, "height": 1200
+        }
+      ]
+    }
+  ],
+  "pills": [ { "key": "basketball", "shortName": "Basketball", "count": 1 } ],
+  "total": 1
+}
+```
+
+- **One item for each tile.** An order is one item with all its photos in photo order, the cover first. An upload is one item with its
+  one photo. `id` is the id of the gallery entry.
+- **Order.** Items come in the gallery's manual order (the entry position, then the entry id): a newly shown order and a new upload join
+  at the top, and a Manager can move them.
+- **Pills.** One for each **shown** line that has at least one item, in the lines' display order. `count` is the number of items under
+  the line, so a filtered page shows exactly that many tiles, and `total` is the number of items.
+- **Text.** `team` is the name shown: the public name staff typed, else the team. `pieces` is the sum of the order's item quantities,
+  or `null` for an upload that gives none. `note` is the note of an upload and is `null` for an order.
+- **Photos.** `src` and `srcSet` are the masonry tile (280, 400, 560 and 800 wide at most), `viewerSrc` and `viewerSrcSet` the lightbox
+  (the whole photo, 640 to 1600 on the long side), `thumbSrc` the square thumb, and `width` and `height` the stored upright size. A
+  candidate is never larger than the photo. A photo the account has no address for is left out of its item, which then shows
+  `placeholderArt`.
+- **Caching and limit** are the same as the other public reads: a strong `ETag`, `Cache-Control: no-cache`, `304` on a match, one cached
+  snapshot under the `public-content` tag (a 300 item gallery is still served from the snapshot with no database command), and 600
+  reads a minute per address. Showing an order, taking it off, a photo change on a shown order, a cancel, a delete and a line hide
+  each clear the snapshot after the commit.
+
+### What is public (the privacy rule)
+
+An order item is public only when **all** of these hold, and each is a test:
+
+1. The customer's OK is recorded.
+2. The order is shown on the website.
+3. The order is not Cancelled.
+4. The order is not deleted. A deleted order keeps its settings, and the public read leaves it out through the soft-delete filter; it is
+   public again if it is restored.
+5. Its effective line (the line staff chose, else the line with the most pieces) is shown.
+6. It has at least one photo.
+
+An upload is public only when it is shown, has its photo and its line is shown.
+
+The public text is the name shown, the line, the pieces and an upload's note. **No customer name, phone, email, address, price, order
+note, item description or photo description is ever in a public response or in a page shell.** One projection selects the public fields by
+name; it never maps a whole order. `PublicPrivacyTests` walks every public route and the five page shells with an order full of
+distinctive customer values and fails if any of them appears.
 
 ## GET /api/v1/public/open-status
 

@@ -32,15 +32,33 @@ internal sealed class ProductLines(CspsDbContext context) : IProductLines
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        // Gallery items arrive with the gallery plan, so none are counted yet.
+        // The filed items are the uploads under a line and the orders that chose it, which the delete guard counts. The shown ones are the
+        // public items of the one gallery projection.
+        var filedUploads = await context.GalleryEntries.AsNoTracking()
+            .Where(entry => entry.ProductLineId != null)
+            .GroupBy(entry => entry.ProductLineId!.Value)
+            .Select(group => new { LineId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.LineId, group => group.Count, cancellationToken)
+            .ConfigureAwait(false);
+        var filedOrders = await context.Orders.IgnoreQueryFilters(["SoftDelete"]).AsNoTracking()
+            .Where(order => order.PublicProductLineId != null)
+            .GroupBy(order => order.PublicProductLineId!.Value)
+            .Select(group => new { LineId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.LineId, group => group.Count, cancellationToken)
+            .ConfigureAwait(false);
+        var shownItems = (await PublicGalleryProjection.LoadAsync(context, cancellationToken).ConfigureAwait(false)).Items
+            .GroupBy(item => item.LineId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
         return
         [
             .. lines.Select(line => new ProductLineListRow(
                 line,
                 [.. types.Where(type => type.LineId == line.Id).Select(type => type.Id)],
                 photos.Count(photo => photo.LineId == line.Id),
-                0,
-                photos.Find(photo => photo.LineId == line.Id && photo.Slot == ProductLinePhotoSlot.Main))),
+                filedUploads.GetValueOrDefault(line.Id) + filedOrders.GetValueOrDefault(line.Id),
+                photos.Find(photo => photo.LineId == line.Id && photo.Slot == ProductLinePhotoSlot.Main),
+                shownItems.GetValueOrDefault(line.Id))),
         ];
     }
 
