@@ -4318,6 +4318,35 @@
         ],
         "type": "object"
       },
+      "PhoneEntry": {
+        "description": "One phone number of the Business Info form.",
+        "properties": {
+          "isMain": {
+            "description": "True for the number the Call buttons dial; exactly one number is the main one.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label, at most 20 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number as typed; a Philippine mobile or landline number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "properties": {
           "detail": {
@@ -4903,56 +4932,196 @@
         ],
         "type": "object"
       },
-      "SiteSettingsDto": {
-        "description": "The site settings as the API returns them (D-29). Read-only for now; editing comes later.",
+      "SitePhoneDto": {
+        "description": "One phone number as the Business Info form shows it.",
         "properties": {
-          "addressLine": {
-            "description": "Public shop address.",
+          "isMain": {
+            "description": "True for the number the Call buttons dial.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label such as \"Globe\"; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number as people read it, such as \"0917 123 4567\"; the form sends the same text back.",
             "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsDto": {
+        "description": "The staff view of the site settings (D-29, CONT-01): every Business Info field, the shop email, the phones, the version a save must\nsend back and who last changed the settings. The time zone, currency and locale are fixed and only shown (D-35). A value that is\nnot set is null.",
+        "properties": {
+          "aboutText": {
+            "description": "The about text.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "businessName": {
-            "description": "The business name shown on the site.",
+            "description": "The business name.",
             "type": "string"
           },
           "contactEmail": {
-            "description": "Public contact email.",
-            "type": "string"
-          },
-          "contactPhone": {
-            "description": "Public contact phone.",
-            "type": "string"
+            "description": "The shop email, for staff use only.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "currencyCode": {
-            "description": "ISO 4217 currency code.",
+            "description": "ISO 4217 currency code; read-only.",
             "type": "string"
+          },
+          "directionsUrl": {
+            "description": "The directions link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "facebookUrl": {
-            "description": "Public Facebook page URL.",
-            "type": "string"
+            "description": "The Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagramUrl": {
+            "description": "The Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "locale": {
-            "description": "Formatting locale.",
+            "description": "Formatting locale; read-only.",
             "type": "string"
           },
-          "rowVersion": {
-            "description": "Base64 concurrency token, echoed back by a future edit (409 on conflict).",
+          "mapEmbedUrl": {
+            "description": "The map embed link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "The Messenger link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "The phone numbers, the main one first.",
+            "items": {
+              "$ref": "#/components/schemas/SitePhoneDto"
+            },
+            "type": "array"
+          },
+          "postalCode": {
+            "description": "Postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "street": {
+            "description": "Street and barangay.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tagline": {
+            "description": "The tagline.",
             "type": "string"
+          },
+          "tiktokUrl": {
+            "description": "The TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "timeZoneId": {
-            "description": "The business time zone id.",
+            "description": "The business time zone id; read-only.",
+            "type": "string"
+          },
+          "townOrCity": {
+            "description": "Town or city.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "description": "When the settings were last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed the settings; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back (409 on a stale one).",
             "type": "string"
           }
         },
         "required": [
           "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "contactEmail",
+          "phones",
           "timeZoneId",
           "currencyCode",
           "locale",
-          "contactEmail",
-          "contactPhone",
-          "addressLine",
-          "facebookUrl",
-          "rowVersion"
+          "version",
+          "updatedByName",
+          "updatedAtUtc"
         ],
         "type": "object"
       },
@@ -5650,6 +5819,153 @@
           "firstName",
           "lastName",
           "version"
+        ],
+        "type": "object"
+      },
+      "UpdateSiteSettingsRequest": {
+        "description": "The Business Info form (CONT-01, SEC-07). An empty optional value clears it. Any other member in the body is ignored: who changed\nthe settings and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "aboutText": {
+            "description": "The about text; at most 600 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "businessName": {
+            "description": "The business name; required, at most 100 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactEmail": {
+            "description": "The shop email, for staff use only; at most 254 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "directionsUrl": {
+            "description": "A Google Maps link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "facebookUrl": {
+            "description": "A Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagramUrl": {
+            "description": "An Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mapEmbedUrl": {
+            "description": "A `https://www.google.com/maps/embed?` link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "A `https://m.me/` link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "One to four numbers, exactly one of them the main one.",
+            "items": {
+              "$ref": "#/components/schemas/PhoneEntry"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "postalCode": {
+            "description": "The 4-digit postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province; required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "street": {
+            "description": "Street and barangay; required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tagline": {
+            "description": "The tagline; required, at most 160 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tiktokUrl": {
+            "description": "A TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "townOrCity": {
+            "description": "Town or city; required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround line; at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "contactEmail",
+          "phones"
         ],
         "type": "object"
       },
@@ -14250,7 +14566,107 @@
             "description": "The settings, or the failure as ProblemDetails."
           }
         },
-        "summary": "Returns the site settings.",
+        "summary": "Returns every Business Info field, the shop email (staff only), the phones with the main one first, the version a save must\nsend back, who last changed the settings and when, and the fixed time zone, currency and locale.",
+        "tags": [
+          "SiteSettings"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateSiteSettings",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettingsDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves the business info, Managers only: the name, tagline, about text, turnaround line, address parts, directions and map links,\none to four phone numbers with exactly one main, the Messenger, Facebook, Instagram and TikTok links and the shop email. An empty\noptional value is stored as not set and left out of the public site. The time zone, currency and locale are not part of the\nsave. The next public read and page show the change. A `version` that is not the stored one answers 409 `edit.stale`\nand changes nothing; a form save is never retried. A save with no change stores nothing, writes no audit entry and keeps the\nversion. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
         "tags": [
           "SiteSettings"
         ]

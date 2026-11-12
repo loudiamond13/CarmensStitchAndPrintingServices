@@ -1,5 +1,4 @@
 using System.Net;
-using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
@@ -225,30 +224,15 @@ public sealed class AuthorizationFailureTests
             builder.UseEnvironment(Environments.Production);
             builder.ConfigureTestServices(services =>
             {
-                services.RemoveAll<ISiteSettingsReader>();
-                services.AddScoped<ISiteSettingsReader, ThrowingSiteSettingsReader>();
+                services.RemoveAll<ISiteContentStore>();
+                services.AddScoped<ISiteContentStore>(_ => new ThrowingSiteContentStore(SecretText));
             });
         });
 
     private static Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program> WithFixedReader(CspsApiFactory baseFactory) =>
         baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<ISiteSettingsReader>();
-            services.AddScoped<ISiteSettingsReader, FixedSiteSettingsReader>();
+            services.RemoveAll<ISiteContentStore>();
+            services.AddScoped<ISiteContentStore, FixedSiteContentStore>();
         }));
-
-    /// <summary>A reader that answers from memory, so a signed-in request succeeds without a database.</summary>
-    private sealed class FixedSiteSettingsReader : ISiteSettingsReader
-    {
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SiteSettingsSnapshot(
-                "Carmen's Stitch & Printing Services", "Asia/Manila", "PHP", "en-PH", string.Empty, string.Empty, string.Empty, string.Empty, "AAAAAAAAB9E="));
-    }
-
-    /// <summary>A reader whose failure message contains a secret, to prove a 500 never shows it.</summary>
-    private sealed class ThrowingSiteSettingsReader : ISiteSettingsReader
-    {
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            throw new InvalidOperationException(SecretText);
-    }
 }

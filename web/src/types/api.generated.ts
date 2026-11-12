@@ -1719,9 +1719,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the site settings. */
+        /**
+         * Returns every Business Info field, the shop email (staff only), the phones with the main one first, the version a save must
+         *     send back, who last changed the settings and when, and the fixed time zone, currency and locale.
+         */
         get: operations["GetSiteSettings"];
-        put?: never;
+        /**
+         * Saves the business info, Managers only: the name, tagline, about text, turnaround line, address parts, directions and map links,
+         *     one to four phone numbers with exactly one main, the Messenger, Facebook, Instagram and TikTok links and the shop email. An empty
+         *     optional value is stored as not set and left out of the public site. The time zone, currency and locale are not part of the
+         *     save. The next public read and page show the change. A `version` that is not the stored one answers 409 `edit.stale`
+         *     and changes nothing; a form save is never retried. A save with no change stores nothing, writes no audit entry and keeps the
+         *     version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateSiteSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3891,6 +3902,15 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description One phone number of the Business Info form. */
+        PhoneEntry: {
+            /** @description True for the number the Call buttons dial; exactly one number is the main one. */
+            isMain: boolean;
+            /** @description An optional label, at most 20 characters. */
+            label: null | string;
+            /** @description The number as typed; a Philippine mobile or landline number. */
+            number: null | string;
+        };
         ProblemDetails: {
             detail?: null | string;
             instance?: null | string;
@@ -4117,26 +4137,68 @@ export interface components {
             /** @description The password, exactly as typed. */
             password: null | string;
         };
-        /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
+        /** @description One phone number as the Business Info form shows it. */
+        SitePhoneDto: {
+            /** @description True for the number the Call buttons dial. */
+            isMain: boolean;
+            /** @description An optional label such as "Globe"; null when not set. */
+            label: null | string;
+            /** @description The number as people read it, such as "0917 123 4567"; the form sends the same text back. */
+            number: string;
+        };
+        /**
+         * @description The staff view of the site settings (D-29, CONT-01): every Business Info field, the shop email, the phones, the version a save must
+         *     send back and who last changed the settings. The time zone, currency and locale are fixed and only shown (D-35). A value that is
+         *     not set is null.
+         */
         SiteSettingsDto: {
-            /** @description Public shop address. */
-            addressLine: string;
-            /** @description The business name shown on the site. */
+            /** @description The about text. */
+            aboutText: null | string;
+            /** @description The business name. */
             businessName: string;
-            /** @description Public contact email. */
-            contactEmail: string;
-            /** @description Public contact phone. */
-            contactPhone: string;
-            /** @description ISO 4217 currency code. */
+            /** @description The shop email, for staff use only. */
+            contactEmail: null | string;
+            /** @description ISO 4217 currency code; read-only. */
             currencyCode: string;
-            /** @description Public Facebook page URL. */
-            facebookUrl: string;
-            /** @description Formatting locale. */
+            /** @description The directions link. */
+            directionsUrl: null | string;
+            /** @description The Facebook page link. */
+            facebookUrl: null | string;
+            /** @description The Instagram link. */
+            instagramUrl: null | string;
+            /** @description Formatting locale; read-only. */
             locale: string;
-            /** @description Base64 concurrency token, echoed back by a future edit (409 on conflict). */
-            rowVersion: string;
-            /** @description The business time zone id. */
+            /** @description The map embed link. */
+            mapEmbedUrl: null | string;
+            /** @description The Messenger link. */
+            messengerUrl: null | string;
+            /** @description The phone numbers, the main one first. */
+            phones: components["schemas"]["SitePhoneDto"][];
+            /** @description Postal code. */
+            postalCode: null | string;
+            /** @description Province. */
+            province: null | string;
+            /** @description Street and barangay. */
+            street: null | string;
+            /** @description The tagline. */
+            tagline: string;
+            /** @description The TikTok link. */
+            tiktokUrl: null | string;
+            /** @description The business time zone id; read-only. */
             timeZoneId: string;
+            /** @description Town or city. */
+            townOrCity: null | string;
+            /** @description The turnaround line. */
+            turnaroundLine: null | string;
+            /**
+             * Format: date-time
+             * @description When the settings were last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed the settings; null when no person did. */
+            updatedByName: null | string;
+            /** @description The base64 of the eight-byte row version a save must send back (409 on a stale one). */
+            version: string;
         };
         /** @description One person's row in the all-staff list. */
         StaffBalanceRow: {
@@ -4436,6 +4498,46 @@ export interface components {
             /** @description Family name. */
             lastName: null | string;
             /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
+        };
+        /**
+         * @description The Business Info form (CONT-01, SEC-07). An empty optional value clears it. Any other member in the body is ignored: who changed
+         *     the settings and when come from the token and the clock (SEC-08).
+         */
+        UpdateSiteSettingsRequest: {
+            /** @description The about text; at most 600 characters. */
+            aboutText: null | string;
+            /** @description The business name; required, at most 100 characters. */
+            businessName: null | string;
+            /** @description The shop email, for staff use only; at most 254 characters. */
+            contactEmail: null | string;
+            /** @description A Google Maps link. */
+            directionsUrl: null | string;
+            /** @description A Facebook page link. */
+            facebookUrl: null | string;
+            /** @description An Instagram link. */
+            instagramUrl: null | string;
+            /** @description A `https://www.google.com/maps/embed?` link. */
+            mapEmbedUrl: null | string;
+            /** @description A `https://m.me/` link. */
+            messengerUrl: null | string;
+            /** @description One to four numbers, exactly one of them the main one. */
+            phones: null | components["schemas"]["PhoneEntry"][];
+            /** @description The 4-digit postal code. */
+            postalCode: null | string;
+            /** @description Province; required, at most 60 characters. */
+            province: null | string;
+            /** @description Street and barangay; required, at most 120 characters. */
+            street: null | string;
+            /** @description The tagline; required, at most 160 characters. */
+            tagline: null | string;
+            /** @description A TikTok link. */
+            tiktokUrl: null | string;
+            /** @description Town or city; required, at most 60 characters. */
+            townOrCity: null | string;
+            /** @description The turnaround line; at most 120 characters. */
+            turnaroundLine: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with; required. */
             version: null | string;
         };
         /**
@@ -10301,6 +10403,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+        };
+    };
+    UpdateSiteSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+                "application/json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+                "text/json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
