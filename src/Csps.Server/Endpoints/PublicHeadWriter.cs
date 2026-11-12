@@ -108,6 +108,7 @@ internal static class PublicHeadWriter
     /// Builds the <c>LocalBusiness</c> JSON-LD of a page from a typed model (D-25): name, description (the about text, else the tagline),
     /// url, the main number as an E.164 telephone, a <c>PostalAddress</c> in the Philippines when any address part is set, and the social
     /// links that are set. A value that is not set is left out. The model has no contact-mail member, so none can be written.
+    /// Each open weekday adds an <c>OpeningHoursSpecification</c> with its day name and its opening and closing times (PUB-04, CONT-04).
     /// </summary>
     /// <param name="site">The public site facts.</param>
     /// <param name="origin">The site's own address, from <c>App:PublicBaseUrl</c>, without a trailing slash.</param>
@@ -127,6 +128,7 @@ internal static class PublicHeadWriter
             origin,
             main?.E164,
             AddressModel.From(site.Address),
+            HoursModel.From(site.Hours),
             sameAs.Count > 0 ? sameAs : null);
         return JsonSerializer.Serialize(business, JsonLdOptions);
     }
@@ -155,7 +157,27 @@ internal static class PublicHeadWriter
         string Url,
         string? Telephone,
         AddressModel? Address,
+        IReadOnlyList<HoursModel>? OpeningHoursSpecification,
         IReadOnlyList<string>? SameAs);
+
+    // One entry for each weekday that has both times, written under the JSON key openingHoursSpecification; null when no day is
+    // open, so the key is left out.
+    private sealed record HoursModel(
+        [property: JsonPropertyName("@type")] string Type,
+        string DayOfWeek,
+        string Opens,
+        string Closes)
+    {
+        public static List<HoursModel>? From(IReadOnlyList<DayHoursDto> hours)
+        {
+            var open = hours
+                .Where(static day => day.OpensAt is not null && day.ClosesAt is not null)
+                .OrderBy(static day => day.Day)
+                .Select(static day => new HoursModel("OpeningHoursSpecification", WeekDay.FromNumber(day.Day).ToString(), day.OpensAt!, day.ClosesAt!))
+                .ToList();
+            return open.Count > 0 ? open : null;
+        }
+    }
 
     private sealed record AddressModel(
         [property: JsonPropertyName("@type")] string Type,

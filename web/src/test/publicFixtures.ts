@@ -10,6 +10,13 @@ import type { components } from '@/types/api.generated';
 export type PublicSiteFixture = components['schemas']['PublicSiteDto'];
 export type PublicPhoneFixture = components['schemas']['PublicPhoneDto'];
 
+/** Seven closed days, Monday (1) to Sunday (7): what a shop with no saved hours answers. */
+const closedWeek: PublicSiteFixture['hours'] = [1, 2, 3, 4, 5, 6, 7].map((day) => ({
+  day,
+  opensAt: null,
+  closesAt: null,
+}));
+
 /** The demo shop: every optional value set except TikTok, two numbers with the Globe one main. */
 export const demoSite: PublicSiteFixture = {
   businessName: 'Sample Shop',
@@ -33,6 +40,12 @@ export const demoSite: PublicSiteFixture = {
   directionsUrl: 'https://maps.app.goo.gl/cspsdemo',
   mapEmbedUrl: 'https://www.google.com/maps/embed?pb=cspsdemo',
   year: 2026,
+  hours: [1, 2, 3, 4, 5, 6, 7].map((day) => ({
+    day,
+    opensAt: day <= 6 ? '09:00' : null,
+    closesAt: day <= 6 ? '18:00' : null,
+  })),
+  upcomingClosures: [],
 };
 
 /** The same shop with every optional value left out: one number, no links, no postal code. */
@@ -55,6 +68,8 @@ export const siteWithoutOptionals: PublicSiteFixture = {
   directionsUrl: null,
   mapEmbedUrl: null,
   year: 2026,
+  hours: closedWeek,
+  upcomingClosures: [],
 };
 
 /** The demo shop with three numbers: the main one, a landline and a labelled mobile. */

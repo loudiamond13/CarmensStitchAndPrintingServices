@@ -1,12 +1,12 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-11T22:00:33-06:00
+updated: 2026-11-12T03:13:00-05:00
 ---
 
 # The public site
 
 This page says what the server sends to visitors and crawlers for the public website. Later Phase 11 plans add the public JSON
-reads (product lines, gallery, open status) to this page.
+reads (product lines and gallery) to this page.
 
 ## In plain words
 
@@ -68,6 +68,7 @@ Every public page (not the 404 page) carries one `<script type="application/ld+j
 | `url` | `App:PublicBaseUrl` |
 | `telephone` | The main number in E.164 form, such as `+639171234567` |
 | `address` | A `PostalAddress` with `streetAddress`, `addressLocality`, `addressRegion`, `postalCode` (only the parts that are set) and `addressCountry` `PH`; left out when no part is set |
+| `openingHoursSpecification` | One `OpeningHoursSpecification` for each open weekday, with `dayOfWeek` (`Monday` to `Sunday`), `opens` and `closes` as `"HH:mm"`; left out when no day is open |
 | `sameAs` | The Facebook, Instagram and TikTok links that are set; left out when none is |
 
 A value that is not set is left out. There is no `email` (D-25). The JSON is written by the JSON serializer with its default
@@ -118,13 +119,27 @@ The shop facts every visitor sees. Anonymous, never compressed, limited per addr
   "tiktokUrl": null,
   "directionsUrl": null,
   "mapEmbedUrl": null,
-  "year": 2026
+  "year": 2026,
+  "hours": [
+    { "day": 1, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 2, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 3, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 4, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 5, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 6, "opensAt": "09:00", "closesAt": "18:00" },
+    { "day": 7, "opensAt": null, "closesAt": null }
+  ],
+  "upcomingClosures": []
 }
 ```
 
 - **Everything comes from the database.** A value that is not set is `null` (never a placeholder, never `#`), the address parts are
   `null` one by one, and `phones` is an empty list when none is stored. The main number is first.
 - **No email.** The shop email is stored for staff use only and is never selected for a public answer (D-25).
+- **`hours`** is always seven days, Monday (1) first, with `"HH:mm"` times in business time. A closed day has `null` for both. Until a
+  Manager saves hours every day is closed; the server never invents hours.
+- **`upcomingClosures`** lists the closures in the next 30 days, each as `{ firstDay, lastDay, note }`. It is an empty list until the
+  closures plan adds them.
 - **`year`** is the current year in the business zone, for the footer's copyright line. The snapshot is rebuilt at least every hour,
   so it changes on 1 January without a write.
 
@@ -146,6 +161,37 @@ after the commit, never before it and never on a rollback, so the first read aft
 `/api/v1/public/*` allows 600 reads a minute per address (a sliding window of six parts; `RateLimits:PublicRead`). The next read
 gets `429` with `Retry-After`. The page shell, `robots.txt` and `sitemap.xml` have no limit, so a crawler or a widely shared link is
 never refused.
+
+## GET /api/v1/public/open-status
+
+Whether the shop is open now, worked out by the server in business time (Asia/Manila) from the stored hours, so every visitor sees the
+same answer whatever their phone says (PUB-05, D-22). Anonymous and limited per address like the site read. Operation name
+`GetOpenStatus`.
+
+```json
+{
+  "isOpen": false,
+  "closesAt": null,
+  "closedToday": false,
+  "todayClosureNote": null,
+  "nextOpening": { "date": "2026-11-23", "day": 1, "opensAt": "09:00", "when": "weekday" }
+}
+```
+
+| Member | Meaning |
+|---|---|
+| `isOpen` | `true` when the shop is open at this instant: no closure today and the time is from the opening time up to, not including, the closing time |
+| `closesAt` | The closing time today as `"HH:mm"` when open; otherwise `null` |
+| `closedToday` | `true` when a closure covers today (closures arrive in a later plan, so it is `false` for now) |
+| `todayClosureNote` | The note of the closure that covers today; `null` when none or no note |
+| `nextOpening` | When the shop opens next within 14 days; `null` when open, or when nothing opens in that time (for example while every day is closed) |
+
+`nextOpening.when` is `"today"` (it opens later today), `"tomorrow"` or `"weekday"` (a later day). `day` is 1 (Monday) to 7 (Sunday) and
+`date` is the business date. The page turns these facts into words; it does no time maths of its own.
+
+Unlike the other public reads, this answer has no `ETag` and is sent with `Cache-Control: public, max-age=60`, so a phone or a CDN may
+keep it for a minute. The hours come from the same cached snapshot as the site read, and a committed hours change clears it, so the
+next read after a save is current.
 
 ## The stored settings
 

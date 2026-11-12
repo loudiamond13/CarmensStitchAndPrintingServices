@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(102);
+        AuditActions.All.Count.ShouldBe(103);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -22,6 +22,13 @@ public sealed class AuditActionsTests
         AuditActions.SiteSettingsChanged.ShouldBe("site-settings.changed");
         AuditActions.All.ShouldContain(AuditActions.SiteSettingsChanged);
         AuditActions.SelfService.ShouldNotContain(AuditActions.SiteSettingsChanged);
+    }
+
+    [Fact]
+    public void TheOpeningHoursChangedCodeIsInTheCatalog()
+    {
+        AuditActions.All.ShouldContain("opening-hours.changed");
+        AuditActions.SelfService.ShouldNotContain("opening-hours.changed");
     }
 
     [Fact]
@@ -255,7 +262,7 @@ public sealed class AuditActionsTests
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed"]);
     }
 
     [Theory]

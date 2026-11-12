@@ -36,6 +36,10 @@ public static class PublicContentSeeding
     public static BusinessInfo Bare() => new(
         "Sample Shop", "Sample tagline", null, null, null, null, null, null, null, null, null, null, null, null, null, []);
 
+    /// <summary>Gets the demo week: Monday to Saturday 09:00 to 18:00 and Sunday closed.</summary>
+    public static IReadOnlyList<(int Day, TimeOnly? Opens, TimeOnly? Closes)> DemoWeek { get; } =
+        [.. Enumerable.Range(1, 7).Select(day => day <= 6 ? (day, (TimeOnly?)new TimeOnly(9, 0), (TimeOnly?)new TimeOnly(18, 0)) : (day, null, null))];
+
     /// <summary>Saves the info on the database with a plain context (no interceptors): settings first, then the phone list.</summary>
     /// <param name="database">The test database.</param>
     /// <param name="info">The values to store.</param>
@@ -48,6 +52,41 @@ public static class PublicContentSeeding
         {
             await SaveAsync(context, info, DefaultNow).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>Saves the weekly hours with a plain context (no interceptors). A day that is not listed is closed.</summary>
+    /// <param name="database">The test database.</param>
+    /// <param name="week">The days to set, 1 for Monday to 7 for Sunday.</param>
+    /// <returns>A task that completes when the hours are stored.</returns>
+    public static async Task SaveHoursAsync(CspsDatabase database, IReadOnlyList<(int Day, TimeOnly? Opens, TimeOnly? Closes)> week)
+    {
+        ArgumentNullException.ThrowIfNull(database);
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            await SaveHoursAsync(context, week).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Saves the weekly hours through the given context, so its interceptors run. A day that is not listed is closed.</summary>
+    /// <param name="context">The context to save through.</param>
+    /// <param name="week">The days to set, 1 for Monday to 7 for Sunday.</param>
+    /// <returns>A task that completes when the hours are stored.</returns>
+    public static async Task SaveHoursAsync(CspsDbContext context, IReadOnlyList<(int Day, TimeOnly? Opens, TimeOnly? Closes)> week)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(week);
+        foreach (var row in await context.OpeningHours.ToListAsync().ConfigureAwait(false))
+        {
+            var (_, opens, closes) = week.FirstOrDefault(entry => entry.Day == row.DayOfWeek);
+            var result = row.SetHours(opens, closes);
+            if (result.IsFailure)
+            {
+                throw new InvalidOperationException($"The test hours for day {row.DayOfWeek} are not valid: {result.Error.Message}");
+            }
+        }
+
+        await context.SaveChangesAsync().ConfigureAwait(false);
     }
 
     /// <summary>Saves the info through the given context, so its interceptors run: the old phone rows go first, then the new ones.</summary>

@@ -22,7 +22,9 @@ public sealed class GetPublicSiteHandlerTests
             null,
             null,
             null,
-            2026),
+            2026,
+            [],
+            []),
         new PublicJsonSnapshot("{}", "\"abc\"", new DateTimeOffset(2026, 11, 11, 0, 0, 0, TimeSpan.Zero)));
 
     [Fact]

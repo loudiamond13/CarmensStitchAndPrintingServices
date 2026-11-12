@@ -1,10 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Infrastructure.Persistence;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Server.IntegrationTests.Content;
 
@@ -67,6 +69,41 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
             });
 
         (await PhoneCountAsync(client)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AnHoursSaveShowsOnTheNextSiteReadWithANewETagAndTheOpenStatusFollows()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveHoursAsync(database, PublicContentSeeding.DemoWeek);
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+
+        // Monday 16 Nov 2026, 10:00 in Manila.
+        await using var factory = AuthClient.WithClock(baseFactory, new FakeTimeProvider(new DateTimeOffset(2026, 11, 16, 2, 0, 0, TimeSpan.Zero)));
+        using var client = factory.CreateClient();
+        using var first = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        var oldEtag = first.Headers.ETag.ShouldNotBeNull();
+        (await OpenNowAsync(client)).ShouldBeTrue();
+
+        var elevenToSixOnMonday = PublicContentSeeding.DemoWeek.Select(day => day.Day == 1 ? (day.Day, (TimeOnly?)new TimeOnly(11, 0), (TimeOnly?)new TimeOnly(18, 0)) : day).ToList();
+        var contexts = factory.Services.GetRequiredService<IDbContextFactory<CspsDbContext>>();
+        await using (var context = await contexts.CreateDbContextAsync(TestContext.Current.CancellationToken))
+        {
+            await PublicContentSeeding.SaveHoursAsync(context, elevenToSixOnMonday);
+        }
+
+        using var second = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("hours")[0].GetProperty("opensAt").GetString().ShouldBe("11:00");
+        second.Headers.ETag.ShouldNotBeNull().ShouldNotBe(oldEtag);
+        (await OpenNowAsync(client)).ShouldBeFalse();
+    }
+
+    private static async Task<bool> OpenNowAsync(HttpClient client)
+    {
+        using var response = await client.GetAsync(new Uri("/api/v1/public/open-status", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return document.RootElement.GetProperty("isOpen").GetBoolean();
     }
 
     private static async Task ChangeAsync(CspsApiFactory factory, Csps.Domain.Content.BusinessInfo info)

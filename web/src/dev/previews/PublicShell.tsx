@@ -34,6 +34,8 @@ const PARITY_SITE: PublicSite = {
   directionsUrl: null,
   mapEmbedUrl: null,
   year: 2026,
+  hours: [1, 2, 3, 4, 5, 6, 7].map((day) => ({ day, opensAt: null, closesAt: null })),
+  upcomingClosures: [],
 };
 
 siteResource.prime(PARITY_SITE);

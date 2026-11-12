@@ -63,7 +63,9 @@ internal sealed class StubPublicContentReader : IPublicContentReader
         "https://tiktok.example.test/cspsdemo",
         null,
         null,
-        2026);
+        2026,
+        [.. Enumerable.Range(1, 7).Select(day => new DayHoursDto(day, null, null))],
+        []);
 
     public static PublicSiteSnapshot Snapshot(PublicSiteDto site, DateTimeOffset lastChangedUtc)
     {

@@ -1635,6 +1635,40 @@
         ],
         "type": "object"
       },
+      "DayHoursDto": {
+        "description": "One weekday's hours as people send and read them. A closed day has no times.",
+        "properties": {
+          "closesAt": {
+            "description": "The closing time as \"HH:mm\" (24 hours); null on a closed day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "day": {
+            "description": "The weekday, 1 for Monday to 7 for Sunday.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "opensAt": {
+            "description": "The opening time as \"HH:mm\" (24 hours); null on a closed day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "day",
+          "opensAt",
+          "closesAt"
+        ],
+        "type": "object"
+      },
       "DeletedExpenseListItem": {
         "description": "One deleted expense in the deleted list. It carries no notes (D-19).",
         "properties": {
@@ -2773,6 +2807,123 @@
         "required": [
           "position",
           "version"
+        ],
+        "type": "object"
+      },
+      "NextOpeningDto": {
+        "description": "When the shop opens next, as facts the page turns into words (D-22).",
+        "properties": {
+          "date": {
+            "description": "The business date of the opening, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "day": {
+            "description": "The weekday of that date, 1 for Monday to 7 for Sunday.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "opensAt": {
+            "description": "The opening time as \"HH:mm\" (24 hours).",
+            "type": "string"
+          },
+          "when": {
+            "description": "\"today\", \"tomorrow\" or \"weekday\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "day",
+          "opensAt",
+          "when"
+        ],
+        "type": "object"
+      },
+      "OpenStatusDto": {
+        "description": "Whether the shop is open now, worked out by the server in business time (PUB-05, D-22). The page only turns these facts into words.",
+        "properties": {
+          "closedToday": {
+            "description": "True when a closure covers today.",
+            "type": "boolean"
+          },
+          "closesAt": {
+            "description": "The closing time today as \"HH:mm\" when open; otherwise null.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOpen": {
+            "description": "True when the shop is open at this instant.",
+            "type": "boolean"
+          },
+          "nextOpening": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NextOpeningDto",
+                "description": "The next opening within 14 days; null when open or when nothing opens in that time."
+              }
+            ]
+          },
+          "todayClosureNote": {
+            "description": "The note of the closure that covers today; null when none or no note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "isOpen",
+          "closesAt",
+          "closedToday",
+          "todayClosureNote",
+          "nextOpening"
+        ],
+        "type": "object"
+      },
+      "OpeningHoursDto": {
+        "description": "The staff view of the weekly hours (CONT-01, D-21): seven days, Monday first, the version a save must send back and who last changed\nany day. The version belongs to the hours alone, so a Business Info save never makes it stale (P-8).",
+        "properties": {
+          "days": {
+            "description": "The seven days, Monday first.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": "array"
+          },
+          "updatedAtUtc": {
+            "description": "When any day was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed any day; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text a save must send back (409 on a stale one).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "version",
+          "updatedByName",
+          "updatedAtUtc"
         ],
         "type": "object"
       },
@@ -4479,6 +4630,32 @@
         ],
         "type": "object"
       },
+      "PublicClosureDto": {
+        "description": "One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included.",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "lastDay": {
+            "description": "The last closed day, \"yyyy-MM-dd\"; the same as the first for a single day.",
+            "type": "string"
+          },
+          "note": {
+            "description": "A short reason shown to visitors; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstDay",
+          "lastDay",
+          "note"
+        ],
+        "type": "object"
+      },
       "PublicPhoneDto": {
         "description": "One public phone number.",
         "properties": {
@@ -4542,6 +4719,13 @@
               "string"
             ]
           },
+          "hours": {
+            "description": "The weekly hours, seven days with Monday (1) first; a closed day has no times.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": "array"
+          },
           "instagramUrl": {
             "description": "The Instagram link.",
             "type": [
@@ -4588,6 +4772,13 @@
               "string"
             ]
           },
+          "upcomingClosures": {
+            "description": "The closures in the next 30 days; empty until a Manager adds one.",
+            "items": {
+              "$ref": "#/components/schemas/PublicClosureDto"
+            },
+            "type": "array"
+          },
           "year": {
             "description": "The current business-calendar year, for the footer's copyright line.",
             "format": "int32",
@@ -4611,7 +4802,9 @@
           "tiktokUrl",
           "directionsUrl",
           "mapEmbedUrl",
-          "year"
+          "year",
+          "hours",
+          "upcomingClosures"
         ],
         "type": "object"
       },
@@ -5419,6 +5612,33 @@
           "name",
           "tone",
           "version"
+        ],
+        "type": "object"
+      },
+      "UpdateOpeningHoursRequest": {
+        "description": "The weekly hours form (CONT-01, SEC-07). All seven days are sent every time. Any other member in the body is ignored: who changed the\nhours and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "days": {
+            "description": "The seven days, each once, in any order; a closed day has no times.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "version": {
+            "description": "The week version the form was opened with; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "days"
         ],
         "type": "object"
       },
@@ -9129,6 +9349,147 @@
         "summary": "Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is\nrefused with 422 \"Delete the transfer first.\" Removing changes no balance, because a deleted transfer already counts for\nnothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is\nwritten to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.",
         "tags": [
           "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/opening-hours": {
+      "get": {
+        "operationId": "GetOpeningHours",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningHoursDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Returns the seven days, Monday (1) first, each with its opening and closing time as \"HH:mm\" or none for a closed day, the version a\nsave must send back, and who last changed the hours and when. Until a Manager saves hours every day is closed.",
+        "tags": [
+          "OpeningHours"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOpeningHours",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningHoursDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves all seven days at once. An open day needs both times, and the closing time must be after the opening time. A `version`\nthat is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A save with no change\nstores nothing, writes no audit entry and keeps the version. The next public read, open-status read and page show the change.\nWho changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "OpeningHours"
         ]
       }
     },
@@ -14407,6 +14768,37 @@
         ]
       }
     },
+    "/api/v1/public/open-status": {
+      "get": {
+        "operationId": "GetOpenStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenStatusDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 14 days. The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/public/site": {
       "get": {
         "operationId": "GetPublicSite",
@@ -16198,6 +16590,9 @@
     },
     {
       "name": "MoneyTransfers"
+    },
+    {
+      "name": "OpeningHours"
     },
     {
       "name": "OrderDiscounts"

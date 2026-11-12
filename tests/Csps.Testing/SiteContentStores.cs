@@ -41,6 +41,14 @@ public sealed class FixedSiteContentStore : ISiteContentStore
             Version,
             null,
             null));
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This stub only answers reads.");
+
+    /// <inheritdoc />
+    public Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This stub only answers the business info read.");
 }
 
 /// <summary>A business info store whose read fails with a given message, to prove a 500 never shows it.</summary>
@@ -57,5 +65,13 @@ public sealed class ThrowingSiteContentStore(string message) : ISiteContentStore
 
     /// <inheritdoc />
     public Task<SiteSettingsView> GetViewAsync(CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<OpeningHoursView> GetHoursViewAsync(CancellationToken cancellationToken) =>
         throw new InvalidOperationException(message);
 }

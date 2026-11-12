@@ -20,7 +20,7 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
     private static readonly string[] DtoPropertyNames =
     [
         "businessName", "tagline", "aboutText", "turnaroundLine", "address", "phones", "messengerUrl", "facebookUrl", "instagramUrl",
-        "tiktokUrl", "directionsUrl", "mapEmbedUrl", "year",
+        "tiktokUrl", "directionsUrl", "mapEmbedUrl", "year", "hours", "upcomingClosures",
     ];
 
     [Fact]
@@ -158,6 +158,43 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
         document.RootElement.GetProperty("phones").GetArrayLength().ShouldBe(0);
         document.RootElement.GetProperty("messengerUrl").ValueKind.ShouldBe(JsonValueKind.Null);
         document.RootElement.GetProperty("address").GetProperty("townOrCity").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task TheHoursAreSevenDaysMondayFirstAndTheUpcomingClosuresAreEmpty()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await PublicContentSeeding.SaveHoursAsync(database, PublicContentSeeding.DemoWeek);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var hours = document.RootElement.GetProperty("hours").EnumerateArray().ToList();
+        hours.Select(day => day.GetProperty("day").GetInt32()).ShouldBe([1, 2, 3, 4, 5, 6, 7]);
+        hours[0].GetProperty("opensAt").GetString().ShouldBe("09:00");
+        hours[0].GetProperty("closesAt").GetString().ShouldBe("18:00");
+        hours[5].GetProperty("closesAt").GetString().ShouldBe("18:00");
+        hours[6].GetProperty("opensAt").ValueKind.ShouldBe(JsonValueKind.Null);
+        hours[6].GetProperty("closesAt").ValueKind.ShouldBe(JsonValueKind.Null);
+        document.RootElement.GetProperty("upcomingClosures").GetArrayLength().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task UntilAManagerSavesHoursEveryDayReadsClosed()
+    {
+        await using var fresh = await CspsDatabase.CreateAsync();
+        await PublicContentSeeding.SaveAsync(fresh, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(fresh.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(Route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var hours = document.RootElement.GetProperty("hours").EnumerateArray().ToList();
+        hours.Count.ShouldBe(7);
+        hours.ShouldAllBe(day => day.GetProperty("opensAt").ValueKind == JsonValueKind.Null && day.GetProperty("closesAt").ValueKind == JsonValueKind.Null);
     }
 
     [Fact]

@@ -53,6 +53,57 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     }
 
     [Fact]
+    public async Task EachOpenWeekdayBecomesAnOpeningHoursSpecificationAndSundayHasNone()
+    {
+        var week = Enumerable.Range(1, 7).Select(day => day <= 6 ? new DayHoursDto(day, "09:00", "18:00") : new DayHoursDto(day, null, null)).ToList();
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline") with { Hours = week });
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/contact");
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        var specs = document.RootElement.GetProperty("openingHoursSpecification").EnumerateArray().ToList();
+        specs.Select(spec => spec.GetProperty("dayOfWeek").GetString()).ShouldBe(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]);
+        specs.ShouldAllBe(spec => spec.GetProperty("@type").GetString() == "OpeningHoursSpecification");
+        specs.ShouldAllBe(spec => spec.GetProperty("opens").GetString() == "09:00" && spec.GetProperty("closes").GetString() == "18:00");
+    }
+
+    [Fact]
+    public async Task MixedHoursKeepEachDaysOwnTimesAndOnlyOpenDaysAreListed()
+    {
+        var week = Enumerable.Range(1, 7)
+            .Select(day => day switch
+            {
+                1 => new DayHoursDto(day, "09:00", "18:00"),
+                6 => new DayHoursDto(day, "10:30", "17:00"),
+                7 => new DayHoursDto(day, "08:00", "12:00"),
+                _ => new DayHoursDto(day, null, null),
+            })
+            .ToList();
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline") with { Hours = week });
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/");
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        var specs = document.RootElement.GetProperty("openingHoursSpecification").EnumerateArray().ToList();
+        specs.Select(spec => (spec.GetProperty("dayOfWeek").GetString(), spec.GetProperty("opens").GetString(), spec.GetProperty("closes").GetString()))
+            .ShouldBe([("Monday", "09:00", "18:00"), ("Saturday", "10:30", "17:00"), ("Sunday", "08:00", "12:00")]);
+    }
+
+    [Fact]
+    public async Task WithNoOpenDayTheJsonLdHasNoOpeningHoursSpecification()
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/contact");
+
+        using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
+        document.RootElement.TryGetProperty("openingHoursSpecification", out _).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task TheAboutTextIsTheJsonLdDescriptionWhenItIsSet()
     {
         await using var factory = FactoryFor(Site(tagline: "Sample tagline") with { AboutText = "About the sample shop." });

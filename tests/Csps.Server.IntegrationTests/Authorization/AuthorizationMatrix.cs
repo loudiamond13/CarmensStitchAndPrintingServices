@@ -82,6 +82,10 @@ public static class AuthorizationMatrix
         // Saving the business info (CONT-01): Managers only. With no body a Manager meets the 400 field errors.
         new("PUT", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 403, Manager: 400),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
+        // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
+        new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
+        new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
@@ -342,6 +346,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/profile/email-change/check",
             "POST /api/v1/maintenance/run",
             "GET /api/v1/public/site",
+            "GET /api/v1/public/open-status",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
