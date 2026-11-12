@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Identity;
 using Csps.Infrastructure.Persistence;
@@ -25,14 +26,26 @@ internal sealed class AccountTokenStore(CspsDbContext context, TimeProvider time
 
     // The person's lock is one of 64 fixed lock rows chosen from their id, so the same person always takes turns and the second
     // request sees the first one's link. Two people on the same row also take turns, which costs at most one short request.
-    public Task LockAccountAsync(Guid userId, CancellationToken cancellationToken) =>
-        DatabaseLocks.TakeAsync(
-            context,
-            DatabaseLocks.AccountStripe(userId),
-            time.GetUtcNow(),
-            DatabaseLocks.DefaultWait,
-            "The account link lock could not be taken.",
-            cancellationToken);
+    public async Task LockAccountAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DatabaseLocks.TakeAsync(
+                    context,
+                    DatabaseLocks.AccountStripe(userId),
+                    time.GetUtcNow(),
+                    DatabaseLocks.DefaultWait,
+                    "The account link lock could not be taken.",
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (DatabaseLockTimeoutException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+        {
+            // P10-BL-22: a lost deadlock is a lost race, as in StaffMoneyLock: the unit of work marks an outer transaction ended.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+    }
 
     public async Task<int> RevokeOpenAsync(Guid userId, AccountTokenPurpose purpose, DateTimeOffset now, CancellationToken cancellationToken)
     {
