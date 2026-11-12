@@ -20,4 +20,9 @@ public interface IPublicContentReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The snapshot.</returns>
     ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken);
+
+    /// <summary>Returns the Gallery: every public item in gallery order with the pill counts; served from the cache until a content change clears it.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The snapshot; its lists are empty when nothing is public.</returns>
+    ValueTask<PublicGallerySnapshot> GetGalleryAsync(CancellationToken cancellationToken);
 }

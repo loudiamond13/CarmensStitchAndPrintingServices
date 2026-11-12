@@ -1871,6 +1871,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/gallery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the Gallery (GAL-01, D-10): `items`, every public item in gallery order, each with its `id`, `team` (the name shown),
+         *     `lineKey`, `lineShortName`, `pieces` (null when not given), `note` (uploads only), `placeholderArt` and
+         *     `photos` (the cover first, each with the masonry `src` and `srcSet`, the lightbox `viewerSrc` and
+         *     `viewerSrcSet`, the `thumbSrc` and the `width` and `height`); `pills`, one for each shown line that has at
+         *     least one item, with its `key`, `shortName` and `count`; and `total`. Only work with the customer's recorded OK,
+         *     shown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,
+         *     a price, an order note or a photo description. A request whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicGallery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/home": {
         parameters: {
             query?: never;
@@ -4729,6 +4754,82 @@ export interface components {
             logos: string;
             /** @description What the Names and numbers card says. */
             names: string;
+        };
+        /** @description Everything the Gallery draws, in one read (GAL-01, D-10): every public item in gallery order, the pills in display order and the total. */
+        PublicGalleryDto: {
+            /** @description The public items in gallery order. */
+            items: components["schemas"]["PublicGalleryItemDto"][];
+            /** @description One pill for each shown line that has at least one item, in display order. */
+            pills: components["schemas"]["PublicGalleryPillDto"][];
+            /**
+             * Format: int32
+             * @description The number of items.
+             */
+            total: number | string;
+        };
+        /**
+         * @description One tile of the Gallery (D-10): an order with all its photos, or one uploaded photo. It holds public text only (D-13): the name shown, the
+         *     line, the pieces and, for an upload, the note. It never holds a customer's name, phone, email or address, a price, an order note or a
+         *     photo description.
+         */
+        PublicGalleryItemDto: {
+            /**
+             * Format: uuid
+             * @description The id of the gallery entry, stable for the life of the tile.
+             */
+            id: string;
+            /** @description The key of the line the item is filed under, such as "basketball". */
+            lineKey: string;
+            /** @description The short name of that line, such as "Basketball". */
+            lineShortName: string;
+            /** @description The note of an upload; null for an order and for an upload with none. */
+            note: null | string;
+            /** @description The photos in display order, the cover first. */
+            photos: components["schemas"]["PublicGalleryPhotoDto"][];
+            /**
+             * Format: int32
+             * @description How many pieces; null for an upload that gives none.
+             */
+            pieces: null | number | string;
+            /** @description The drawing shown when no photo address is available: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The name shown: the public name when staff typed one, else the team. */
+            team: string;
+        };
+        /** @description One photo of a gallery item, with the addresses of each place the Gallery draws it (D-12, D-30). */
+        PublicGalleryPhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The masonry tile address, at the largest masonry size that fits the photo. */
+            src: string;
+            /** @description The masonry `srcset` text with the smaller sizes. */
+            srcSet: string;
+            /** @description The address of the square lightbox thumb. */
+            thumbSrc: string;
+            /** @description The lightbox address, the whole photo at the middle viewer size. */
+            viewerSrc: string;
+            /** @description The lightbox `srcset` text. */
+            viewerSrcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description One category pill of the Gallery: a shown line that has at least one public item. */
+        PublicGalleryPillDto: {
+            /**
+             * Format: int32
+             * @description How many public items are filed under the line.
+             */
+            count: number | string;
+            /** @description The line key, which the page writes to the address. */
+            key: string;
+            /** @description The short name on the pill. */
+            shortName: string;
         };
         /** @description The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it. */
         PublicHeroTagDto: {
@@ -12123,6 +12224,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicGallery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicGalleryDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Too Many Requests */

@@ -35,6 +35,20 @@ public sealed class TestingImageDelivery : IImageDelivery
     }
 
     /// <inheritdoc />
+    public GalleryPhotoUrls ForGallery(string publicId, int width, int height)
+    {
+        var id = IdOf(publicId);
+        return ImageCandidates.ForGallery(width, height, size => Address(id, size));
+    }
+
+    /// <inheritdoc />
+    public ImageSource ForStrip(string publicId, int width, int height)
+    {
+        var id = IdOf(publicId);
+        return ImageCandidates.ForStrip(width, height, size => Address(id, size));
+    }
+
+    /// <inheritdoc />
     public string ForShare(string publicId) => Address(IdOf(publicId), ImageNamedSizes.Share);
 
     private static string IdOf(string publicId)

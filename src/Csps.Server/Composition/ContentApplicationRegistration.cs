@@ -39,6 +39,7 @@ public static class ContentApplicationRegistration
         services.AddSingleton<IValidator<ProductLineRequest>, ProductLineRequestValidator>();
         services.AddSingleton<IValidator<MoveProductLineRequest>, MoveProductLineRequestValidator>();
         services.AddScoped<GetPublicHomeHandler>();
+        services.AddScoped<GetPublicGalleryHandler>();
         services.AddScoped<ListTestimonialsHandler>();
         services.AddScoped<CreateTestimonialHandler>();
         services.AddScoped<UpdateTestimonialHandler>();

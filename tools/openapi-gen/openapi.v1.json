@@ -5339,6 +5339,182 @@
         ],
         "type": "object"
       },
+      "PublicGalleryDto": {
+        "description": "Everything the Gallery draws, in one read (GAL-01, D-10): every public item in gallery order, the pills in display order and the total.",
+        "properties": {
+          "items": {
+            "description": "The public items in gallery order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryItemDto"
+            },
+            "type": "array"
+          },
+          "pills": {
+            "description": "One pill for each shown line that has at least one item, in display order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPillDto"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The number of items.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "pills",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryItemDto": {
+        "description": "One tile of the Gallery (D-10): an order with all its photos, or one uploaded photo. It holds public text only (D-13): the name shown, the\nline, the pieces and, for an upload, the note. It never holds a customer's name, phone, email or address, a price, an order note or a\nphoto description.",
+        "properties": {
+          "id": {
+            "description": "The id of the gallery entry, stable for the life of the tile.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineKey": {
+            "description": "The key of the line the item is filed under, such as \"basketball\".",
+            "type": "string"
+          },
+          "lineShortName": {
+            "description": "The short name of that line, such as \"Basketball\".",
+            "type": "string"
+          },
+          "note": {
+            "description": "The note of an upload; null for an order and for an upload with none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photos": {
+            "description": "The photos in display order, the cover first.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPhotoDto"
+            },
+            "type": "array"
+          },
+          "pieces": {
+            "description": "How many pieces; null for an upload that gives none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when no photo address is available: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "team": {
+            "description": "The name shown: the public name when staff typed one, else the team.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team",
+          "lineKey",
+          "lineShortName",
+          "pieces",
+          "note",
+          "placeholderArt",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPhotoDto": {
+        "description": "One photo of a gallery item, with the addresses of each place the Gallery draws it (D-12, D-30).",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src": {
+            "description": "The masonry tile address, at the largest masonry size that fits the photo.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The masonry `srcset` text with the smaller sizes.",
+            "type": "string"
+          },
+          "thumbSrc": {
+            "description": "The address of the square lightbox thumb.",
+            "type": "string"
+          },
+          "viewerSrc": {
+            "description": "The lightbox address, the whole photo at the middle viewer size.",
+            "type": "string"
+          },
+          "viewerSrcSet": {
+            "description": "The lightbox `srcset` text.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "srcSet",
+          "viewerSrc",
+          "viewerSrcSet",
+          "thumbSrc",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPillDto": {
+        "description": "One category pill of the Gallery: a shown line that has at least one public item.",
+        "properties": {
+          "count": {
+            "description": "How many public items are filed under the line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "key": {
+            "description": "The line key, which the page writes to the address.",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name on the pill.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "shortName",
+          "count"
+        ],
+        "type": "object"
+      },
       "PublicHeroTagDto": {
         "description": "The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it.",
         "properties": {
@@ -17108,6 +17284,43 @@
         "summary": "Changes the caller's password after checking the current one. Every other device is signed out; this one stays signed in.",
         "tags": [
           "Profile"
+        ]
+      }
+    },
+    "/api/v1/public/gallery": {
+      "get": {
+        "operationId": "GetPublicGallery",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicGalleryDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the Gallery (GAL-01, D-10): `items`, every public item in gallery order, each with its `id`, `team` (the name shown),\n`lineKey`, `lineShortName`, `pieces` (null when not given), `note` (uploads only), `placeholderArt` and\n`photos` (the cover first, each with the masonry `src` and `srcSet`, the lightbox `viewerSrc` and\n`viewerSrcSet`, the `thumbSrc` and the `width` and `height`); `pills`, one for each shown line that has at\nleast one item, with its `key`, `shortName` and `count`; and `total`. Only work with the customer's recorded OK,\nshown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,\na price, an order note or a photo description. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
         ]
       }
     },

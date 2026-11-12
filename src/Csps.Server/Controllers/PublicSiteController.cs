@@ -19,6 +19,7 @@ namespace Csps.Server.Controllers;
 /// <param name="openStatus">The open-status handler.</param>
 /// <param name="productLines">The product lines handler.</param>
 /// <param name="home">The Home page data handler.</param>
+/// <param name="gallery">The Gallery data handler.</param>
 [ApiController]
 [Route("api/v1/public")]
 [AllowAnonymous]
@@ -28,7 +29,8 @@ public sealed class PublicSiteController(
     GetPublicSiteHandler site,
     GetOpenStatusHandler openStatus,
     GetPublicProductLinesHandler productLines,
-    GetPublicHomeHandler home) : ControllerBase
+    GetPublicHomeHandler home,
+    GetPublicGalleryHandler gallery) : ControllerBase
 {
     private const string OpenStatusCacheControl = "public, max-age=60";
 
@@ -87,6 +89,28 @@ public sealed class PublicSiteController(
     public async Task<IResult> GetPublicHome(CancellationToken cancellationToken)
     {
         var result = await home.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, snapshot => Conditional(snapshot.Json));
+    }
+
+    /// <summary>
+    /// Reads the Gallery (GAL-01, D-10): <c>items</c>, every public item in gallery order, each with its <c>id</c>, <c>team</c> (the name shown),
+    /// <c>lineKey</c>, <c>lineShortName</c>, <c>pieces</c> (null when not given), <c>note</c> (uploads only), <c>placeholderArt</c> and
+    /// <c>photos</c> (the cover first, each with the masonry <c>src</c> and <c>srcSet</c>, the lightbox <c>viewerSrc</c> and
+    /// <c>viewerSrcSet</c>, the <c>thumbSrc</c> and the <c>width</c> and <c>height</c>); <c>pills</c>, one for each shown line that has at
+    /// least one item, with its <c>key</c>, <c>shortName</c> and <c>count</c>; and <c>total</c>. Only work with the customer's recorded OK,
+    /// shown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,
+    /// a price, an order note or a photo description. A request whose <c>If-None-Match</c> matches the current ETag gets 304.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the Gallery, 304 when the visitor's copy is current, or 429 when the address reads too often.</returns>
+    [HttpGet("gallery")]
+    [EndpointName("GetPublicGallery")]
+    [ProducesResponseType<PublicGalleryDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> GetPublicGallery(CancellationToken cancellationToken)
+    {
+        var result = await gallery.HandleAsync(cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, snapshot => Conditional(snapshot.Json));
     }
 

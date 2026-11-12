@@ -59,6 +59,30 @@ public sealed partial class CloudinaryImageDelivery(IOptions<CloudinarySettings>
     }
 
     /// <inheritdoc />
+    public GalleryPhotoUrls ForGallery(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return new GalleryPhotoUrls(NoSource, NoSource, string.Empty);
+        }
+
+        return ImageCandidates.ForGallery(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
+    public ImageSource ForStrip(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return NoSource;
+        }
+
+        return ImageCandidates.ForStrip(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
     public string ForShare(string publicId)
     {
         CheckInput(publicId, 1, 1);
