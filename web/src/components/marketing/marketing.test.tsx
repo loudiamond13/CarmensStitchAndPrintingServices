@@ -133,8 +133,7 @@ describe('CategoryCard (App. D.3)', () => {
       expect(image?.getAttribute('width')).toBe('800');
       expect(image?.getAttribute('height')).toBe('1000');
       expect(image?.getAttribute('loading')).toBe('lazy');
-      const box = image?.parentElement as HTMLElement;
-      expect(box.style.getPropertyValue('--ratio')).toBe('4 / 5');
+      expect((image?.parentElement as HTMLElement | null)?.style.getPropertyValue('--ratio')).toBe('4 / 5');
       expect(screen.queryByRole('img', { name: 'No image yet' })).toBeNull();
     });
 

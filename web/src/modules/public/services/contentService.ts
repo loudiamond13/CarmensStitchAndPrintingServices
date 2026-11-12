@@ -18,7 +18,7 @@ export interface ContentService {
 export function createContentService(client: HttpClient): ContentService {
   return {
     getProductLines: (signal) => client.get<PublicProductLines>('/public/product-lines', { signal }),
-    getHome: () => Promise.resolve({ lines: [], lineCount: 0, testimonials: [], recentWork: [], heroTag: null }),
+    getHome: (signal) => client.get<PublicHome>('/public/home', { signal }),
   };
 }
 

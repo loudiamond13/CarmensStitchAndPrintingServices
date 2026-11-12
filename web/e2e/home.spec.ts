@@ -1,7 +1,7 @@
 // Home page E2E (PUB-01, PUB-02, CONT-03, D-05, D-34, D-36, D-42): the product lines and the testimonials reach a visitor's
 // page from the server's own HTML with no extra request. Every test resets the demo shop facts, the six lines and the demo
 // testimonials (the Testing seeder) and runs under the site content lock, because they are shared by all five projects.
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { expect, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
 

@@ -62,7 +62,7 @@ describe('CategoryGrid (PUB-02, D-34)', () => {
       '/products#polo',
       '/products#custom',
     ]);
-    const first = within(cards[0] as HTMLElement);
+    const first = within(screen.getByRole('link', { name: /Basketball Jerseys/ }));
     expect(
       first.getByText('Full sublimation tops and shorts, any colorway, names and numbers included.'),
     ).toBeInTheDocument();

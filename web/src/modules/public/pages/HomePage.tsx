@@ -18,7 +18,9 @@ import {
   heroH1Classes,
   leadClasses,
 } from '../components/public.recipe';
+import { CategoryGrid } from '../components/CategoryGrid';
 import { PUBLIC_COPY } from '../copy';
+import { useHomeQuery } from '../hooks/useHomeQuery';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 const CHIP_ICONS: readonly IconName[] = ['printer', 'shirt', 'users'];
@@ -27,35 +29,40 @@ export function HomePage() {
   usePageTitle(PUBLIC_COPY.titles.home);
   const { eyebrow, headline, lead, chips } = PUBLIC_COPY.home.hero;
   const { getQuote, viewWork } = PUBLIC_COPY.actions;
+  const query = useHomeQuery();
+  const lines = query.status === 'success' ? query.data.lines : undefined;
   return (
-    <section className={heroClasses}>
-      <div className={heroGridClasses}>
-        <div className={heroCopyClasses}>
-          <span className={eyebrowClasses}>{eyebrow}</span>
-          <h1 className={heroH1Classes}>
-            {`${headline.plain} `}
-            <em className={h1EmClasses}>{headline.accent}</em>
-          </h1>
-          <p className={leadClasses}>{lead}</p>
-          <div className={btnRowClasses}>
-            <UiLink to="/contact" className={aBtnPrimaryClasses}>
-              {getQuote}
-              <Icon name="arrow-right" size={20} />
-            </UiLink>
-            <UiLink to="/gallery" className={aBtnSecondaryClasses}>
-              {viewWork}
-            </UiLink>
-          </div>
-          <div className={chipsClasses}>
-            {chips.map((chip, index) => (
-              <span key={chip} className={chipClasses}>
-                <Icon name={CHIP_ICONS[index] ?? 'printer'} size={16} className={chipIconClasses} />
-                {chip}
-              </span>
-            ))}
+    <>
+      <section className={heroClasses}>
+        <div className={heroGridClasses}>
+          <div className={heroCopyClasses}>
+            <span className={eyebrowClasses}>{eyebrow}</span>
+            <h1 className={heroH1Classes}>
+              {`${headline.plain} `}
+              <em className={h1EmClasses}>{headline.accent}</em>
+            </h1>
+            <p className={leadClasses}>{lead}</p>
+            <div className={btnRowClasses}>
+              <UiLink to="/contact" className={aBtnPrimaryClasses}>
+                {getQuote}
+                <Icon name="arrow-right" size={20} />
+              </UiLink>
+              <UiLink to="/gallery" className={aBtnSecondaryClasses}>
+                {viewWork}
+              </UiLink>
+            </div>
+            <div className={chipsClasses}>
+              {chips.map((chip, index) => (
+                <span key={chip} className={chipClasses}>
+                  <Icon name={CHIP_ICONS[index] ?? 'printer'} size={16} className={chipIconClasses} />
+                  {chip}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+      {lines !== undefined && lines.length > 0 && <CategoryGrid lines={lines} />}
+    </>
   );
 }

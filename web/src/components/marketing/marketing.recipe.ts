@@ -29,6 +29,11 @@ export const categoryImageClasses = tw(
   'block aspect-[4/5] w-full object-cover transition-[transform] duration-[.4s] ease-[ease] group-hover/cat:[transform:scale(1.04)_translateY(-52%)]',
 );
 
+/** The delivered photo's box (a LazyImage, 4:5): it scales 1.04 while the card is hovered, over .4s ease. */
+export const categoryPhotoClasses = tw(
+  'w-full transition-[transform] duration-[.4s] ease-[ease] group-hover/cat:[transform:scale(1.04)]',
+);
+
 /**
  * `.csp-cat:hover .csp-media-ph-num`: while the card is hovered, the placeholder's outlined number (its only child
  * here: the chip is off, `label={false}`, App. B `.csp-cat-media .csp-media-ph-label { display: none }`) grows 4% and
