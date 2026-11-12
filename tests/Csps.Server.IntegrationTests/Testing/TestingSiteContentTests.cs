@@ -136,7 +136,10 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         await using var check = database.CreateContext();
         (await check.ProductLines.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(6);
         (await check.ProductLinePhotos.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
-        (await check.ProductTypes.CountAsync(row => row.ProductLineId != null, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await check.ProductTypes.CountAsync(row => row.ProductLineId == spec.Id, TestContext.Current.CancellationToken)).ShouldBe(0);
+
+        // Only the three product types the demo gallery orders need stay filed under a line.
+        (await check.ProductTypes.CountAsync(row => row.ProductLineId != null, TestContext.Current.CancellationToken)).ShouldBe(3);
     }
 
     [Fact]
