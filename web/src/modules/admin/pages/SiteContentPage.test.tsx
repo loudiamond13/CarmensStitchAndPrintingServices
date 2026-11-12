@@ -74,7 +74,7 @@ describe('the header (D-27)', () => {
   it('has View Website, a link to the home page in a new tab with the hidden warning', async () => {
     await openPage();
 
-    const link = screen.getByRole('link', { name: 'View Website (opens in a new tab)' });
+    const link = screen.getByRole('link', { name: /^View Website\s*\(opens in a new tab\)$/ });
     expect(link).toHaveAttribute('href', '/');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link.getAttribute('rel')).toContain('noopener');

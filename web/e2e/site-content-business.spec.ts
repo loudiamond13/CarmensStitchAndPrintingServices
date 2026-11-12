@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, test } from './fixtures.ts';
+import { press } from './helpers.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent } from './testing-api.ts';
 
@@ -52,7 +53,7 @@ test('@site-content-business a Manager changes the tagline, saves, and the publi
       const field = page.getByLabel(/^Tagline/);
       await field.fill(tagline);
       const save = page.getByRole('button', { name: 'Save Business Info' });
-      await save.click();
+      await press(page, save);
 
       await expect(page.getByText('Business info saved')).toBeVisible();
       await expect(page.getByText('The website shows the new details now.')).toBeVisible();

@@ -8,6 +8,7 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { createDeferred } from '@/test/fakeFetch';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { demoSiteSettings, problemAnswer, siteSettingsBackend, versionAfter } from '@/test/siteContentFixtures';
 
@@ -145,7 +146,7 @@ describe('saving the tagline (CONT-01, PUB-03)', () => {
   });
 
   it('shows Saving on the pressed button while the request runs and sends one request however often it is pressed', async () => {
-    const gate = Promise.withResolvers<undefined>();
+    const gate = createDeferred<undefined>();
     const backend = siteSettingsBackend(demoSiteSettings, {
       onPut: async () => {
         await gate.promise;

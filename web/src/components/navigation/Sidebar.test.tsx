@@ -440,6 +440,7 @@ describe('Sidebar My Money item (D-39, D-40)', () => {
       'UsersManager',
       'Audit LogManager',
       'SettingsManager',
+      'Site ContentManager',
       'My Profile',
     ]);
   });

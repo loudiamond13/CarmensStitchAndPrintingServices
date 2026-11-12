@@ -5,10 +5,15 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { invalidatePublicContent } from '@/lib/public-data/publicResource';
 import { createQueryClient } from '@/lib/query/queryClient';
-import { siteSettingsKey, useSiteSettingsQuery, useUpdateSiteSettings } from '@/modules/admin/hooks/useSiteSettingsQuery';
+import {
+  siteSettingsKey,
+  useSiteSettingsQuery,
+  useUpdateSiteSettings,
+} from '@/modules/admin/hooks/useSiteSettingsQuery';
 import type { UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
+import { createDeferred } from '@/test/fakeFetch';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { demoSiteSettings, problemAnswer, siteSettingsBackend, versionAfter } from '@/test/siteContentFixtures';
 
@@ -119,7 +124,7 @@ describe('useUpdateSiteSettings', () => {
   });
 
   it('sends the body exactly once while a save is pending, however often it is pressed', async () => {
-    const gate = Promise.withResolvers<undefined>();
+    const gate = createDeferred<undefined>();
     const backend = siteSettingsBackend(demoSiteSettings, {
       onPut: async () => {
         await gate.promise;

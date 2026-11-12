@@ -124,6 +124,10 @@ const settingsPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/SettingsPage')).SettingsRoute,
 }));
 
+const siteContentPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/SiteContentPage')).SiteContentRoute,
+}));
+
 const auditLogPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/AuditLogPage')).AuditLogRoute,
 }));
@@ -203,6 +207,8 @@ export const adminRoutes: RouteObject[] = [
           { path: 'audit-log', loader: requireManager, lazy: auditLogPage },
           // D-14: the Manager-only Settings page (expense categories); an Admin is sent to /admin by the loader.
           { path: 'settings', loader: requireManager, lazy: settingsPage },
+          // D-27: the Manager-only Site Content page (the public website's words, hours, products and gallery); an Admin is sent to /admin by the loader.
+          { path: 'site-content', loader: requireManager, lazy: siteContentPage },
           // D-30, D-31: the living style guide, for Managers only and in no navigation (the page is a lazy chunk, D-33).
           { path: 'components', loader: requireManager, lazy: showcasePage },
           { path: 'profile', lazy: profilePage },
