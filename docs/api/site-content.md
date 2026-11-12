@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T09:35:00-06:00
+updated: 2026-11-12T11:45:00-06:00
 ---
 
 # The site content API
@@ -40,6 +40,12 @@ line photos, testimonials and gallery routes join this page in later plans.
 | `POST /api/v1/product-lines/{id}/move` | Manager | `204`; `400` for a direction that is not `up` or `down`; `401`; `403`; `404`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
 | `POST /api/v1/product-lines/{id}/hide` and `/show` | Manager | `204`; `401`; `403`; `404`; `409` when the shop is busy. Need an `Idempotency-Key`. |
 | `DELETE /api/v1/product-lines/{id}` | Manager | `204`; `401`; `403`; `404` when it is already gone; `422 product-lines.in-use`. |
+| `GET /api/v1/testimonials` | Manager | `200` every testimonial, shown and hidden, in order; `401`; `403` for an Admin. |
+| `POST /api/v1/testimonials` | Manager | `201` the new testimonial; `400` field errors; `401`; `403`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
+| `PUT /api/v1/testimonials/{id}` | Manager | `200` the testimonial as saved; `400`; `401`; `403`; `404`; `409 edit.stale`. |
+| `POST /api/v1/testimonials/{id}/move` | Manager | `204`; `400` for a direction that is not `up` or `down`; `401`; `403`; `404`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
+| `POST /api/v1/testimonials/{id}/hide` and `/show` | Manager | `204`; `401`; `403`; `404`; `409` when the shop is busy. Need an `Idempotency-Key`. |
+| `DELETE /api/v1/testimonials/{id}` | Manager | `204`; `401`; `403`; `404` when it is already gone. |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. An `Admin` can read the settings
 but cannot save them. No token is `401`.
@@ -445,6 +451,85 @@ Nothing calls the storage to delete during the request.
 Each add, replace or removal writes `product-line.photo-changed` in the same save. The target type is `ProductLine` and the target id is
 the line id. The detail is `key=basketball;title=Basketball Jerseys;slot=main;change=added`, where the change is `added`, `replaced` or
 `removed`. It never holds an address or a file id.
+
+## Testimonials
+
+A testimonial is what a customer said about the shop: the quote, the name, an optional team or role line and 1 to 5 stars. A Manager
+types each one in. Nothing is made up and nothing is copied from anywhere, and a new database has none. The Home page shows the first
+three shown testimonials in display order (see `GET /api/v1/public/home` in [public-site.md](public-site.md)). Only a Manager can
+read or change them. An Admin gets `403` and no token gets `401`.
+
+### Reading the testimonials
+
+`GET /api/v1/testimonials` answers a list in display order, hidden ones included. It is read from the database, never from the public
+cache, and is never cached.
+
+```json
+[
+  {
+    "id": "0e5b0f5e-6a3c-7c0e-9d46-5b1a2c3d4e5f",
+    "quote": "Seventeen pieces, names and numbers perfect.",
+    "name": "Juan Dela Cruz",
+    "teamOrRole": "Captain, Brgy. Sample Ballers",
+    "stars": 5,
+    "position": 1,
+    "isShown": true,
+    "version": "AAAAAAAAH6Q="
+  }
+]
+```
+
+`teamOrRole` is `null` when it is not set. `version` is what an edit must send back.
+
+### Adding and editing
+
+`POST /api/v1/testimonials` and `PUT /api/v1/testimonials/{id}` take the same form:
+
+| Field | Rule | Message |
+|---|---|---|
+| `quote` | required, at most 300 characters | "Enter the quote." / "Keep the quote to 300 characters or fewer." |
+| `name` | required, at most 60 characters | "Enter the name." / "Keep the name to 60 characters or fewer." |
+| `teamOrRole` | optional, at most 80 characters | "Keep this to 80 characters or fewer." |
+| `stars` | a whole number from 1 to 5 | "Choose 1 to 5 stars." |
+| `isShown` | true to show it on the website | A new testimonial is hidden when this is left out. An edit keeps it as it is when this is left out. |
+| `version` | required when editing | "Reload the form and try again." |
+
+- Texts are judged after trimming. A team line that is empty after trimming is stored as none.
+- A new testimonial goes to the end of the order. The server sets the order, the stamps and the id; any such member in the body is
+  ignored.
+- A `version` that is not the stored one answers `409 edit.stale` and changes nothing. A form with no change stores nothing, writes no
+  audit entry and keeps the version.
+- A retry of an add with the same `Idempotency-Key` and body answers with the stored `201` and adds nothing more.
+
+### Moving, hiding, showing and deleting
+
+- **Move.** `POST /api/v1/testimonials/{id}/move` with `{ "direction": "up" }` or `{ "direction": "down" }` trades places with the
+  testimonial next to it in the Manager's list, hidden ones included. It runs under the `site-content` lock, so two Managers moving at
+  once end with every place used once. A move at the end of the order is `204` and changes and records nothing. The same request sent
+  twice with one `Idempotency-Key` moves once.
+- **Hide and show.** `POST .../hide` takes a testimonial off the Home page and nothing is lost. `POST .../show` puts it back. Doing
+  either twice is `204` and records once.
+- **Delete.** `DELETE` removes a testimonial for good. A second delete is `404`.
+
+### What visitors see
+
+Every add, edit, move, hide, show and delete clears the public cache after the save commits, so the next read of the Home data shows
+the change with a new `ETag`. A hidden testimonial is never sent to visitors.
+
+### The testimonial audit entries
+
+Each change writes entries in the same save. A testimonial entry has target type `Testimonial` and the testimonial id as target id.
+The audit log never holds the customer's words: a quote is named, not copied, and so is the team line.
+
+| Action | Detail |
+|---|---|
+| `testimonial.added` | `name=Juan Dela Cruz` |
+| `testimonial.changed` | `fields=` naming every changed field in form order (`quote`, `name`, `teamOrRole`, `stars`), then `name=old>new` and `stars=old>new` for the ones that changed. A change to the quote alone is `fields=quote`, which the Audit Log screen reads as "Quote changed". |
+| `testimonial.moved` | `name=Ben;position=2>1` |
+| `testimonial.hidden`, `testimonial.shown` | `name=Juan Dela Cruz` |
+| `testimonial.deleted` | `name=Juan Dela Cruz` |
+
+A flip of `isShown` in an edit writes `testimonial.shown` or `testimonial.hidden`.
 
 ## The audit entry
 

@@ -10,9 +10,11 @@ namespace Csps.Infrastructure.Content;
 /// Puts the demo business info, the two demo phone numbers, the demo week (Monday to Saturday 09:00 to 18:00, Sunday closed) and one demo
 /// closure (20 days after the business today, note "Demo holiday") in place for E2E specs (QUAL-05). It puts the six product lines back to
 /// their seeded text (shown, no price), gives basketball the demo price 650.00 with a minimum of 10, and deletes the lines whose short
-/// name starts with "E2E-" with their photos and links. Every value is clearly fake. It saves through the context's interceptors, so the
-/// public cache is cleared like after any real change. Debug builds only. Later plans extend it for their own tables, deleting rows whose
-/// name starts with "E2E-".
+/// name starts with "E2E-" with their photos and links. It puts the four demo testimonials in place (three shown in order and one
+/// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". Every value is clearly fake. It saves through the
+/// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
+/// own tables, deleting rows whose name starts with "E2E-". Demo testimonials exist only here: the migration and the production seed
+/// never create one.
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="time">The clock.</param>
@@ -31,6 +33,14 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     private const decimal DemoLinePrice = 650.00m;
 
     private const int DemoLineMinimum = 10;
+
+    private static readonly TestimonialValues[] DemoTestimonials =
+    [
+        new("Seventeen pieces, names and numbers perfect.", "Juan Dela Cruz", "Captain, Brgy. Sample Ballers", 5, true),
+        new("The mockup came back in a day and the colors matched our crest.", "Ana Reyes", "Coach, Sample City Spikers", 5, true),
+        new("Light jerseys, and the sponsor logos printed sharp.", "Ben Santos", "President, Sample Riders MC", 4, true),
+        new("A hidden demo testimonial for tests.", "Carlo Mendoza", null, 3, false),
+    ];
 
     private static readonly TimeOnly DemoOpens = new(9, 0);
 
@@ -85,12 +95,31 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             context.ShopClosures.Add(ShopClosure.Create(today.AddDays(DemoClosureDaysAhead), null, DemoClosureNote, today, time.GetUtcNow()).Value);
 
             await ResetProductLinesAsync(cancellationToken).ConfigureAwait(false);
+            await ResetTestimonialsAsync(cancellationToken).ConfigureAwait(false);
 
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             Gate.Release();
+        }
+    }
+
+    // The four demo testimonials are made new at places 1 to 4, so a run always ends with the same facts. A testimonial a test added
+    // under the "E2E-" prefix goes, and so does a demo one a test changed or moved.
+    private async Task ResetTestimonialsAsync(CancellationToken cancellationToken)
+    {
+        var demoNames = DemoTestimonials.Select(demo => demo.Name).ToList();
+        var stale = await context.Testimonials
+            .Where(testimonial => testimonial.Name.StartsWith(E2EPrefix) || demoNames.Contains(testimonial.Name))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.Testimonials.RemoveRange(stale);
+
+        var now = time.GetUtcNow();
+        for (var index = 0; index < DemoTestimonials.Length; index++)
+        {
+            context.Testimonials.Add(Testimonial.Create(DemoTestimonials[index], index + 1, now).Value);
         }
     }
 
