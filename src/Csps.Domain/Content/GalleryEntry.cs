@@ -288,6 +288,14 @@ public sealed class GalleryEntry : IAttributedRecord, IPublicContentRecord
         return changed;
     }
 
+    /// <summary>Trades places in the gallery order with another entry, whether an order or an upload.</summary>
+    /// <param name="other">The other entry.</param>
+    public void SwapPositionWith(GalleryEntry other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        (Position, other.Position) = (other.Position, Position);
+    }
+
     /// <summary>Builds the entry that gives a shown order its place in the gallery.</summary>
     /// <param name="orderId">The order.</param>
     /// <param name="position">The place in the order; one below the current top puts it first.</param>

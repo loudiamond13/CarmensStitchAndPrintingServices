@@ -21,6 +21,7 @@ namespace Csps.Server.Controllers;
 /// <param name="create">The add handler.</param>
 /// <param name="update">The edit handler.</param>
 /// <param name="replacePhoto">The photo replace handler.</param>
+/// <param name="move">The move handler.</param>
 /// <param name="setShown">The hide and show handler.</param>
 /// <param name="delete">The delete handler.</param>
 [ApiController]
@@ -33,6 +34,7 @@ public sealed class GalleryItemsController(
     CreateGalleryUploadHandler create,
     UpdateGalleryUploadHandler update,
     ReplaceGalleryPhotoHandler replacePhoto,
+    MoveGalleryItemHandler move,
     SetGalleryUploadShownHandler setShown,
     DeleteGalleryUploadHandler delete) : ControllerBase
 {
@@ -182,6 +184,34 @@ public sealed class GalleryItemsController(
 
         var result = await replacePhoto.HandleAsync(id, buffer.GetBuffer().AsMemory(0, (int)buffer.Length), file?.FileName, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static item => TypedResults.Ok(item));
+    }
+
+    /// <summary>
+    /// Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;
+    /// send <c>lineId</c> when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge
+    /// swaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It
+    /// takes no version, and a retry with the same <c>Idempotency-Key</c> answers with the stored 204. The public gallery shows the new
+    /// order at once; Home's Recent work does not follow it.
+    /// </summary>
+    /// <param name="id">The gallery entry id.</param>
+    /// <param name="body">The direction, <c>up</c> or <c>down</c>, and the optional line filter; a null or unreadable body is reported as a field error.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 400 for a direction that is not up or down, 401 without a valid token, 403 for an Admin, 404 when the item is not in the list (or not in the filtered line), or 409 when two saves lost a race.</returns>
+    [HttpPost("{id:guid}/move")]
+    [EndpointName("MoveGalleryItem")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> MoveGalleryItem(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] MoveGalleryItemRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await move.HandleAsync(id, body ?? MoveGalleryItemRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 
     /// <summary>

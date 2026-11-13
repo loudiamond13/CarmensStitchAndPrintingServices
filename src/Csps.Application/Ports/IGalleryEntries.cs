@@ -39,6 +39,17 @@ public interface IGalleryEntries
     /// <returns>The row, or null when the entry does not exist or is not listed.</returns>
     Task<GalleryItemRow?> GetItemAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Lists every item a Manager sees in the gallery order (position, then id), without the photo, so a move can find the neighbour.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The items in gallery order; an order that is deleted or not shown is not among them.</returns>
+    Task<IReadOnlyList<GalleryOrderRef>> ListOrderAsync(CancellationToken cancellationToken);
+
+    /// <summary>Loads an entry of either kind as a tracked row, so a move is saved by the unit of work.</summary>
+    /// <param name="id">The entry id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The entry, or null when it does not exist.</returns>
+    Task<GalleryEntry?> FindAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Marks a new entry for insert. The next save writes it.</summary>
     /// <param name="entry">The new entry.</param>
     void Add(GalleryEntry entry);

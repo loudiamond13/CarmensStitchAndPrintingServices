@@ -40,6 +40,13 @@ public sealed record GalleryItemRow(
     int? PhotoHeight,
     byte[] RowVersion);
 
+/// <summary>One place in the gallery order as a move sees it: only what is needed to find a neighbour and to name the item in the audit entry.</summary>
+/// <param name="Id">The gallery entry id.</param>
+/// <param name="Kind">An order or an upload.</param>
+/// <param name="Name">The name shown, which is public.</param>
+/// <param name="LineId">The line the item is filed under; null when an order has none.</param>
+public sealed record GalleryOrderRef(Guid Id, GalleryEntryKind Kind, string Name, Guid? LineId);
+
 /// <summary>One page of the Manager's gallery list.</summary>
 /// <param name="Rows">The rows of the page, in gallery order.</param>
 /// <param name="Total">How many items match the filter over every page.</param>

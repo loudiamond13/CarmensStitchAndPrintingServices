@@ -633,6 +633,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gallery-items/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;
+         *     send `lineId` when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge
+         *     swaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It
+         *     takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. The public gallery shows the new
+         *     order at once; Home's Recent work does not follow it.
+         */
+        post: operations["MoveGalleryItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/gallery-items/{id}/photo": {
         parameters: {
             query?: never;
@@ -3929,6 +3952,16 @@ export interface components {
              * @description The sum of the month's expenses by expense date; 0.00 when none.
              */
             total: number | string;
+        };
+        /** @description The gallery move form: which way an item goes in the one gallery order, and the line the Manager's list is filtered to. */
+        MoveGalleryItemRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+            /**
+             * Format: uuid
+             * @description The line the list is filtered to; the neighbour is then the next item of that line. Null when the list shows every line.
+             */
+            lineId?: null | string;
         };
         /**
          * @description Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so "Make Cover" is the same request with
@@ -7954,6 +7987,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveGalleryItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "application/json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "text/json": null | components["schemas"]["MoveGalleryItemRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */

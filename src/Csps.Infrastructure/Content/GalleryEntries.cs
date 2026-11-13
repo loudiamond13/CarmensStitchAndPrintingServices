@@ -38,6 +38,12 @@ internal sealed class GalleryEntries(CspsDbContext context) : IGalleryEntries
         return row is null ? null : (await WithCoversAsync([row], cancellationToken).ConfigureAwait(false))[0];
     }
 
+    public async Task<IReadOnlyList<GalleryOrderRef>> ListOrderAsync(CancellationToken cancellationToken) =>
+        [.. (await LoadAsync(cancellationToken).ConfigureAwait(false)).Select(row => new GalleryOrderRef(row.Id, row.Kind, row.Name, row.LineId))];
+
+    public Task<GalleryEntry?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        context.GalleryEntries.SingleOrDefaultAsync(entry => entry.Id == id, cancellationToken);
+
     public void Add(GalleryEntry entry) => context.GalleryEntries.Add(entry);
 
     public void Remove(GalleryEntry entry) => context.GalleryEntries.Remove(entry);

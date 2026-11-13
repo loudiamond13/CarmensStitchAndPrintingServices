@@ -2992,6 +2992,30 @@
         ],
         "type": "object"
       },
+      "MoveGalleryItemRequest": {
+        "description": "The gallery move form: which way an item goes in the one gallery order, and the line the Manager's list is filtered to.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineId": {
+            "description": "The line the list is filtered to; the neighbour is then the next item of that line. Null when the list shows every line.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
       "MoveOrderImageRequest": {
         "description": "Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so \"Make Cover\" is the same request with\nplace 0. It carries the order's version as the page was opened. Any other member in the body is ignored.",
         "properties": {
@@ -11056,6 +11080,126 @@
           }
         },
         "summary": "Hides an upload: it leaves the public site and stays in this list, and nothing is lost. Hiding a hidden upload is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.\nAn item that came from an order answers 404: it is taken off the website from its order.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/move": {
+      "post": {
+        "operationId": "MoveGalleryItem",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;\nsend `lineId` when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge\nswaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It\ntakes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. The public gallery shows the new\norder at once; Home's Recent work does not follow it.",
         "tags": [
           "GalleryItems"
         ]

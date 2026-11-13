@@ -214,6 +214,18 @@ public sealed class GalleryEntryTests
     }
 
     [Fact]
+    public void TwoEntriesOfAnyKindTradePlacesInTheGalleryOrder()
+    {
+        var upload = GalleryEntry.CreateUpload(GalleryEntry.NewId(Now), Valid, File, 7, Now).Value;
+        var order = GalleryEntry.ForOrder(Guid.NewGuid(), -2, Now);
+
+        upload.SwapPositionWith(order);
+
+        (upload.Position, order.Position).ShouldBe((-2, 7));
+        Should.Throw<ArgumentNullException>(() => upload.SwapPositionWith(null!));
+    }
+
+    [Fact]
     public void ThePhotoMessageIsTheUiSpecWording()
     {
         GalleryEntry.PhotoRequiredMessage.ShouldBe("Choose a photo.");

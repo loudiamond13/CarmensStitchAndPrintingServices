@@ -1,3 +1,4 @@
+using System.Globalization;
 using Csps.Application.Common;
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
@@ -56,6 +57,21 @@ public static class GalleryAuditDetail
         }
 
         return Fit([.. pairs]);
+    }
+
+    /// <summary>Writes the detail of a move: the kind, the name shown and the old and new place in the list, counted from 1.</summary>
+    /// <param name="kind">An order or an upload.</param>
+    /// <param name="name">The name shown.</param>
+    /// <param name="oldRank">The place before.</param>
+    /// <param name="newRank">The place after.</param>
+    /// <returns>The detail text.</returns>
+    public static string Moved(GalleryEntryKind kind, string name, int oldRank, int newRank)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return Fit(
+            AuditDetailFormat.Pair("kind", kind == GalleryEntryKind.Upload ? GalleryItemRowDto.UploadKind : GalleryItemRowDto.OrderKind),
+            AuditDetailFormat.Pair("name", name),
+            AuditDetailFormat.Change("position", oldRank.ToString(CultureInfo.InvariantCulture), newRank.ToString(CultureInfo.InvariantCulture)));
     }
 
     // Joins the pairs in order and drops any pair after the first that would not fit.
