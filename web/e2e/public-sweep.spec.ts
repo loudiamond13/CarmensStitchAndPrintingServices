@@ -156,8 +156,11 @@ interface FocusReport {
   readonly label: string;
   readonly top: number;
   readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
   readonly height: number;
   readonly innerHeight: number;
+  readonly innerWidth: number;
   readonly isBody: boolean;
   /** Focus came back to a control the walk already visited: the walk went once round the page. */
   readonly revisit: boolean;
@@ -190,7 +193,7 @@ const READ_FOCUS = `(async () => {
   const label = named !== null ? named : ((element.textContent || '').trim().slice(0, 40) || element.tagName);
   // A bar covers the control when it is the topmost thing at a point of the control's box that lies in the window.
   const bars = [['header', 'header'], ['pill bar', '[data-products-bar]'], ['filter bar', '[data-gallery-bar]'], ['contact bar', '[data-contact-bar]']];
-  const x = box.left + box.width / 2;
+  const x = (Math.max(box.left, 0) + Math.min(box.right, window.innerWidth)) / 2;
   const probes = box.height > 0 && box.width > 0
     ? [box.top + 2, box.top + box.height * 0.25, box.top + box.height / 2, box.top + box.height * 0.75, box.bottom - 2].map((y) => [x, y])
     : [];
@@ -207,8 +210,11 @@ const READ_FOCUS = `(async () => {
     label,
     top: box.top,
     bottom: box.bottom,
+    left: box.left,
+    right: box.right,
     height: box.height,
     innerHeight: window.innerHeight,
+    innerWidth: window.innerWidth,
     isBody: element === document.body || element === document.documentElement,
     revisit,
     obscuredBy,
@@ -271,7 +277,7 @@ for (const sweepPage of WALKED_PAGES) {
           if (focus.isBody || focus.revisit) {
             break;
           }
-          const where = `${focus.label} (step ${String(steps + 1)}, top ${String(Math.round(focus.top))}, bottom ${String(Math.round(focus.bottom))}, window ${String(focus.innerHeight)})`;
+          const where = `${focus.label} (step ${String(steps + 1)}, top ${String(Math.round(focus.top))}, bottom ${String(Math.round(focus.bottom))}, left ${String(Math.round(focus.left))}, right ${String(Math.round(focus.right))}, window ${String(focus.innerWidth)} x ${String(focus.innerHeight)})`;
           const outside = focus.height > 0 && focus.height < focus.innerHeight && (focus.top < -1 || focus.bottom > focus.innerHeight + 1);
           if (focus.probes > 0 && focus.visibleProbes === 0) {
             problems.push(`${where} is entirely hidden${focus.obscuredBy.length > 0 ? ` under the ${focus.obscuredBy.join(' and the ')}` : ''}`);
@@ -283,6 +289,7 @@ for (const sweepPage of WALKED_PAGES) {
         for (const line of recorded) {
           test.info().annotations.push({ type: 'firefox-partly-covered', description: line });
         }
+        expect(problems, 'no focused control is hidden or left under a bar').toEqual([]);
         expect(steps, 'the walk reached the controls of the page').toBeGreaterThan(5);
         expect(steps, 'the walk ended at the end of the page, not at the step limit').toBeLessThan(WALK_STEP_LIMIT);
       });

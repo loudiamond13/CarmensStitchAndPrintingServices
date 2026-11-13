@@ -53,13 +53,15 @@ test('@gallery /gallery?category=basketball shows only basketball tiles, the pil
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
 const BAR_OVERFLOW =
   '(() => { const bar = document.querySelector(\'[role="toolbar"]\'); return bar === null ? -1 : bar.scrollWidth - bar.clientWidth; })()';
-// Where the focused element sits against the sticky header and the sticky filter bar, in viewport pixels.
+// Where the focused element sits against the sticky header and the sticky filter bar, in viewport pixels, read once the scroll has settled.
 const FOCUS_AGAINST_BARS =
-  "(() => { const active = document.activeElement; const box = active.getBoundingClientRect(); const header = document.querySelector('header'); const bar = document.querySelector('[data-gallery-bar]'); return { label: active.getAttribute('aria-label'), top: box.top, header: header === null ? 0 : header.getBoundingClientRect().bottom, bar: bar === null ? 0 : bar.getBoundingClientRect().bottom }; })()";
+  "(async () => { let last = -1; let stable = 0; const start = performance.now(); while (stable < 6 && performance.now() - start < 3000) { await new Promise((resolve) => setTimeout(resolve, 50)); stable = window.scrollY === last ? stable + 1 : 0; last = window.scrollY; } const active = document.activeElement; const box = active.getBoundingClientRect(); const header = document.querySelector('header'); const bar = document.querySelector('[data-gallery-bar]'); return { label: active.getAttribute('aria-label'), top: box.top, bottom: box.bottom, windowHeight: window.innerHeight, header: header === null ? 0 : header.getBoundingClientRect().bottom, bar: bar === null ? 0 : bar.getBoundingClientRect().bottom }; })()";
 
 interface FocusAgainstBars {
   readonly label: string | null;
   readonly top: number;
+  readonly bottom: number;
+  readonly windowHeight: number;
   readonly header: number;
   readonly bar: number;
 }
@@ -92,6 +94,7 @@ for (const width of [390, 1440]) {
     page,
     request,
     guard,
+    browserName,
   }) => {
     guard.expectStatus(TEST_IMAGES, 404);
     await withSiteContentLock(async () => {
@@ -106,9 +109,14 @@ for (const width of [390, 1440]) {
       for (let seen = 0; seen < count; seen += 1) {
         const at = await page.evaluate<FocusAgainstBars>(FOCUS_AGAINST_BARS);
         expect(at.label, 'a tile is focused').toMatch(/^Open /);
-        expect(at.top, `${at.label ?? ''} starts below the header and the bar`).toBeGreaterThanOrEqual(
-          Math.max(at.header, at.bar) - 1,
-        );
+        const barsBottom = Math.max(at.header, at.bar);
+        if (browserName === 'firefox') {
+          // Firefox scrolls a focused control only until part of it shows (P11-BL-46): part of the tile must still be in view.
+          expect(at.bottom, `${at.label ?? ''} is not entirely under the header and the bar`).toBeGreaterThan(barsBottom);
+          expect(at.top, `${at.label ?? ''} is not entirely below the window`).toBeLessThan(at.windowHeight);
+        } else {
+          expect(at.top, `${at.label ?? ''} starts below the header and the bar`).toBeGreaterThanOrEqual(barsBottom - 1);
+        }
         await page.keyboard.press('Tab');
       }
     });
