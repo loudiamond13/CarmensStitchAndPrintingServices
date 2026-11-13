@@ -104,6 +104,14 @@ test('@site-content-testimonials a Manager adds E2E-Ana, moves it to the top, an
 
       // PUB-03: the public Home data, which the Home page draws from, now starts with the new quote.
       expect((await publicHomeQuotes(request))[0]).toBe(E2E_QUOTE);
+
+      // The Home page itself: the first testimonial card carries the new quote and name.
+      const home = await page.context().newPage();
+      await home.goto('/');
+      const first = home.getByRole('main').getByRole('figure').first();
+      await expect(first).toContainText(E2E_QUOTE);
+      await expect(first).toContainText(E2E_NAME);
+      await home.close();
     } finally {
       await seedDemoSiteContent(request);
     }
