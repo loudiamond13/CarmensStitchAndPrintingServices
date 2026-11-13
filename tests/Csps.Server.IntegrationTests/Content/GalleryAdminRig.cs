@@ -82,6 +82,9 @@ internal sealed class GalleryAdminRig : IAsyncDisposable
         return new GalleryAdminRig(database, factory, await TestSessions.StartAsync(factory, Roles.Manager));
     }
 
+    /// <summary>Gets the order steps (create, photograph, show) of the public gallery tests, over this rig's host and Manager. It does not own the host.</summary>
+    public PublicGalleryRig Orders => new(Database, Factory, Manager);
+
     public async ValueTask DisposeAsync() => await Factory.DisposeAsync();
 
     public async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, StartedSession? who, object? body = null, string? idempotencyKey = null)

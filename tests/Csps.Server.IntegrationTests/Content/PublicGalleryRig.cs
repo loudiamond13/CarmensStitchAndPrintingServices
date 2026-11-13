@@ -21,7 +21,7 @@ internal sealed class PublicGalleryRig : IAsyncDisposable
 {
     public const string GalleryRoute = "/api/v1/public/gallery";
 
-    private PublicGalleryRig(CspsDatabase database, CspsApiFactory factory, StartedSession manager)
+    internal PublicGalleryRig(CspsDatabase database, CspsApiFactory factory, StartedSession manager)
     {
         Database = database;
         Factory = factory;
