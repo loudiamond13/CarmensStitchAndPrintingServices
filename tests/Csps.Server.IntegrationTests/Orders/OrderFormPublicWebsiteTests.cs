@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Domain.Content;
@@ -248,6 +249,256 @@ public sealed class OrderFormPublicWebsiteTests(CspsDatabase database) : IClassF
                 .Select(row => row.Action)
                 .ToListAsync(TestContext.Current.CancellationToken);
             actions.ShouldBe(["order.created"]);
+        }
+    }
+
+    [Fact]
+    public async Task ADetailsPutWithTheBlockOnAnEditableOrderSavesTheDetailsAndThePublicSettingsTogether()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var admin = await TestSessions.StartAsync(rig.Factory, Roles.Admin);
+        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, await NewBodyAsync(rig, items: [10, 7]));
+        var id = order.GetProperty("id").GetGuid();
+        var body = OrderFixtures.DetailsBodyFrom(order);
+        body["customerName"] = "Changed Customer";
+        body["publicWebsite"] = Block(consent: true, show: true);
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, admin.AccessToken, id, body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var saved = JsonDocument.Parse(text);
+        saved.RootElement.GetProperty("customerName").GetString().ShouldBe("Changed Customer");
+        var settings = saved.RootElement.GetProperty("publicWebsite");
+        settings.GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        settings.GetProperty("consentRecordedByName").GetString().ShouldBe(await NameOfAsync(admin.UserId));
+        settings.GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+        settings.GetProperty("productLineId").GetGuid().ShouldBe(BasketballLine);
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+        (await AuditActionsAsync(id, admin.UserId)).Order(StringComparer.Ordinal).ShouldBe(
+            [
+                "order.changed",
+                "order.created",
+                "order.public-consent-recorded",
+                "order.shown-on-website",
+            ]);
+        var stored = await OrderFixtures.ReadDetailAsync(client, admin.AccessToken, id);
+        stored.GetProperty("customerName").GetString().ShouldBe("Changed Customer");
+        stored.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task ABlockThatChangesNothingOnAnUnchangedFormKeepsTheVersionAndWritesNoEntry()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var body = await NewBodyAsync(rig, items: [5]);
+        body["publicWebsite"] = Block(consent: true, show: true);
+        var order = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, body);
+        var id = order.GetProperty("id").GetGuid();
+        var same = OrderFixtures.DetailsBodyFrom(order);
+        same["publicWebsite"] = Block(consent: true, show: true);
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, same);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var saved = JsonDocument.Parse(text);
+        saved.RootElement.GetProperty("version").GetString().ShouldBe(order.GetProperty("version").GetString());
+        (await AuditActionsAsync(id, rig.Manager.UserId)).Order(StringComparer.Ordinal).ShouldBe(["order.created", "order.public-consent-recorded", "order.shown-on-website"]);
+    }
+
+    [Fact]
+    public async Task ADetailsPutWithoutTheBlockLeavesTheOkAndShowingAsTheyWere()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var body = await NewBodyAsync(rig, items: [5]);
+        body["publicWebsite"] = Block(consent: true, show: true);
+        var order = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, body);
+        var id = order.GetProperty("id").GetGuid();
+        var edit = OrderFixtures.DetailsBodyFrom(order);
+        edit["notes"] = "Changed note";
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, edit);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var stored = await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id);
+        stored.GetProperty("notes").GetString().ShouldBe("Changed note");
+        stored.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        stored.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ABlockThatTakesTheOrderOffRemovesItsEntryAndWritesTheRemovedAndTakenOffEntries()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var body = await NewBodyAsync(rig, items: [5]);
+        body["publicWebsite"] = Block(consent: true, show: true);
+        var order = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, body);
+        var id = order.GetProperty("id").GetGuid();
+        var edit = OrderFixtures.DetailsBodyFrom(order);
+        edit["publicWebsite"] = Block(consent: false, show: false);
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, edit);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var settings = (await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id)).GetProperty("publicWebsite");
+        settings.GetProperty("customerConsent").GetBoolean().ShouldBeFalse();
+        settings.GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        (await AuditActionsAsync(id, rig.Manager.UserId)).ShouldContain("order.public-consent-removed");
+        (await AuditActionsAsync(id, rig.Manager.UserId)).ShouldContain("order.taken-off-website");
+    }
+
+    [Fact]
+    public async Task ACompletedOrderKeepsTheDetailsLockAnswerAndItsPublicSettingsAreNotReachedThroughThisRoute()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var created = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, await NewBodyAsync(rig, items: [5]));
+        var id = created.GetProperty("id").GetGuid();
+        var completed = await OrderFixtures.ChangeStatusAndReadAsync(client, rig.Manager.AccessToken, id, "completed");
+        var withoutBlock = OrderFixtures.DetailsBodyFrom(completed);
+        var withBlock = OrderFixtures.DetailsBodyFrom(completed);
+        withBlock["publicWebsite"] = Block(consent: true, show: true);
+
+        using var plain = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, withoutBlock);
+        using var blocked = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, withBlock);
+
+        plain.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        blocked.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var plainProblem = await ProblemJson.ReadAsync(plain, TestContext.Current.CancellationToken);
+        var blockedProblem = await ProblemJson.ReadAsync(blocked, TestContext.Current.CancellationToken);
+        blockedProblem.GetProperty("code").GetString().ShouldBe("orders.locked");
+        blockedProblem.GetProperty("detail").GetString().ShouldBe(plainProblem.GetProperty("detail").GetString());
+        var stored = (await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id)).GetProperty("publicWebsite");
+        stored.GetProperty("customerConsent").GetBoolean().ShouldBeFalse();
+        stored.GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ACancelledOrdersPutWithShowIsRefusedWithTheCancelledMessageAndNothingIsSaved()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var created = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, await NewBodyAsync(rig, items: [5]));
+        var id = created.GetProperty("id").GetGuid();
+        var cancelled = await OrderFixtures.ChangeStatusAndReadAsync(client, rig.Manager.AccessToken, id, "cancelled");
+        var edit = OrderFixtures.DetailsBodyFrom(cancelled);
+        edit["customerName"] = "Changed Customer";
+        edit["publicWebsite"] = Block(consent: true, show: true);
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, edit);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("orders.public-cancelled");
+        problem.GetProperty("detail").GetString().ShouldBe("Cancelled orders can't be shown on the website.");
+        var stored = await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id);
+        stored.GetProperty("customerName").GetString().ShouldBe("Juan Dela Cruz");
+        stored.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeFalse();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARefusedBlockOnADetailsPutIsA400OnThePrefixedFieldAndTheDetailsAreNotSaved()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var order = await OrderFixtures.CreateAsync(client, rig.Manager.AccessToken, await NewBodyAsync(rig, items: [5]));
+        var id = order.GetProperty("id").GetGuid();
+        var noOk = OrderFixtures.DetailsBodyFrom(order);
+        noOk["customerName"] = "Changed Customer";
+        noOk["publicWebsite"] = Block(consent: false, show: true);
+        var noName = OrderFixtures.DetailsBodyFrom(order);
+        noName["teamName"] = null;
+        noName["customerName"] = "Changed Customer";
+        noName["publicWebsite"] = Block(consent: true, show: true);
+
+        using var first = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, noOk);
+        using var second = await OrderFixtures.PutDetailsAsync(client, rig.Manager.AccessToken, id, noName);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(first, TestContext.Current.CancellationToken), "publicWebsite.showOnWebsite")
+            .ShouldBe(["Tick Customer said OK to show first."]);
+        second.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        OrderFixtures.FieldErrors(await ProblemJson.ReadAsync(second, TestContext.Current.CancellationToken), "publicWebsite.publicName")
+            .ShouldBe(["This order has no team name. Enter the name to show."]);
+        (await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id)).GetProperty("customerName").GetString().ShouldBe("Juan Dela Cruz");
+    }
+
+    [Fact]
+    public async Task AConsentTimeAndPersonSentInsideTheBlockOfADetailsPutAreIgnored()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var admin = await TestSessions.StartAsync(rig.Factory, Roles.Admin);
+        var order = await OrderFixtures.CreateAsync(client, admin.AccessToken, await NewBodyAsync(rig, items: [5]));
+        var before = TimeProvider.System.GetUtcNow();
+        var block = Block(consent: true, show: true);
+        block["consentRecordedAtUtc"] = "2020-01-01T00:00:00Z";
+        block["publicConsentById"] = rig.Manager.UserId;
+        block["consentRecordedByName"] = "Someone Else";
+        var edit = OrderFixtures.DetailsBodyFrom(order);
+        edit["publicWebsite"] = block;
+
+        using var response = await OrderFixtures.PutDetailsAsync(client, admin.AccessToken, order.GetProperty("id").GetGuid(), edit);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var saved = JsonDocument.Parse(text);
+        var settings = saved.RootElement.GetProperty("publicWebsite");
+        settings.GetProperty("consentRecordedByName").GetString().ShouldBe(await NameOfAsync(admin.UserId));
+        settings.GetProperty("consentRecordedAtUtc").GetDateTimeOffset().ShouldBeGreaterThanOrEqualTo(before.AddSeconds(-1));
+    }
+
+    [Fact]
+    public async Task AnOrderImportedThroughTheTestingRouteIsNeverConsentedOrShown()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        using var client = rig.Factory.CreateClient();
+        var today = await OrderFixtures.TodayAsync(rig.Factory);
+        var import = new Dictionary<string, object?>
+        {
+            ["number"] = "ORD-2026-0811",
+            ["status"] = "completed",
+            ["customerName"] = "Juan Dela Cruz",
+            ["teamName"] = "Brgy. San Roque Ballers",
+            ["contactNumber"] = "0917 123 4567",
+            ["orderDate"] = OrderFixtures.Date(today.AddDays(-10)),
+            ["dueDate"] = OrderFixtures.Date(today.AddDays(4)),
+            ["items"] = new[] { OrderFixtures.Item(OrderFixtures.BasketballId) },
+            ["publicWebsite"] = Block(consent: true, show: true),
+            ["customerConsent"] = true,
+            ["showOnWebsite"] = true,
+        };
+
+        using var response = await client.PostAsJsonAsync(new Uri("/api/testing/orders", UriKind.Relative), import, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, text);
+        using var imported = JsonDocument.Parse(text);
+        var id = imported.RootElement.GetProperty("id").GetGuid();
+        var settings = (await OrderFixtures.ReadDetailAsync(client, rig.Manager.AccessToken, id)).GetProperty("publicWebsite");
+        settings.GetProperty("customerConsent").GetBoolean().ShouldBeFalse();
+        settings.GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+    }
+
+    private async Task<List<string>> AuditActionsAsync(Guid orderId, Guid actorId)
+    {
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            return await context.AuditLog.AsNoTracking()
+                .Where(row => row.ActorUserId == actorId && row.TargetId == orderId.ToString("D") && row.TargetType == "Order")
+                .Select(row => row.Action)
+                .ToListAsync(TestContext.Current.CancellationToken);
         }
     }
 
