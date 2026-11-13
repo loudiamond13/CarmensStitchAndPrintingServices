@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T16:17:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T17:55:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -591,6 +591,41 @@ A real bug: a team name with no spaces widened the Edit Order page on 320 to 414
 - **B:** narrow it to the "Name shown" hint only.
 
 Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+## P11-BL-60 · Lightbox arrows on phones (UI review R-04)
+
+**Status:** open · **Blocks:** nothing.
+
+On phones (768 px and narrower) the gallery viewer hides the round previous and next buttons and uses two large tap zones instead, as approved in C-35. Each zone is a real button with a name, a focus ring, arrow keys and swipe. A reviewer asked whether a visible arrow should also show on phones. Nothing was changed.
+
+- **A (recommended):** keep the approved tap zones, because they are large named buttons with a focus ring, arrow keys and swipe, and they keep the approved phone look.
+- **B:** also show 44 px arrow buttons on phones. This changes the approved phone look.
+
+Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-04) and quick 261113-nqv.
+
+## P11-BL-61 · Edge to edge on notched phones (UI review R-06)
+
+**Status:** open · **Blocks:** nothing.
+
+The pages do not ask the phone to draw under the notch and the home bar (`viewport-fit=cover` is not set in `web/index.html`), so the safe area is 0 today. The Contact bottom bar and its scroll padding now add the safe area, so they are ready if this is ever turned on. Nothing visible changed.
+
+- **A (recommended):** keep today's setting, where the phone browser keeps the page out of the notch and home-bar area. Both bars already add the safe area if this changes later.
+- **B:** add `viewport-fit=cover` to every page and check notched phones in the screenshot pass. Landscape would then also need side padding.
+
+Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-06) and quick 261113-nqv.
+
+## P11-BL-62 · Named font sizes for the admin and shared parts (UI review R-01)
+
+**Status:** open · **Blocks:** nothing.
+
+The public site now uses 23 named font sizes (`text-14` is 14 px, and so on) and a test fails on any hand-typed size there. The admin and shared parts still hand-type 221 sizes in 33 files. Nothing was changed there.
+
+- **A (recommended):** one later quick task maps those 221 sizes to the same `text-N` tokens (adding the sizes that are missing) and widens the test to all of `web/src`. One naming scheme for the whole app, with no look change.
+- **B:** keep the tokens on the public site only. The admin side stays hand-typed.
+
+The names follow the size (`text-14`) so each one reads as its value. If you prefer role names such as `text-body` or `text-caption`, say so, and the task will map each size to a role you choose instead.
+
+Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-01) and quick 261113-nqv.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
