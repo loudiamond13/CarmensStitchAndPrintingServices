@@ -42,11 +42,11 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
             new PublicPhoneDto("02 8123 4567", "+63281234567", null, false),
         ]);
         site.MessengerUrl.ShouldBe("https://m.me/cspsdemo");
-        site.FacebookUrl.ShouldBe("https://facebook.example.test/cspsdemo");
-        site.InstagramUrl.ShouldBe("https://instagram.example.test/cspsdemo");
-        site.TiktokUrl.ShouldBe("https://tiktok.example.test/cspsdemo");
-        site.DirectionsUrl.ShouldBe("https://maps.example.test/directions");
-        site.MapEmbedUrl.ShouldBe("https://maps.example.test/embed");
+        site.FacebookUrl.ShouldBe("https://www.facebook.com/cspsdemo");
+        site.InstagramUrl.ShouldBe("https://www.instagram.com/cspsdemo");
+        site.TiktokUrl.ShouldBe("https://www.tiktok.com/@cspsdemo");
+        site.DirectionsUrl.ShouldBe("https://maps.app.goo.gl/abc123");
+        site.MapEmbedUrl.ShouldBe("https://www.google.com/maps/embed?pb=sample");
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
         var snapshot = await PublicContentServices.ReadAsync(services);
 
         snapshot.Json.Json.ShouldNotContain(PrivateEmail, Case.Insensitive);
-        snapshot.Json.Json.ShouldNotContain("@");
+        snapshot.Json.Json.Replace("tiktok.com/@", "tiktok.com/", StringComparison.Ordinal).ShouldNotContain("@");
         JsonSerializer.Serialize(snapshot.Site).ShouldNotContain("mail", Case.Insensitive);
     }
 
@@ -107,7 +107,7 @@ public sealed class PublicContentReaderTests(CspsDatabase database) : IClassFixt
         root.GetProperty("address").GetProperty("townOrCity").GetString().ShouldBe("Sample City");
         root.GetProperty("phones")[0].GetProperty("e164").GetString().ShouldBe("+639171234567");
         root.GetProperty("phones")[0].GetProperty("isMain").GetBoolean().ShouldBeTrue();
-        root.GetProperty("tiktokUrl").GetString().ShouldBe("https://tiktok.example.test/cspsdemo");
+        root.GetProperty("tiktokUrl").GetString().ShouldBe("https://www.tiktok.com/@cspsdemo");
         root.GetProperty("year").GetInt32().ShouldBe(snapshot.Site.Year);
     }
 

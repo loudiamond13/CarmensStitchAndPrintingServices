@@ -22,12 +22,12 @@ public static class PublicContentSeeding
         "Sample City",
         "Sample Province",
         "1000",
-        "https://maps.example.test/directions",
-        "https://maps.example.test/embed",
+        "https://maps.app.goo.gl/abc123",
+        "https://www.google.com/maps/embed?pb=sample",
         "https://m.me/cspsdemo",
-        "https://facebook.example.test/cspsdemo",
-        "https://instagram.example.test/cspsdemo",
-        "https://tiktok.example.test/cspsdemo",
+        "https://www.facebook.com/cspsdemo",
+        "https://www.instagram.com/cspsdemo",
+        "https://www.tiktok.com/@cspsdemo",
         "shop-private@example.test",
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 

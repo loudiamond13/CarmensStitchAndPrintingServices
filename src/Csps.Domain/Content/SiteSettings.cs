@@ -258,8 +258,9 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <summary>
     /// Replaces the business info: name, tagline, address parts, links and the shop email, and builds the phone rows that replace
     /// the stored list. Text is trimmed and an empty optional value becomes null (the email and the Facebook link, whose columns
-    /// are required, become an empty string). The rules here keep every value inside its column; the request rules and the
-    /// link allow-lists are checked before this is called. A failure changes nothing.
+    /// are required, become an empty string). The rules here keep every value inside its column and apply the link allow-lists,
+    /// the postal code and the email shape (the request validator calls the same <see cref="SiteLinks"/> rules, so a value from any
+    /// other writer is held to them too). A failure changes nothing.
     /// </summary>
     /// <param name="values">The new values.</param>
     /// <param name="now">The current instant, which stamps the new phone rows.</param>
@@ -284,6 +285,14 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         var instagram = Optional(values.InstagramUrl, InstagramUrlMaxLength, BusinessInfoFields.InstagramUrl, TooLongMessage(InstagramUrlMaxLength), errors);
         var tiktok = Optional(values.TikTokUrl, TikTokUrlMaxLength, BusinessInfoFields.TiktokUrl, TooLongMessage(TikTokUrlMaxLength), errors);
         var email = Optional(values.ContactEmail, ContactEmailMaxLength, BusinessInfoFields.ContactEmail, TooLongMessage(ContactEmailMaxLength), errors);
+        CheckShape(postalCode, SiteLinks.IsPostalCode, BusinessInfoFields.PostalCode, SiteLinks.PostalCodeInvalidMessage, errors);
+        CheckShape(directions, SiteLinks.IsDirectionsLink, BusinessInfoFields.DirectionsUrl, SiteLinks.DirectionsInvalidMessage, errors);
+        CheckShape(mapEmbed, SiteLinks.IsMapEmbedLink, BusinessInfoFields.MapEmbedUrl, SiteLinks.MapEmbedInvalidMessage, errors);
+        CheckShape(messenger, SiteLinks.IsMessengerLink, BusinessInfoFields.MessengerUrl, SiteLinks.MessengerInvalidMessage, errors);
+        CheckShape(facebook, SiteLinks.IsFacebookLink, BusinessInfoFields.FacebookUrl, SiteLinks.FacebookInvalidMessage, errors);
+        CheckShape(instagram, SiteLinks.IsInstagramLink, BusinessInfoFields.InstagramUrl, SiteLinks.InstagramInvalidMessage, errors);
+        CheckShape(tiktok, SiteLinks.IsTikTokLink, BusinessInfoFields.TiktokUrl, SiteLinks.TikTokInvalidMessage, errors);
+        CheckShape(email, SiteLinks.IsContactEmail, BusinessInfoFields.ContactEmail, SiteLinks.ContactEmailInvalidMessage, errors);
         var phones = BuildPhones(values.Phones, now, errors);
         if (errors.Count > 0)
         {
@@ -418,6 +427,15 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         }
 
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
+
+    // A set value must pass its shape rule; a field that already failed (too long) keeps its one message.
+    private static void CheckShape(string? value, Func<string?, bool> isAllowed, string field, string message, Dictionary<string, string[]> errors)
+    {
+        if (value is not null && !errors.ContainsKey(field) && !isAllowed(value))
+        {
+            errors[field] = [message];
+        }
     }
 
     private static string Track(List<string> changed, string field, string current, string next)

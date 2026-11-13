@@ -1,21 +1,21 @@
 ---
 phase: 11-public-site-content-management
 created: 2026-11-13T07:20:00-06:00
-updated: 2026-11-13T07:20:00-06:00
+updated: 2026-11-13T13:10:00-06:00
 review_path: .planning/phases/11-public-site-content-management/11-REVIEW.md
 iteration: 1
 findings_in_scope: 48
-fixed: 21
-skipped: 1
+fixed: 29
+skipped: 0
 owner: 7
-deferred: 11
-elsewhere: 8
+deferred: 12
+elsewhere: 0
 status: partial
 ---
 
 # Phase 11: Code review fix report
 
-*Created: 2026-11-13T07:20:00-06:00 · Updated: 2026-11-13T07:20:00-06:00*
+*Created: 2026-11-13T07:20:00-06:00 · Updated: 2026-11-13T13:10:00-06:00*
 
 **Source review:** `.planning/phases/11-public-site-content-management/11-REVIEW.md` (48 findings: 0 critical, 18 warning, 30 info)
 **Branch:** `worktree-agent-a3edead195a1cdddc`, on top of `b6796ce5`
@@ -25,16 +25,16 @@ status: partial
 
 | Outcome | Count | Findings |
 |---|---|---|
-| Fixed (one commit each) | 21 | WR-A-02, WR-A-03 (look-ahead part), WR-B-01, WR-C-01, WR-C-02, WR-C-03, WR-D-01, WR-D-03, WR-E-01, WR-E-02, WR-E-03, IN-A-01, IN-B-04, IN-C-02, IN-D-01, IN-D-02, IN-D-04, IN-D-05, IN-D-06, IN-E-03, IN-F-02 |
-| Skipped, blocked | 1 | WR-A-01 |
+| Fixed in the review-fix pass (one commit each) | 22 | WR-A-01, WR-A-02, WR-A-03 (look-ahead part), WR-B-01, WR-C-01, WR-C-02, WR-C-03, WR-D-01, WR-D-03, WR-E-01, WR-E-02, WR-E-03, IN-A-01, IN-B-04, IN-C-02, IN-D-01, IN-D-02, IN-D-04, IN-D-05, IN-D-06, IN-E-03, IN-F-02 |
+| Fixed in the phase-end e2e pass | 7 | WR-F-01, WR-F-02, WR-F-03, WR-F-04, IN-F-01, IN-F-04, IN-F-05 |
 | Owner item (not changed) | 7 | WR-B-02, WR-D-02, IN-B-03, IN-B-05, IN-D-03, IN-E-04, IN-F-06 |
-| Deferred | 11 | IN-A-02, IN-A-03, IN-A-04, IN-A-05, IN-B-01, IN-B-02, IN-C-01, IN-C-03, IN-E-01, IN-E-02, IN-E-05 |
-| Handled in the phase-end e2e pass | 8 | WR-F-01, WR-F-02, WR-F-03, WR-F-04, IN-F-01, IN-F-03, IN-F-04, IN-F-05 |
+| Deferred or not done | 12 | IN-A-02, IN-A-03, IN-A-04, IN-A-05, IN-B-01, IN-B-02, IN-C-01, IN-C-03, IN-E-01, IN-E-02, IN-E-05, IN-F-03 (not done, see its row) |
+| Skipped | 0 | |
 | Total | 48 | |
 
-WR-A-03 is fixed in its look-ahead part and also carries an owner item (the copy for a far reopening date), so it is counted once, under Fixed. No finding was found wrong.
+Fixed in all: 29. WR-A-03 is fixed in its look-ahead part and also carries an owner item (the copy for a far reopening date), so it is counted once, under Fixed. No finding was found wrong.
 
-Every fix has a failing test first. Where a fix only strengthens a test (WR-E-01, WR-E-02, WR-E-03, WR-D-03), the new check was shown to fail on a broken version of the code, or the old test is the thing that was weak (see each row). No package was added or bumped. No schema change, migration, trigger or raw SQL. Nothing under `web/e2e/`, the `e2e` npm script, `tests/Csps.Testing` or `TestingSiteContentSeeder` was touched.
+Every fix has a failing test first. Where a fix only strengthens a test (WR-E-01, WR-E-02, WR-E-03, WR-D-03), the new check was shown to fail on a broken version of the code, or the old test is the thing that was weak (see each row). No package was added or bumped. No schema change, migration, trigger or raw SQL. In the first pass nothing under `web/e2e/`, the `e2e` npm script, `tests/Csps.Testing` or `TestingSiteContentSeeder` was touched, because the e2e agent owned them. WR-A-01 was applied afterwards, once that work was merged, and it changes `tests/Csps.Testing/PublicContentSeeding.cs`.
 
 ## Outcome of every finding
 
@@ -42,7 +42,7 @@ Every fix has a failing test first. Where a fix only strengthens a test (WR-E-01
 
 | Id | Outcome | Commit | What was done |
 |---|---|---|---|
-| WR-A-01 | Skipped: blocked by file ownership | none | See "Blocked" below. The fix needs five link values changed in `tests/Csps.Testing/PublicContentSeeding.cs`, which the e2e agent owns. |
+| WR-A-01 | Fixed (applied after the e2e merge) | `2d503631` | `SiteSettings.UpdateBusinessInfo` now refuses each of the six links outside its allow-list, a postal code that is not 4 digits and a shop email that is not shaped like an address, with the validator's own words. `SiteLinks` holds `IsPostalCode`, `IsContactEmail` and their two messages; the request validator calls the same code, so there is one source of truth and no new behavior for valid input. A field that is already too long keeps its single "too long" message. The five demo links in `PublicContentSeeding.Demo()` are now allow-listed values, and the tests that pinned the old ones were updated (`PublicContentReaderTests`, `PublicSiteEndpointTests`, `SiteSettingsBusinessInfoTests`). The three "no @ in a public body" tests allow the `@` of the TikTok profile link now in the demo data. The web zod schema already mirrors every one of these rules, so there is no client change. `docs/api/site-content.md` says the rules live in the domain. Red: the new domain tests failed 22 of 190 (a bad link, postal code or email was accepted); after the change 1896 of 1896 pass. |
 | WR-A-02 | Fixed | `b9596606` | `UpdateOrderDetailsHandler` now refuses any details save that leaves a shown order with no team name and no public name, with or without the `publicWebsite` block. Same words as the existing rule ("This order has no team name. Enter the name to show."), on the `teamName` field. New `Order.IsShownWithoutName`. Red: the clear-the-team-name test got a success. Green: 30 of 30 in `UpdateOrderDetailsHandlerTests`. The client schema already checks the same rule on the form, so no client change. Side effect to know: a shown order that already has no name (it was dropped from the gallery silently before) now refuses any details save, even one that changes nothing, until a name is entered. |
 | WR-A-03 | Fixed (look-ahead only) + owner item | `2bd8cb3a` | `OpenStatus.LookAheadDays` is now `ShopClosure.MaxSpanDays + 7` (38). The OpenAPI snapshot, the generated types and `docs/api/public-site.md` carry the new number. The four old look-ahead tests were rewritten (the old ones pinned 14), plus a test with a 31-day closure (Dec 5 gives Jan 1). Red: 3 failed. Green: 24 of 24. The date copy is an owner item (below). |
 | WR-B-01 | Fixed | `4bd0bb38` | New `[UploadSlot]` mark. `UploadSlotsMiddleware` matches the mark, not the name `UploadOrderImage`. All five upload actions carry it (order photo, gallery upload and replace, product line photo, share picture). New `UploadSlotsCoverageTests`: reflection test that fails when an `[EnableRateLimiting(ImageUpload)]` action has no mark, and two middleware tests. Docs for order images and site content say the cap covers every upload. Red: 3 of 3 failed. Green: 18 of 18 with the rate limit and OpenAPI snapshot tests. |
@@ -56,10 +56,10 @@ Every fix has a failing test first. Where a fix only strengthens a test (WR-E-01
 | WR-E-01 | Fixed | `3375eb0f` | Both racing delete tests use `ConcurrentRequests.SendTogetherAsync`, run 10 rounds, keep the same allowed status pairs and check that no row points at a deleted line. Test-only change: the allowed outcomes did not change and the tests pass with the gate (no new pair appeared). |
 | WR-E-02 | Fixed | `589207ad` | New theory over `/products`, `/` and `/gallery` with a hostile value in the line, Home line, testimonial, recent work, hero tag and gallery text. It checks the closing-tag count, that the boot block holds no `<`, and that the escaped text round-trips. The `/gallery` boot block carries only the site, so that row only proves the page stays inert. Test-only: the encoder was already safe. |
 | WR-E-03 | Fixed | `5819c1ca` | The two `ProductLinesMigrationTests` inserts and both closure tests in `ShellHeadTests` clean up in `finally`. Test-only. |
-| WR-F-01 | Handled in the phase-end e2e pass | none | Another agent owns it. |
-| WR-F-02 | Handled in the phase-end e2e pass | none | Another agent owns it. |
-| WR-F-03 | Handled in the phase-end e2e pass | none | Another agent owns it. |
-| WR-F-04 | Handled in the phase-end e2e pass | none | Another agent owns it. |
+| WR-F-01 | Fixed in the phase-end e2e pass | `46f4c0dd` | The order specs show their orders under the site content lock, read them and delete them. The Testing reset also takes every other shown order off the website (`89512bae`, with the .NET test first). |
+| WR-F-02 | Fixed in the phase-end e2e pass | `93483151` | The site content lock waits 7 minutes (was 4) and its timeout message names "site content". A vitest test pins it. |
+| WR-F-03 | Fixed in the phase-end e2e pass | `46f4c0dd` | `@order-public-website` has no `pending` branch any more, and the gallery read must answer 200. |
+| WR-F-04 | Fixed in the phase-end e2e pass | `84fb9b73` | The 768px products check is now `scrollWidth > clientWidth`. It passed in all five projects. |
 
 ### Info
 
@@ -89,23 +89,21 @@ Every fix has a failing test first. Where a fix only strengthens a test (WR-E-01
 | IN-E-03 | Fixed | `06b8d55f` | The matrix theory clears the demo share picture before the share-picture DELETE row, so a Manager gets exactly 404 and `ManagerAlso` is no longer used there. The parallel test keeps the second status (another row seeds the picture at the same moment) and names it in its failure message. |
 | IN-E-04 | Owner item | none | See below. |
 | IN-E-05 | Deferred | none | A test-maintenance trade-off, no safety gain either way. |
-| IN-F-01 | Handled in the phase-end e2e pass | none | Another agent owns it. |
+| IN-F-01 | Fixed in the phase-end e2e pass | `84fb9b73` | `boxOf` names its slot in the error ("Main photo is not on the page"). |
 | IN-F-02 | Fixed | `afe0f5d6` | `barlowNoPesoPlugin` stops the build through `this.error` when a face would be left with no range (an empty range is invalid CSS and would widen the face). The test that pinned `''` now expects the error. |
-| IN-F-03 | Handled in the phase-end e2e pass | none | Another agent owns it. |
-| IN-F-04 | Handled in the phase-end e2e pass | none | Another agent owns it. |
-| IN-F-05 | Handled in the phase-end e2e pass | none | Another agent owns it. |
+| IN-F-03 | Not done | none | The phase-end e2e report (`11-E2E-PHASE-END.md`) does not mention it, and the git log shows no commit for it. The four specs it names changed only for other reasons (`77b04b1e`, `81b9b436`, `84fb9b73`). The layout-only tests still take no lock, and the business test still reads `.all()` with no wait. Open: either take the site content lock for them or wait for the rows with `await expect(locator.first()).toBeVisible()` before measuring. It is an e2e-only change and needs a browser run, so it was not done here. |
+| IN-F-04 | Fixed in the phase-end e2e pass | `84fb9b73` | The sweep deletes both orders, and the demo reset runs even if a cleanup step throws. The two product line photo specs got the same nested `finally`. |
+| IN-F-05 | Fixed in the phase-end e2e pass | `f130523c` | The comment in `lighthouse.mjs` now says 15 seconds. |
 | IN-F-06 | Owner item | none | See below. |
 
-## Blocked
+## Notes on WR-A-01
 
-### WR-A-01: domain-level link, email and postal checks
+The block is gone: the e2e work was merged, so the fix was applied. Where the saved recipe differed from the code:
 
-**Why it is not done:** the review is right. The six link rules, the email shape and the postal code live only in `UpdateSiteSettingsRequestValidator`. But `SiteSettings.UpdateBusinessInfo` is also called by `PublicContentSeeding.Demo()` in `tests/Csps.Testing/PublicContentSeeding.cs`, and its links (`https://maps.example.test/...`, `https://facebook.example.test/...`, `https://instagram.example.test/...`, `https://tiktok.example.test/...`) are not on the allow-list. A domain check would make that helper throw in about nine integration test files. That file is in the area the e2e agent owns, so it was not touched.
-
-**The change, ready to apply after the e2e pass:**
-1. Domain: put `IsPostalCode`, `IsContactEmail` (one `@` with text on both sides, at most 254 characters, no bracket placeholder) and their messages next to the link rules in `SiteLinks`. In `SiteSettings.UpdateBusinessInfo`, after the `Optional(...)` calls, add an error for each of the six links, the postal code and the email that fails its rule, with the same messages as the validator. Make `UpdateSiteSettingsRequestValidator` call the same helpers, so there is one source of truth.
-2. Tests that must change with it: the five link values in `PublicContentSeeding.Demo()` (use `https://maps.app.goo.gl/abc123`, `https://www.google.com/maps/embed?pb=sample`, `https://www.facebook.com/cspsdemo`, `https://www.instagram.com/cspsdemo`, `https://www.tiktok.com/@cspsdemo`, which `SiteSettingsWriteTests` already uses); the matching assertions in `PublicContentReaderTests` (lines 45 to 49 and 110), `PublicSiteEndpointTests` (60 to 62) and `ShellHeadTests` (the `sameAs` pair at line 54); and the `Valid()` values and assertions in `SiteSettingsBusinessInfoTests`. `ShellTestFactory` builds the public DTO directly and needs no change.
-3. New domain tests: each bad link, a bad postal code and a bad email are refused with the validator's words, and a valid set still passes.
+- `ShellHeadTests` (the `sameAs` pair) and `ShellTestFactory` build the public DTO directly through a stub reader and never store the values, so they were left alone. They are not demo data.
+- The recipe did not cover three tests that assert "no `@` in a public body" (`PublicContentReaderTests`, `PublicSiteEndpointTests`, `ShellHeadTests`). The demo TikTok link now carries the `@` of a TikTok profile, so each test removes `tiktok.com/@` before it looks for an email sign.
+- The "a value one over its limit is refused and one at the limit fits" theory in `SiteSettingsBusinessInfoTests` now builds the at-limit value from a valid link or email, because a filler of `x` no longer passes the shape rule. A Messenger link is at most 113 characters to be valid (the name part is capped at 100), so its column limit of 120 can only be reached by a link the rule refuses; that is the existing allow-list rule, not new behavior.
+- `TestingSiteContentSeeder` and the dev seed (`SiteContentSeedStep`) have their own demo values, and those already used allow-listed links, so neither needed a change.
 
 ## Owner items
 
@@ -184,6 +182,7 @@ All run in the isolated worktree (see the top). Last code commit: `afe0f5d6`.
 | `npm --prefix web run lint` (`eslint . --max-warnings 0`) | Exit 0, no output. |
 | `npm --prefix web run typecheck` (three `tsc` projects) | No errors. |
 | vitest, the 15 test files these commits touch, run together | 410 tests; every file passes when run on its own (see "Flakes" for the full-suite run). |
+| WR-A-01 (commit `2d503631`, a separate worktree on top of `a6371ff9`, checks in that worktree) | `dotnet build` (Debug, whole solution): 0 Warning(s), 0 Error(s). `dotnet build src/Csps.Server -c Release`: 0 Warning(s), 0 Error(s). `Csps.Domain.UnitTests` 1896 of 1896, `Csps.Application.UnitTests` 3034 of 3034, `Csps.ArchitectureTests` 290 of 290, `Csps.Infrastructure.IntegrationTests` 1185 passed, 1 skipped, 0 failed. `Csps.Server.IntegrationTests` classes `ShellHeadTests`, `TestingSiteContentTests`, `SiteSettingsWriteTests`, `SiteSettingsEndpointTests`, `PublicSiteEndpointTests`, `PublicCacheInvalidationTests`, `OpenApiSnapshotTests`: 123 of 123. No web file changed, so lint, typecheck and vitest were not rerun. |
 | `gitleaks git --log-opts=b6796ce5..HEAD` | 21 commits scanned, no leaks. Every commit was also scanned staged by the pre-commit hook. A grep of the diff for local paths, user names and `BetsLLC` found none. |
 
 ## Flakes seen (not caused by these fixes)
