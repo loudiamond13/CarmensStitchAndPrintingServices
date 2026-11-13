@@ -98,6 +98,15 @@ export const SHOWCASE_COPY = {
     openDelete: 'Open Delete Transfer',
     openRemove: 'Open Remove Permanently',
   },
+  /** SPEC-GAP dev wording: the Site content and public website demos (plan 11-37). Made-up photos, numbers and orders only; nothing is sent. */
+  siteContent: {
+    show: 'Show the Site content cases',
+    photoLabel: 'Main photo',
+    photoAlt: 'Main photo of Polo Shirts',
+    photoHint: 'JPG, PNG, WEBP or HEIC · up to 10 MB',
+    refusedFile: 'front-view.heic',
+    refusedReason: 'This photo is 12.4 MB. The limit is 10 MB.',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */

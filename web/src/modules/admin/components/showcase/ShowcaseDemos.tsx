@@ -52,6 +52,9 @@ import type { ShowcaseSectionId } from './showcaseSections';
 /** The Phase 10 cases are a chunk of their own: their module graph (the dashboard cards, the money parts) loads only when they are asked for. */
 const Phase10Demos = lazy(async () => ({ default: (await import('./Phase10Demos')).Phase10Demos }));
 
+/** The Phase 11 cases are a chunk of their own for the same reason: the photo slot, the phone field and the order card load only when they are asked for. */
+const Phase11Demos = lazy(async () => ({ default: (await import('./Phase11Demos')).Phase11Demos }));
+
 const MANAGER: Role = 'manager';
 const CARMEN = { name: 'Carmen Reyes' };
 const ORDER = 'ORD-2026-0148';
@@ -462,6 +465,33 @@ function Phase10OnRequest() {
   );
 }
 
+/**
+ * The Site content and public website cases load and mount when asked for, like the Dashboard cases: thirteen frames and the module graph
+ * behind the photo slot, the phone field and the order card would slow the page's first load. Phase11Demos.test.tsx and the
+ * `@site-content-showcase` showcase test cover them.
+ */
+function Phase11OnRequest() {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return (
+      <Suspense fallback={<SkeletonText />}>
+        <Phase11Demos />
+      </Suspense>
+    );
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => {
+        setShown(true);
+      }}
+    >
+      {SHOWCASE_COPY.siteContent.show}
+    </Button>
+  );
+}
+
 export interface ExtraCase {
   readonly id: string;
   readonly Component: ComponentType;
@@ -484,4 +514,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   orders: [{ id: 'showcase-orders', Component: Phase8Demos, demo: true }],
   photos: [{ id: 'showcase-order-photos', Component: Phase9OnRequest, demo: true }],
   dashboard: [{ id: 'showcase-dashboard-and-money', Component: Phase10OnRequest, demo: true }],
+  'site-content': [{ id: 'showcase-site-content', Component: Phase11OnRequest, demo: true }],
 };

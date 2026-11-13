@@ -31,6 +31,7 @@ const SECTIONS = [
   'Orders',
   'Order photos',
   'Dashboard and staff money',
+  'Site content and public website',
 ];
 
 /**
@@ -236,7 +237,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
   await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
   await expect(page.locator('main > section').first()).toBeVisible();
-  await expect(page.locator('main > section > div > h2')).toHaveCount(15);
+  await expect(page.locator('main > section > div > h2')).toHaveCount(16);
   await expect(page.getByText(/^Missing component/)).toHaveCount(0);
   // No sidebar item claims the page, and the sidebar has no link to it.
   await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);
@@ -418,6 +419,48 @@ for (const { name, theme } of THEMES) {
       await transfer.getByLabel(/^Amount/).fill('100');
       await transfer.getByRole('button', { name: 'Record Transfer' }).click();
       await expect(transfer).toBeHidden();
+      expect([...new Set(calls)], 'the demos call no API').toEqual([]);
+    });
+  }
+}
+
+// Plan 11-37: the Site content and public website cases load on request, make no API call, fit 320, 390 and 1440 px in both themes and have no
+// axe finding. Axe checks that section only, not the whole page.
+for (const { name, theme } of THEMES) {
+  for (const { width, height } of DASHBOARD_WIDTHS) {
+    test(`@showcase @site-content-showcase the Site content and public website cases show on request in ${name}, fit ${String(width)} px, make no API call and have no axe finding`, async ({
+      page,
+    }) => {
+      const calls: string[] = [];
+      page.on('request', (request) => {
+        const { pathname } = new URL(request.url());
+        if (pathname.startsWith('/api/')) calls.push(pathname);
+      });
+      if (theme === 'dark') {
+        await page.addInitScript({ content: `try { localStorage.setItem('csps-theme', 'dark'); } catch {}` });
+      }
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width, height });
+      const response = await page.goto('/dev/components');
+      expect(response?.status()).toBe(200);
+      await expect(page.locator('h1')).toHaveText('Component Showcase');
+      await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('[data-case="site-content-photo-slot-empty"]')).toHaveCount(0);
+      // Whatever the page itself asks for while it loads is not the demos' doing: the count starts when they are asked for.
+      calls.length = 0;
+
+      await page.getByRole('button', { name: 'Show the Site content cases' }).click();
+
+      const section = page.getByRole('region', { name: 'Site content and public website' });
+      await expect(section.locator('[data-case="site-content-photo-slot-empty"]')).toBeVisible({ timeout: 30_000 });
+      await expect(section.locator('[data-case]')).toHaveCount(14);
+      await page.evaluate(`(() => {
+        const heading = Array.from(document.querySelectorAll('h2')).find((h2) => h2.textContent === 'Site content and public website');
+        heading?.closest('section')?.setAttribute('data-axe-scope', '');
+      })()`);
+      await page.evaluate('document.fonts.ready.then(() => true)');
+      expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL), `no sideways scroll at ${String(width)} px`).toBe(true);
+      await expectNoAxeViolations(page, AXE_SECTION);
       expect([...new Set(calls)], 'the demos call no API').toEqual([]);
     });
   }
