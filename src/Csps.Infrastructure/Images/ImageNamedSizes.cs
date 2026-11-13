@@ -63,6 +63,11 @@ public static class ImageNamedSizes
     /// <summary>Gets the 1.91:1 link preview sizes of the admin screen: 320 x 168 and 640 x 336 (Phase 11).</summary>
     public static IReadOnlyList<ImageNamedSize> SharePreviews { get; } = [SharePreview(320, 168), SharePreview(640, 336)];
 
+    /// <summary>Finds the admin link preview size of a width.</summary>
+    /// <param name="width">The width in pixels: 320 or 640.</param>
+    /// <returns>The size.</returns>
+    public static ImageNamedSize SharePreviewOf(int width) => SharePreviews.Single(size => size.BoxWidth == width);
+
     /// <summary>Gets the 21 sizes Phase 11 adds.</summary>
     public static IReadOnlyList<ImageNamedSize> Phase11 { get; } = [.. CategoryCards, .. Strips, .. Widths, .. ProductSquares, Share, .. SharePreviews];
 

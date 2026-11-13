@@ -87,6 +87,11 @@ internal static class PublicHeadWriter
             AppendMeta(head, "property", "og:url", canonical);
             AppendSharePicture(head, model);
         }
+        else if (model.ShareImageUrl is not null)
+        {
+            // A page with no canonical address (the 404) still carries the picture when there is one, so a shared link to it shows it.
+            AppendSharePicture(head, model);
+        }
 
         if (model.NoIndex)
         {

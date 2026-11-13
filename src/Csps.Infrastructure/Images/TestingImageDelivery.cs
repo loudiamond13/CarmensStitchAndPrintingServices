@@ -51,6 +51,13 @@ public sealed class TestingImageDelivery : IImageDelivery
     /// <inheritdoc />
     public string ForShare(string publicId) => Address(IdOf(publicId), ImageNamedSizes.Share);
 
+    /// <inheritdoc />
+    public SharePreviewUrls ForSharePreview(string publicId)
+    {
+        var id = IdOf(publicId);
+        return new SharePreviewUrls(Address(id, ImageNamedSizes.SharePreviewOf(320)), Address(id, ImageNamedSizes.SharePreviewOf(640)));
+    }
+
     private static string IdOf(string publicId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(publicId);

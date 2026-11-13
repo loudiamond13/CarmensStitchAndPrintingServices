@@ -13,6 +13,9 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <summary>The only valid primary key.</summary>
     public const int SingletonId = 1;
 
+    /// <summary>Gets the fixed id the share picture folder is named after, since the settings key is a number and not a Guid.</summary>
+    public static Guid SingletonGuid { get; } = new("00000000-0000-0000-0000-000000000001");
+
     /// <summary>Maximum length of <see cref="BusinessName"/> in UTF-16 code units.</summary>
     public const int BusinessNameMaxLength = 120;
 
@@ -198,6 +201,21 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <summary>The Facebook page link; empty when not set.</summary>
     public string FacebookUrl { get; private set; }
 
+    /// <summary>The random id the default link preview picture is stored under; null when there is none.</summary>
+    public string? SharePicturePublicId { get; private set; }
+
+    /// <summary>The share picture's upright width in pixels; null when there is none.</summary>
+    public int? SharePictureWidth { get; private set; }
+
+    /// <summary>The share picture's upright height in pixels; null when there is none.</summary>
+    public int? SharePictureHeight { get; private set; }
+
+    /// <summary>The size of the stored share picture file in bytes; null when there is none.</summary>
+    public int? SharePictureBytes { get; private set; }
+
+    /// <summary>The share picture's file format: <c>jpg</c>, <c>png</c>, <c>webp</c> or <c>heic</c>; null when there is none.</summary>
+    public string? SharePictureFormat { get; private set; }
+
     /// <inheritdoc />
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -294,6 +312,37 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         }
 
         return Result.Success(new BusinessInfoChanges(changed, phones));
+    }
+
+    /// <summary>
+    /// Puts a new default link preview picture in place (D-26). The settings row keeps no history of files: the id of the picture it
+    /// named before is handed back, so the caller can queue that file for removal.
+    /// </summary>
+    /// <param name="file">The stored file's facts.</param>
+    /// <returns>The public id of the picture that was replaced, or null when there was none.</returns>
+    public string? SetSharePicture(LinePhotoFile file)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        var old = SharePicturePublicId;
+        SharePicturePublicId = file.PublicId;
+        SharePictureWidth = file.Width;
+        SharePictureHeight = file.Height;
+        SharePictureBytes = file.Bytes;
+        SharePictureFormat = file.Format;
+        return old;
+    }
+
+    /// <summary>Takes the default link preview picture away (D-26).</summary>
+    /// <returns>The public id of the picture that was removed, or null when there was none, which the caller answers as not found.</returns>
+    public string? RemoveSharePicture()
+    {
+        var old = SharePicturePublicId;
+        SharePicturePublicId = null;
+        SharePictureWidth = null;
+        SharePictureHeight = null;
+        SharePictureBytes = null;
+        SharePictureFormat = null;
+        return old;
     }
 
     /// <summary>

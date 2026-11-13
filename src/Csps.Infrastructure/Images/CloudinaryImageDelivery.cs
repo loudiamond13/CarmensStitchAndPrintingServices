@@ -89,6 +89,15 @@ public sealed partial class CloudinaryImageDelivery(IOptions<CloudinarySettings>
         return NoCloudName() ? string.Empty : Address(publicId, ImageNamedSizes.Share);
     }
 
+    /// <inheritdoc />
+    public SharePreviewUrls ForSharePreview(string publicId)
+    {
+        CheckInput(publicId, 1, 1);
+        return NoCloudName()
+            ? new SharePreviewUrls(string.Empty, string.Empty)
+            : new SharePreviewUrls(Address(publicId, ImageNamedSizes.SharePreviewOf(320)), Address(publicId, ImageNamedSizes.SharePreviewOf(640)));
+    }
+
     private string Address(string publicId, ImageNamedSize size) =>
         $"https://res.cloudinary.com/{_cloudName}/image/private/t_{size.Name}/v1/{publicId}";
 

@@ -2252,6 +2252,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/site-settings/share-picture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets the default link preview picture as a multipart form with the file in the `file` part. The type is read from the first
+         *     bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use, is over
+         *     10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The picture is stored
+         *     under a new random id every time, so a link shared before the change is not stuck with the old picture, and the file it replaces is
+         *     queued for removal in the same save. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with
+         *     the same `Idempotency-Key` and body answers with the stored answer and adds nothing more. The public pages carry the new
+         *     picture at once.
+         */
+        post: operations["UploadSharePicture"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staff": {
         parameters: {
             query?: never;
@@ -5404,6 +5429,26 @@ export interface components {
         SetTemporaryPasswordRequest: {
             /** @description The temporary password as typed. */
             temporaryPassword: null | string;
+        };
+        /**
+         * @description The default link preview picture as the Business Info card shows it (D-26): a small and a larger preview at the 1.91:1 shape, and
+         *     the size of the stored file. A site with no picture has none of this: the settings carry null.
+         */
+        SharePictureDto: {
+            /**
+             * Format: int32
+             * @description The upright height of the stored picture in pixels.
+             */
+            height: number | string;
+            /** @description The address of the 320 x 168 preview. */
+            src320: string;
+            /** @description The address of the 640 x 336 preview, for the full-width view on a phone. */
+            src640: string;
+            /**
+             * Format: int32
+             * @description The upright width of the stored picture in pixels.
+             */
+            width: number | string;
         };
         /** @description One closure as a Manager sees it (CONT-04): the days as "yyyy-MM-dd", the public note and the version a save must send back. */
         ShopClosureDto: {
@@ -13650,6 +13695,96 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadSharePicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharePictureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

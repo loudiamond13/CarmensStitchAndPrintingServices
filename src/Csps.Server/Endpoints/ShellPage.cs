@@ -228,6 +228,7 @@ internal sealed partial class ShellRenderer(
         string? linesJson = null;
         string? shareImage = null;
         string? homeJson = null;
+        var siteImage = AbsoluteAddress(origin, snapshot.ShareImageUrl);
         if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Products)
         {
             var lines = await ReadLinesAsync(context).ConfigureAwait(false);
@@ -255,10 +256,16 @@ internal sealed partial class ShellRenderer(
             var home = await ReadHomeAsync(context).ConfigureAwait(false);
             if (home is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null);
             }
 
             homeJson = home.Json.Json;
+            shareImage = siteImage;
+        }
+        else
+        {
+            // Contact and the 404 have no picture of their own, so they carry the default one.
+            shareImage = siteImage;
         }
 
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
@@ -280,7 +287,7 @@ internal sealed partial class ShellRenderer(
         var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson, homeJson);
         if (match.Kind == PublicRouteKind.NotFound)
         {
-            return NotFoundHead(boot);
+            return NotFoundHead(boot, snapshot.Site.BusinessName, shareImage);
         }
 
         var site = snapshot.Site;
@@ -300,11 +307,11 @@ internal sealed partial class ShellRenderer(
         return head.ToString();
     }
 
-    private static string NotFoundHead(string? boot)
+    private static string NotFoundHead(string? boot, string? siteName = null, string? shareImage = null)
     {
         var notFound = PublicPageHeads.NotFound;
         var head = new StringBuilder();
-        PublicHeadWriter.Write(head, new PublicHeadModel(notFound.Title, notFound.Description, null, null, NoIndex: true, BootJson: boot));
+        PublicHeadWriter.Write(head, new PublicHeadModel(notFound.Title, notFound.Description, null, siteName, NoIndex: true, BootJson: boot, ShareImageUrl: shareImage));
         return head.ToString();
     }
 

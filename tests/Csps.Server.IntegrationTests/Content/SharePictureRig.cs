@@ -46,12 +46,17 @@ internal sealed class SharePictureRig : IAsyncDisposable
         await ClearAsync(Database);
     }
 
-    /// <summary>Puts the share picture columns back to null; a database without them yet is left as it is.</summary>
+    /// <summary>Puts the share picture columns back to null.</summary>
     public static async Task ClearAsync(CspsDatabase database)
     {
         await using var context = database.CreateContext();
-        await context.Database.ExecuteSqlRawAsync(
-            "IF COL_LENGTH(N'dbo.SiteSettings', N'SharePicturePublicId') IS NOT NULL EXEC(N'UPDATE dbo.SiteSettings SET SharePicturePublicId = NULL, SharePictureWidth = NULL, SharePictureHeight = NULL, SharePictureBytes = NULL, SharePictureFormat = NULL;');",
+        await context.SiteSettings.ExecuteUpdateAsync(
+            set => set
+                .SetProperty(row => row.SharePicturePublicId, (string?)null)
+                .SetProperty(row => row.SharePictureWidth, (int?)null)
+                .SetProperty(row => row.SharePictureHeight, (int?)null)
+                .SetProperty(row => row.SharePictureBytes, (int?)null)
+                .SetProperty(row => row.SharePictureFormat, (string?)null),
             TestContext.Current.CancellationToken);
     }
 
