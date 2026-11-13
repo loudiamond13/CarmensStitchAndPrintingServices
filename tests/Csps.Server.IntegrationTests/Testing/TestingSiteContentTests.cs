@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Domain.Content;
+using Csps.Domain.Identity;
 using Csps.Server.Composition;
 using Csps.Server.IntegrationTests.Content;
 using Csps.Testing;
@@ -309,6 +310,25 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
             photo.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("image/png");
             (await photo.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length.ShouldBeGreaterThan(0);
         }
+    }
+
+    [Fact]
+    public async Task APostTakesAnyOtherShownOrderOffTheWebsiteSoTheGalleryHoldsOnlyTheDemoSet()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await GallerySeeding.AddOrdersAsync(database, [new SeedGalleryOrder("Leftover Shown Team")], LegacyHolder.Id, new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero));
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var read = await client.GetAsync(new Uri("/api/v1/public/gallery", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        (await context.GalleryEntries.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(6);
+        (await context.Orders.AsNoTracking().CountAsync(order => order.ShownOnWebsiteSinceUtc != null, TestContext.Current.CancellationToken)).ShouldBe(4);
+        using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("team").GetString()).ShouldNotContain("Leftover Shown Team");
     }
 
     [Fact]

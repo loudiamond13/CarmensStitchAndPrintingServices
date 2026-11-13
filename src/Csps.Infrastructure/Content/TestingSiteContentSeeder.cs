@@ -18,7 +18,7 @@ namespace Csps.Infrastructure.Content;
 /// name starts with "E2E-" with their photos and links. It puts the four demo testimonials in place (three shown in order and one
 /// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". It puts the five demo gallery orders in place: four
 /// shown (made-up teams on the basketball, volleyball and moto lines, one with four photos) and one with the customer's OK that is not
-/// shown. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
+/// shown. It takes every other shown order off the website. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
 /// whose team starts with "E2E-". It leaves a demo default link preview picture in place (1200 x 630), so a spec can check the page heads.
 /// Every demo photo and the demo share picture have a tiny valid file in the in-memory photo store, so their addresses answer 200. The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
 /// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
@@ -161,6 +161,20 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         context.Orders.RemoveRange(stale);
+
+        // Any other order on the website (the dev seed shows three, an earlier spec may have shown more) is taken off and loses its
+        // gallery entry, so the gallery and Home hold only the demo set.
+        var shown = await context.Orders
+            .Where(order => !order.Number.StartsWith(DemoOrderPrefix) && order.ShownOnWebsiteSinceUtc != null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var shownIds = shown.Select(order => order.Id).ToList();
+        context.GalleryEntries.RemoveRange(await context.GalleryEntries.Where(entry => entry.OrderId != null && shownIds.Contains(entry.OrderId.Value)).ToListAsync(cancellationToken).ConfigureAwait(false));
+        foreach (var order in shown)
+        {
+            context.Entry(order).Property(row => row.ShownOnWebsiteSinceUtc).CurrentValue = null;
+        }
+
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var now = time.GetUtcNow();
