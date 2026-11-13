@@ -137,6 +137,15 @@ public sealed class UpdateOrderDetailsHandler(
             publicChanges = applied.Value;
         }
 
+        // A shown order needs a name whatever the form carried, or the gallery would drop it without a word (D-13).
+        if (order.IsShownWithoutName)
+        {
+            return Result.Failure<bool>(Error.Validation(
+                OrderRules.InvalidCode,
+                OrderRules.InvalidMessage,
+                new Dictionary<string, string[]> { [OrderRules.TeamNameField] = [OrderPublicSettings.NameRequiredMessage] }));
+        }
+
         var publicChanged = publicChanges is { HasAny: true };
         if (!changes.Value.HasAny && !publicChanged)
         {
