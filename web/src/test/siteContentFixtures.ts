@@ -1,6 +1,7 @@
 // Site Content fixtures for component, hook and service tests (plan 11-12): the staff view of the demo shop's settings as
 // GET /api/v1/site-settings answers it, and an MSW backend that records every save. Every value is made up.
 import { http, HttpResponse } from 'msw';
+import { HttpError } from '@/core/api/errors';
 import { server } from '@/test/msw';
 import { buildOrderList } from '@/test/orderFixtures';
 import type { components } from '@/types/api.generated';
@@ -1113,6 +1114,30 @@ export function manyGalleryItems(count: number): GalleryItemFixture[] {
   });
 }
 
+/**
+ * The refusal of a multipart upload as the HTTP client raises it. A real refusal cannot be answered by the fake API: jsdom's form body and
+ * Node's fetch disagree about its length once the answer comes before the body is read, so the tests make the service reject instead.
+ */
+export function uploadRefused(
+  status: number,
+  extra: { code?: string; detail?: string; errors?: Record<string, string[]> } = {},
+): HttpError {
+  return new HttpError({
+    kind: 'http',
+    status,
+    problem: {
+      type: undefined,
+      title: 'Generic status words.',
+      status,
+      detail: extra.detail,
+      instance: undefined,
+      traceId: undefined,
+      code: extra.code,
+      errors: extra.errors ?? {},
+    },
+  });
+}
+
 export interface GalleryItemsBackend {
   /** The items the API holds, in gallery order. */
   items: GalleryItemFixture[];
@@ -1211,7 +1236,7 @@ export function galleryItemsBackend(
         return answer;
       }
       const item = itemOf(id);
-      if (item === undefined || item.kind !== 'upload') {
+      if (item?.kind !== 'upload') {
         return notFound();
       }
       const made: GalleryItemFixture = {
@@ -1234,7 +1259,7 @@ export function galleryItemsBackend(
         return answer;
       }
       const item = itemOf(id);
-      if (item === undefined || item.kind !== 'upload') {
+      if (item?.kind !== 'upload') {
         return notFound();
       }
       const made = { ...item, version: galleryVersionAfter(30 + backend.photos.length) };

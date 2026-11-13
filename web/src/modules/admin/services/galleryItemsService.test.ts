@@ -189,7 +189,7 @@ describe('galleryItemsService.move, hide, show and remove', () => {
     await service.hide(upload.id, 'key-7');
     await service.show(upload.id, 'key-8');
 
-    expect(fake.calls.map((call) => `${String(call.method)} ${String(call.url)}`)).toEqual([
+    expect(fake.calls.map((call) => `${call.method} ${call.url}`)).toEqual([
       `POST /api/v1/gallery-items/${upload.id}/hide`,
       `POST /api/v1/gallery-items/${upload.id}/show`,
     ]);

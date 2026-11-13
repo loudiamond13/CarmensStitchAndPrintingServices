@@ -17,11 +17,21 @@ import {
   useUpdateGalleryUpload,
 } from '@/modules/admin/hooks/useGalleryItemQueries';
 import { productLinesKey } from '@/modules/admin/hooks/useProductLineQueries';
-import type { GalleryAddForm, GalleryUploadRequest } from '@/modules/admin/services/galleryItemsService';
+import {
+  galleryItemsService,
+  type GalleryAddForm,
+  type GalleryUploadRequest,
+} from '@/modules/admin/services/galleryItemsService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { GALLERY_IDS, galleryItemsBackend, LINE_IDS, problemAnswer } from '@/test/siteContentFixtures';
+import {
+  GALLERY_IDS,
+  galleryItemsBackend,
+  LINE_IDS,
+  problemAnswer,
+  uploadRefused,
+} from '@/test/siteContentFixtures';
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
@@ -148,9 +158,10 @@ describe('useCreateGalleryUpload', () => {
   });
 
   it('a refused add clears nothing and hands the failure on', async () => {
-    galleryItemsBackend(undefined, {
-      onPost: () => problemAnswer(400, { errors: { teamName: ['Enter the team or name.'] } }),
-    });
+    galleryItemsBackend();
+    vi.spyOn(galleryItemsService, 'create').mockRejectedValue(
+      uploadRefused(400, { errors: { teamName: ['Enter the team or name.'] } }),
+    );
     const onFailure = vi.fn();
     const { result } = renderHook(() => useCreateGalleryUpload({ onFailure }), { wrapper });
 

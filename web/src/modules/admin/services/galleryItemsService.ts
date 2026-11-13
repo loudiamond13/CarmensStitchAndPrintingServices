@@ -31,10 +31,24 @@ export interface GalleryAddForm {
   isShown: boolean;
 }
 
+/** A photo upload may take a while on a slow mobile connection (D-31). */
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 export interface GalleryItemsService {
+  /** `GET /api/v1/gallery-items`: one page of every shown order and every upload in gallery order, with an optional line filter. */
   list(query: GalleryListQuery, signal?: AbortSignal): Promise<GalleryItemPage>;
+  /**
+   * `POST /api/v1/gallery-items`: adds a photo for older work as a multipart form (part `file` and the text parts). It joins the top. The caller
+   * supplies one Idempotency-Key per submission. 400 lists the field errors or the photo refusal, 409, 413, 429, 503. A keyed upload is never
+   * retried by the client.
+   */
   create(form: GalleryAddForm, idempotencyKey: string, signal?: AbortSignal): Promise<GalleryItem>;
+  /**
+   * `PUT /api/v1/gallery-items/{id}`: saves the form of an upload. The body carries the version the form was opened with: 409 `edit.stale` when
+   * it is not the stored one. A form edit is never retried, so it carries no Idempotency-Key. 400 lists the field errors, 404.
+   */
   update(id: string, body: GalleryUploadRequest, signal?: AbortSignal): Promise<GalleryItem>;
+  /** `POST /api/v1/gallery-items/{id}/photo`: puts a new file in place of the photo and answers the item with its new version. One key per file. */
   replacePhoto(
     id: string,
     file: Blob,
@@ -42,6 +56,7 @@ export interface GalleryItemsService {
     idempotencyKey: string,
     signal?: AbortSignal,
   ): Promise<GalleryItem>;
+  /** `POST /api/v1/gallery-items/{id}/move`: swaps with the visible neighbour (the next item of the line when `lineId` is set). One key per attempt. */
   move(
     id: string,
     direction: MoveDirection,
@@ -49,25 +64,54 @@ export interface GalleryItemsService {
     idempotencyKey: string,
     signal?: AbortSignal,
   ): Promise<void>;
+  /** `POST /api/v1/gallery-items/{id}/hide`: takes an upload off the website. One Idempotency-Key per attempt. 404. */
   hide(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /** `POST /api/v1/gallery-items/{id}/show`: puts an upload on the website. One Idempotency-Key per attempt. 404. */
   show(id: string, idempotencyKey: string, signal?: AbortSignal): Promise<void>;
+  /** `DELETE /api/v1/gallery-items/{id}`: removes an upload for good. No version, no Idempotency-Key. 404 when it is gone. */
   remove(id: string, signal?: AbortSignal): Promise<void>;
 }
 
-const notBuilt = (): never => {
-  throw new Error('The gallery service is not built yet.');
-};
+const itemPath = (id: string): string => `/gallery-items/${encodeURIComponent(id)}`;
 
-export function createGalleryItemsService(_client: HttpClient): GalleryItemsService {
+export function createGalleryItemsService(client: HttpClient): GalleryItemsService {
   return {
-    list: notBuilt,
-    create: notBuilt,
-    update: notBuilt,
-    replacePhoto: notBuilt,
-    move: notBuilt,
-    hide: notBuilt,
-    show: notBuilt,
-    remove: notBuilt,
+    list: (query, signal) =>
+      client.get<GalleryItemPage>('/gallery-items', {
+        params: { line: query.line, page: query.page, pageSize: query.pageSize },
+        signal,
+      }),
+    create: (form, idempotencyKey, signal) => {
+      const body = new FormData();
+      body.append('file', form.file, form.fileName);
+      body.append('teamName', form.teamName);
+      body.append('productLineId', form.productLineId);
+      if (form.pieces !== null) {
+        body.append('pieces', String(form.pieces));
+      }
+      body.append('note', form.note);
+      body.append('isShown', String(form.isShown));
+      return client.post<GalleryItem>('/gallery-items', body, { idempotencyKey, signal, timeoutMs: UPLOAD_TIMEOUT_MS });
+    },
+    update: (id, body, signal) => client.put<GalleryItem>(itemPath(id), body, { signal }),
+    replacePhoto: (id, file, fileName, idempotencyKey, signal) => {
+      const body = new FormData();
+      body.append('file', file, fileName);
+      return client.post<GalleryItem>(`${itemPath(id)}/photo`, body, {
+        idempotencyKey,
+        signal,
+        timeoutMs: UPLOAD_TIMEOUT_MS,
+      });
+    },
+    move: (id, direction, lineId, idempotencyKey, signal) =>
+      client.post(
+        `${itemPath(id)}/move`,
+        lineId === null ? { direction } : { direction, lineId },
+        { idempotencyKey, signal },
+      ),
+    hide: (id, idempotencyKey, signal) => client.post(`${itemPath(id)}/hide`, undefined, { idempotencyKey, signal }),
+    show: (id, idempotencyKey, signal) => client.post(`${itemPath(id)}/show`, undefined, { idempotencyKey, signal }),
+    remove: (id, signal) => client.delete(itemPath(id), { signal }),
   };
 }
 

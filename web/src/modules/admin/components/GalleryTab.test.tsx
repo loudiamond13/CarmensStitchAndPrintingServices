@@ -17,6 +17,7 @@ import {
   demoGalleryItems,
   GALLERY_ORDER_IDS,
   galleryItemsBackend,
+  type GalleryItemFixture,
   productLinesBackend,
 } from '@/test/siteContentFixtures';
 import { prepareImage } from '@/utils/images';
@@ -84,6 +85,24 @@ function bodyRows(table: HTMLElement): HTMLElement[] {
   return within(table).getAllByRole('row').slice(1);
 }
 
+/** The row at this place; the table is known to hold it. */
+function rowAt(rows: readonly HTMLElement[], index: number): HTMLElement {
+  const row = rows[index];
+  if (row === undefined) {
+    throw new Error(`No row at place ${String(index)}`);
+  }
+  return row;
+}
+
+/** The demo item at this place of the gallery order. */
+function demoItem(index: number): GalleryItemFixture {
+  const item = demoGalleryItems()[index];
+  if (item === undefined) {
+    throw new Error(`No demo item at place ${String(index)}`);
+  }
+  return item;
+}
+
 /** The text of one cell of a row, by its phone label. */
 function cellText(row: HTMLElement, label: string): string {
   return row.querySelector(`td[data-label="${label}"]`)?.textContent ?? '';
@@ -119,7 +138,7 @@ describe('the list', () => {
   });
 
   it('reads "Showing 1 item" for one item', async () => {
-    galleryItemsBackend([demoGalleryItems()[0] ?? demoGalleryItems()[1]!]);
+    galleryItemsBackend([demoItem(0)]);
     await openTab();
 
     expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 1 item · in gallery order');
@@ -130,10 +149,10 @@ describe('the list', () => {
     const { table } = await openTab();
     const rows = bodyRows(table);
 
-    expect(cellText(rows[0] as HTMLElement, 'Source')).toBe('Uploaded');
-    const link = within(rows[1] as HTMLElement).getByRole('link', { name: 'ORD-2026-0148' });
+    expect(cellText(rowAt(rows, 0), 'Source')).toBe('Uploaded');
+    const link = within(rowAt(rows, 1)).getByRole('link', { name: 'ORD-2026-0148' });
     expect(link).toHaveAttribute('href', `/admin/orders/${GALLERY_ORDER_IDS.ballers}`);
-    expect(within(rows[0] as HTMLElement).queryByRole('link')).toBeNull();
+    expect(within(rowAt(rows, 0)).queryByRole('link')).toBeNull();
   });
 
   it('shows a 56 pixel decorative thumb for an item with a photo and a placeholder for one without', async () => {
@@ -142,10 +161,10 @@ describe('the list', () => {
     const { table } = await openTab();
     const rows = bodyRows(table);
 
-    const thumb = within(rows[0] as HTMLElement).getByRole('presentation', { hidden: true });
+    const thumb = within(rowAt(rows, 0)).getByRole('presentation', { hidden: true });
     expect(thumb).toHaveAttribute('width', '56');
     expect(thumb).toHaveAttribute('height', '56');
-    expect(within(rows[3] as HTMLElement).queryByRole('presentation', { hidden: true })).toBeNull();
+    expect(within(rowAt(rows, 3)).queryByRole('presentation', { hidden: true })).toBeNull();
   });
 
   it('shows "Shown" or "Hidden" for an upload, "Shown" for an order item, and "Line hidden" under an item whose line is hidden', async () => {
@@ -153,18 +172,18 @@ describe('the list', () => {
     const { table } = await openTab();
     const rows = bodyRows(table);
 
-    expect(cellText(rows[0] as HTMLElement, 'Status')).toBe('Shown');
-    expect(cellText(rows[1] as HTMLElement, 'Status')).toBe('Shown');
-    expect(cellText(rows[5] as HTMLElement, 'Status')).toBe('HiddenLine hidden');
-    expect(within(rows[0] as HTMLElement).queryByText('Line hidden')).toBeNull();
+    expect(cellText(rowAt(rows, 0), 'Status')).toBe('Shown');
+    expect(cellText(rowAt(rows, 1), 'Status')).toBe('Shown');
+    expect(cellText(rowAt(rows, 5), 'Status')).toBe('HiddenLine hidden');
+    expect(within(rowAt(rows, 0)).queryByText('Line hidden')).toBeNull();
   });
 
   it('keeps an item with no line and no pieces to a name alone under the photo', async () => {
-    const items = [{ ...(demoGalleryItems()[3] as ReturnType<typeof demoGalleryItems>[number]), lineId: null, lineShortName: null, pieces: null }];
+    const items = [{ ...demoItem(3), lineId: null, lineShortName: null, pieces: null }];
     galleryItemsBackend(items);
     const { table } = await openTab();
 
-    expect(cellText(bodyRows(table)[0] as HTMLElement, 'Photo')).toBe('Sample Old Hoopers');
+    expect(cellText(rowAt(bodyRows(table), 0), 'Photo')).toBe('Sample Old Hoopers');
   });
 
   it('opens the Add Photo window from the head button', async () => {

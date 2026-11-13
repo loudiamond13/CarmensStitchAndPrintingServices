@@ -497,8 +497,8 @@ export const SITE_CONTENT_COPY = {
     },
     filter: { label: 'Product line', all: 'All lines', hidden: (title: string): string => `${title} (hidden)` },
     /** The result bar's nouns: "Showing 6 items · in gallery order" and "Showing 1 item". */
-    thing: 'item',
-    things: 'items',
+    resultThing: 'item',
+    resultThings: 'items',
     orderNote: 'in gallery order',
     /** The Source of an item that was added here rather than shown from an order. */
     uploaded: 'Uploaded',
@@ -564,6 +564,7 @@ export const SITE_CONTENT_COPY = {
       saving: 'Saving',
       /** The picked file's name above the preview, and the empty frame's text (SPEC-GAP). */
       noPhoto: 'No photo chosen yet',
+      photoHint: 'JPG, PNG, WEBP or HEIC · up to 10 MB',
       /** The status line once a photo is chosen and prepared, before it is sent. */
       photoChosen: 'Photo chosen',
       previewAlt: (team: string): string => (team === '' ? 'The chosen photo' : `Photo of ${team}`),

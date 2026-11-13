@@ -20,6 +20,7 @@ import {
 import { ConfirmDialog } from '@/components/overlays';
 import { Badge } from '@/components/status';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
+import { GalleryTab } from '@/modules/admin/components/GalleryTab';
 import { HoursTab } from '@/modules/admin/components/HoursTab';
 import { ProductLinesTab } from '@/modules/admin/components/ProductLinesTab';
 import { expensesHeadActionsClasses, expensesTitleRowClasses } from '@/modules/admin/components/expenses.recipe';
@@ -39,14 +40,16 @@ const ID_BASE = 'content';
 export type SiteContentPanels = Partial<Record<SiteContentTab, (onDirtyChange: (dirty: boolean) => void) => ReactNode>>;
 
 /**
- * The tabs that are built so far: 'business', 'hours', 'products' and 'testimonials'. The Products and Testimonials tabs edit nothing in the tab
- * itself (a testimonial is edited in its own window, which asks before it drops changes), so they report no unsaved changes.
+ * The five tabs: 'business', 'hours', 'products', 'testimonials' and 'gallery'. The Products, Testimonials and Gallery tabs edit nothing in the
+ * tab itself (a testimonial or a gallery photo is edited in its own window, which asks before it drops changes), so they report no unsaved
+ * changes.
  */
 const BUILT_PANELS: SiteContentPanels = {
   business: (onDirtyChange) => <BusinessInfoTab onDirtyChange={onDirtyChange} />,
   hours: (onDirtyChange) => <HoursTab onDirtyChange={onDirtyChange} />,
   products: () => <ProductLinesTab />,
   testimonials: () => <TestimonialsTab />,
+  gallery: () => <GalleryTab />,
 };
 
 export function SiteContentPage({ panels }: { panels: SiteContentPanels }) {

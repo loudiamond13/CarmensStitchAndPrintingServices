@@ -13,9 +13,11 @@ import { createDeferred } from '@/test/fakeFetch';
 import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
+  GALLERY_IDS,
+  galleryItem,
   galleryItemsBackend,
   LINE_IDS,
-  problemAnswer,
+  uploadRefused,
   productLinesBackend,
   demoLines,
 } from '@/test/siteContentFixtures';
@@ -75,7 +77,7 @@ interface Props {
   onSaved?: (saved: GalleryItem) => void;
 }
 
-function renderAdd({ onClose = vi.fn(), onSaved = vi.fn() }: Props = {}) {
+function renderAdd({ onClose = vi.fn<() => void>(), onSaved = vi.fn<(saved: GalleryItem) => void>() }: Props = {}) {
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -83,7 +85,7 @@ function renderAdd({ onClose = vi.fn(), onSaved = vi.fn() }: Props = {}) {
       </ToastProvider>
     </QueryClientProvider>,
   );
-  return { ...view, user: userEvent.setup(), onClose, onSaved };
+  return { ...view, user: userEvent.setup({ applyAccept: false }), onClose, onSaved };
 }
 
 const team = (): HTMLInputElement => screen.getByLabelText(/^Team or name/);
@@ -95,6 +97,14 @@ const save = (): HTMLElement => screen.getByRole('button', { name: 'Save Photo' 
 
 function pick(field: HTMLElement, value: string): void {
   fireEvent.change(field, { target: { value } });
+}
+
+/** Chooses a product line once the lines have been read and the Select offers it. */
+async function chooseLine(id: string): Promise<void> {
+  await waitFor(() => {
+    expect(line().querySelector(`option[value="${id}"]`)).not.toBeNull();
+  });
+  pick(line(), id);
 }
 
 function fileInput(): HTMLInputElement {
@@ -145,7 +155,7 @@ describe('the add window', () => {
       .map((option) => option.textContent);
     expect(labels[0]).toBe('Choose a product line');
     expect(labels).toContain('Basketball Jerseys');
-    expect(labels.some((label) => label?.endsWith(' (hidden)'))).toBe(true);
+    expect(labels.some((label) => label.endsWith(' (hidden)'))).toBe(true);
   });
 
   it('shows "Choose a photo." when Save is pressed with no photo, and sends nothing', async () => {
@@ -201,7 +211,7 @@ describe('the add window', () => {
     await screen.findByRole('dialog', { name: 'Add Photo' });
     await choosePhoto(user, 'riders.jpg');
     pick(team(), ' Sample New Upload ');
-    pick(line(), LINE_IDS.moto);
+    await chooseLine(LINE_IDS.moto);
     pick(pieces(), '12');
 
     await user.click(save());
@@ -221,41 +231,43 @@ describe('the add window', () => {
     });
   });
 
-  it('sends one multipart POST with one Idempotency-Key, shows Uploading while it goes, then the toast, hands the item on and closes', async () => {
-    const gate = createDeferred<undefined>();
-    const backend = galleryItemsBackend(undefined, { onPost: () => gate.promise.then(() => undefined) });
+  it('sends one add with one Idempotency-Key, shows Uploading while it goes, then the toast, hands the item on and closes', async () => {
+    const gate = createDeferred<GalleryItem>();
+    galleryItemsBackend();
+    const create = vi.spyOn(galleryItemsService, 'create').mockImplementation(() => gate.promise);
     const { user, onSaved, onClose } = renderAdd();
     await screen.findByRole('dialog', { name: 'Add Photo' });
     await choosePhoto(user);
     pick(team(), 'Sample New Upload');
-    pick(line(), LINE_IDS.moto);
+    await chooseLine(LINE_IDS.moto);
 
     await user.click(save());
 
-    expect(await screen.findByRole('button', { name: 'Uploading' })).toBeVisible();
+    const uploading = await screen.findByRole('button', { name: 'Uploading' });
+    expect(uploading).toHaveAttribute('aria-busy', 'true');
     expect(onClose).not.toHaveBeenCalled();
-    gate.resolve(undefined);
+    gate.resolve(galleryItem(GALLERY_IDS.newUpload, 'upload', { name: 'Sample Barangay Riders' }));
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledOnce();
     });
-    expect(backend.posts).toHaveLength(1);
-    expect(backend.posts[0]?.key).toMatch(/\S/);
-    expect(backend.posts[0]?.contentType).toMatch(/^multipart\/form-data/);
-    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sample New Upload' }));
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0]?.[1]).toMatch(/\S/);
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sample Barangay Riders' }));
     expect(await screen.findByText('Photo added')).toBeVisible();
     expect(screen.getByText("It's at the top of the Gallery.")).toBeVisible();
     expect(invalidatePublicContent).toHaveBeenCalledOnce();
   });
 
   it('puts a server message under its field and focuses it', async () => {
-    galleryItemsBackend(undefined, {
-      onPost: () => problemAnswer(400, { errors: { teamName: ['Enter the team or name.'] } }),
-    });
+    galleryItemsBackend();
+    vi.spyOn(galleryItemsService, 'create').mockRejectedValue(
+      uploadRefused(400, { errors: { teamName: ['Enter the team or name.'] } }),
+    );
     const { user, onClose } = renderAdd();
     await screen.findByRole('dialog', { name: 'Add Photo' });
     await choosePhoto(user);
     pick(team(), 'Sample New Upload');
-    pick(line(), LINE_IDS.moto);
+    await chooseLine(LINE_IDS.moto);
 
     await user.click(save());
 
@@ -266,14 +278,15 @@ describe('the add window', () => {
   });
 
   it('says what went wrong above the fields when the server refuses the photo itself', async () => {
-    galleryItemsBackend(undefined, {
-      onPost: () => problemAnswer(400, { code: 'images.type', detail: 'That file is not a photo we can use.' }),
-    });
+    galleryItemsBackend();
+    vi.spyOn(galleryItemsService, 'create').mockRejectedValue(
+      uploadRefused(400, { code: 'images.type', detail: 'That file is not a photo we can use.' }),
+    );
     const { user } = renderAdd();
     await screen.findByRole('dialog', { name: 'Add Photo' });
     await choosePhoto(user);
     pick(team(), 'Sample New Upload');
-    pick(line(), LINE_IDS.moto);
+    await chooseLine(LINE_IDS.moto);
 
     await user.click(save());
 
@@ -281,7 +294,8 @@ describe('the add window', () => {
   });
 
   it('asks "Discard changes?" when a changed window is closed, and closes straight away when nothing changed', async () => {
-    const { user, onClose } = renderAdd();
+    const onClose = vi.fn<() => void>();
+    const { user } = renderAdd({ onClose });
     await screen.findByRole('dialog', { name: 'Add Photo' });
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));

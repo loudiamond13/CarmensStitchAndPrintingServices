@@ -122,3 +122,19 @@ export const testimonialStatusClasses = tw('flex flex-col items-start gap-1');
 
 /** "On the Home page" under the badge (12px muted). */
 export const testimonialHomeNoteClasses = tw('text-[12px] leading-4 text-ink-muted');
+
+// ---- Gallery tab (S6; plan 11-32) ----
+
+/** The 56 x 56 cover of a gallery item, or its placeholder. */
+export const galleryThumbClasses = tw('size-14 shrink-0 overflow-hidden rounded-sm bg-surface-2');
+
+/** The name over "{Basketball} · {17} pcs" beside the thumb: it may wrap but never widens the cell. */
+export const galleryNameClasses = tw('text-[14px] leading-5 font-semibold wrap-anywhere');
+
+/** The order number as a link to the order (`--accent-ink`), at least 24px tall (WCAG 2.5.8). */
+export const galleryOrderLinkClasses = tw(
+  'inline-flex min-h-6 items-center font-semibold text-accent-ink hover:underline hover:underline-offset-4',
+);
+
+/** The status cell: the badge, and "Line hidden" under it. */
+export const galleryStatusClasses = tw('flex flex-col items-start gap-1');
