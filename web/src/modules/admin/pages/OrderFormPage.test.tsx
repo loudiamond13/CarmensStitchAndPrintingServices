@@ -25,11 +25,14 @@ import {
   order0148,
   orderId,
   orderProblem,
+  PRODUCT_LINE_OPTIONS,
+  publicWebsiteBlock,
   useOrderHandlers,
   type OrderBackend,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
+import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
@@ -342,6 +345,152 @@ describe('saving (ORD-03, SEC-06)', () => {
     await screen.findByText('The order page');
     expect(backend.writes).toHaveLength(2);
     expect(backend.writes[1]?.key).toBe(backend.writes[0]?.key);
+  });
+});
+
+describe('the Public website card on the New Order form (UI-SPEC F1; D-11, D-16; plan 11-35)', () => {
+  const BASKETBALL_LINE = PRODUCT_LINE_OPTIONS[0]?.id ?? '';
+
+  /** Waits for the line options the card offers. */
+  async function openFormWithLines() {
+    const view = await openForm();
+    await screen.findByRole('option', { name: 'Basketball Jerseys' });
+    return view;
+  }
+
+  async function tickOkAndShow(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show on the website' }));
+  }
+
+  it('sits after Order details and before Images, with its hint and no preview', async () => {
+    useOrderHandlers();
+    await openFormWithLines();
+
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(titles.indexOf('Public website')).toBe(titles.indexOf('Order details') + 1);
+    expect(titles.indexOf('Images')).toBe(titles.indexOf('Public website') + 1);
+    expect(screen.getByText("Only with the customer's OK.")).toBeVisible();
+    expect(screen.queryByText(/^Visitors see:/)).toBeNull();
+  });
+
+  it('starts with both boxes unticked (D-11)', async () => {
+    useOrderHandlers();
+    await openFormWithLines();
+
+    expect(screen.getByRole('checkbox', { name: 'Customer said OK to show' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show on the website' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('posts the OK and Show with no line and no name when both are ticked', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    const { user } = await openFormWithLines();
+    await fillValidOrder(user);
+    await tickOkAndShow(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(1);
+    expect((backend.writes[0]?.body as { publicWebsite?: unknown }).publicWebsite).toEqual({
+      customerConsent: true,
+      showOnWebsite: true,
+      productLineId: null,
+      publicName: null,
+    });
+  });
+
+  it('posts the line and the trimmed name when they are set', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    const { user } = await openFormWithLines();
+    await fillValidOrder(user);
+    await tickOkAndShow(user);
+    await user.selectOptions(screen.getByLabelText(/^Show under/), BASKETBALL_LINE);
+    await user.type(screen.getByLabelText(/^Name shown/), '  Test Hawks MC  ');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect((backend.writes[0]?.body as { publicWebsite?: unknown }).publicWebsite).toEqual({
+      customerConsent: true,
+      showOnWebsite: true,
+      productLineId: BASKETBALL_LINE,
+      publicName: 'Test Hawks MC',
+    });
+  });
+
+  it('sends no publicWebsite block when the card was left alone, or ticked and unticked again', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    const { user } = await openFormWithLines();
+    await fillValidOrder(user);
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes[0]?.body).not.toHaveProperty('publicWebsite');
+  });
+
+  it('needs a name to show an order that has no team, and sends nothing until it has one', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    const { user } = await openFormWithLines();
+    await fillValidOrder(user);
+    await user.clear(screen.getByLabelText(/^Team \/ organization/));
+    await tickOkAndShow(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Name shown/)).toBeInvalid();
+    });
+    expect(screen.getByLabelText(/^Name shown/)).toHaveFocus();
+    expect(backend.writes).toHaveLength(0);
+  });
+
+  it('counts a change in the card for the Discard changes? guard (ORD-15)', async () => {
+    useOrderHandlers();
+    const { user } = await openFormWithLines();
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+  });
+
+  it('puts a server 400 under publicWebsite.productLineId under Show under and focuses it', async () => {
+    useOrderHandlers({
+      reply: () =>
+        HttpResponse.json(
+          {
+            title: 'x',
+            status: 400,
+            errors: { 'publicWebsite.productLineId': ['Choose the product line to show this order under.'] },
+          },
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+    });
+    const { user } = await openFormWithLines();
+    await fillValidOrder(user);
+    await tickOkAndShow(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    expect(await screen.findByText('Choose the product line to show this order under.')).toBeVisible();
+    expect(screen.getByLabelText(/^Show under/)).toHaveFocus();
+  });
+
+  it('has no axe violations with the card in each state', async () => {
+    useOrderHandlers();
+    const { container, user } = await openFormWithLines();
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Show on the website' }));
+    await expectNoAxeViolations(container);
   });
 });
 
@@ -823,6 +972,228 @@ describe('saving the details (ORD-15, SEC-07)', () => {
     expect(await screen.findByText('Use digits, spaces and + - ( ) only.')).toBeVisible();
     expect(backend.writes).toHaveLength(0);
     expect(contact).toHaveFocus();
+  });
+});
+
+describe('the Public website card on the Edit Order form (UI-SPEC F2; D-11, D-13, D-16; plan 11-35)', () => {
+  const BASKETBALL_LINE = PRODUCT_LINE_OPTIONS[0]?.id ?? '';
+  const SHOWN = buildOrderDetail({
+    publicWebsite: publicWebsiteBlock({
+      customerConsent: true,
+      consentRecordedAtUtc: '2026-10-08T03:00:00Z',
+      consentRecordedByName: 'Liza Mercado',
+      shownOnWebsite: true,
+      shownSinceUtc: '2026-10-08T03:00:00Z',
+      productLineId: BASKETBALL_LINE,
+      productLineTitle: 'Basketball Jerseys',
+      autoProductLineId: BASKETBALL_LINE,
+      publicName: 'Riders MC',
+      hasPhoto: true,
+    }),
+  });
+
+  async function openEditWithLines(detail: OrderDetailFixture = order0148) {
+    const view = await openEdit({ detail });
+    await screen.findByRole('option', { name: 'Basketball Jerseys' });
+    return view;
+  }
+
+  it('is the last card, after Order details, with its hint', async () => {
+    useOrderHandlers();
+    await openEditWithLines();
+
+    const titles = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(titles).toEqual(['Customer details', 'Order details', 'Public website']);
+    expect(screen.getByText("Only with the customer's OK.")).toBeVisible();
+    expect(screen.queryByText(/^Visitors see:/)).toBeNull();
+  });
+
+  it('is filled from the order', async () => {
+    useOrderHandlers({ detail: SHOWN });
+    await openEditWithLines(SHOWN);
+
+    expect(screen.getByRole('checkbox', { name: 'Customer said OK to show' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show on the website' })).toBeChecked();
+    expect(screen.getByLabelText(/^Show under/)).toHaveValue(BASKETBALL_LINE);
+    expect(screen.getByLabelText(/^Name shown/)).toHaveValue('Riders MC');
+  });
+
+  it('keeps both boxes unticked for an order that was never shown, with the line the items gave', async () => {
+    const detail = buildOrderDetail({ publicWebsite: publicWebsiteBlock({ autoProductLineId: BASKETBALL_LINE }) });
+    useOrderHandlers({ detail });
+    await openEditWithLines(detail);
+
+    expect(screen.getByRole('checkbox', { name: 'Customer said OK to show' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+    expect(screen.getByLabelText(/^Show under/)).toHaveValue(BASKETBALL_LINE);
+  });
+
+  it('unticks Show when the OK is unticked', async () => {
+    useOrderHandlers({ detail: SHOWN });
+    const { user } = await openEditWithLines(SHOWN);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+  });
+
+  it('sends no block with a details save when the card was not touched', async () => {
+    const backend = useOrderHandlers({ detail: SHOWN });
+    const { user } = await openEditWithLines(SHOWN);
+    const contact = screen.getByLabelText(/^Contact number/);
+    await user.clear(contact);
+    await user.type(contact, '0917 999 8888');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes[0]?.body).not.toHaveProperty('publicWebsite');
+  });
+
+  it('sends the whole block with the details when the name shown was changed', async () => {
+    const backend = useOrderHandlers({ detail: SHOWN });
+    const { user } = await openEditWithLines(SHOWN);
+    const name = screen.getByLabelText(/^Name shown/);
+    await user.clear(name);
+    await user.type(name, 'Riders Motorcycle Club');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(1);
+    expect((backend.writes[0]?.body as { publicWebsite?: unknown }).publicWebsite).toEqual({
+      customerConsent: true,
+      showOnWebsite: true,
+      productLineId: BASKETBALL_LINE,
+      publicName: 'Riders Motorcycle Club',
+    });
+  });
+
+  it('sends an all-off block when the OK is taken back', async () => {
+    const backend = useOrderHandlers({ detail: SHOWN });
+    const { user } = await openEditWithLines(SHOWN);
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByText('The order page');
+    expect(
+      (backend.writes[0]?.body as { publicWebsite?: { customerConsent: boolean; showOnWebsite: boolean } })
+        .publicWebsite,
+    ).toMatchObject({
+      customerConsent: false,
+      showOnWebsite: false,
+    });
+  });
+
+  it('asks for a name when the team is cleared on a shown order that has no name of its own', async () => {
+    const detail = buildOrderDetail({
+      publicWebsite: publicWebsiteBlock({
+        customerConsent: true,
+        shownOnWebsite: true,
+        productLineId: BASKETBALL_LINE,
+        productLineTitle: 'Basketball Jerseys',
+      }),
+    });
+    const backend = useOrderHandlers({ detail });
+    const { user } = await openEditWithLines(detail);
+    await user.clear(screen.getByLabelText(/^Team \/ organization/));
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Name shown/)).toBeInvalid();
+    });
+    expect(backend.writes).toHaveLength(0);
+  });
+
+  it('puts a server 400 under publicWebsite.publicName under Name shown and focuses it', async () => {
+    useOrderHandlers({
+      detail: SHOWN,
+      reply: () =>
+        HttpResponse.json(
+          {
+            title: 'x',
+            status: 400,
+            errors: { 'publicWebsite.publicName': ['Keep the name to 80 characters or fewer.'] },
+          },
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+    });
+    const { user } = await openEditWithLines(SHOWN);
+    await user.type(screen.getByLabelText(/^Name shown/), ' Club');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('Keep the name to 80 characters or fewer.')).toBeVisible();
+    expect(screen.getByLabelText(/^Name shown/)).toHaveFocus();
+  });
+
+  it('counts a change in the card for the Discard changes? guard (ORD-15)', async () => {
+    useOrderHandlers({ detail: SHOWN });
+    const { user } = await openEditWithLines(SHOWN);
+    await user.type(screen.getByLabelText(/^Name shown/), 'x');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+  });
+
+  it('shows the locked banner when the order was cancelled meanwhile (422 orders.public-cancelled)', async () => {
+    let current: OrderDetailFixture = SHOWN;
+    useOrderHandlers({
+      detail: () => current,
+      reply: () => {
+        current = cancelledOrderWithRefunds;
+        return orderProblem(422, 'orders.public-cancelled');
+      },
+    });
+    const { user } = await openEditWithLines(SHOWN);
+    await user.type(screen.getByLabelText(/^Name shown/), 'x');
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    expect(await screen.findByText('This order is cancelled.')).toBeVisible();
+    expect(screen.queryByLabelText(/^Name shown/)).toBeNull();
+  });
+
+  it('fills the card again from the latest order on Load Latest', async () => {
+    const newer = buildOrderDetail({
+      version: 'AAAAAAAAB9F=',
+      publicWebsite: publicWebsiteBlock({
+        customerConsent: true,
+        shownOnWebsite: true,
+        productLineId: BASKETBALL_LINE,
+        productLineTitle: 'Basketball Jerseys',
+        publicName: 'Riders Renamed',
+      }),
+    });
+    let current: OrderDetailFixture = SHOWN;
+    useOrderHandlers({
+      detail: () => current,
+      reply: () => {
+        current = newer;
+        return orderProblem(409, 'edit.stale');
+      },
+    });
+    const { user } = await openEditWithLines(SHOWN);
+    await user.type(screen.getByLabelText(/^Name shown/), 'x');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/^Name shown/)).toHaveValue('Riders Renamed');
+    });
+  });
+
+  it('has no axe violations with the card in each state', async () => {
+    useOrderHandlers({ detail: SHOWN });
+    const { container, user } = await openEditWithLines(SHOWN);
+    await expectNoAxeViolations(container);
+
+    await user.click(screen.getByRole('checkbox', { name: 'Customer said OK to show' }));
+    await expectNoAxeViolations(container);
   });
 });
 
