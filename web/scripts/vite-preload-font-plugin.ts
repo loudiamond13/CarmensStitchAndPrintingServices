@@ -76,3 +76,8 @@ export function woff2OnlyPlugin(): Plugin {
     },
   };
 }
+
+// D-28 (plan 11-36). Stub for the RED step: changes nothing yet.
+export function barlowNoPesoPlugin(): Plugin {
+  return { name: 'csps-barlow-no-peso', enforce: 'pre', transform: { handler: () => null } };
+}
