@@ -310,7 +310,13 @@ export function TestimonialsTab() {
       toast.show({ tone: 'danger', title, message: errorLine(copy) });
     }
     if (mayHaveSaved(error) || (isHttpError(error) && error.status === 404)) {
-      void query.refetch();
+      // Once the list shows what happened, the same press is a new intent, so it gets a new Idempotency-Key.
+      void query.refetch().then((result) => {
+        if (!result.isError) {
+          move.reset();
+          toggle.reset();
+        }
+      });
     }
   };
 

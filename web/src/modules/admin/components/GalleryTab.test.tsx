@@ -618,6 +618,47 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
     expect(invalidatePublicContent).not.toHaveBeenCalled();
   });
 
+  it('sends a new Idempotency-Key for the same move once a lost answer and the list read again show it already ran', async () => {
+    let answerLost = true;
+    const backend = galleryItemsBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The move ran on the server, but its answer never came back.
+        if (current.moves.length === 1) {
+          const items = [...current.items];
+          const index = items.findIndex((item) => item.name === 'Sample Barangay Riders');
+          const riders = items[index];
+          const below = items[index + 1];
+          if (riders !== undefined && below !== undefined) {
+            items[index] = below;
+            items[index + 1] = riders;
+          }
+          current.items = items;
+        }
+        return problemAnswer(500);
+      },
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Move Sample Barangay Riders down'));
+    expect(await screen.findByText("Couldn't move Sample Barangay Riders")).toBeVisible();
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 1), 'Photo')).toContain('Sample Barangay Riders');
+    });
+    answerLost = false;
+    const firstKey = backend.moves[0]?.key;
+    const sent = backend.moves.length;
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(sent + 1);
+    });
+    expect(backend.moves[sent]?.key).not.toBe(firstKey);
+  });
+
   it('a hide that finds the upload gone says so and reads the list again', async () => {
     const backend = galleryItemsBackend(undefined, {
       onHide: () => problemAnswer(404, { code: 'gallery-items.not-found' }),
