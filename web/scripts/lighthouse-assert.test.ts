@@ -502,13 +502,15 @@ describe('executeSteps (lighthouse.mjs)', () => {
     expect(events).toContain('log lighthouse /: category seo: score 0.9 is below 0.95');
   });
 
-  it('still stops the host when lighthouse itself fails, and never reads a report', async () => {
+  it('still stops the host when lighthouse itself fails (after two more tries), and never reads a report', async () => {
     const { events, deps } = fakeDeps({ runStatus: { lighthouse: 2 } });
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(2);
     expect(events.filter((event) => !event.startsWith('log '))).toEqual([
       'run build',
       'start host',
+      'run lighthouse',
+      'run lighthouse',
       'run lighthouse',
       'stop host',
     ]);

@@ -55,6 +55,8 @@ export function lighthouseExitStatus(status, report) {
  * starts within a few seconds of the first one closing; 20 seconds always worked, 4 never did.
  */
 export const PAGE_PAUSE_MS = 15_000;
+/** How many more times a page that failed is run again (Lighthouse's own advice for NO_NAVSTART is "run it again"). */
+export const PAGE_RETRIES = 2;
 export const LIGHTHOUSE_URL = `${ORIGIN}/`;
 /** The real public pages that are scored, Home first (D-28). */
 export const LIGHTHOUSE_PAGES = Object.freeze(['/', '/products', '/gallery', '/contact']);
@@ -192,7 +194,15 @@ export async function executeSteps(steps, deps) {
           if (step.name === 'lighthouse' && steps[index - 1]?.name === 'lighthouse') {
             await deps.sleep?.(PAGE_PAUSE_MS);
           }
-          const status = deps.run(step);
+          let status = deps.run(step);
+          // Lighthouse answers NO_NAVSTART on some runs and says to run it again: a page gets PAGE_RETRIES more tries.
+          for (let attempt = 1; step.name === 'lighthouse' && status !== 0 && attempt <= PAGE_RETRIES; attempt += 1) {
+            deps.log(
+              `lighthouse ${step.page ?? ''}: run ${String(attempt)} of ${String(PAGE_RETRIES + 1)} failed with exit code ${String(status)}, running it again.`,
+            );
+            await deps.sleep?.(PAGE_PAUSE_MS);
+            status = deps.run(step);
+          }
           // One host serves every page: it stops after the last page, or at once when a page failed.
           if (step.name === 'lighthouse' && (status !== 0 || next?.name !== 'lighthouse')) {
             await stopHost();
