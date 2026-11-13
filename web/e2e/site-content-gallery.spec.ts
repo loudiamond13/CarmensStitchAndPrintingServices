@@ -77,7 +77,6 @@ test('@site-content-gallery a Manager adds E2E-Riders for Moto with 12 pieces, a
   guard,
 }) => {
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  guard.expectStatus('/api/testing/images/', 404);
   await signInAs(page, request, await createStaff(request, 'Manager'));
   await withSiteContentLock(async () => {
     try {
@@ -111,7 +110,6 @@ test('@site-content-gallery the line filter and the page size live in the URL, a
   guard,
 }) => {
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  guard.expectStatus('/api/testing/images/', 404);
   await signInAs(page, request, await createStaff(request, 'Manager'));
   await withSiteContentLock(async () => {
     try {
@@ -161,7 +159,6 @@ test('@site-content-gallery a Manager moves E2E-Riders below a shown order, hide
   guard,
 }) => {
   guard.expectStatus('/api/v1/auth/refresh', 401);
-  guard.expectStatus('/api/testing/images/', 404);
   await signInAs(page, request, await createStaff(request, 'Manager'));
   await withSiteContentLock(async () => {
     try {

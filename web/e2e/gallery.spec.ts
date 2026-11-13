@@ -1,7 +1,7 @@
 // Gallery page E2E (GAL-01, D-03, D-30 to D-32, WEB-10): the filter bar, the masonry, Show More and the keyboard, against the
 // four demo shown orders the Testing seeder puts in the E2E database (two basketball, one volleyball, one moto; the first has four
 // photos). Every test resets the demo content and runs under the site content lock, because the gallery is one set shared by
-// all five projects. The demo photo ids have no stored file, so each photo address answers 404 and the tile shows its placeholder.
+// all five projects. The demo photos are tiny stored files, so their addresses answer 200.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
@@ -9,14 +9,10 @@ import { seedDemoSiteContent } from './testing-api.ts';
 // Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
 test.describe.configure({ timeout: 480_000 });
 
-const TEST_IMAGES = '/api/testing/images/';
-
 test('@gallery /gallery?category=basketball shows only basketball tiles, the pill count matches them and a reload keeps the filter', async ({
   page,
   request,
-  guard,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/gallery?category=basketball');
@@ -69,9 +65,7 @@ interface FocusAgainstBars {
 test('@gallery at 320px the pill bar scrolls inside itself and the page has no sideways scroll', async ({
   page,
   request,
-  guard,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.setViewportSize({ width: 320, height: 800 });
@@ -93,10 +87,8 @@ for (const width of [390, 1440]) {
   test(`@gallery at ${String(width)}px a focused tile is never under the header or the filter bar`, async ({
     page,
     request,
-    guard,
     browserName,
   }) => {
-    guard.expectStatus(TEST_IMAGES, 404);
     await withSiteContentLock(async () => {
       await seedDemoSiteContent(request);
       await page.setViewportSize({ width, height: 700 });
@@ -128,9 +120,7 @@ for (const width of [390, 1440]) {
   test(`@gallery at ${String(width)}px there are no axe, console or CSP findings and no sideways scroll`, async ({
     page,
     request,
-    guard,
   }) => {
-    guard.expectStatus(TEST_IMAGES, 404);
     await withSiteContentLock(async () => {
       await seedDemoSiteContent(request);
       await page.setViewportSize({ width, height: 900 });
@@ -148,15 +138,13 @@ for (const width of [390, 1440]) {
   });
 }
 
-// The lightbox (GAL-02, C-35, D-30). The viewer's own photos answer 404 for the demo ids, so each shows its placeholder.
+// The lightbox (GAL-02, C-35, D-30). The viewer shows the tiny demo photos.
 const VIEWER = 'Gallery image viewer';
 
 test('@gallery-lightbox pressing the third tile opens the viewer on it, Next wraps from the last item to the first and Esc closes', async ({
   page,
   request,
-  guard,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/gallery');
@@ -188,10 +176,8 @@ const LONG_TEAM = 'Barangay Sampaguita Elementary School Varsity Basketball Team
 test('@gallery-lightbox the 56px buttons move between items on a desktop and the tap zones on a phone', async ({
   page,
   request,
-  guard,
   isMobile,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/gallery');
@@ -253,11 +239,9 @@ const SWIPE = `(dx) => {
 test('@gallery-lightbox on a phone a swipe of 80px moves between items and one of 20px does not', async ({
   page,
   request,
-  guard,
   isMobile,
 }) => {
   test.skip(!isMobile, 'the swipe is for the phone projects');
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/gallery');
@@ -281,9 +265,7 @@ for (const width of [320, 1440]) {
   test(`@gallery-lightbox at ${String(width)}px a long team name wraps in the caption and nothing scrolls sideways`, async ({
     page,
     request,
-    guard,
   }) => {
-    guard.expectStatus(TEST_IMAGES, 404);
     await withSiteContentLock(async () => {
       await seedDemoSiteContent(request);
       await page.route('**/api/v1/public/gallery', async (route) => {
@@ -320,9 +302,7 @@ for (const width of [320, 1440]) {
 test('@gallery-lightbox the browser Back button closes the viewer, stays on the Gallery with the same category and focuses the last tile shown', async ({
   page,
   request,
-  guard,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/gallery?category=basketball');
@@ -347,9 +327,7 @@ test('@gallery-lightbox the browser Back button closes the viewer, stays on the 
 test('@gallery-lightbox Esc leaves no extra history entry: Back from the Gallery goes to the page before it', async ({
   page,
   request,
-  guard,
 }) => {
-  guard.expectStatus(TEST_IMAGES, 404);
   await withSiteContentLock(async () => {
     await seedDemoSiteContent(request);
     await page.goto('/');

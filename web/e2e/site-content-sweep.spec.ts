@@ -17,9 +17,7 @@ import { createStaff, seedDemoSiteContent } from './testing-api.ts';
 // Each test signs in and waits its turn for the site content lock, so the 30 second default is not enough.
 test.describe.configure({ timeout: 480_000 });
 
-// The demo gallery items have no stored photo file, so the Gallery tab draws placeholders after a 404 (declared).
 test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
   guard.expectStatus('/api/v1/auth/refresh', 401);
 });
 
@@ -223,11 +221,14 @@ for (const theme of THEMES) {
         failures.push(...(await sweepOpenPage(page, `Polo Shirts editor with photos (${theme})`)));
         expect(failures).toEqual([]);
       } finally {
-        if (lineId !== null) {
-          await page.goto('/admin');
-          await clearLinePhotos(page, lineId);
+        try {
+          if (lineId !== null) {
+            await page.goto('/admin');
+            await clearLinePhotos(page, lineId);
+          }
+        } finally {
+          await seedDemoSiteContent(request);
         }
-        await seedDemoSiteContent(request);
       }
     });
   });
@@ -297,8 +298,13 @@ for (const theme of THEMES) {
         expect(failures).toEqual([]);
       } finally {
         // A deleted order leaves the public gallery whatever its flags are (11-23), so no shown demo is left behind.
-        await deleteOrderThroughApi(page, plain.id);
-        await seedDemoSiteContent(request);
+        // The demo reset runs even when a delete throws.
+        try {
+          await deleteOrderThroughApi(page, plain.id);
+          await deleteOrderThroughApi(page, cancelled.id);
+        } finally {
+          await seedDemoSiteContent(request);
+        }
       }
     });
   });

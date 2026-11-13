@@ -11,11 +11,6 @@ import { seedDemoSiteContent } from './testing-api.ts';
 
 test.describe.configure({ timeout: 480_000 });
 
-// The demo shop's orders have photo ids with no stored file, so Home and the Gallery draw placeholders after a 404 (declared).
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
-
 interface PublicUrl {
   readonly path: string;
   readonly title: string;

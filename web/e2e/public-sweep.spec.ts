@@ -15,11 +15,6 @@ import { seedDemoSiteContent } from './testing-api.ts';
 // Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
 test.describe.configure({ timeout: 480_000 });
 
-// The demo orders' photo ids have no stored file, so Home and the Gallery draw placeholders after a 404 (declared).
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
-
 /** The P2 Playwright widths. */
 const WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
 

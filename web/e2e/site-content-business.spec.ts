@@ -14,11 +14,6 @@ import { drawJpeg, photoKey } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent, type TestStaff } from './testing-api.ts';
 
-// The demo shown orders (the Testing seeder) show on Home as Recent work. Their photos have no stored file, so they answer 404.
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
-
 /** Opens Site Content from the navigation (the sidebar, or the drawer on a phone). */
 async function openSiteContent(page: Page): Promise<void> {
   const menu = page.getByRole('button', { name: 'Open navigation' });

@@ -146,10 +146,10 @@ test('@site-content-products at 390px the list is row cards, at 768px it scrolls
   await expect(page.locator('thead')).toBeVisible();
   const frame = page.locator('div[role="region"][aria-label="Product lines"]');
   await expect(frame).toHaveAttribute('tabindex', '0');
-  // The frame may be wider inside than it shows (that is the scrolling), but the page itself never scrolls sideways.
+  // The columns do not fit at 768px, so the frame is wider inside than it shows (that is the scrolling), but the page itself never scrolls sideways.
   expect(
     await frame.evaluate(
-      (element: { scrollWidth: number; clientWidth: number }) => element.scrollWidth >= element.clientWidth,
+      (element: { scrollWidth: number; clientWidth: number }) => element.scrollWidth > element.clientWidth,
     ),
   ).toBe(true);
   expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
@@ -265,7 +265,7 @@ interface Box {
 async function boxOf(page: Page, label: 'Main photo' | 'Back view' | 'Fabric detail'): Promise<Box> {
   const box = await slotOf(page, label).boundingBox();
   if (box === null) {
-    throw new Error(` is not on the page`);
+    throw new Error(`${label} is not on the page`);
   }
   return box;
 }
@@ -309,11 +309,14 @@ test('@site-content-photos a Manager picks a main photo for Polo, it uploads, an
       await expect(image).toBeVisible();
       await expect.poll(() => image.evaluate(decodedWidth)).toBeGreaterThan(0);
     } finally {
-      if (lineId !== null) {
-        await page.goto('/admin');
-        await clearLinePhotos(page, lineId);
+      try {
+        if (lineId !== null) {
+          await page.goto('/admin');
+          await clearLinePhotos(page, lineId);
+        }
+      } finally {
+        await seedDemoSiteContent(request);
       }
-      await seedDemoSiteContent(request);
     }
   });
 });
@@ -365,11 +368,14 @@ test('@site-content-photos a Manager replaces then removes Polo main photo, and 
       await expect(polo).toBeVisible();
       await expect(polo.getByRole('img', { name: 'Polo Shirts, front' })).toHaveCount(0);
     } finally {
-      if (lineId !== null) {
-        await page.goto('/admin');
-        await clearLinePhotos(page, lineId);
+      try {
+        if (lineId !== null) {
+          await page.goto('/admin');
+          await clearLinePhotos(page, lineId);
+        }
+      } finally {
+        await seedDemoSiteContent(request);
       }
-      await seedDemoSiteContent(request);
     }
   });
 });

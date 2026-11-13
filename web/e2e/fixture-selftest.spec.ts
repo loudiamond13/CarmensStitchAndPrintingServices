@@ -7,11 +7,6 @@
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
 import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe, test } from './fixtures.ts';
 
-// The demo shown orders (the Testing seeder) show on Home as Recent work. Their photos have no stored file, so they answer 404.
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
-
 const DELIBERATE = 'e2e fixture: deliberate console error';
 
 // An empty region to scope an axe check to, beside the page's own content.
