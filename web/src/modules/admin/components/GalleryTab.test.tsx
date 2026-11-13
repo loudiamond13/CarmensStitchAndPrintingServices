@@ -82,7 +82,8 @@ function renderTab(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefin
 
 async function openTab(search = '', onUrlUpdate?: OnUrlUpdateFunction) {
   const view = renderTab(search, onUrlUpdate);
-  const table = await screen.findByRole('table', { name: 'Gallery items' });
+  // The first render of a fresh test worker loads the whole component graph, which can take longer than the 1 second default.
+  const table = await screen.findByRole('table', { name: 'Gallery items' }, { timeout: 5000 });
   return { ...view, table };
 }
 
