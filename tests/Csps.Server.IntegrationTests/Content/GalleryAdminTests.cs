@@ -21,7 +21,10 @@ namespace Csps.Server.IntegrationTests.Content;
 /// </summary>
 public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
+    private const int RaceRounds = 10;
+
     private static readonly DateTimeOffset Now = new(2026, 11, 12, 12, 0, 0, TimeSpan.Zero);
+
     private static readonly byte[] Photo = SyntheticImages.Jpeg(800, 600);
 
     [Fact]
@@ -430,31 +433,39 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
         await using var rig = await GalleryAdminRig.StartAsync(database);
         var existing = await rig.AddAsync(UploadForm.Riders);
 
-        for (var round = 0; round < 6; round++)
+        for (var round = 0; round < RaceRounds; round++)
         {
             var lineId = await rig.AddLineAsync($"Race {round}");
-            var upload = Task.Run(() => rig.UploadAsync(UploadForm.Riders with { LineId = lineId }, Photo), TestContext.Current.CancellationToken);
-            var delete = Task.Run(() => rig.DeleteLineAsync(lineId), TestContext.Current.CancellationToken);
-            using var uploaded = await upload;
-            using var deleted = await delete;
+            var (uploaded, deleted) = await ConcurrentRequests.SendTogetherAsync(
+                () => rig.UploadAsync(UploadForm.Riders with { LineId = lineId }, Photo),
+                () => rig.DeleteLineAsync(lineId));
+            using (uploaded)
+            using (deleted)
+            {
+                (uploaded.StatusCode, deleted.StatusCode).ShouldBeOneOf(
+                    (HttpStatusCode.Created, HttpStatusCode.UnprocessableEntity),
+                    (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+            }
 
-            (uploaded.StatusCode, deleted.StatusCode).ShouldBeOneOf(
-                (HttpStatusCode.Created, HttpStatusCode.UnprocessableEntity),
-                (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+            await NoUploadPointsAtAMissingLineAsync(rig);
         }
 
-        for (var round = 0; round < 6; round++)
+        for (var round = 0; round < RaceRounds; round++)
         {
             var lineId = await rig.AddLineAsync($"Edit race {round}");
             var current = (await rig.ListAsync()).Rows.Single(row => row.Id == existing.Id);
-            var edit = Task.Run(() => rig.UpdateAsync(existing.Id, new { teamName = "Tondo Sample Riders", productLineId = lineId, pieces = 12, note = "Dri-fit mesh, V-neck", isShown = true, version = current.Version }), TestContext.Current.CancellationToken);
-            var delete = Task.Run(() => rig.DeleteLineAsync(lineId), TestContext.Current.CancellationToken);
-            using var edited = await edit;
-            using var deleted = await delete;
+            var (edited, deleted) = await ConcurrentRequests.SendTogetherAsync(
+                () => rig.UpdateAsync(existing.Id, new { teamName = "Tondo Sample Riders", productLineId = lineId, pieces = 12, note = "Dri-fit mesh, V-neck", isShown = true, version = current.Version }),
+                () => rig.DeleteLineAsync(lineId));
+            using (deleted)
+            using (edited)
+            {
+                (edited.StatusCode, deleted.StatusCode).ShouldBeOneOf(
+                    (HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity),
+                    (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+            }
 
-            (edited.StatusCode, deleted.StatusCode).ShouldBeOneOf(
-                (HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity),
-                (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+            await NoUploadPointsAtAMissingLineAsync(rig);
             if (edited.StatusCode == HttpStatusCode.OK)
             {
                 // Put the upload back on its first line so the next round can move it again.
@@ -463,6 +474,16 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
                 restored.StatusCode.ShouldBe(HttpStatusCode.OK);
             }
         }
+    }
+
+    // The end state of a race: no upload names a line that is gone.
+    private static async Task NoUploadPointsAtAMissingLineAsync(GalleryAdminRig rig)
+    {
+        await using var context = rig.Database.CreateContext();
+        var orphans = await context.GalleryEntries
+            .Where(entry => entry.ProductLineId != null && !context.ProductLines.Any(line => line.Id == entry.ProductLineId))
+            .CountAsync(TestContext.Current.CancellationToken);
+        orphans.ShouldBe(0);
     }
 
     [Fact]
