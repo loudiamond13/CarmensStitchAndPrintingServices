@@ -116,6 +116,9 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/testimonials/{id:guid}/hide", "/api/v1/testimonials/e1c84a07-9d35-4f26-b6a0-5d2f8c7b3e19/hide", Anonymous: 401, Admin: 403, Manager: 404),
         new("POST", "/api/v1/testimonials/{id:guid}/show", "/api/v1/testimonials/52f9b3c8-0a46-4d71-8e95-c3a7d1f6b024/show", Anonymous: 401, Admin: 403, Manager: 404),
         new("DELETE", "/api/v1/testimonials/{id:guid}", "/api/v1/testimonials/d09a6e43-7b18-4c52-a3f7-6e8b1d4c9a50", Anonymous: 401, Admin: 403, Manager: 404),
+        // Gallery items (GAL-03, D-10): Managers only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 on the upload.
+        new("GET", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 400),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
