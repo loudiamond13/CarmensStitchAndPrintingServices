@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Csps.Domain.Auditing;
 
 namespace Csps.Application.Common;
 
@@ -82,6 +83,24 @@ public static class AuditDetailFormat
     {
         ArgumentNullException.ThrowIfNull(parts);
         return string.Join(PairSeparator, parts);
+    }
+
+    /// <summary>
+    /// Joins pairs in order and drops any pair after the first that would push the detail past <see cref="AuditEntry.DetailMaxLength"/>,
+    /// so the entry is always written.
+    /// </summary>
+    /// <param name="pairs">The pairs and changes; the first is always kept.</param>
+    /// <returns>The detail text.</returns>
+    public static string Fit(params string[] pairs)
+    {
+        ArgumentNullException.ThrowIfNull(pairs);
+        var detail = pairs[0];
+        foreach (var pair in pairs.Skip(1).Where(pair => detail.Length + 1 + pair.Length <= AuditEntry.DetailMaxLength))
+        {
+            detail = string.Concat(detail, PairSeparator, pair);
+        }
+
+        return detail;
     }
 
     /// <summary>Percent-encodes <c>%</c>, <c>;</c>, <c>=</c> and <c>&gt;</c>; every other character is kept.</summary>

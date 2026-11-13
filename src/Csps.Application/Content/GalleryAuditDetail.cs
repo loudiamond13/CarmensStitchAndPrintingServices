@@ -20,7 +20,6 @@ public static class GalleryAuditDetail
     /// <summary>The detail of a replaced photo: the field name only.</summary>
     public const string PhotoReplaced = "fields=photo";
 
-    private const char PairSeparator = ';';
     private const char FieldSeparator = ',';
 
     /// <summary>Writes the detail of an added, hidden, shown or deleted upload: its team and the line title.</summary>
@@ -31,7 +30,7 @@ public static class GalleryAuditDetail
     {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(lineTitle);
-        return Fit(AuditDetailFormat.Pair("team", entry.TeamName ?? string.Empty), AuditDetailFormat.Pair("line", lineTitle));
+        return AuditDetailFormat.Fit(AuditDetailFormat.Pair("team", entry.TeamName ?? string.Empty), AuditDetailFormat.Pair("line", lineTitle));
     }
 
     /// <summary>Writes the detail of a changed upload.</summary>
@@ -56,7 +55,7 @@ public static class GalleryAuditDetail
             pairs.Add(AuditDetailFormat.Change("line", oldLineTitle, newLineTitle));
         }
 
-        return Fit([.. pairs]);
+        return AuditDetailFormat.Fit([.. pairs]);
     }
 
     /// <summary>Writes the detail of a move: the kind, the name shown and the old and new place in the list, counted from 1.</summary>
@@ -68,21 +67,9 @@ public static class GalleryAuditDetail
     public static string Moved(GalleryEntryKind kind, string name, int oldRank, int newRank)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return Fit(
+        return AuditDetailFormat.Fit(
             AuditDetailFormat.Pair("kind", kind == GalleryEntryKind.Upload ? GalleryItemRowDto.UploadKind : GalleryItemRowDto.OrderKind),
             AuditDetailFormat.Pair("name", name),
             AuditDetailFormat.Change("position", oldRank.ToString(CultureInfo.InvariantCulture), newRank.ToString(CultureInfo.InvariantCulture)));
-    }
-
-    // Joins the pairs in order and drops any pair after the first that would not fit.
-    private static string Fit(params string[] pairs)
-    {
-        var detail = pairs[0];
-        foreach (var pair in pairs.Skip(1).Where(pair => detail.Length + 1 + pair.Length <= AuditEntry.DetailMaxLength))
-        {
-            detail = string.Concat(detail, PairSeparator, pair);
-        }
-
-        return detail;
     }
 }
