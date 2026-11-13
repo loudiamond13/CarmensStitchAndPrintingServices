@@ -12,6 +12,7 @@ import {
   assertGateReport,
   assertReport,
   layoutShiftCulprits,
+  lcpMilliseconds,
   REPORT_ONLY_METRICS,
   THRESHOLDS,
 } from './lighthouse-assert.mjs';
@@ -607,5 +608,19 @@ describe('layoutShiftCulprits (lighthouse-assert.mjs)', () => {
     ['an item without a node or score', report([{}, { score: 0.1 }, { node: {} }])],
   ])('gives no lines for %s', (_name, input) => {
     expect(layoutShiftCulprits(input)).toEqual([]);
+  });
+});
+
+describe('lcpMilliseconds (lighthouse-assert.mjs)', () => {
+  it('reads the raw LCP value of a report', () => {
+    expect(lcpMilliseconds(lighthouseReport({ metrics: { 'largest-contentful-paint': 1812.4 } }))).toBe(1812.4);
+  });
+
+  it.each([
+    ['no report', null],
+    ['no audits', {}],
+    ['no value', lighthouseReport({ metrics: { 'largest-contentful-paint': null } })],
+  ])('gives null for %s', (_name, input) => {
+    expect(lcpMilliseconds(input)).toBeNull();
   });
 });

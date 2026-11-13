@@ -1,5 +1,6 @@
 // @ts-check
-// `npm run lighthouse` (PERF-02, research Pattern 13): scores the production public shell on the real host.
+// `npm run lighthouse` (PERF-02, research Pattern 13; four pages since plan 11-36): scores the production public pages on
+// the real host.
 //   1. Takes the exclusive run lock web/.locks/e2e.lock, shared with `npm run e2e`, because both start the host on 5199.
 //      It never shares a server with a Playwright run.
 //   2. Waits while the shared machine is busy (shared-machine.mjs reads the shared preflight report), up to 15
@@ -8,10 +9,12 @@
 //   4. Builds production into src/Csps.Server/wwwroot (`vite build`; the budget gate runs inside it, plan 02-33).
 //   5. Starts the real ASP.NET Core host on https://localhost:5199 serving that wwwroot, with ASPNETCORE_ENVIRONMENT set
 //      on that one child only, and waits for /health.
-//   6. Runs lighthouse 13.5.0 (owner-approved, D-25) on https://localhost:5199/ with the default mobile profile and error
-//      reporting off. The JSON report goes to the git-ignored artifacts/lighthouse/report.json and is never uploaded.
-//   7. Stops the host it started (that child and its own children, nothing else) and checks the report with
-//      assertReport (scripts/lighthouse-assert.mjs): every category >= 0.95, LCP < 2000 ms, CLS < 0.05, TBT < 200 ms.
+//   6. Runs lighthouse 13.5.0 (owner-approved, D-25) on each of /, /products, /gallery and /contact with the default
+//      mobile profile and error reporting off. Each JSON report goes to the git-ignored artifacts/lighthouse/ folder
+//      (report.json for /, report-<page>.json for the others) and is never uploaded.
+//   7. Stops the host it started (that child and its own children, nothing else) and checks every report with
+//      assertReport (scripts/lighthouse-assert.mjs): every category >= 0.95, LCP < 2000 ms, CLS < 0.05, TBT < 200 ms. LCP
+//      is report-only (D-29): it prints for every page but a miss does not fail the run; any other miss on any page does.
 // Node tools run on this Node binary with their JS entry, because Windows cannot spawn .cmd shims without a shell (L-22).
 // Lighthouse drives the Chromium build of the pinned Playwright version when it is installed (CHROME_PATH on that child
 // only), so the score does not move with the machine's own Chrome updates. Guide: docs/web/release-gates.md.
@@ -21,7 +24,7 @@ import https from 'node:https';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertGateReport, layoutShiftCulprits } from './lighthouse-assert.mjs';
+import { assertGateReport, layoutShiftCulprits, lcpMilliseconds, THRESHOLDS } from './lighthouse-assert.mjs';
 import { acquireLock, E2E_PORT, LOCK_PATH, lockTimeoutMessage, PORT_BUSY_MESSAGE, WEB_DIRECTORY } from './e2e.mjs';
 import { waitForSharedMachine } from './shared-machine.mjs';
 
@@ -30,21 +33,27 @@ export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', im
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
 export const LIGHTHOUSE_URL = `${ORIGIN}/`;
-export const LIGHTHOUSE_PAGES = ['/'];
-export const LIGHTHOUSE_URLS = [LIGHTHOUSE_URL];
-/** @param {string} _page */
-export function reportPathFor(_page) {
-  return REPORT_PATH;
-}
+/** The real public pages that are scored, Home first (D-28). */
+export const LIGHTHOUSE_PAGES = Object.freeze(['/', '/products', '/gallery', '/contact']);
+export const LIGHTHOUSE_URLS = Object.freeze(LIGHTHOUSE_PAGES.map((page) => `${ORIGIN}${page}`));
+/** The Home report; the other pages write report-<page>.json next to it. */
 export const REPORT_PATH = fileURLToPath(new URL('../../artifacts/lighthouse/report.json', import.meta.url));
+/**
+ * Where the JSON report of one page is written.
+ * @param {string} page one of LIGHTHOUSE_PAGES, such as '/products'.
+ * @returns {string}
+ */
+export function reportPathFor(page) {
+  return page === '/' ? REPORT_PATH : path.join(path.dirname(REPORT_PATH), `report-${page.replace(/^\//, '')}.json`);
+}
 export const HEALTH_TIMEOUT_MS = 120_000;
 
 const HEALTH_POLL_MS = 1000;
 
 /**
- * @typedef {{ readonly kind: 'run', readonly name: 'build' | 'lighthouse', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env?: Readonly<Record<string, string>> }} RunStep
+ * @typedef {{ readonly kind: 'run', readonly name: 'build' | 'lighthouse', readonly page?: string, readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env?: Readonly<Record<string, string>> }} RunStep
  * @typedef {{ readonly kind: 'host', readonly name: 'host', readonly command: string, readonly args: readonly string[], readonly cwd: string, readonly env: Readonly<Record<string, string>>, readonly healthUrl: string }} HostStep
- * @typedef {{ readonly kind: 'assert', readonly name: 'assert', readonly reportPath: string }} AssertStep
+ * @typedef {{ readonly kind: 'assert', readonly name: 'assert', readonly page: string, readonly reportPath: string }} AssertStep
  * @typedef {{ readonly kind: 'refuse', readonly name: 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {RunStep | HostStep | AssertStep | RefuseStep} Step
  * @typedef {{ stop(): Promise<void> }} RunningHost
@@ -80,15 +89,18 @@ export function planSteps({ portBusy, chromePath, noSandbox = false }) {
       env: { ASPNETCORE_ENVIRONMENT: 'Development' },
       healthUrl: HEALTH_URL,
     },
-    {
+  );
+  for (const page of LIGHTHOUSE_PAGES) {
+    steps.push({
       kind: 'run',
       name: 'lighthouse',
+      page,
       command: process.execPath,
       args: [
         'node_modules/lighthouse/cli/index.js',
-        LIGHTHOUSE_URL,
+        `${ORIGIN}${page}`,
         '--output=json',
-        `--output-path=${REPORT_PATH}`,
+        `--output-path=${reportPathFor(page)}`,
         '--quiet',
         // Lighthouse never sends crash reports anywhere (T-02-75).
         '--no-enable-error-reporting',
@@ -98,19 +110,32 @@ export function planSteps({ portBusy, chromePath, noSandbox = false }) {
       ],
       cwd: WEB_DIRECTORY,
       env: chromePath === undefined ? {} : { CHROME_PATH: chromePath },
-    },
-    { kind: 'assert', name: 'assert', reportPath: REPORT_PATH },
-  );
+    });
+  }
+  for (const page of LIGHTHOUSE_PAGES) {
+    steps.push({ kind: 'assert', name: 'assert', page, reportPath: reportPathFor(page) });
+  }
   return steps;
 }
 
 /**
- * Runs the steps in order. The host is stopped as soon as lighthouse has finished, whether it passed or not, and on any
- * failure after it started.
+ * The one-line LCP table printed after the last page: the target is the limit in THRESHOLDS, kept report-only by D-29.
+ * @param {readonly { page: string, lcp: number | null }[]} rows
+ * @returns {string}
+ */
+function lcpTable(rows) {
+  const target = THRESHOLDS.metrics.find((metric) => metric.id === 'largest-contentful-paint')?.below;
+  const cells = rows.map(({ page, lcp }) => `${page} ${lcp === null ? 'no value' : `${String(lcp)} ms`}`);
+  return `LCP by page (target ${String(target)} ms, report only, D-29): ${cells.join(', ')}`;
+}
+
+/**
+ * Runs the steps in order. The host is stopped as soon as lighthouse has finished the last page, whether it passed or not,
+ * and on any failure after it started. Every page's report is checked and printed even when an earlier page missed.
  * @param {readonly Step[]} steps
  * @param {Deps} deps
- * @returns {Promise<number>} 0 when the report passed; otherwise the failing step's exit code (1 for a refusal, a host that
- *   never became healthy, or a report that misses a threshold).
+ * @returns {Promise<number>} 0 when every report passed; otherwise the failing step's exit code (1 for a refusal, a host
+ *   that never became healthy, or a report that misses a threshold).
  */
 export async function executeSteps(steps, deps) {
   /** @type {RunningHost | null} */
@@ -122,8 +147,12 @@ export async function executeSteps(steps, deps) {
       await running.stop();
     }
   };
+  /** @type {{ page: string, lcp: number | null }[]} */
+  const lcpByPage = [];
+  let failed = false;
   try {
-    for (const step of steps) {
+    for (const [index, step] of steps.entries()) {
+      const next = steps[index + 1];
       switch (step.kind) {
         case 'refuse':
           deps.log(`lighthouse: ${step.message}`);
@@ -138,44 +167,54 @@ export async function executeSteps(steps, deps) {
           break;
         case 'run': {
           const status = deps.run(step);
-          if (step.name === 'lighthouse') {
+          // One host serves every page: it stops after the last page, or at once when a page failed.
+          if (step.name === 'lighthouse' && (status !== 0 || next?.name !== 'lighthouse')) {
             await stopHost();
           }
           if (status !== 0) {
-            deps.log(`lighthouse: ${step.name} failed with exit code ${String(status)}.`);
+            deps.log(
+              `lighthouse: ${step.name}${step.page === undefined ? '' : ` ${step.page}`} failed with exit code ${String(status)}.`,
+            );
             return status;
           }
           break;
         }
         case 'assert': {
+          const prefix = `lighthouse ${step.page}:`;
           const report = deps.readReport(step.reportPath);
           const result = assertGateReport(report);
           for (const line of result.lines) {
-            deps.log(`lighthouse: ${line}`);
+            deps.log(`${prefix} ${line}`);
           }
           for (const failure of result.failures) {
-            deps.log(`lighthouse: ${failure}`);
+            deps.log(`${prefix} ${failure}`);
           }
           for (const warning of result.warnings) {
-            deps.log(`lighthouse: WAIVED ${warning}`);
+            deps.log(`${prefix} WAIVED ${warning}`);
           }
           // The run page shows the scores and the waived LCP value against its target on every run.
-          deps.summary?.(`### Lighthouse\n\n${result.lines.map((line) => `- ${line}`).join('\n')}\n`);
+          deps.summary?.(`### Lighthouse ${step.page}\n\n${result.lines.map((line) => `- ${line}`).join('\n')}\n`);
           if (!result.passed) {
+            failed = true;
             for (const line of layoutShiftCulprits(report)) {
-              deps.log(`lighthouse: ${line}`);
+              deps.log(`${prefix} ${line}`);
             }
           }
           deps.log(
             result.passed
-              ? `lighthouse: passed (report: ${step.reportPath})`
-              : `lighthouse: ${String(result.failures.length)} threshold(s) missed (report: ${step.reportPath})`,
+              ? `${prefix} passed (report: ${step.reportPath})`
+              : `${prefix} ${String(result.failures.length)} threshold(s) missed (report: ${step.reportPath})`,
           );
-          return result.passed ? 0 : 1;
+          lcpByPage.push({ page: step.page, lcp: lcpMilliseconds(report) });
+          if (next?.name !== 'assert') {
+            deps.log(`lighthouse: ${lcpTable(lcpByPage)}`);
+            return failed ? 1 : 0;
+          }
+          break;
         }
       }
     }
-    return 0;
+    return failed ? 1 : 0;
   } finally {
     await stopHost();
   }
@@ -341,8 +380,9 @@ export async function startHost(step) {
 function runStep(step) {
   if (step.name === 'lighthouse') {
     // A report left by an earlier run must never be read as this run's result.
-    mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
-    rmSync(REPORT_PATH, { force: true });
+    const report = reportPathFor(step.page ?? '/');
+    mkdirSync(path.dirname(report), { recursive: true });
+    rmSync(report, { force: true });
   }
   const result = spawnSync(step.command, [...step.args], {
     cwd: step.cwd,
