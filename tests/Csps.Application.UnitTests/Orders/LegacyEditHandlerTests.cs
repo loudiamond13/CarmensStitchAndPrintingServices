@@ -198,7 +198,15 @@ public sealed class LegacyEditHandlerTests
             new(Orders, Reader, new FixedCalendar(), Substitute.For<IAuditTrail>(), Unit, Request, new UpdateOrderDiscountRequestValidator());
 
         public UpdateOrderDetailsHandler Details() =>
-            new(Orders, Reader, new FixedCalendar(), Substitute.For<IAuditTrail>(), Unit, Request, new UpdateOrderDetailsRequestValidator());
+            new(
+                Orders,
+                Reader,
+                new FixedCalendar(),
+                Substitute.For<IAuditTrail>(),
+                Unit,
+                Request,
+                new UpdateOrderDetailsRequestValidator(),
+                new OrderPublicWebsiteWriter(Substitute.For<IProductLines>(), Substitute.For<IGalleryEntries>(), Substitute.For<ISiteContentLock>(), Substitute.For<IAuditTrail>()));
     }
 
     private static OrderDetailResponse DetailOf(Order order)

@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-12T15:25:00-06:00
+updated: 2026-11-12T23:30:00-06:00
 ---
 
 # The orders API
@@ -30,7 +30,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 | `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `409 orders.busy` |
 | `GET /orders?q=&status=&from=&to=&productType=&hasBalance=&sort=&page=&pageSize=` | Staff | none | `200` the list page; `400` field errors |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
-| `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale` |
+| `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.locked`; `422 orders.public-cancelled` (with a `publicWebsite` block) |
 | `PUT /orders/{id}/public` | Staff | the public website form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.public-cancelled` |
 | `POST /orders/{id}/items` | Staff | the item form below, with the `version` and an `Idempotency-Key` | `200` the whole order; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.too-many-items` or `orders.discount-above-subtotal` |
 | `PUT /orders/{id}/items/{itemId}` | Staff | the item form below, with the `version` | `200` the whole order; `400` field errors; `404 orders.not-found` or `orders.item-not-found`; `409 edit.stale`; `422 orders.discount-above-subtotal` |
@@ -113,6 +113,7 @@ about five years of orders. The photo count and the cover are read inside the pa
 | `discounts` | no | none to 20 discounts, each as in the discount form below | An order can have at most 20 discounts. |
 | `payments` | no | none to 100 payments, each as in the payment form below; together they may not be more than the total after discounts | An order can have at most 100 payments. / The payments would be more than the order total. Lower a payment first. |
 | `expenses` | no | none to 100 order expenses, each as in the expense form below | An order can have at most 100 expenses. |
+| `publicWebsite` | no | the customer's OK and Show on the website, as in the block below; left out means no OK and not shown | the messages of the block below |
 
 Each item:
 
@@ -141,6 +142,38 @@ Ink & paper and `600.00` Outsourcing) gives subtotal `22450.00`, discount `1122.
 Text is trimmed, and empty optional text is stored as `null`. Every rule is checked twice, by the validators and again by the
 order itself, so no caller can skip one. Any other member in the body, such as `createdById`, `createdAt`, `updatedById`,
 `number`, `totals`, `statusHistory`, `deletedAtUtc` or `version`, is ignored.
+
+### The public website block (`publicWebsite`) (UI-SPEC F1, F2, D-11)
+
+The create and the details update both accept one optional block, so the customer's OK can be recorded when the order is taken, without a
+second step. It has the same four fields, rules and words as the order window (`PUT /orders/{id}/public` below), and one rule set checks
+all three requests.
+
+| Field | Rule | Message |
+|---|---|---|
+| `customerConsent` | true when the customer said OK to show; false when not sent | none |
+| `showOnWebsite` | true to show the order; needs `customerConsent` | Tick Customer said OK to show first. |
+| `productLineId` | the line to show the order under; null uses the auto line from the items. An id that is not a line is refused. Showing with no line at all is refused | Choose the product line to show this order under. |
+| `publicName` | the name shown instead of the team, at most 80 characters after trimming. Needed to show an order that has no team name | Keep the name to 80 characters or fewer. / This order has no team name. Enter the name to show. |
+
+- **In the same transaction.** The block is applied with the order, so the order, the customer's OK, the gallery entry and the audit entries
+  save together or not at all. A refused block is a `400` and no order is saved and no number is used.
+- **The field names carry a prefix.** An error on the block comes back under `publicWebsite.`, for example `publicWebsite.showOnWebsite`,
+  `publicWebsite.productLineId` or `publicWebsite.publicName`, so a form can show each message on its own control. The order window
+  keeps the plain names.
+- **Who and when come from the server (D-11).** The person who recorded the OK is the signed-in staff member and the time is the server clock.
+  A consent or shown time, or a person, inside the block is ignored. Anything else in the block is ignored too.
+- **The auto line** is worked out from the saved items, as in the order window. A line chosen on the form is kept as an override only when
+  it differs from the auto line.
+- **A block that sets nothing** (no OK, no show, no line, no name) on a create is treated as no block: it writes no public audit entry and
+  takes no lock. On a details update an empty block means "off": it removes the OK, the showing, the line choice and the name.
+- **The lock.** A block takes the site-content lock first, so a delete of the line it files the order under is decided before or after the
+  save. A wait that times out answers `409` and nothing is saved: `orders.busy` on a create, `auth.session-busy`, "Something changed at
+  the same time. Try again.", on a details update.
+- **Audit.** The same codes as the order window are written, after `order.created` or `order.changed`: `order.public-consent-recorded`,
+  `order.shown-on-website` and `order.public-details-changed`, each with `number=<n>` and no customer data.
+- **An imported order never gets one.** The legacy import (below) never sets the OK or showing: an imported order is off until staff turn
+  it on (D-11).
 
 ### Field errors
 
@@ -173,6 +206,7 @@ changed here; each has its own route.
 |---|---|---|
 | `customerName`, `teamName`, `contactNumber`, `email`, `address`, `orderDate`, `dueDate`, `notes` | as in the order form above | the same rules and the same messages as `POST /orders` |
 | `version` | yes | the `version` the form was opened with: base64 of eight bytes. Anything else is `400` on `version`, "Reload the form and try again." |
+| `publicWebsite` | no | the customer's OK and Show on the website, as in the block under the order form above. Left out, the public settings stay as they are |
 
 - **The due date is required on every edit (D-22).** An imported order may have none, but it cannot be saved again until a due
   date is entered.
@@ -188,6 +222,12 @@ changed here; each has its own route.
   clock. `recordedBy` stays the person who created the order. Any attribution, `number`, `status`, `totals` or `items` member in
   the body is ignored.
 - A deleted or unknown id is `404 orders.not-found`. A bad form lists every broken field in one `400`, as when creating.
+- **The public website block (UI-SPEC F2).** When the form carries `publicWebsite`, the details and the public settings save in one
+  transaction, in that order, so a name required for an order that has no team is checked against the team name being saved. A refused
+  block is a `400` on a `publicWebsite.` field and the details are not saved either. A save where neither the details nor the block change
+  anything answers `200`, keeps the `version` and writes no entry. The details lock is unchanged: a **Completed** order answers
+  `422 orders.locked` as before and its public settings change only through the order window below. A **Cancelled** order with a block
+  answers `422 orders.public-cancelled`, "Cancelled orders can't be shown on the website.", and nothing is saved.
 
 ## Showing an order on the website (`PUT /api/v1/orders/{id}/public`) (D-09 to D-16, D-38)
 

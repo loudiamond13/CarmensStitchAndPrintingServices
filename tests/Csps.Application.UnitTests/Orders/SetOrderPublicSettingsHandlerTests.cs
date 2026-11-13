@@ -297,7 +297,7 @@ public sealed class SetOrderPublicSettingsHandlerTests
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
             Handler = new SetOrderPublicSettingsHandler(
-                Orders, Reader, Lines, Gallery, SiteLock, Audit, Unit, request, time, new SetOrderPublicSettingsRequestValidator());
+                Orders, Reader, new OrderPublicWebsiteWriter(Lines, Gallery, SiteLock, Audit), Unit, request, time, new SetOrderPublicSettingsRequestValidator());
         }
 
         public Order Order { get; }

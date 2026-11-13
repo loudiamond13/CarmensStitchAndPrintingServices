@@ -1260,6 +1260,17 @@
               "array"
             ]
           },
+          "publicWebsite": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderPublicWebsiteFields",
+                "description": "The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F1); when absent the order has no consent and is not shown."
+              }
+            ]
+          },
           "status": {
             "description": "The status to start in: pending, mockup, production, ready or delivered; pending when not sent.",
             "type": [
@@ -4611,6 +4622,41 @@
         ],
         "type": "object"
       },
+      "OrderPublicWebsiteFields": {
+        "description": "The optional `publicWebsite` block of the New Order and Edit Order forms (UI-SPEC F1, F2). Any other member in the block, such as a\nforged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock (D-11).",
+        "properties": {
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "productLineId": {
+            "description": "The line to show the order under; null to use the auto line from the items.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team, at most 80 characters; null or empty to show the team.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showOnWebsite": {
+            "description": "True to show the order on the website; needs the customer's OK.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customerConsent",
+          "showOnWebsite",
+          "productLineId",
+          "publicName"
+        ],
+        "type": "object"
+      },
       "OrderRefundResponse": {
         "description": "One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in.",
         "properties": {
@@ -7462,6 +7508,17 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "publicWebsite": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderPublicWebsiteFields",
+                "description": "The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F2); when absent the public settings stay as they are. It never reaches a Completed or Cancelled order's settings through this route."
+              }
             ]
           },
           "teamName": {

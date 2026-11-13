@@ -9,7 +9,7 @@ namespace Csps.Application.Orders;
 /// <param name="ShowOnWebsite">True to show the order on the website; needs the customer's OK.</param>
 /// <param name="ProductLineId">The line to show the order under; null to use the auto line from the items.</param>
 /// <param name="PublicName">The name shown instead of the team, at most 80 characters; null or empty to show the team.</param>
-public sealed record SetOrderPublicSettingsRequest(string? Version, bool CustomerConsent, bool ShowOnWebsite, Guid? ProductLineId, string? PublicName)
+public sealed record SetOrderPublicSettingsRequest(string? Version, bool CustomerConsent, bool ShowOnWebsite, Guid? ProductLineId, string? PublicName) : IOrderPublicWebsiteFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static SetOrderPublicSettingsRequest Empty { get; } = new(null, false, false, null, null);
