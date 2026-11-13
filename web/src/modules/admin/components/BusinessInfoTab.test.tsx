@@ -8,6 +8,7 @@ import { invalidatePublicContent } from '@/lib/public-data/publicResource';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { expectNoAxeViolations } from '@/test/axe';
 import { createDeferred } from '@/test/fakeFetch';
 import { server } from '@/test/msw';
@@ -834,6 +835,35 @@ describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
     expect(await screen.findByText('Business info saved')).toBeVisible();
     expect(backend.puts).toHaveLength(1);
     expect(backend.puts[0]?.version).toBe(pictureVersionAfter(1));
+    expect(screen.queryByText('This was changed by someone else.')).not.toBeInTheDocument();
+  });
+
+  it('takes the picture version even when the form was saved while the picture was still going up', async () => {
+    const backend = siteSettingsBackend(demoSiteSettings, { onPut: versionGuard });
+    const gate = createDeferred<undefined>();
+    // A form body that waits cannot go through jsdom's FormData and Node's fetch, so the wait is held in the service.
+    vi.spyOn(siteSettingsService, 'uploadSharePicture').mockImplementation(async () => {
+      await gate.promise;
+      const picture = sharePicture('waited');
+      backend.current = { ...backend.current, sharePicture: picture, version: pictureVersionAfter(1) };
+      return picture;
+    });
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openTab();
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    expect(await screen.findByText('Business info saved')).toBeVisible();
+    gate.resolve(undefined);
+    await screen.findByText('Picture saved');
+    await user.type(screen.getByLabelText(/^Tagline/), '?');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(2);
+    });
+    expect(backend.puts[1]?.version).toBe(pictureVersionAfter(1));
     expect(screen.queryByText('This was changed by someone else.')).not.toBeInTheDocument();
   });
 
