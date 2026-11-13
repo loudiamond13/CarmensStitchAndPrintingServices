@@ -244,7 +244,7 @@ test('@site-content-share a Manager removes the link preview picture after the q
 });
 
 // This one only looks at the layout, which any saved settings give, so it takes no lock and uploads nothing.
-test('@site-content-share the preview is 320px wide beside a tablet and fills the card on a phone, with no sideways scroll', async ({
+test('@site-content-share the preview is 320px wide beside a tablet and fills the card on a phone, with no sideways scroll and no axe finding', async ({
   page,
   request,
   guard,
@@ -265,6 +265,11 @@ test('@site-content-share the preview is 320px wide beside a tablet and fills th
   const frameBox = await frame.boundingBox();
   expect(Math.abs((frameBox?.width ?? 0) - (slotBox?.width ?? 1))).toBeLessThan(2);
   expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+
+  await page.setViewportSize({ width: 320, height: 640 });
+  await slot.scrollIntoViewIfNeeded();
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
 });
 
 test('@site-content-business an Admin who opens Site Content is sent to the dashboard and has no Site Content item', async ({
