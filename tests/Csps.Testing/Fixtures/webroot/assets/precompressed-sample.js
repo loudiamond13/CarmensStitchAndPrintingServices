@@ -1,0 +1,1 @@
+export const precompressedSample = "CSPS precompressed fixture: the plain file";
