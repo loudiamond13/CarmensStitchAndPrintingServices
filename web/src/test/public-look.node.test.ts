@@ -6,6 +6,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildCss } from '../../scripts/class-gate.mjs';
+import { barClasses } from '../modules/public/components/contact.recipe';
 
 const srcDir = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = join(srcDir, 'modules', 'public');
@@ -87,5 +88,20 @@ describe('public colours (11-UI-REVIEW fix 2)', () => {
     for (const [token, hex] of Object.entries(roads)) {
       expect(blush, token).toMatch(new RegExp(`${token}:\\s*${hex}\\b`, 'i'));
     }
+  });
+});
+
+describe('public strict CSP (11-UI-REVIEW fix 3)', () => {
+  it('sets no style attribute in the public module', () => {
+    expect(hitsOf(/\bstyle=\{/, (name) => name.endsWith('.tsx'))).toEqual([]);
+  });
+});
+
+describe('public sticky bar (11-UI-REVIEW fix 6)', () => {
+  it('pads the bar bottom by 16px plus the device safe area', async () => {
+    const tokens = barClasses.split(/\s+/).filter((token) => token.startsWith('pb-'));
+    expect(tokens).toHaveLength(1);
+    const css = await buildCss(tokens);
+    expect(css).toContain('padding-bottom: calc(16px + env(safe-area-inset-bottom))');
   });
 });

@@ -151,9 +151,13 @@ export const mapDirectionsClasses = tw(
   'inline-flex min-h-11 items-center gap-[6px] font-button text-accent-ink no-underline hover:underline hover:underline-offset-4',
 );
 
-/** `.s-mbar`: the phone-only sticky bar. It is hidden above 767px and a grid at 767px and below; `.s-mbar` is 77px tall. */
+/**
+ * `.s-mbar`: the phone-only sticky bar. It is hidden above 767px and a grid at 767px and below; it is 77px tall plus the
+ * device's safe area.
+ */
+// SPEC-DEVIATION: 11-UI-REVIEW fix 6: App. C pads the bottom 16px; the safe area is added, as on the admin tab bar.
 export const barClasses = tw(
-  'sticky bottom-0 z-30 hidden gap-2 border-t border-line bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 pt-3 pb-4 backdrop-blur-[12px] pg-phone:grid',
+  'sticky bottom-0 z-30 hidden gap-2 border-t border-line bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur-[12px] pg-phone:grid',
 );
 
 /** Two columns: Messenger and Call us side by side. */

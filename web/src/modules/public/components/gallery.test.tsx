@@ -7,12 +7,16 @@ import { demoGallery, galleryPhoto, makeGalleryItem } from '@/test/publicFixture
 import { GalleryFilterBar } from './GalleryFilterBar';
 import { GalleryMasonry } from './GalleryMasonry';
 
-/** The element inside `tile` that carries the --ratio custom property, with its value. */
+/** A photo tile's --ratio, or a drawn tile's sizer viewBox read as "W / H". */
 function ratioOf(tile: HTMLElement): string {
   const holder = [...tile.querySelectorAll<HTMLElement>('*')].find(
     (element) => element.style.getPropertyValue('--ratio') !== '',
   );
-  return holder?.style.getPropertyValue('--ratio') ?? '';
+  if (holder !== undefined) {
+    return holder.style.getPropertyValue('--ratio');
+  }
+  const box = tile.querySelector('[data-tile-sizer]')?.getAttribute('viewBox') ?? '';
+  return box.replace(/^0 0 (\S+) (\S+)$/, '$1 / $2');
 }
 
 function tileFor(team: string): HTMLElement {
@@ -93,6 +97,36 @@ describe('GalleryMasonry (GAL-01, D-30, D-31)', () => {
       expect(tile.querySelector('svg')).toBeInTheDocument();
       expect(tile.querySelector('img')).toBeNull();
     }
+  });
+
+  it('sizes a drawn tile with a hidden sizer and no style attribute, 4 / 5 when the size is unknown', () => {
+    const bare = makeGalleryItem({ team: 'No Photo FC', lineKey: 'moto', photos: [] });
+    const { container } = render(<GalleryMasonry items={[bare]} shown={24} />);
+
+    const sizer = tileFor('No Photo FC').querySelector('[data-tile-sizer]');
+    expect(sizer).toHaveAttribute('aria-hidden', 'true');
+    expect(sizer).toHaveAttribute('viewBox', '0 0 4 5');
+    expect(container.querySelector('[style]')).toBeNull();
+  });
+
+  it("gives a drawn tile from a blank photo address the photo's ratio, clamped between 3 / 4 and 4 / 3", () => {
+    const blank = (team: string, width: number, height: number) =>
+      makeGalleryItem({
+        id: `blank-${team}`,
+        team,
+        lineKey: 'polo',
+        photos: [{ ...galleryPhoto(team, width, height), src: '', srcSet: '' }],
+      });
+    render(
+      <GalleryMasonry
+        items={[blank('Wide FC', 1200, 900), blank('Panorama FC', 2000, 1000), blank('Tall FC', 300, 1000)]}
+        shown={24}
+      />,
+    );
+
+    expect(tileFor('Wide FC').querySelector('[data-tile-sizer]')).toHaveAttribute('viewBox', '0 0 1200 900');
+    expect(tileFor('Panorama FC').querySelector('[data-tile-sizer]')).toHaveAttribute('viewBox', '0 0 4 3');
+    expect(tileFor('Tall FC').querySelector('[data-tile-sizer]')).toHaveAttribute('viewBox', '0 0 3 4');
   });
 
   it('tells the page which item was pressed', async () => {

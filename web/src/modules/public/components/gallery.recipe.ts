@@ -33,10 +33,13 @@ export const tileClasses = tw(
   'group relative mb-4 block w-full cursor-zoom-in break-inside-avoid overflow-hidden rounded-md border-0 bg-surface-2 p-0 text-left text-ink pg-phone:mb-3',
 );
 
-/** The drawn jersey's box: the tile's ratio with the dot grid on the placeholder ground. */
+/** The drawn jersey's box: the dot grid on the placeholder ground; the sizer gives it its height. */
 export const tileArtClasses = tw(
-  'relative aspect-(--ratio) bg-surface-2 bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px]',
+  'relative bg-surface-2 bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px]',
 );
+
+/** The hidden svg whose viewBox gives the drawn tile its height at the box's full width. */
+export const tileSizerClasses = tw('block h-auto w-full');
 
 /** `.s-tile-kit`: the drawing centered in its box. */
 export const tileKitClasses = tw('absolute inset-0 grid place-items-center');
