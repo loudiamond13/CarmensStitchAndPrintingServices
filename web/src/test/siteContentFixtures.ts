@@ -1006,3 +1006,299 @@ export function testimonialsBackend(
   );
   return backend;
 }
+
+// Gallery (plan 11-32): the Manager's list as /api/v1/gallery-items answers it and an MSW backend that keeps what each write left and records
+// every call. Every value is made up.
+export type GalleryItemFixture = Schemas['GalleryItemRowDto'];
+export type GalleryUploadBody = Schemas['GalleryUploadRequest'];
+export type MoveGalleryItemBody = Schemas['MoveGalleryItemRequest'];
+
+export const GALLERY_IDS = {
+  newUpload: '6b2e8f30-0000-4000-8000-000000000001',
+  ballers: '6b2e8f30-0000-4000-8000-000000000002',
+  spikers: '6b2e8f30-0000-4000-8000-000000000003',
+  hoopers: '6b2e8f30-0000-4000-8000-000000000004',
+  riders: '6b2e8f30-0000-4000-8000-000000000005',
+  hiddenTeam: '6b2e8f30-0000-4000-8000-000000000006',
+} as const;
+
+export const GALLERY_ORDER_IDS = {
+  ballers: '7c3f9a40-0000-4000-8000-000000000001',
+  spikers: '7c3f9a40-0000-4000-8000-000000000002',
+  riders: '7c3f9a40-0000-4000-8000-000000000003',
+} as const;
+
+/** The version the fake API gives an upload after save number `n`. */
+export function galleryVersionAfter(n: number): string {
+  return `AAAAAAAAH${String(n).padStart(2, '0')}=`;
+}
+
+/** One item with every field a row can hold; the thumb is the Testing image address. */
+export function galleryItem(
+  id: string,
+  kind: 'order' | 'upload',
+  overrides: Partial<GalleryItemFixture> = {},
+): GalleryItemFixture {
+  return {
+    id,
+    kind,
+    name: 'Sample Team',
+    lineId: LINE_IDS.basketball,
+    lineShortName: 'Basketball',
+    lineHidden: false,
+    pieces: null,
+    isShown: true,
+    orderId: null,
+    orderNumber: null,
+    note: null,
+    thumb: `/api/testing/images/gallery/${id}-88.jpg`,
+    version: kind === 'upload' ? galleryVersionAfter(1) : null,
+    ...overrides,
+  };
+}
+
+/** The six demo items in gallery order: two uploads, three shown orders, and a hidden upload on a hidden line. */
+export function demoGalleryItems(): GalleryItemFixture[] {
+  return [
+    galleryItem(GALLERY_IDS.newUpload, 'upload', {
+      name: 'Sample Barangay Riders',
+      lineId: LINE_IDS.moto,
+      lineShortName: 'Moto',
+      pieces: 12,
+      note: 'Dri-fit mesh, V-neck',
+    }),
+    galleryItem(GALLERY_IDS.ballers, 'order', {
+      name: 'Brgy. Sample Ballers',
+      pieces: 17,
+      orderId: GALLERY_ORDER_IDS.ballers,
+      orderNumber: 'ORD-2026-0148',
+    }),
+    galleryItem(GALLERY_IDS.spikers, 'order', {
+      name: 'Sample City Spikers',
+      lineId: LINE_IDS.volleyball,
+      lineShortName: 'Volleyball',
+      pieces: 12,
+      orderId: GALLERY_ORDER_IDS.spikers,
+      orderNumber: 'ORD-2026-0149',
+    }),
+    galleryItem(GALLERY_IDS.hoopers, 'upload', { name: 'Sample Old Hoopers', pieces: 9, version: galleryVersionAfter(2) }),
+    galleryItem(GALLERY_IDS.riders, 'order', {
+      name: 'Sample Riders MC',
+      lineId: LINE_IDS.moto,
+      lineShortName: 'Moto',
+      pieces: 20,
+      orderId: GALLERY_ORDER_IDS.riders,
+      orderNumber: 'ORD-2026-0150',
+    }),
+    galleryItem(GALLERY_IDS.hiddenTeam, 'upload', {
+      name: 'Hidden Sample Team',
+      lineId: LINE_IDS.polo,
+      lineShortName: 'Polo',
+      lineHidden: true,
+      pieces: 8,
+      isShown: false,
+      version: galleryVersionAfter(3),
+    }),
+  ];
+}
+
+/** `count` uploads for paging tests, named "Sample Team 01", "Sample Team 02" and so on, all on the Basketball line. */
+export function manyGalleryItems(count: number): GalleryItemFixture[] {
+  return Array.from({ length: count }, (_unused, index) => {
+    const number = String(index + 1).padStart(2, '0');
+    return galleryItem(`6b2e8f30-0000-4000-8000-0000000002${number}`, 'upload', {
+      name: `Sample Team ${number}`,
+      pieces: index + 1,
+    });
+  });
+}
+
+export interface GalleryItemsBackend {
+  /** The items the API holds, in gallery order. */
+  items: GalleryItemFixture[];
+  /** Every list read: the line, the page and the page size it asked for. */
+  gets: { line: string | null; page: string | null; pageSize: string | null }[];
+  /** An add: the headers only (the form is jsdom's, not Node's); the row it made comes from `nextUpload`. */
+  posts: { key: string | null; contentType: string | null }[];
+  puts: { id: string; body: GalleryUploadBody }[];
+  photos: { id: string; key: string | null }[];
+  moves: { id: string; direction: string | null; lineId: string | null | undefined; key: string | null }[];
+  hides: string[];
+  shows: string[];
+  deletes: string[];
+  /** The row the next add makes (it joins the top). */
+  nextUpload: GalleryItemFixture;
+}
+
+type GalleryAnswer = Response | undefined | Promise<Response | undefined>;
+
+export interface GalleryItemsBackendOptions {
+  onGet?: (backend: GalleryItemsBackend) => GalleryAnswer;
+  onPost?: (backend: GalleryItemsBackend) => GalleryAnswer;
+  onPut?: (id: string, body: GalleryUploadBody, backend: GalleryItemsBackend) => GalleryAnswer;
+  onPhoto?: (id: string, backend: GalleryItemsBackend) => GalleryAnswer;
+  onMove?: (id: string, direction: string | null, backend: GalleryItemsBackend) => GalleryAnswer;
+  onHide?: (id: string, backend: GalleryItemsBackend) => GalleryAnswer;
+  onShow?: (id: string, backend: GalleryItemsBackend) => GalleryAnswer;
+  onDelete?: (id: string, backend: GalleryItemsBackend) => GalleryAnswer;
+}
+
+/** Answers the eight /api/v1/gallery-items routes from `initial`, keeps what each write left, and records every call. */
+export function galleryItemsBackend(
+  initial: GalleryItemFixture[] = demoGalleryItems(),
+  options: GalleryItemsBackendOptions = {},
+): GalleryItemsBackend {
+  const backend: GalleryItemsBackend = {
+    items: [...initial],
+    gets: [],
+    posts: [],
+    puts: [],
+    photos: [],
+    moves: [],
+    hides: [],
+    shows: [],
+    deletes: [],
+    nextUpload: galleryItem('6b2e8f30-0000-4000-8000-000000000101', 'upload', {
+      name: 'Sample New Upload',
+      lineId: LINE_IDS.moto,
+      lineShortName: 'Moto',
+      pieces: 12,
+    }),
+  };
+  const notFound = (): Response => problemAnswer(404, { code: 'gallery-items.not-found' });
+  const itemOf = (id: string): GalleryItemFixture | undefined => backend.items.find((item) => item.id === id);
+  const replace = (made: GalleryItemFixture): void => {
+    backend.items = backend.items.map((item) => (item.id === made.id ? made : item));
+  };
+  server.use(
+    http.get('*/api/v1/gallery-items', async ({ request }) => {
+      const url = new URL(request.url);
+      backend.gets.push({
+        line: url.searchParams.get('line'),
+        page: url.searchParams.get('page'),
+        pageSize: url.searchParams.get('pageSize'),
+      });
+      const answer = await options.onGet?.(backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const line = url.searchParams.get('line');
+      const size = Number(url.searchParams.get('pageSize') ?? 20);
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const matching = backend.items.filter((item) => line === null || item.lineId === line);
+      return HttpResponse.json({
+        rows: matching.slice((page - 1) * size, page * size),
+        total: matching.length,
+        page,
+        size,
+      });
+    }),
+    http.post('*/api/v1/gallery-items', async ({ request }) => {
+      backend.posts.push({ key: request.headers.get('Idempotency-Key'), contentType: request.headers.get('Content-Type') });
+      const answer = await options.onPost?.(backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = [backend.nextUpload, ...backend.items];
+      return HttpResponse.json(backend.nextUpload, { status: 201 });
+    }),
+    http.put('*/api/v1/gallery-items/:id', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as GalleryUploadBody;
+      backend.puts.push({ id, body });
+      const answer = await options.onPut?.(id, body, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const item = itemOf(id);
+      if (item === undefined || item.kind !== 'upload') {
+        return notFound();
+      }
+      const made: GalleryItemFixture = {
+        ...item,
+        name: body.teamName ?? '',
+        lineId: body.productLineId,
+        pieces: body.pieces,
+        note: body.note === '' ? null : body.note,
+        isShown: body.isShown ?? item.isShown,
+        version: galleryVersionAfter(10 + backend.puts.length),
+      };
+      replace(made);
+      return HttpResponse.json(made);
+    }),
+    http.post('*/api/v1/gallery-items/:id/photo', async ({ request, params }) => {
+      const id = String(params.id);
+      backend.photos.push({ id, key: request.headers.get('Idempotency-Key') });
+      const answer = await options.onPhoto?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const item = itemOf(id);
+      if (item === undefined || item.kind !== 'upload') {
+        return notFound();
+      }
+      const made = { ...item, version: galleryVersionAfter(30 + backend.photos.length) };
+      replace(made);
+      return HttpResponse.json(made);
+    }),
+    http.post('*/api/v1/gallery-items/:id/move', async ({ request, params }) => {
+      const id = String(params.id);
+      const body = (await request.json()) as MoveGalleryItemBody;
+      backend.moves.push({
+        id,
+        direction: body.direction,
+        lineId: body.lineId,
+        key: request.headers.get('Idempotency-Key'),
+      });
+      const answer = await options.onMove?.(id, body.direction, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const inScope = (item: GalleryItemFixture): boolean => body.lineId == null || item.lineId === body.lineId;
+      const scoped = backend.items.filter(inScope);
+      const at = scoped.findIndex((item) => item.id === id);
+      const other = scoped[body.direction === 'up' ? at - 1 : at + 1];
+      const moving = scoped[at];
+      if (moving !== undefined && other !== undefined) {
+        const items = [...backend.items];
+        const first = items.findIndex((item) => item.id === moving.id);
+        const second = items.findIndex((item) => item.id === other.id);
+        items[first] = other;
+        items[second] = moving;
+        backend.items = items;
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/gallery-items/:id/hide', async ({ params }) => {
+      const id = String(params.id);
+      backend.hides.push(id);
+      const answer = await options.onHide?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = backend.items.map((item) => (item.id === id ? { ...item, isShown: false } : item));
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.post('*/api/v1/gallery-items/:id/show', async ({ params }) => {
+      const id = String(params.id);
+      backend.shows.push(id);
+      const answer = await options.onShow?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = backend.items.map((item) => (item.id === id ? { ...item, isShown: true } : item));
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.delete('*/api/v1/gallery-items/:id', async ({ params }) => {
+      const id = String(params.id);
+      backend.deletes.push(id);
+      const answer = await options.onDelete?.(id, backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      backend.items = backend.items.filter((item) => item.id !== id);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}
