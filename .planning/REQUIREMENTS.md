@@ -187,8 +187,8 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [x] **PUB-02**: Prices, product lines, address, contact numbers, hours, Messenger link and other business info on public pages load from the database, not hard-coded values ⚑ C-21
 - [x] **PUB-03**: A Manager can edit all public content and the price list (create/edit/reorder/activate/deactivate/delete), and changes appear publicly at once (cache invalidated)
 - [x] **PUB-04**: Public pages have unique titles/meta descriptions, Open Graph tags and `LocalBusiness` JSON-LD from site settings, present in the server-sent HTML (link-preview scrapers don't run JS). `robots.txt` and `sitemap.xml` are served, admin routes are `noindex`, and unknown paths return a real 404
-- [ ] **PUB-05**: The Contact page shows "Open now / Closed now" computed from business hours and closure dates in Asia/Manila
-- [ ] **PUB-06**: Visitors can reach the shop via Messenger (`m.me` link) and phone (`tel:`) CTAs, including the phone-only sticky bar on Contact
+- [x] **PUB-05**: The Contact page shows "Open now / Closed now" computed from business hours and closure dates in Asia/Manila
+- [x] **PUB-06**: Visitors can reach the shop via Messenger (`m.me` link) and phone (`tel:`) CTAs, including the phone-only sticky bar on Contact
 
 ### Gallery (GAL)
 
@@ -201,8 +201,8 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [x] **CONT-01**: A Manager can edit site settings: business name, tagline, address, map link, phone numbers, email, Messenger URL, social links, business hours, about text, time zone, currency/locale
 - [x] **CONT-02**: A Manager can manage product lines/price list: name, description, "starts at" price, minimum quantity, display order, active flag ⚑ C-21
 - [x] **CONT-03**: A Manager can manage testimonials and the "Recent work" strip
-- [ ] **CONT-04**: A Manager can record holiday and special closure dates, which feed "Open now" and JSON-LD opening hours
-- [ ] **CONT-05**: Site settings and the price list are served from an output cache / HybridCache, with `ETag`/`Cache-Control`, and invalidated when a Manager edits them
+- [x] **CONT-04**: A Manager can record holiday and special closure dates, which feed "Open now" and JSON-LD opening hours
+- [x] **CONT-05**: Site settings and the price list are served from an output cache / HybridCache, with `ETag`/`Cache-Control`, and invalidated when a Manager edits them
 
 ### Inquiries (INQ)
 
@@ -452,16 +452,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PUB-02 | Phase 11 | Complete |
 | PUB-03 | Phase 11 | Complete |
 | PUB-04 | Phase 11 | Complete |
-| PUB-05 | Phase 11 | Pending |
-| PUB-06 | Phase 11 | Pending |
+| PUB-05 | Phase 11 | Complete |
+| PUB-06 | Phase 11 | Complete |
 | GAL-01 | Phase 11 | Complete |
 | GAL-02 | Phase 11 | Complete |
 | GAL-03 | Phase 11 | Complete |
 | CONT-01 | Phase 11 | Complete |
 | CONT-02 | Phase 11 | Complete |
 | CONT-03 | Phase 11 | Complete |
-| CONT-04 | Phase 11 | Pending |
-| CONT-05 | Phase 11 | Pending |
+| CONT-04 | Phase 11 | Complete |
+| CONT-05 | Phase 11 | Complete |
 | INQ-01 | Phase 13 | Pending |
 | INQ-02 | Phase 13 | Pending |
 | INQ-03 | Phase 13 | Pending |
