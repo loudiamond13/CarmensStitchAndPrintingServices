@@ -21,6 +21,19 @@ public sealed class OpeningHoursEndpointTests(CspsDatabase database) : IClassFix
     private const string SettingsRoute = "/api/v1/site-settings";
 
     [Fact]
+    public async Task TheStaffReadIsNeverStoredByABrowserOrAProxy()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+
+        using var response = await GetAsync(client, Route, manager.AccessToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task ASavedBusinessInfoNeverMakesTheHoursVersionStale()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
