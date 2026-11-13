@@ -10,11 +10,6 @@ const HOME_API = '/api/v1/public/home';
 // Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
 test.describe.configure({ timeout: 480_000 });
 
-// The demo shown orders have no stored photo file, so the Recent work photos answer 404 and the tiles show their placeholder.
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
-
 test('@home / shows six category cards with the seeded card texts, with no home request on the first load', async ({
   page,
   request,

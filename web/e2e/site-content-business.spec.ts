@@ -8,16 +8,11 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { holdsItsContent, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
+import { NO_SIDEWAYS_SCROLL, press, selectedTabInView } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
 import { drawJpeg, photoKey } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent, type TestStaff } from './testing-api.ts';
-
-// The demo shown orders (the Testing seeder) show on Home as Recent work. Their photos have no stored file, so they answer 404.
-test.beforeEach(({ guard }) => {
-  guard.expectStatus('/api/testing/images/', 404);
-});
 
 /** Opens Site Content from the navigation (the sidebar, or the drawer on a phone). */
 async function openSiteContent(page: Page): Promise<void> {
@@ -85,7 +80,11 @@ test('@site-content-business at 320px the page has no sideways scroll, the tab s
   await openSiteContent(page);
 
   expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
-  expect(await page.getByRole('tablist').evaluate(holdsItsContent)).toBe(true);
+  // The five tabs may scroll inside their strip (UI-SPEC: the strip scrolls sideways at 320px); the strip stays inside the window and the selected tab stays in view.
+  const strip = page.getByRole('tablist');
+  const stripBox = await strip.boundingBox();
+  expect((stripBox?.x ?? -1) >= 0 && (stripBox?.x ?? 0) + (stripBox?.width ?? 999) <= 320).toBe(true);
+  expect(await strip.evaluate(selectedTabInView)).toBe(true);
   // A phone row stacks: the Number and its Label are on top of each other and inside the window.
   const [number, label] = await page.getByLabel(/^(Number|Label \(optional\))/).all();
   const numberBox = await number?.boundingBox();

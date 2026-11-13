@@ -110,10 +110,7 @@ for (const publicPath of PUBLIC_PATHS) {
       page,
       request,
       baseURL,
-      guard,
     }) => {
-      // The demo shown orders have no stored photo file, so their photos answer 404 (see home.spec.ts).
-      guard.expectStatus('/api/testing/images/', 404);
       await page.setViewportSize({ width, height: width < 800 ? 844 : 900 });
       await withSiteContentLock(async () => {
         await seedDemoSiteContent(request);

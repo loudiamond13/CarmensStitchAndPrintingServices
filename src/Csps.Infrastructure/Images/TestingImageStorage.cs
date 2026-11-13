@@ -113,6 +113,17 @@ public sealed class TestingImageStorage(TimeProvider time) : IImageStorage
             (_, existing) => (existing.Image, storedAt));
     }
 
+    /// <summary>Puts a file with the given bytes in the store, so an address built for the public id answers with it.</summary>
+    /// <param name="publicId">The public id to store the file under.</param>
+    /// <param name="bytes">The file bytes.</param>
+    /// <param name="kind">The format the bytes are.</param>
+    /// <param name="storedAt">When the file counts as stored.</param>
+    public void Seed(string publicId, ReadOnlyMemory<byte> bytes, ImageKind kind, DateTimeOffset storedAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(publicId);
+        _files[publicId] = (new StoredTestImage(bytes.ToArray(), kind), storedAt);
+    }
+
     /// <summary>Makes the next removals answer with a chosen outcome and leave the files in place.</summary>
     /// <param name="count">How many removals to fail.</param>
     /// <param name="outcome">The outcome to answer; a transient failure when null.</param>

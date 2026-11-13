@@ -52,7 +52,7 @@ export function lighthouseExitStatus(status, report) {
 
 /**
  * The pause before every page after the first. Lighthouse reports NO_NAVSTART ("run Lighthouse again") when a second Chrome
- * starts within a few seconds of the first one closing; 20 seconds always worked, 4 never did.
+ * starts within a few seconds of the first one closing; a 15 second pause works, 4 seconds never did.
  */
 export const PAGE_PAUSE_MS = 15_000;
 /** How many more times a page that failed is run again (Lighthouse's own advice for NO_NAVSTART is "run it again"). */

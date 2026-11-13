@@ -61,6 +61,16 @@ test('@site-content-hours a Manager ticks Sunday open 10 to 3, saves, and the pu
       expect(site.status()).toBe(200);
       const body = (await site.json()) as { hours: { day: number; opensAt: string | null; closesAt: string | null }[] };
       expect(body.hours.find((entry) => entry.day === 7)).toEqual({ day: 7, opensAt: '10:00', closesAt: '15:00' });
+
+      // The Contact page's hours card draws Sunday as its own row with the new hours.
+      const contact = await page.context().newPage();
+      await contact.goto('/contact');
+      const card = contact.locator('[data-hours-card]');
+      await expect(card.getByText('Monday to Saturday', { exact: true })).toBeVisible();
+      await expect(card.getByText('Sunday', { exact: true })).toBeVisible();
+      await expect(card.getByText('10:00 AM - 3:00 PM', { exact: true })).toBeVisible();
+      await expect(card.getByText('Closed', { exact: true })).toHaveCount(0);
+      await contact.close();
     } finally {
       await seedDemoSiteContent(request);
     }
@@ -110,6 +120,14 @@ test('@site-content-hours a Manager adds a closure for next week, the public sit
       await expect(page.getByText(`${label} shows as closed.`)).toBeVisible();
       await expect(page.getByRole('button', { name: `Edit closure on ${label}` })).toBeVisible();
       expect(await publicClosures(request)).toContainEqual({ firstDay: day, lastDay: day, note: 'E2E-holiday' });
+
+      // The Contact page lists it under Closed on with its date and note.
+      const contact = await page.context().newPage();
+      await contact.goto('/contact');
+      const card = contact.locator('[data-hours-card]');
+      await expect(card.getByRole('heading', { level: 3, name: 'Closed on' })).toBeVisible();
+      await expect(card.getByText(`${label} · E2E-holiday`, { exact: true })).toBeVisible();
+      await contact.close();
 
       await page.getByRole('button', { name: `Delete closure on ${label}` }).click();
       const question = page.getByRole('dialog', { name: 'Delete this closure?' });

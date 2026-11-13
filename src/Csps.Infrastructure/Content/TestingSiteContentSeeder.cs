@@ -1,9 +1,12 @@
 #if CSPS_TESTING
+using Csps.Application.Images;
+using Csps.Application.Ports;
 using Csps.Domain.Content;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,17 +19,21 @@ namespace Csps.Infrastructure.Content;
 /// name starts with "E2E-" with their photos and links. It puts the four demo testimonials in place (three shown in order and one
 /// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". It puts the five demo gallery orders in place: four
 /// shown (made-up teams on the basketball, volleyball and moto lines, one with four photos) and one with the customer's OK that is not
-/// shown. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
-/// whose team starts with "E2E-". It leaves a demo default link preview picture in place (1200 x 630, an id that points at no stored file,
-/// like the demo orders' photos), so a spec can check the page heads. The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
+/// shown. It takes every other shown order off the website. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
+/// whose team starts with "E2E-". It leaves a demo default link preview picture in place (1200 x 630), so a spec can check the page heads.
+/// Every demo photo and the demo share picture have a tiny valid file in the in-memory photo store, so their addresses answer 200. The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
 /// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
 /// own tables, deleting rows whose name starts with "E2E-". Demo testimonials exist only here: the migration and the production seed
 /// never create one.
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="time">The clock.</param>
-public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time)
+/// <param name="storage">The image storage; demo photo files are stored only when it is the in-memory store of the Testing environment.</param>
+public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time, IImageStorage storage)
 {
+    // A 1 x 1 PNG, the same file for every demo photo.
+    private static readonly byte[] DemoPhotoBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
+
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
     private const int DemoClosureDaysAhead = 20;
@@ -110,7 +117,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         {
             var settings = await context.SiteSettings.SingleAsync(cancellationToken).ConfigureAwait(false);
             var changes = settings.UpdateBusinessInfo(Demo, time.GetUtcNow()).Value;
-            settings.SetSharePicture(new LinePhotoFile($"csps-test/demo/{Guid.NewGuid():N}", DemoShareWidth, DemoShareHeight, 120_000, "jpg"));
+            settings.SetSharePicture(new LinePhotoFile(NewDemoPhotoId($"csps-test/demo/{Guid.NewGuid():N}"), DemoShareWidth, DemoShareHeight, 120_000, "jpg"));
 
             // The old rows go first, so the unique number and main indexes never see two rows at once.
             context.SitePhoneNumbers.RemoveRange(await context.SitePhoneNumbers.ToListAsync(cancellationToken).ConfigureAwait(false));
@@ -155,6 +162,20 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         context.Orders.RemoveRange(stale);
+
+        // Any other order on the website (the dev seed shows three, an earlier spec may have shown more) is taken off and loses its
+        // gallery entry, so the gallery and Home hold only the demo set.
+        var shown = await context.Orders
+            .Where(order => !order.Number.StartsWith(DemoOrderPrefix) && order.ShownOnWebsiteSinceUtc != null)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var shownIds = shown.Select(order => order.Id).ToList();
+        context.GalleryEntries.RemoveRange(await context.GalleryEntries.Where(entry => entry.OrderId != null && shownIds.Contains(entry.OrderId.Value)).ToListAsync(cancellationToken).ConfigureAwait(false));
+        foreach (var order in shown)
+        {
+            context.Entry(order).Property(row => row.ShownOnWebsiteSinceUtc).CurrentValue = null;
+        }
+
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var now = time.GetUtcNow();
@@ -181,7 +202,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             var order = Order.Import(new OrderImportSnapshot($"{DemoOrderPrefix}{index + 1}", details, OrderStatus.Pending, [item]), OrderImportRules.Default, now).Value;
             foreach (var (width, height) in demo.Photos)
             {
-                var photo = order.AddImage(new NewOrderImage($"csps-test/demo/{Guid.NewGuid():N}", width, height, 120_000, "jpg", $"{PrivateMarker}-PHOTO"), now);
+                var photo = order.AddImage(new NewOrderImage(NewDemoPhotoId($"csps-test/demo/{Guid.NewGuid():N}"), width, height, 120_000, "jpg", $"{PrivateMarker}-PHOTO"), now);
                 if (photo.IsFailure)
                 {
                     throw new InvalidOperationException("The demo photo was refused.");
@@ -206,7 +227,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     }
 
     // The two demo uploads are made new below the demo orders, shown, one with pieces and a note and one with neither. An upload a test
-    // added with an "E2E-" team goes too. Their photo ids point at no stored file, like the demo orders' photos.
+    // added with an "E2E-" team goes too.
     private async Task ResetDemoUploadsAsync(CancellationToken cancellationToken)
     {
         var demoTeams = DemoUploads.Select(demo => demo.Team).ToList();
@@ -222,7 +243,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         {
             var demo = DemoUploads[index];
             var id = GalleryEntry.NewId(now);
-            var file = new LinePhotoFile($"csps-test/demo/{id:D}/{Guid.NewGuid():N}", demo.Photo.Width, demo.Photo.Height, 120_000, "jpg");
+            var file = new LinePhotoFile(NewDemoPhotoId($"csps-test/demo/{id:D}/{Guid.NewGuid():N}"), demo.Photo.Width, demo.Photo.Height, 120_000, "jpg");
             var values = new GalleryUploadValues(demo.Team, ProductLineSeed.All.Single(entry => entry.Key == demo.LineKey).Id, demo.Pieces, demo.Note, IsShown: true);
             var created = GalleryEntry.CreateUpload(id, values, file, DemoOrders.Length + 1 + index, now);
             if (created.IsFailure)
@@ -234,6 +255,17 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         }
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    // Stores the tiny demo file under a public id and gives the id back.
+    private string NewDemoPhotoId(string publicId)
+    {
+        if (storage is TestingImageStorage photos)
+        {
+            photos.Seed(publicId, DemoPhotoBytes, ImageKind.Png, time.GetUtcNow());
+        }
+
+        return publicId;
     }
 
     // The Basketball, Volleyball and Moto Riding Jersey product types are the first three of the seeded list, like the first three lines.
