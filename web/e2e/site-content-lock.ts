@@ -9,9 +9,11 @@ import { createPhotoHostLock } from './photo-host-lock.ts';
 const shared = createPhotoHostLock({
   directory: path.join(fileURLToPath(new URL('..', import.meta.url)), '.locks', 'site-content.lock'),
   pollMs: 250,
-  waitLimitMs: 4 * 60 * 1000,
+  // Specs that take this lock allow 8 minutes, and a sweep holds it for minutes, so a waiter gets 7 minutes.
+  waitLimitMs: 7 * 60 * 1000,
   staleAfterMs: 3 * 60 * 1000,
   heartbeatMs: 30 * 1000,
+  name: 'site content',
 });
 
 /** Runs `work` while no other test reads or changes the shared public site content. */

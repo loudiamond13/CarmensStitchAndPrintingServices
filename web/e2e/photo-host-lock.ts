@@ -18,6 +18,8 @@ export interface PhotoHostLockOptions {
   readonly waitLimitMs: number;
   readonly staleAfterMs: number;
   readonly heartbeatMs: number;
+  /** What the lock guards, named in the timeout message. */
+  readonly name?: string;
 }
 
 const DEFAULTS: PhotoHostLockOptions = {
@@ -77,7 +79,7 @@ export function takeOverStale(directory: string, staleAfterMs: number): void {
 }
 
 export function createPhotoHostLock(options: PhotoHostLockOptions = DEFAULTS) {
-  const { directory, pollMs, waitLimitMs, staleAfterMs, heartbeatMs } = options;
+  const { directory, pollMs, waitLimitMs, staleAfterMs, heartbeatMs, name = 'photo host' } = options;
 
   async function acquire(token: string): Promise<void> {
     const deadline = Date.now() + waitLimitMs;
@@ -93,7 +95,7 @@ export function createPhotoHostLock(options: PhotoHostLockOptions = DEFAULTS) {
           takeOverStale(directory, staleAfterMs);
           continue;
         }
-        if (Date.now() > deadline) throw new Error('The photo host lock was not free in time.', { cause: error });
+        if (Date.now() > deadline) throw new Error(`The ${name} lock was not free in time.`, { cause: error });
         await sleep(pollMs);
       }
     }
