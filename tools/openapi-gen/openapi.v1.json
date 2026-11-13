@@ -7510,6 +7510,17 @@
               "string"
             ]
           },
+          "publicWebsite": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderPublicWebsiteFields",
+                "description": "The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F2); when absent the public settings stay as they are. It never reaches a Completed or Cancelled order's settings through this route."
+              }
+            ]
+          },
           "teamName": {
             "description": "The team or club name.",
             "type": [

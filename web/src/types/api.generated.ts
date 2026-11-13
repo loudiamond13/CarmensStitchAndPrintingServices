@@ -5794,6 +5794,7 @@ export interface components {
             notes: null | string;
             /** @description The day the order was taken, `yyyy-MM-dd`. */
             orderDate: null | string;
+            publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
             /** @description The team or club name. */
             teamName: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */

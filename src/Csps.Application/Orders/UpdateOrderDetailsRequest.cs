@@ -14,6 +14,7 @@ namespace Csps.Application.Orders;
 /// <param name="DueDate">The day it is due, <c>yyyy-MM-dd</c>.</param>
 /// <param name="Notes">Free notes.</param>
 /// <param name="Version">The base64 of the eight-byte row version the form was opened with.</param>
+/// <param name="PublicWebsite">The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F2); when absent the public settings stay as they are. It never reaches a Completed or Cancelled order's settings through this route.</param>
 public sealed record UpdateOrderDetailsRequest(
     string? CustomerName,
     string? TeamName,
@@ -23,7 +24,8 @@ public sealed record UpdateOrderDetailsRequest(
     string? OrderDate,
     string? DueDate,
     string? Notes,
-    string? Version) : IOrderDetailsFields
+    string? Version,
+    OrderPublicWebsiteFields? PublicWebsite = null) : IOrderDetailsFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static UpdateOrderDetailsRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null);
