@@ -392,7 +392,7 @@ describe('the real source', () => {
       ),
     );
     expect(tokens).toContain('@container/pg');
-    expect(tokens).toContain('pg-phone:text-[52px]');
+    expect(tokens).toContain('pg-phone:text-52');
   });
 
   // It compiles every class token in src one at a time: seconds alone, but well over 30 s while the full coverage run

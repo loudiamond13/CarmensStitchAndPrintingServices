@@ -32,7 +32,7 @@ export const headRowClasses = tw('mb-12 flex flex-wrap items-end justify-between
 export const headInRowClasses = tw('flex flex-col gap-3');
 
 /** `.s-h2`: display 800 at 48px (36px on phones), caps. */
-export const h2Classes = tw('font-display text-[48px] leading-none font-heavy uppercase pg-phone:text-[36px]');
+export const h2Classes = tw('font-display text-48 leading-none font-heavy uppercase pg-phone:text-36');
 
 /** `.s-h2 em`: the accent word, upright, in the accent ink. */
 export const h2EmClasses = tw('text-accent-ink not-italic');
@@ -42,7 +42,7 @@ export const h2EmClasses = tw('text-accent-ink not-italic');
  * is hidden and the card body takes 8px, 12px and 16px of padding (App. C `.s-cats .csp-cat-*`).
  */
 export const catsClasses = tw(
-  'grid grid-cols-[repeat(3,minmax(0,1fr))] gap-6 pg-phone:gap-3 pg-lt-lg:grid-cols-[repeat(2,minmax(0,1fr))] pg-phone:[&_a>div:last-child]:px-3 pg-phone:[&_a>div:last-child]:pt-2 pg-phone:[&_a>div:last-child]:pb-4 pg-phone:[&_h3]:text-[20px] pg-phone:[&_p]:hidden',
+  'grid grid-cols-[repeat(3,minmax(0,1fr))] gap-6 pg-phone:gap-3 pg-lt-lg:grid-cols-[repeat(2,minmax(0,1fr))] pg-phone:[&_a>div:last-child]:px-3 pg-phone:[&_a>div:last-child]:pt-2 pg-phone:[&_a>div:last-child]:pb-4 pg-phone:[&_h3]:text-20 pg-phone:[&_p]:hidden',
 );
 
 /** A skeleton card's body: the title, two text lines and the link, so the section keeps its height when the cards land. */
@@ -71,7 +71,7 @@ export const heroArtClasses = tw('relative aspect-square');
 
 /** `.s-hero-num`: the outlined italic number at the top right, 260px (160px on phones). */
 export const heroNumClasses = tw(
-  'pointer-events-none absolute -top-[4%] -right-[2%] font-display text-[260px] leading-[.8] font-heavy text-transparent italic [-webkit-text-stroke:2px_var(--line)] pg-phone:text-[160px]',
+  'pointer-events-none absolute -top-[4%] -right-[2%] font-display text-260 leading-[.8] font-heavy text-transparent italic [-webkit-text-stroke:2px_var(--line)] pg-phone:text-160',
 );
 
 /** `.s-hero-slab2`: the sand slab behind. */
@@ -113,10 +113,10 @@ export const whyIconClasses = tw(
 export const whyTextClasses = tw('pg-phone:flex pg-phone:flex-col pg-phone:gap-1');
 
 /** `.s-why-item h3`. */
-export const whyTitleClasses = tw('font-display text-[22px] leading-[1.1] font-bold uppercase');
+export const whyTitleClasses = tw('font-display text-22 leading-[1.1] font-bold uppercase');
 
 /** `.s-why-item p`. */
-export const whyBodyClasses = tw('text-[14px] leading-5 text-ink-muted');
+export const whyBodyClasses = tw('text-14 leading-5 text-ink-muted');
 
 /* ───────────── testimonials (App. C `.s-testis`) ───────────── */
 
@@ -146,9 +146,9 @@ export const ctaWrapClasses = tw(
 export const ctaTextClasses = tw('flex max-w-[640px] flex-col gap-4');
 
 /** The band's `.s-h2` at 64px with a .95 line height. */
-export const ctaHeadingClasses = tw('font-display text-[64px] leading-[.95] font-heavy wrap-anywhere uppercase');
+export const ctaHeadingClasses = tw('font-display text-64 leading-[.95] font-heavy wrap-anywhere uppercase');
 
 /** `.s-cut-accent .s-lead`: the lead in the on-accent ink at 80%. */
 export const ctaLeadClasses = tw(
-  'max-w-[560px] text-[18px] leading-[28px] text-[color-mix(in_srgb,var(--on-accent)_80%,transparent)] pg-phone:text-[16px] pg-phone:leading-6',
+  'max-w-[560px] text-18 leading-[28px] text-[color-mix(in_srgb,var(--on-accent)_80%,transparent)] pg-phone:text-16 pg-phone:leading-6',
 );

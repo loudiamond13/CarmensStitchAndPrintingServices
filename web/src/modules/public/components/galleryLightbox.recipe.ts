@@ -58,10 +58,10 @@ export const lightboxThumbOnClasses = clsx(thumbBase, 'ring-2 ring-ink');
 export const lightboxCaptionClasses = tw('flex w-full max-w-[1100px] flex-col items-center gap-2 text-center');
 
 /** The team: display 30, upper case; a long name wraps. */
-export const lightboxTeamClasses = tw('m-0 font-display text-[30px] leading-[1.05] font-heavy wrap-anywhere uppercase');
+export const lightboxTeamClasses = tw('m-0 font-display text-30 leading-[1.05] font-heavy wrap-anywhere uppercase');
 
 /** "{Basketball} · {17} pcs · {note}": Small, in the chrome meta color. */
-export const lightboxMetaClasses = tw('m-0 text-[14px] leading-5 wrap-anywhere text-ink-muted');
+export const lightboxMetaClasses = tw('m-0 text-14 leading-5 wrap-anywhere text-ink-muted');
 
 /** The skeleton shown while the lightbox chunk loads: the same 4 / 3 box, centred in the frame. */
 export const lightboxLoadingClasses = tw(

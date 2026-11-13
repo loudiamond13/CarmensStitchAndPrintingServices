@@ -6,7 +6,7 @@ import { tw } from '@/ui/tw';
 
 /** `.s-pill`: a 44px pill button (OQ-3 A) that never wraps its words. */
 export const galleryPillClasses = tw(
-  'relative inline-flex min-h-11 flex-none cursor-pointer items-center gap-[6px] rounded-sm border px-4 text-[14px] whitespace-nowrap no-underline',
+  'relative inline-flex min-h-11 flex-none cursor-pointer items-center gap-[6px] rounded-sm border px-4 text-14 whitespace-nowrap no-underline',
 );
 
 /** An unselected pill. */
@@ -52,7 +52,7 @@ export const tileCaptionClasses = tw(
 
 /** `.s-tile-cap strong`: the team in display caps, 16px on phones; long names wrap. */
 export const tileTeamClasses = tw(
-  'font-display text-[20px] leading-[1.1] font-bold wrap-anywhere text-ink uppercase pg-phone:text-[16px]',
+  'font-display text-20 leading-[1.1] font-bold wrap-anywhere text-ink uppercase pg-phone:text-16',
 );
 
 /** A centered row of one button, 32px under what is above it. */
@@ -74,4 +74,4 @@ export const tileSkeletonClasses = tw('mb-4 break-inside-avoid overflow-hidden r
 export const tileSkeletonRatios = [tw('aspect-4/5'), tw('aspect-square'), tw('aspect-3/4'), tw('aspect-4/3')] as const;
 
 /** `.s-tile-cap span`: the line and pieces. */
-export const tileMetaClasses = tw('text-[12px] leading-4 font-semibold text-ink-muted');
+export const tileMetaClasses = tw('text-12 leading-4 font-semibold text-ink-muted');

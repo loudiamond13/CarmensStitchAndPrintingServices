@@ -282,7 +282,7 @@ describe('PublicLayout heading order (D-41 R2-17)', () => {
     expect(levels.filter((level) => level === 'h1')).toHaveLength(1);
     expect(levels.indexOf('h1')).toBeLessThan(levels.indexOf('h2'));
     for (const title of titles) {
-      expect(title.className).toBe('mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase');
+      expect(title.className).toBe('mb-4 font-display text-16 font-bold tracking-[.12em] text-ink-muted uppercase');
     }
   });
 });
