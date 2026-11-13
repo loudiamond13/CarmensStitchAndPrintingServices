@@ -168,7 +168,7 @@ public sealed class GalleryEntry : IAttributedRecord, IPublicContentRecord
             errors["teamName"] = [TeamTooLongMessage];
         }
 
-        if (values.ProductLineId is null || values.ProductLineId == Guid.Empty)
+        if (values.ProductLineId.GetValueOrDefault() == Guid.Empty)
         {
             errors["productLineId"] = [LineRequiredMessage];
         }
@@ -334,7 +334,7 @@ public sealed class GalleryEntry : IAttributedRecord, IPublicContentRecord
             fields.Add("team");
         }
 
-        if (values.ProductLineId != ProductLineId)
+        if (!Nullable.Equals(ProductLineId, values.ProductLineId))
         {
             ProductLineId = values.ProductLineId;
             fields.Add("line");
