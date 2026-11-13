@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T19:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T20:00:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -332,6 +332,25 @@ When someone shares the Gallery page link on Facebook, the preview shows one pho
 
 - **A (built, recommended):** the cover photo of the first team shown on the Gallery page, so the preview matches what visitors see first.
 - **B:** the photo with the newest date.
+
+## P11-BL-37 · The number on the drawn jersey when a gallery item has no photo (plan 11-29, SPEC-GAP)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+A Gallery tile or Recent work item with no photo shows a drawn jersey instead. Orders carry no jersey number, so it prints 23, the same as the Home hero.
+
+- **A (built, recommended for now):** keep 23 everywhere. Review it in the UI review.
+- **B:** show no number on the drawn jersey.
+- **C:** give your own rule.
+
+## P11-BL-38 · Gallery uploads: page sizes and the shown default (plan 11-28, owner items O-1 and O-2)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+The staff gallery list accepts any page size from 1 to 100 (the shared list rule), not only 10, 20, 50 and 100. A new upload sent without the "shown" setting is hidden, as with testimonials; the admin form (plan 11-32) sends it ticked by default.
+
+- **A (built, recommended):** keep both as built.
+- **B:** allow only 10, 20, 50 and 100, or make a new upload shown when the setting is left out.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
