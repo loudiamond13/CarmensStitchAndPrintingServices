@@ -6,8 +6,8 @@ status: verified
 threats_open: 0
 asvs_level: 1
 block_on: high
-created: "2026-11-13T12:40:00-06:00"
-updated: "2026-11-13T12:40:00-06:00"
+created: "2026-11-13T12:12:00-06:00"
+updated: "2026-11-13T12:15:00-06:00"
 ---
 
 # Phase 11: Security
@@ -136,7 +136,7 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 
 ## Related Items (not counted as threats)
 
-- **WR-A-01** (code review): the domain does not re-check the link, email and postal rules. T-11-19 holds because the only production caller validates first. The fix is being applied as part of the code review fixes.
+- **WR-A-01** (code review): the domain does not re-check the link, email and postal rules. T-11-19 holds because the only production caller validates first. Fixed in 2d503631: the domain now holds the same rules, so this is closed.
 - **IN-A-05** (code review, deferred): two opening-hours saves in the same instant can both read before either commits. T-11-27's version check is present; taking the site-content lock in the hours handler would close the window.
 - **P11-BL-51**: consent has no database CHECK constraint (owner item). T-11-57 and T-11-83 hold in the validator and the domain.
 - **P11-BL-53**: the Testing site-content reset route has no database-name guard (owner item). It is compiled only in Debug builds (`CSPS_TESTING`).
