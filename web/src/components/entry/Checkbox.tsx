@@ -76,6 +76,12 @@ export function Checkbox({
             aria-disabled={ariaDisabled || undefined}
             aria-invalid={invalid || undefined}
             aria-describedby={hasMessage ? messageId : undefined}
+            onClick={(event) => {
+              // A controlled box is put back by React. An uncontrolled one has no such owner, so the toggle is undone here.
+              if (ariaDisabled && checked === undefined) {
+                event.currentTarget.checked = !event.currentTarget.checked;
+              }
+            }}
             onChange={(event) => {
               if (!ariaDisabled) {
                 onChange?.(event.target.checked);

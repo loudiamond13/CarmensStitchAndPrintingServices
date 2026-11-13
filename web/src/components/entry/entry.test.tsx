@@ -142,6 +142,19 @@ describe('Checkbox (UI-SPEC Checkbox, D-03)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('keeps an uncontrolled aria-disabled box unchanged by a click or Space', async () => {
+    const user = userEvent.setup();
+    render(<Checkbox label="Show it" defaultChecked={false} ariaDisabled />);
+    const box = screen.getByRole('checkbox', { name: 'Show it' });
+
+    await user.click(box);
+
+    expect(box).not.toBeChecked();
+    box.focus();
+    await user.keyboard(' ');
+    expect(box).not.toBeChecked();
+  });
+
   it('has no message and no aria-describedby with neither hint nor error', () => {
     const { container } = render(<Checkbox label="Keep me signed in" />);
     expect(container.querySelector('p')).toBeNull();
