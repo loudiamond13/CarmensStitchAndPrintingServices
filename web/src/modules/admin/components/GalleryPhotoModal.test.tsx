@@ -539,6 +539,37 @@ describe('the edit window', () => {
     expect(backend.puts[1]?.body.version).toBe('AAAAAAAAH88=');
   });
 
+  it('after Load Latest, choosing the same replacement photo again uploads it again and keeps the version that upload answers', async () => {
+    const latest: GalleryItem = { ...demoUpload(), name: 'Their Words', version: 'AAAAAAAAH88=' };
+    const backend = galleryItemsBackend(undefined, {
+      onPut: (_id, _body, current) =>
+        current.puts.length > 1 ? undefined : problemAnswer(409, { code: 'edit.stale' }),
+    });
+    const readLatest = vi.fn<(id: string) => Promise<GalleryItem | undefined>>(() => Promise.resolve(latest));
+    const { user, onSaved } = renderEdit({ readLatest });
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    await user.upload(fileInput(), new File(['jpeg'], 'new-riders.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo chosen');
+    await user.click(save());
+    expect(await screen.findByText('This was changed by someone else.')).toBeVisible();
+    expect(backend.photos).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: 'Load Latest' }));
+    await waitFor(() => {
+      expect(team()).toHaveValue('Their Words');
+    });
+
+    await user.upload(fileInput(), new File(['jpeg'], 'new-riders.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo chosen');
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledOnce();
+    });
+    expect(backend.photos).toHaveLength(2);
+    expect(backend.puts[1]?.body.version).not.toBe(backend.puts[0]?.body.version);
+    expect(backend.puts[1]?.body.version).not.toBe('AAAAAAAAH88=');
+  });
+
   it('says the photo was not found when it was deleted meanwhile', async () => {
     galleryItemsBackend(undefined, { onPut: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
     const { user, onClose } = renderEdit();
