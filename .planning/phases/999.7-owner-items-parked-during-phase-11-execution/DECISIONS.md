@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T04:20:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T09:25:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -438,6 +438,102 @@ When you move through a page with the Tab key, Firefox scrolls only far enough t
 - **B:** add a small script to the public pages that scrolls a focused control fully clear. Contact has only 0.63 KB of its size budget left, so the script would have to load late.
 - **C:** make the stricter rule fail Firefox too, and then do B.
 
+## P11-BL-47 · A later database update could overwrite the saved tagline (review WR-B-02)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+Tagline (and the business name) sit in the seeded settings row. A later migration that edits that seed would overwrite what staff saved.
+
+- **A (recommended):** add a schema test that fails if a later migration updates the seeded settings row. No schema change.
+- **B:** move the columns out of the seed with a hand-written migration (changes migrations).
+- **C:** accept and write it down.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-48 · Gallery viewer phone tap zones say "photo" but move between items (review WR-D-02)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+The UI spec names them "Previous photo" and "Next photo". They go to the previous or next gallery item, while the desktop buttons for the same action say "image".
+
+- **A (recommended):** rename them "Previous image" and "Next image", to match the buttons.
+- **B:** keep the names and add a hidden description ("Goes to the next gallery item").
+- **C:** keep as ruled.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-49 · How a reopening date far away is worded (review WR-A-03, copy part)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+The look-ahead now covers the longest closure (38 days, was 14), so a reopening date shows. But the page prints only the day name ("Opens Friday 9:00 AM"), which reads like the coming Friday. Please also confirm the UI spec's "14 days" becomes 38.
+
+- **A (recommended):** print the date when it is more than 6 days away ("Opens Dec 24, 9:00 AM").
+- **B:** print both ("Opens Thursday, Dec 24, 9:00 AM").
+- **C:** day name only, and show nothing past 6 days.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-50 · The busy message on public pages says "Too many attempts" (review IN-B-03)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+When a public page is read too often, the message reads like a sign-in lockout.
+
+- **A (recommended):** add "This page is busy right now. Wait a moment, then try again."
+- **B:** keep the current text.
+- **C:** other wording from you.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-51 · Customer consent for showing an order is checked only in code (review IN-B-05)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+The rule "an order shown on the site must have the customer's OK" lives only in the business logic, not in the database.
+
+- **A (recommended):** add a database check rule in a forward-only migration, after checking no migrated order breaks it.
+- **B:** keep it in code and add a test that scans for a shown order with no OK.
+- **C:** accept as is.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-52 · "CSPS Shop" map label is fixed text (review IN-D-03)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+After a business rename, the Contact map label would still say "CSPS Shop", so the page shows two names.
+
+- **A (recommended):** the map label uses the saved business name; social link names stay fixed.
+- **B:** record that all this brand text stays fixed.
+- **C:** use the business name everywhere.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-53 · Test-only content reset has no database-name guard (review IN-E-04)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+Not reachable in a live build. In a local test host it would rewrite site content on whatever database it points at.
+
+- **A (recommended):** refuse any database except the e2e and per-test ones, like the dev seed rule.
+- **B:** leave it.
+- **C:** also require a secret header.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
+## P11-BL-54 · The owner screenshot tool covers only Home (review IN-F-06)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+The tool you use to review screens (D-23) has no Products, Gallery, Contact or Site Content admin pages.
+
+- **A (recommended):** add those pages.
+- **B:** keep it, and note that the e2e screenshots cover the rest.
+- **C:** leave as is.
+
+Full options are in `11-REVIEW-FIX.md` under "Owner items".
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -453,3 +549,4 @@ When you move through a page with the Tab key, Firefox scrolls only far enough t
 | 10 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (third time) | failed: the losing upload answered **500** instead of 409 or 422 | **not a flake: a real race.** Fixed in ec98f325: the check before storage now reads the order again when another upload changes it, so the loser gets the photo limit (422). Confirmed: the wave 11 gate passed with 0 failures. |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
+- Review fixes (2026-11-13): `OrderListTimingTests` customer-name search p95 412.8 ms against 300 ms under a saturated machine, still failing on a quieter rerun. No fix touched that code. Re-check alone on a quiet machine in the post-merge gate.
