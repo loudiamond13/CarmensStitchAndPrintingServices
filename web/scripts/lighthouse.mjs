@@ -32,7 +32,11 @@ export const SERVER_PROJECT = fileURLToPath(new URL('../../src/Csps.Server', imp
 export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', import.meta.url));
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
-export const PAGE_PAUSE_MS = 0;
+/**
+ * The pause before every page after the first. Lighthouse reports NO_NAVSTART ("run Lighthouse again") when a second Chrome
+ * starts within a few seconds of the first one closing; 20 seconds always worked, 4 never did.
+ */
+export const PAGE_PAUSE_MS = 15_000;
 export const LIGHTHOUSE_URL = `${ORIGIN}/`;
 /** The real public pages that are scored, Home first (D-28). */
 export const LIGHTHOUSE_PAGES = Object.freeze(['/', '/products', '/gallery', '/contact']);
@@ -58,7 +62,7 @@ const HEALTH_POLL_MS = 1000;
  * @typedef {{ readonly kind: 'refuse', readonly name: 'port-busy', readonly message: string, readonly exitCode: 1 }} RefuseStep
  * @typedef {RunStep | HostStep | AssertStep | RefuseStep} Step
  * @typedef {{ stop(): Promise<void> }} RunningHost
- * @typedef {{ run(step: RunStep): number, startHost(step: HostStep): Promise<RunningHost>, readReport(file: string): unknown, log(line: string): void, summary?(text: string): void }} Deps
+ * @typedef {{ run(step: RunStep): number, startHost(step: HostStep): Promise<RunningHost>, readReport(file: string): unknown, log(line: string): void, summary?(text: string): void, sleep?(ms: number): Promise<void> }} Deps
  */
 
 /**
@@ -167,6 +171,9 @@ export async function executeSteps(steps, deps) {
           }
           break;
         case 'run': {
+          if (step.name === 'lighthouse' && steps[index - 1]?.name === 'lighthouse') {
+            await deps.sleep?.(PAGE_PAUSE_MS);
+          }
           const status = deps.run(step);
           // One host serves every page: it stops after the last page, or at once when a page failed.
           if (step.name === 'lighthouse' && (status !== 0 || next?.name !== 'lighthouse')) {
@@ -475,6 +482,10 @@ async function main() {
       log: (line) => {
         process.stdout.write(`${line}\n`);
       },
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms);
+        }),
       summary: (text) => {
         const file = process.env.GITHUB_STEP_SUMMARY;
         if (file !== undefined && file !== '') {
