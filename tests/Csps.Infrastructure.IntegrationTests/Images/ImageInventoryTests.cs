@@ -62,6 +62,32 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
     }
 
     [Fact]
+    public async Task TheShareFileOfTheSettingsRowIsKnownAndNamedByAPhotoSoTheSweepKeepsIt()
+    {
+        await SeedAsync();
+        const string shareId = "csps-test/content/share/00000000-0000-0000-0000-000000000001/sharesharesharesharesha2";
+        await using var context = database.CreateContext();
+        var settings = await context.SiteSettings.SingleAsync(TestContext.Current.CancellationToken);
+        settings.SetSharePicture(new LinePhotoFile(shareId, 1200, 630, 90_000, "jpg"));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            var inventory = new ImageInventory(context);
+
+            var known = await inventory.KnownAsync([shareId, LivePhoto, Unknown], TestContext.Current.CancellationToken);
+            var named = await inventory.NamedByPhotosAsync([shareId, Unknown, QueuedOnly], TestContext.Current.CancellationToken);
+
+            known.OrderBy(id => id, StringComparer.Ordinal).ShouldBe([shareId, LivePhoto]);
+            named.ShouldBe([shareId]);
+        }
+        finally
+        {
+            settings.RemoveSharePicture();
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
     public async Task AGalleryUploadPhotoIsKnownAndNamedByAPhotoSoTheSweepKeepsIt()
     {
         await SeedAsync();

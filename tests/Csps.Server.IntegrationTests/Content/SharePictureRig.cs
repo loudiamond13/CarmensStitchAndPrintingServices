@@ -1,4 +1,6 @@
+using System.Net;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
@@ -78,6 +80,17 @@ internal sealed class SharePictureRig : IAsyncDisposable
         using var client = Factory.CreateClient();
         using var request = ApiRequests.Create(HttpMethod.Delete, Route, (who ?? Manager).AccessToken);
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Reads the staff settings as JSON.</summary>
+    public async Task<JsonDocument> SettingsAsync(StartedSession? who = null)
+    {
+        using var client = Factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Get, "/api/v1/site-settings", (who ?? Manager).AccessToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        return JsonDocument.Parse(text);
     }
 
     /// <summary>Reads a page's server HTML.</summary>

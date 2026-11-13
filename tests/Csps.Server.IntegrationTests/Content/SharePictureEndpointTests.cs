@@ -113,6 +113,32 @@ public sealed class SharePictureEndpointTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task TheStaffSettingsReadHoldsThePreviewAddressesAndTheStoredSizeAfterAnUploadAndNullAfterARemove()
+    {
+        await using var rig = await SharePictureRig.StartAsync(database);
+        var admin = await TestSessions.StartAsync(rig.Factory, Roles.Admin);
+        using (var none = await rig.SettingsAsync())
+        {
+            none.RootElement.GetProperty("sharePicture").ValueKind.ShouldBe(JsonValueKind.Null);
+        }
+
+        using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1600, 840));
+        uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using (var withPicture = await rig.SettingsAsync(admin))
+        {
+            var picture = withPicture.RootElement.GetProperty("sharePicture");
+            picture.GetProperty("src320").GetString().ShouldEndWith("size=csps_share_320");
+            picture.GetProperty("src640").GetString().ShouldEndWith("size=csps_share_640");
+            (picture.GetProperty("width").GetInt32(), picture.GetProperty("height").GetInt32()).ShouldBe((1600, 840));
+        }
+
+        using var removed = await rig.RemoveAsync();
+        removed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        using var gone = await rig.SettingsAsync();
+        gone.RootElement.GetProperty("sharePicture").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task AnSvgNamedAsAJpegIsRefusedByItsBytesWithTheP9MessageAndNothingIsStored()
     {
         await using var rig = await SharePictureRig.StartAsync(database);
