@@ -3,8 +3,11 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Csps.Application.Content;
 using Csps.Domain.Content;
+using Csps.Infrastructure.Images;
 using Csps.Infrastructure.Persistence;
+using Csps.Server.IntegrationTests.Content;
 using Csps.Testing;
+using Csps.Testing.Images;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -518,6 +521,30 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         finally
         {
             await RemovePhotosAsync();
+        }
+    }
+
+    [Fact]
+    public async Task HomeContactAndTheNotFoundShellCarryTheDefaultSharePictureAsTheirLinkPreviewPicture()
+    {
+        await using var rig = await SharePictureRig.StartAsync(database, reset: false);
+        using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1200, 630));
+        uploaded.StatusCode.ShouldBe(HttpStatusCode.OK, await uploaded.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var storage = rig.Factory.Services.GetRequiredService<TestingImageStorage>();
+        var publicId = storage.Uploads.Single(recorded => recorded.AssetFolder.Contains("/content/share/", StringComparison.Ordinal)).PublicId;
+        var address = $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_share_1200";
+        using var client = rig.Factory.CreateClient();
+        var name = Meta(await GetBodyAsync(client, "/"), "property", "og:site_name").ShouldNotBeNull();
+
+        foreach (var path in new[] { "/", "/contact", "/nope" })
+        {
+            var body = await GetBodyAsync(client, path, allowNotFound: path == "/nope");
+
+            Meta(body, "property", "og:image").ShouldBe(address, path);
+            Meta(body, "property", "og:image:width").ShouldBe("1200", path);
+            Meta(body, "property", "og:image:height").ShouldBe("630", path);
+            Meta(body, "property", "og:image:alt").ShouldBe(name, path);
+            Meta(body, "name", "twitter:card").ShouldBe("summary_large_image", path);
         }
     }
 
