@@ -30,6 +30,12 @@ export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', im
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
 export const LIGHTHOUSE_URL = `${ORIGIN}/`;
+export const LIGHTHOUSE_PAGES = ['/'];
+export const LIGHTHOUSE_URLS = [LIGHTHOUSE_URL];
+/** @param {string} _page */
+export function reportPathFor(_page) {
+  return REPORT_PATH;
+}
 export const REPORT_PATH = fileURLToPath(new URL('../../artifacts/lighthouse/report.json', import.meta.url));
 export const HEALTH_TIMEOUT_MS = 120_000;
 
