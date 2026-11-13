@@ -202,6 +202,70 @@ test('@site-content-share a Manager chooses a link preview picture, and the next
   });
 });
 
+test('@site-content-share a Manager removes the link preview picture after the question, and Home has no og:image', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(480_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await withSiteContentLock(async () => {
+    try {
+      // The demo seed leaves a share picture in place, so Home starts with an og:image.
+      await seedDemoSiteContent(request);
+      expect(await ogImageOf(request, '/')).not.toBeNull();
+      await openSiteContent(page);
+      const slot = page.getByRole('group', { name: 'Link preview picture' });
+      await slot.scrollIntoViewIfNeeded();
+
+      await press(page, slot.getByRole('button', { name: 'Remove Picture' }));
+      const question = page.getByRole('dialog', { name: 'Remove the link preview picture?' });
+      await expect(question.getByText('Shared links show no picture until you add one.')).toBeVisible();
+      await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
+      await expectNoAxeViolations(page);
+      await press(page, question.getByRole('button', { name: 'Remove Picture' }));
+
+      await expect(page.getByText('Picture removed')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByText('Shared links show no picture.')).toBeVisible();
+      await expect(slot.getByText('No picture yet')).toBeVisible();
+      await expect(slot.getByRole('button', { name: 'Choose Picture' })).toBeFocused();
+      expect(await ogImageOf(request, '/')).toBeNull();
+
+      // The settings were read again, so a Business Info save right after is not refused as stale.
+      await page.getByLabel(/^Tagline/).fill('Made for the whole team.');
+      await press(page, page.getByRole('button', { name: 'Save Business Info' }));
+      await expect(page.getByText('Business info saved')).toBeVisible({ timeout: SAVE_WAIT_MS });
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
+
+// This one only looks at the layout, which any saved settings give, so it takes no lock and uploads nothing.
+test('@site-content-share the preview is 320px wide beside a tablet and fills the card on a phone, with no sideways scroll', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(480_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await openSiteContent(page);
+  const slot = page.getByRole('group', { name: 'Link preview picture' });
+  const frame = slot.locator('[data-ratio="1.91/1"]');
+  await slot.scrollIntoViewIfNeeded();
+  expect((await frame.boundingBox())?.width).toBeCloseTo(320, 0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await slot.scrollIntoViewIfNeeded();
+  const slotBox = await slot.boundingBox();
+  const frameBox = await frame.boundingBox();
+  expect(Math.abs((frameBox?.width ?? 0) - (slotBox?.width ?? 1))).toBeLessThan(2);
+  expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+});
+
 test('@site-content-business an Admin who opens Site Content is sent to the dashboard and has no Site Content item', async ({
   page,
   request,
