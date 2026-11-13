@@ -1,5 +1,6 @@
 #if CSPS_TESTING
 using Csps.Application.Images;
+using Csps.Application.Ports;
 using Csps.Domain.Content;
 using Csps.Domain.Identity;
 using Csps.Domain.OrderLists;
@@ -27,8 +28,8 @@ namespace Csps.Infrastructure.Content;
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="time">The clock.</param>
-/// <param name="photos">The in-memory photo store of the Testing environment.</param>
-public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time, TestingImageStorage photos)
+/// <param name="storage">The image storage; demo photo files are stored only when it is the in-memory store of the Testing environment.</param>
+public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider time, IImageStorage storage)
 {
     // A 1 x 1 PNG, the same file for every demo photo.
     private static readonly byte[] DemoPhotoBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
@@ -259,7 +260,11 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     // Stores the tiny demo file under a public id and gives the id back.
     private string NewDemoPhotoId(string publicId)
     {
-        photos.Seed(publicId, DemoPhotoBytes, ImageKind.Png, time.GetUtcNow());
+        if (storage is TestingImageStorage photos)
+        {
+            photos.Seed(publicId, DemoPhotoBytes, ImageKind.Png, time.GetUtcNow());
+        }
+
         return publicId;
     }
 
