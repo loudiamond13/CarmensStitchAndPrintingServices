@@ -2,9 +2,19 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
+import { delay, http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import {
+  answerGallery,
+  demoGallery,
+  emptyGallery,
+  galleryFailureHandler,
+  galleryHandler,
+  largeGallery,
+} from '@/test/publicFixtures';
 
 /** The real route tree at /gallery (under the URL-state layout), settled once the h1 is on screen. */
 async function renderGallery(path = '/gallery') {
@@ -114,5 +124,177 @@ describe('GalleryPage with the gallery read (GAL-01, D-03, WEB-10)', { timeout: 
       expect(tiles()).toHaveLength(16);
     });
     expect(window.location.search).toBe('');
+  });
+});
+
+/** The gallery requests the page has made, counted by a handler that answers `gallery`. */
+function countGalleryRequests(gallery: typeof largeGallery): { readonly count: () => number } {
+  let requests = 0;
+  server.use(
+    http.get('*/api/v1/public/gallery', () => {
+      requests += 1;
+      return HttpResponse.json(gallery);
+    }),
+  );
+  return { count: () => requests };
+}
+
+describe('GalleryPage Show More, states and the quote link (GAL-01, D-32)', { timeout: 30_000 }, () => {
+  it('draws the first 24 tiles, adds 24 more with Show More Photos with no request, and focuses the first new tile', async () => {
+    answerGallery(largeGallery);
+    const requests = countGalleryRequests(largeGallery);
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(24);
+    });
+    const before = requests.count();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show More Photos' }));
+
+    expect(tiles()).toHaveLength(48);
+    expect(tiles()[24]).toHaveFocus();
+    expect(requests.count()).toBe(before);
+  });
+
+  it('removes Show More Photos once every tile is shown', async () => {
+    answerGallery(largeGallery);
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(24);
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show More Photos' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Show More Photos' }));
+
+    expect(tiles()).toHaveLength(60);
+    expect(tiles()[48]).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Show More Photos' })).toBeNull();
+  });
+
+  it('does not offer Show More Photos when 24 or fewer tiles are in the gallery', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+
+    expect(screen.queryByRole('button', { name: 'Show More Photos' })).toBeNull();
+  });
+
+  it('starts again at 24 tiles when another category is chosen', async () => {
+    answerGallery(largeGallery);
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(24);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Show More Photos' }));
+    expect(tiles()).toHaveLength(48);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Basketball 40 items' }));
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(24);
+    });
+  });
+
+  it('shows "Want one like these? Get a Quote" linking to /contact under the tiles', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+
+    expect(screen.getByRole('link', { name: 'Want one like these? Get a Quote' })).toHaveAttribute('href', '/contact');
+  });
+
+  it('with nothing shown has no pills, and the empty state "No photos yet" with Get a Quote', async () => {
+    answerGallery(emptyGallery);
+    await renderGallery();
+
+    expect(await screen.findByRole('heading', { name: 'No photos yet' })).toBeInTheDocument();
+    expect(screen.getByText('Photos of our latest team orders show here soon.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
+    expect(screen.queryByRole('toolbar')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Want one like these? Get a Quote' })).toBeNull();
+  });
+
+  it('while loading shows 7 pill and 8 tile skeletons in a region that says "Loading the gallery…"', async () => {
+    server.use(
+      http.get('*/api/v1/public/gallery', async () => {
+        await delay('infinite');
+        return HttpResponse.json(demoGallery);
+      }),
+    );
+    const { container } = await renderGallery();
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('[data-gallery-skeleton="pill"]')).toHaveLength(7);
+    });
+    expect(container.querySelectorAll('[data-gallery-skeleton="tile"]')).toHaveLength(8);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the gallery…');
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.queryByRole('toolbar')).toBeNull();
+    await expectNoAxeViolations(container);
+  });
+
+  it('draws the loading tiles at 4 / 5, 1 / 1, 3 / 4 and 4 / 3 in turn', async () => {
+    server.use(
+      http.get('*/api/v1/public/gallery', async () => {
+        await delay('infinite');
+        return HttpResponse.json(demoGallery);
+      }),
+    );
+    const { container } = await renderGallery();
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('[data-gallery-skeleton="tile"]')).toHaveLength(8);
+    });
+    const classes = [...container.querySelectorAll('[data-gallery-skeleton="tile"]')].map((tile) => tile.className);
+    expect(classes.map((value) => /aspect-(4\/5|square|3\/4|4\/3)/.exec(value)?.[1])).toEqual([
+      '4/5',
+      'square',
+      '3/4',
+      '4/3',
+      '4/5',
+      'square',
+      '3/4',
+      '4/3',
+    ]);
+  });
+
+  it('on a failed read shows "Couldn\'t load the gallery." with Try Again, no pills, and loads on retry', async () => {
+    server.use(galleryFailureHandler(500));
+    await renderGallery();
+
+    expect(await screen.findByText("Couldn't load the gallery.")).toBeInTheDocument();
+    expect(screen.getByText('Check your internet connection and try again.')).toBeInTheDocument();
+    expect(screen.queryByRole('toolbar')).toBeNull();
+    expect(tiles()).toHaveLength(0);
+
+    server.use(galleryHandler(demoGallery));
+    await userEvent.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+  });
+
+  it('has no axe violations in the error, empty and populated states', async () => {
+    server.use(galleryFailureHandler(500));
+    const failed = await renderGallery();
+    await screen.findByText("Couldn't load the gallery.");
+    await expectNoAxeViolations(failed.container);
+    failed.unmount();
+
+    answerGallery(emptyGallery);
+    const empty = await renderGallery();
+    await screen.findByRole('heading', { name: 'No photos yet' });
+    await expectNoAxeViolations(empty.container);
+    empty.unmount();
+
+    answerGallery(largeGallery);
+    const populated = await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(24);
+    });
+    await expectNoAxeViolations(populated.container);
   });
 });

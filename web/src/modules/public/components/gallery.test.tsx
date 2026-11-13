@@ -206,3 +206,118 @@ describe('GalleryFilterBar (GAL-01, D-03, D-32)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('GalleryFilterBar keyboard (UI-SPEC G1 item 2; roving focus)', () => {
+  const total = 16;
+
+  /** The bar between two plain buttons, so a Tab can enter and leave it. */
+  function renderBar(selected: string | null = null, onSelect = vi.fn()) {
+    const view = render(
+      <>
+        <button type="button">Before</button>
+        <GalleryFilterBar pills={demoGallery.pills} total={total} selected={selected} onSelect={onSelect} />
+        <button type="button">After</button>
+      </>,
+    );
+    return { ...view, onSelect };
+  }
+
+  const pill = (name: string) => screen.getByRole('button', { name });
+
+  it('has one tab stop: Tab enters on the selected pill and the next Tab leaves the bar', async () => {
+    renderBar('moto');
+    const user = userEvent.setup();
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Before' })).toHaveFocus();
+    await user.tab();
+    expect(pill('Moto 3 items')).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'After' })).toHaveFocus();
+  });
+
+  it('makes only the selected pill tabbable, and All when nothing is selected', () => {
+    const { unmount } = renderBar(null);
+    expect(pill('All 16 items')).toHaveAttribute('tabindex', '0');
+    expect(pill('Basketball 4 items')).toHaveAttribute('tabindex', '-1');
+    unmount();
+
+    renderBar('polo');
+    expect(pill('All 16 items')).toHaveAttribute('tabindex', '-1');
+    expect(pill('Polo 2 items')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('moves focus with the arrow keys, wrapping at both ends, and selects nothing', async () => {
+    const { onSelect } = renderBar(null);
+    const user = userEvent.setup();
+    pill('All 16 items').focus();
+
+    await user.keyboard('{ArrowRight}');
+    expect(pill('Basketball 4 items')).toHaveFocus();
+    await user.keyboard('{ArrowLeft}{ArrowLeft}');
+    expect(pill('Custom 2 items')).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(pill('All 16 items')).toHaveFocus();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('jumps to the first pill with Home and to the last with End', async () => {
+    renderBar(null);
+    const user = userEvent.setup();
+    pill('All 16 items').focus();
+
+    await user.keyboard('{End}');
+    expect(pill('Custom 2 items')).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(pill('All 16 items')).toHaveFocus();
+  });
+
+  it('moves the one tab stop with the focus, so Tab out and back returns to the last pill', async () => {
+    renderBar(null);
+    const user = userEvent.setup();
+    pill('All 16 items').focus();
+
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(pill('Volleyball 3 items')).toHaveAttribute('tabindex', '0');
+    expect(pill('All 16 items')).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('selects with Enter and with Space, and keeps focus on the pill', async () => {
+    const { onSelect } = renderBar(null);
+    const user = userEvent.setup();
+    pill('All 16 items').focus();
+
+    await user.keyboard('{ArrowRight}{Enter}');
+    expect(onSelect).toHaveBeenLastCalledWith('basketball');
+    expect(pill('Basketball 4 items')).toHaveFocus();
+    await user.keyboard('{ArrowRight} ');
+    expect(onSelect).toHaveBeenLastCalledWith('volleyball');
+    expect(pill('Volleyball 3 items')).toHaveFocus();
+  });
+
+  it('says "Showing 4 items" in a polite region after a pill is chosen, and "Showing 1 item" for one', async () => {
+    const one = [{ key: 'polo', shortName: 'Polo', count: 1 }];
+    const { rerender } = render(
+      <GalleryFilterBar pills={demoGallery.pills} total={total} selected={null} onSelect={vi.fn()} />,
+    );
+    const user = userEvent.setup();
+    const status = screen.getByRole('status');
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status).toHaveTextContent('');
+
+    await user.click(pill('Basketball 4 items'));
+    expect(status).toHaveTextContent('Showing 4 items');
+    await user.click(pill('All 16 items'));
+    expect(status).toHaveTextContent('Showing 16 items');
+
+    rerender(<GalleryFilterBar pills={one} total={1} selected={null} onSelect={vi.fn()} />);
+    await user.click(pill('Polo 1 items'));
+    expect(status).toHaveTextContent('Showing 1 item');
+  });
+
+  it('has no axe violations with the status region', async () => {
+    const { container } = renderBar('moto');
+
+    await expectNoAxeViolations(container);
+  });
+});
