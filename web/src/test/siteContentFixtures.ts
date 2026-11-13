@@ -134,6 +134,86 @@ export function siteSettingsBackend(
   return backend;
 }
 
+export type SharePictureFixture = Schemas['SharePictureDto'];
+
+/** The link preview picture as the settings read answers it, on the Testing image address. `id` tells two pictures apart. */
+export function sharePicture(id = 'demo', overrides: Partial<SharePictureFixture> = {}): SharePictureFixture {
+  const address = (size: string): string => `/api/testing/images/csps/content/share/${id}?size=${size}`;
+  return {
+    src320: address('csps_share_320'),
+    src640: address('csps_share_640'),
+    width: 1200,
+    height: 630,
+    ...overrides,
+  };
+}
+
+/** The version the fake API gives the settings after picture change number `n` (a picture change moves the row version, 11-30). */
+export function pictureVersionAfter(n: number): string {
+  return `AAAAAAAAC${String(n).padStart(2, '0')}=`;
+}
+
+export interface SharePictureBackend {
+  /** Every upload: its Idempotency-Key and content type (the form body is jsdom's, so it is not read). */
+  uploads: { key: string | null; contentType: string | null }[];
+  /** How many removals arrived. */
+  removals: number;
+}
+
+export interface SharePictureBackendOptions {
+  /** Answers an upload instead of the default success. Return undefined to let it go through (it may wait first). */
+  onUpload?: (backend: SharePictureBackend) => Response | undefined | Promise<Response | undefined>;
+  /** Answers a removal instead of the default 204. */
+  onRemove?: (backend: SharePictureBackend) => Response | undefined | Promise<Response | undefined>;
+}
+
+/**
+ * Answers POST and DELETE /api/v1/site-settings/share-picture on top of `settings`: an upload puts a new picture on the settings and moves the
+ * row version, a removal empties it and moves the version again, and every call is recorded.
+ */
+export function sharePictureBackend(
+  settings: SiteSettingsBackend,
+  options: SharePictureBackendOptions = {},
+): SharePictureBackend {
+  const backend: SharePictureBackend = { uploads: [], removals: 0 };
+  let changes = 0;
+  const change = (picture: SharePictureFixture | null): void => {
+    changes += 1;
+    settings.current = {
+      ...settings.current,
+      sharePicture: picture,
+      version: pictureVersionAfter(changes),
+      updatedByName: 'Carmen Reyes',
+      updatedAtUtc: '2026-10-08T03:00:00Z',
+    };
+  };
+  server.use(
+    http.post('*/api/v1/site-settings/share-picture', async ({ request }) => {
+      backend.uploads.push({
+        key: request.headers.get('Idempotency-Key'),
+        contentType: request.headers.get('Content-Type'),
+      });
+      const answer = await options.onUpload?.(backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      const made = sharePicture(`upload-${String(backend.uploads.length)}`);
+      change(made);
+      return HttpResponse.json(made);
+    }),
+    http.delete('*/api/v1/site-settings/share-picture', async () => {
+      backend.removals += 1;
+      const answer = await options.onRemove?.(backend);
+      if (answer !== undefined) {
+        return answer;
+      }
+      change(null);
+      return new HttpResponse(null, { status: 204 });
+    }),
+  );
+  return backend;
+}
+
 // Hours and closures (plan 11-16): the staff view of the weekly hours and the closure list as the API answers them, with an MSW backend
 // for each that records every call.
 export type OpeningHoursFixture = Schemas['OpeningHoursDto'];

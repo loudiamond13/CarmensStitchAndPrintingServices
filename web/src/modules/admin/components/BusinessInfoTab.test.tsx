@@ -12,7 +12,22 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { createDeferred } from '@/test/fakeFetch';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoSiteSettings, problemAnswer, siteSettingsBackend, versionAfter } from '@/test/siteContentFixtures';
+import { useOrderHandlers } from '@/test/orderFixtures';
+import {
+  demoSiteSettings,
+  pictureVersionAfter,
+  problemAnswer,
+  sharePicture,
+  sharePictureBackend,
+  siteSettingsBackend,
+  versionAfter,
+} from '@/test/siteContentFixtures';
+import { prepareImage, type PrepareResult } from '@/utils/images';
+
+vi.mock('@/utils/images', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/images')>()),
+  prepareImage: vi.fn(),
+}));
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
@@ -28,12 +43,14 @@ beforeEach(() => {
   clearSession();
   acceptSession(sessionResponse());
   queryClient = createQueryClient();
+  useOrderHandlers();
 });
 
 afterEach(() => {
   queryClient.clear();
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
+  vi.mocked(prepareImage).mockReset();
 });
 
 function renderTab(onDirtyChange?: (dirty: boolean) => void) {
@@ -706,5 +723,139 @@ describe('accessibility', () => {
     await openTab();
 
     expect(backend.gets).toBe(1);
+  });
+});
+
+function readyFile(file: File): PrepareResult {
+  return {
+    ok: true,
+    file: new Blob(['prepared'], { type: 'image/jpeg' }),
+    name: file.name,
+    type: 'image/jpeg',
+    width: 2000,
+    height: 1050,
+    preview: null,
+    previewUnavailable: true,
+  };
+}
+
+function pictureSlot(): HTMLElement {
+  return screen.getByRole('group', { name: 'Link preview picture' });
+}
+
+function pictureInput(): HTMLInputElement {
+  const input = pictureSlot().querySelector<HTMLInputElement>('input[type="file"]:not([capture])');
+  if (input === null) throw new Error('No file input in the link preview picture slot');
+  return input;
+}
+
+/** A save that answers 409 unless it carries the version the settings have now, as the server does. */
+const versionGuard = (body: { version?: string | null }, backend: { current: { version: string } }) =>
+  body.version === backend.current.version ? undefined : problemAnswer(409, { code: 'edit.stale' });
+
+describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
+  it('is card 6: after Email and before Time zone and money, and outside the form element', async () => {
+    siteSettingsBackend();
+    const { container } = await openTab();
+
+    const names = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(names).toEqual([
+      'Business',
+      'Address and map',
+      'Phone numbers',
+      'Messenger and social links',
+      'Email',
+      'Link preview picture',
+      'Time zone and money',
+    ]);
+    const form = container.querySelector('form');
+    expect(form).not.toBeNull();
+    expect(form?.contains(screen.getByRole('heading', { name: 'Link preview picture' }))).toBe(false);
+    expect(form?.contains(screen.getByRole('heading', { name: 'Email' }))).toBe(true);
+  });
+
+  it('still saves the form with Save Business Info, which sits after the cards', async () => {
+    const backend = siteSettingsBackend();
+    const { user } = await openTab();
+
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    expect(await screen.findByText('Business info saved')).toBeVisible();
+    expect(backend.puts).toHaveLength(1);
+  });
+
+  it('leaves a typed but unsaved tagline typed and the form dirty while the picture saves', async () => {
+    const backend = siteSettingsBackend();
+    sharePictureBackend(backend);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const onDirtyChange = vi.fn<(dirty: boolean) => void>();
+    const { user } = await openTab(onDirtyChange);
+    await user.type(screen.getByLabelText(/^Tagline/), ' Typed, not saved.');
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    });
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+
+    expect(await screen.findByText('Picture saved')).toBeVisible();
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue(`${demoSiteSettings.tagline} Typed, not saved.`);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    expect(screen.getByRole('button', { name: 'Undo Changes' })).not.toHaveAttribute('aria-disabled');
+    expect(backend.puts).toHaveLength(0);
+  });
+
+  it('shows the picture the upload left and who last changed the settings, from the settings read again', async () => {
+    const backend = siteSettingsBackend();
+    sharePictureBackend(backend);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openTab();
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+
+    const image = await within(pictureSlot()).findByRole('img', { name: 'The link preview picture' });
+    expect(image.getAttribute('src')).toBe(sharePicture('upload-1').src320);
+    expect(backend.gets).toBe(2);
+  });
+
+  it('the next Save Business Info sends the version the picture left, so it is not refused as stale (11-30 OI-1)', async () => {
+    const backend = siteSettingsBackend(demoSiteSettings, { onPut: versionGuard });
+    sharePictureBackend(backend);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openTab();
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Picture saved');
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    expect(await screen.findByText('Business info saved')).toBeVisible();
+    expect(backend.puts).toHaveLength(1);
+    expect(backend.puts[0]?.version).toBe(pictureVersionAfter(1));
+    expect(screen.queryByText('This was changed by someone else.')).not.toBeInTheDocument();
+  });
+
+  it('a save after someone else changed the business info still ends in the stale banner: the picture never hides their change', async () => {
+    const backend = siteSettingsBackend(demoSiteSettings, { onPut: versionGuard });
+    sharePictureBackend(backend);
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openTab();
+    backend.current = { ...backend.current, tagline: 'Changed by another Manager.', version: versionAfter(7) };
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Picture saved');
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    expect(await screen.findByText('This was changed by someone else.')).toBeVisible();
+    expect(screen.getByLabelText(/^Tagline/)).toHaveValue(`${demoSiteSettings.tagline}!`);
+  });
+
+  it('has no axe violation with the card and a typed form', async () => {
+    siteSettingsBackend();
+    const { container, user } = await openTab();
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+
+    await expectNoAxeViolations(container);
   });
 });

@@ -8,6 +8,8 @@ import type { APIRequestContext, Browser, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { holdsItsContent, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
+import { withPhotoHost } from './photo-host-lock.ts';
+import { drawJpeg, photoKey } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedDemoSiteContent, type TestStaff } from './testing-api.ts';
 
@@ -153,6 +155,51 @@ test('@site-content-business a second Manager saving first makes the first save 
   } finally {
     await other.context().close();
   }
+});
+
+/** A picture save goes through the host and the shared database, which other test runs on this machine may be using: give its toast longer than the 5 second default. */
+const SAVE_WAIT_MS = 20_000;
+
+/** The og:image address in the server's HTML for `path`, fetched with no script and no cookies: what a crawler reads. */
+async function ogImageOf(request: APIRequestContext, path: string): Promise<string | null> {
+  const html = await (await request.get(path)).text();
+  return /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? null;
+}
+
+test('@site-content-share a Manager chooses a link preview picture, and the next server HTML of Home has it as og:image', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(480_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  const shot = await drawJpeg(page, 'share.jpg', 120, 1200, 630);
+  await withSiteContentLock(async () => {
+    try {
+      await seedDemoSiteContent(request);
+      await openSiteContent(page);
+      const slot = page.getByRole('group', { name: 'Link preview picture' });
+      await slot.scrollIntoViewIfNeeded();
+
+      await withPhotoHost(async () => {
+        await slot.locator('input[type="file"]:not([capture])').setInputFiles(shot);
+        await expect(page.getByText('Picture saved')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      });
+      await expect(page.getByText('Shared links use it now.')).toBeVisible();
+      await expect(slot.getByRole('status')).toContainText('Saved');
+      const preview = slot.getByRole('img', { name: 'The link preview picture' });
+      await expect(preview).toBeVisible();
+      const key = photoKey(await preview.getAttribute('src'));
+
+      // A crawler's view: the server's own HTML, with no script run.
+      const og = await ogImageOf(request, '/');
+      expect(og).toContain(key);
+      expect(og).toContain('csps_share_1200');
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
 });
 
 test('@site-content-business an Admin who opens Site Content is sent to the dashboard and has no Site Content item', async ({
