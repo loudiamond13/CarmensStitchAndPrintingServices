@@ -133,7 +133,8 @@ export const PUBLIC_COPY = {
       eyebrow: 'Fresh off the press',
       headline: { plain: 'Recent', accent: 'work.' },
       viewGallery: 'View gallery',
-      caption: (line: string, pieces: number) => `${line} · ${piecesText(pieces)}`,
+      // The pieces are left out when unknown.
+      caption: (line: string, pieces: number | null) => (pieces === null ? line : `${line} · ${piecesText(pieces)}`),
     },
     testimonials: {
       eyebrow: 'From the court and the road',

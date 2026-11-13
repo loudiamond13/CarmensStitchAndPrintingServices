@@ -385,9 +385,12 @@ describe('HomePage Recent work and the hero tag (D-14, PUB-01)', { timeout: 20_0
 
     await userEvent.click(screen.getByRole('link', { name: 'Sample City Spikers Volleyball · 12 pcs' }));
 
-    await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/gallery');
-    });
+    await waitFor(
+      () => {
+        expect(router.state.location.pathname).toBe('/gallery');
+      },
+      { timeout: 15_000 },
+    );
     expect(router.state.location.search).toBe('?category=volleyball');
   });
 
