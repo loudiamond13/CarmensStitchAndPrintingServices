@@ -21,6 +21,9 @@ test.describe.configure({ timeout: 480_000 });
 
 const E2E_TEAM = 'E2E-Riders';
 
+/** The number of a demo order item, as its link in the Source column reads it. */
+const ORDER_NUMBER = /^DEMO-GALLERY-\d+$/;
+
 /** Opens Site Content from the navigation (the sidebar, or the drawer on a phone) and then its Gallery tab. */
 async function openGalleryTab(page: Page): Promise<void> {
   const menu = page.getByRole('button', { name: 'Open navigation' });
@@ -113,24 +116,26 @@ test('@site-content-gallery the line filter and the page size live in the URL, a
   await withSiteContentLock(async () => {
     try {
       await seedDemoSiteContent(request);
-      await openGalleryTab(page);
+      // The six demo items fit one page, so "Rows per page" is not drawn: a size in the link is read, kept and shown in the URL.
+      await page.goto('/admin/site-content?tab=gallery&size=10');
       const table = page.getByRole('table', { name: 'Gallery items' });
+      await expect(table).toBeVisible();
       await expect(table.locator('tbody tr')).toHaveCount(6);
+      await expect(page).toHaveURL(/size=10/);
 
-      // A line and a page size are in the URL, and the list follows them.
+      // A line is in the URL too, and the list follows it.
       await page.getByLabel('Product line').selectOption({ label: 'Basketball Jerseys' });
       await expect(page).toHaveURL(/line=[0-9a-f-]{36}/);
       await expect(page).toHaveURL(/tab=gallery/);
-      await page.getByLabel('Rows per page').selectOption('10');
       await expect(page).toHaveURL(/size=10/);
       await expect(page.getByText(/Showing\s+\d+\s+items?\s+·\s+in gallery order/)).toBeVisible();
+      await expect(table.locator('tbody tr')).not.toHaveCount(6);
       const filtered = await table.locator('tbody tr').count();
       expect(filtered).toBeGreaterThan(0);
-      expect(filtered).toBeLessThan(6);
       const addressBefore = page.url();
 
       // An order item links to its order, and Back returns to the same list.
-      await table.getByRole('link', { name: /^ORD-/ }).first().click();
+      await table.getByRole('link', { name: ORDER_NUMBER }).first().click();
       await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}/);
       await page.goBack();
       await expect(page.getByRole('table', { name: 'Gallery items' })).toBeVisible();
@@ -168,8 +173,8 @@ test('@site-content-gallery a Manager moves E2E-Riders below a shown order, hide
       await expect(table.locator('tbody tr').first()).toContainText(E2E_TEAM);
       // The first row has no Move up; every order item has no Edit, Hide or Delete (an order is taken off the website from its order).
       await expect(page.getByRole('button', { name: `Move ${E2E_TEAM} up` })).toHaveAttribute('aria-disabled', 'true');
-      const orderRow = table.locator('tbody tr', { has: page.getByRole('link', { name: /^ORD-/ }) }).first();
-      await expect(orderRow.getByRole('link', { name: /^Change .* on order ORD-/ })).toBeVisible();
+      const orderRow = table.locator('tbody tr', { has: page.getByRole('link', { name: ORDER_NUMBER }) }).first();
+      await expect(orderRow.getByRole('link', { name: /^Change .* on order / })).toBeVisible();
       await expect(orderRow.getByRole('button', { name: /^(Edit|Hide|Show|Delete) / })).toHaveCount(0);
 
       // Move it down one place: below the next item, and /gallery shows the new order.
