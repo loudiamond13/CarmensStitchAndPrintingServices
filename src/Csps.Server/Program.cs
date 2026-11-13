@@ -121,10 +121,13 @@ app.UseSerilogRequestLogging(options => options.Logger = requestLogger);
 // Compresses the static text below (and the shell) when the browser accepts it; the MIME list excludes JSON (PERF-02).
 app.UseResponseCompression();
 
+// A browser that accepts Brotli gets the build-time .br twin of a .js, .css or .svg asset; everyone else gets the plain
+// file (D-28). It must run right before the static files, which then serve the twin.
+app.UsePrecompressedStaticFiles();
+
 // The built React app's files from the (wrapped) web root, anonymously and before authorization (WEB-01). Hashed
 // /assets/* files are cached as immutable, everything else revalidates (PERF-02). index.html is never served raw: the
 // shell endpoint shapes it (PUB-04).
-app.UsePrecompressedStaticFiles();
 app.UseStaticFiles(SpaCaching.CreateStaticFileOptions(app.Environment.WebRootFileProvider));
 
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).

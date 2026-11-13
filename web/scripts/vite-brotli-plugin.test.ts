@@ -145,7 +145,11 @@ describe('brotliPlugin (D-28)', () => {
   it('works in a real Vite build, public files included', async () => {
     const root = temporaryDirectory();
     const outDir = path.join(temporaryDirectory(), 'dist');
-    put(root, 'index.html', '<!doctype html><html><head></head><body><script type="module" src="/main.js"></script></body></html>');
+    put(
+      root,
+      'index.html',
+      '<!doctype html><html><head></head><body><script type="module" src="/main.js"></script></body></html>',
+    );
     put(root, 'main.js', `document.title = ${JSON.stringify(text(4000))};\n`);
     put(root, 'public/mark.svg', `<svg xmlns="http://www.w3.org/2000/svg"><desc>${text(2000)}</desc></svg>`);
 

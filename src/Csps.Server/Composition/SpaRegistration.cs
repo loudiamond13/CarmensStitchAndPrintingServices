@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using Csps.Server.Endpoints;
+using Csps.Server.Http;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.FileProviders;
@@ -67,12 +68,18 @@ public static class SpaCaching
     public static StaticFileOptions CreateStaticFileOptions(IFileProvider webRoot)
     {
         ArgumentNullException.ThrowIfNull(webRoot);
-        return new StaticFileOptions { FileProvider = new ServerWrittenFileProvider(webRoot), OnPrepareResponse = Apply };
+        return new StaticFileOptions
+        {
+            FileProvider = new ServerWrittenFileProvider(webRoot),
+            ContentTypeProvider = PrecompressedStaticFiles.CreateContentTypeProvider(),
+            OnPrepareResponse = Apply,
+        };
     }
 
     /// <summary>
     /// Sets <c>Cache-Control</c> on a static file: immutable for <c>/assets/*</c>, whose names Vite content-hashes,
-    /// and <c>no-cache</c> for everything else (<c>mark.svg</c>), so a new deploy is picked up at once.
+    /// and <c>no-cache</c> for everything else (<c>mark.svg</c>), so a new deploy is picked up at once. A file served from
+    /// its build-time <c>.br</c> twin also gets <c>Content-Encoding: br</c>.
     /// </summary>
     /// <param name="context">The static file response being prepared.</param>
     public static void Apply(StaticFileResponseContext context)
@@ -82,6 +89,7 @@ public static class SpaCaching
         var isHashedAsset = context.Context.Request.Path.StartsWithSegments("/assets", StringComparison.OrdinalIgnoreCase);
         context.Context.Response.Headers[HeaderNames.CacheControl] =
             isHashedAsset ? ImmutableCacheControl : RevalidateCacheControl;
+        PrecompressedStaticFiles.ApplyEncoding(context.Context);
     }
 }
 

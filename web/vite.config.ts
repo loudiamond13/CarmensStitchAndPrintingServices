@@ -6,6 +6,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import { PUBLIC_PRELOAD_ROUTE } from './scripts/budget.ts';
 import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
+import { brotliPlugin } from './scripts/vite-brotli-plugin.ts';
 import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
 
@@ -77,6 +78,9 @@ export default defineConfig(({ mode }) => {
       // public layout and page chunks, so a phone fetches them with the entry script instead of one round trip later.
       // The dev-route builds put those modules in shared chunks with no facade, and nothing measures them for speed.
       ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_PRELOAD_ROUTE)]),
+      // D-28 Brotli twins (plan 11-36). The builds a host serves (production and e2e) get a quality-11 .br next to every
+      // .js, .css and .svg over 1 KB; the budget and parity builds are only measured, so they skip the slow pass.
+      ...(mode === 'production' || mode === 'e2e' ? [brotliPlugin()] : []),
     ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget
