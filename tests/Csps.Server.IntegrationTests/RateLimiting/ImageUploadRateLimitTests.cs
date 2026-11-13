@@ -12,7 +12,7 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 
 /// <summary>
 /// IMG-02, T-09-27: the memory guard for the 256 MB app pool. One address may upload 30 times in 10 minutes, and the whole app
-/// processes two uploads at a time (up to four wait, then 429). Only the upload endpoint is held to the cap.
+/// processes two uploads at a time (up to four wait, then 429). Only the photo upload endpoints are held to the cap.
 /// </summary>
 public sealed class ImageUploadRateLimitTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {

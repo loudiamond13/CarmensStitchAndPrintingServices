@@ -43,6 +43,7 @@ public sealed class ProductLinePhotosController(UploadProductLinePhotoHandler up
     [HttpPost]
     [EndpointName("UploadProductLinePhoto")]
     [EnableRateLimiting(RateLimitPolicies.ImageUpload)]
+    [UploadSlot]
     [RequestSizeLimitMetadata(ImageUploadLimits.BodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageUploadLimits.BodyBytes, MemoryBufferThreshold = ImageUploadLimits.BodyBytes + 1)]
     [ProducesResponseType<ProductLinePhotoDto>(StatusCodes.Status200OK)]

@@ -11,9 +11,6 @@ namespace Csps.Server.Security;
 /// <param name="next">The next middleware.</param>
 public sealed class UploadSlotsMiddleware(RequestDelegate next)
 {
-    /// <summary>The endpoint name of the photo upload action.</summary>
-    public const string UploadEndpointName = "UploadOrderImage";
-
     private const int UploadsAtOnce = 2;
     private const int UploadsWaiting = 4;
     private const int BusyRetrySeconds = 60;
@@ -27,7 +24,7 @@ public sealed class UploadSlotsMiddleware(RequestDelegate next)
         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
     });
 
-    /// <summary>Holds a slot for the upload endpoint until the response is written; any other request passes through.</summary>
+    /// <summary>Holds a slot for an endpoint marked <see cref="UploadSlotAttribute"/> until the response is written; any other request passes through.</summary>
     /// <param name="context">The request.</param>
     /// <param name="slots">The app's slot limiter.</param>
     /// <returns>A task that completes when the request is done.</returns>
@@ -36,7 +33,7 @@ public sealed class UploadSlotsMiddleware(RequestDelegate next)
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(slots);
 
-        if (context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName != UploadEndpointName)
+        if (context.GetEndpoint()?.Metadata.GetMetadata<UploadSlotAttribute>() is null)
         {
             await next(context).ConfigureAwait(false);
             return;

@@ -496,8 +496,8 @@ Nothing calls the storage to delete during the request.
 - A line with a photo cannot be deleted: `422 product-lines.in-use`. The delete and the photo writes take the same `site-content`
   lock, so an upload and a delete of the same line at the same moment end as a `422` for the delete or a `404` for the upload, never a
   `500`. A file uploaded just before the line vanished is queued for removal.
-- Every upload is rate limited with the same cap as the order photo upload (30 in 10 minutes for one address) and bounded by the
-  same body limit.
+- Every upload is rate limited with the same cap as the order photo upload (30 in 10 minutes for one address), shares its server-wide
+  limit of two uploads at a time (four more wait, then `429`), and is bounded by the same body limit.
 - Photo addresses are never written to the audit log or the server log.
 
 ### The photo audit entry

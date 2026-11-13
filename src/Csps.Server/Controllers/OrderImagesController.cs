@@ -43,6 +43,7 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOr
     [HttpPost]
     [EndpointName("UploadOrderImage")]
     [EnableRateLimiting(RateLimitPolicies.ImageUpload)]
+    [UploadSlot]
     [RequestSizeLimitMetadata(ImageUploadLimits.BodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageUploadLimits.BodyBytes, MemoryBufferThreshold = ImageUploadLimits.BodyBytes + 1)]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status200OK)]
