@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T12:05:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T16:17:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -609,3 +609,4 @@ Detail is in `11-E2E-PHASE-END.md` under "Owner items".
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
 - Review fixes (2026-11-13): `OrderListTimingTests` customer-name search p95 412.8 ms against 300 ms under a saturated machine, still failing on a quieter rerun. No fix touched that code. Re-check alone on a quiet machine in the post-merge gate.
 - Phase-end e2e (2026-11-13): full suite 2264 passed, 115 failed, 59 skipped in 3.8 h with other sessions loading the CPU. Nearly all passed on re-run alone (see `11-E2E-PHASE-END.md`). `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` answered a 500 on the Testing site-content reset once in a full .NET run; passed alone twice.
+- Quiet-machine re-check (2026-11-13, HEAD 6cbf3e9a, after all review fixes, the e2e pass and WR-A-01): full gate passed with GATE_EXIT=0. .NET 9507 total, 9505 passed, 0 failed, 2 skipped. Web 390 of 390 files, 10671 of 10671 tests. Lint, typecheck, openapi-gen (9 of 9) and the bundle budget passed. `OrderListTimingTests` alone: 1 of 1 passed. So the earlier timing and parallel-caller failures were machine load. The whole-solution Release build failure predates Phase 11 (test projects use the Debug-only Testing image type since Phases 9 and 10).
