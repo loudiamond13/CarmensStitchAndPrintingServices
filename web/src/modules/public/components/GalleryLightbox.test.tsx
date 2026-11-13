@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { demoGallery, type PublicGalleryItemFixture } from '@/test/publicFixtures';
 import { GalleryLightbox } from './GalleryLightbox';
+import { GalleryLightboxFrame } from './GalleryStates';
 
 // GalleryLightbox (UI-SPEC G2; GAL-02, C-35, D-30): the dialog over the Gallery masonry. The items are the active filter's,
 // in gallery order; the parent owns the shown index, the closing and the quote hop.
@@ -97,6 +98,17 @@ describe('GalleryLightbox open and step (GAL-02)', () => {
 
   it('has no axe violations while open', async () => {
     const { container } = render(<Harness start={2} />);
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('GalleryLightboxFrame (loading, UI-SPEC G2)', () => {
+  it('is the dialog shell with a skeleton in the 4 / 3 box, marked busy, and has no axe violations', async () => {
+    const { container } = render(<GalleryLightboxFrame />);
+    const frame = screen.getByRole('dialog', { name: 'Gallery image viewer' });
+    expect(frame).toHaveAttribute('aria-modal', 'true');
+    expect(frame).toHaveAttribute('aria-busy', 'true');
+    expect(frame.querySelector('[data-gallery-skeleton="lightbox"]')).not.toBeNull();
     await expectNoAxeViolations(container);
   });
 });

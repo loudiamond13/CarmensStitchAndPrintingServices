@@ -7,7 +7,9 @@ import { buttonClasses } from '@/components/actions/button.recipe';
 import { UiLink } from '@/components/actions/UiLink';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { Skeleton } from '@/components/feedback/Skeleton';
+import { viewerRootClasses } from '@/components/media/photoViewer.recipe';
 import { PUBLIC_COPY } from '../copy';
+import { lightboxLoadingClasses } from './galleryLightbox.recipe';
 import {
   galleryBodyClasses,
   galleryStateClasses,
@@ -50,6 +52,24 @@ export function GallerySkeletons() {
         </div>
       </div>
     </>
+  );
+}
+
+/** The lightbox frame at once, while its chunk loads: the dialog's shell with a skeleton in the photo's 4 / 3 box. */
+export function GalleryLightboxFrame() {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={PUBLIC_COPY.gallery.lightbox.dialog}
+      aria-busy="true"
+      data-theme="dark"
+      className={viewerRootClasses}
+    >
+      <div className={lightboxLoadingClasses} data-gallery-skeleton="lightbox">
+        <Skeleton width="100%" height="100%" radius={0} />
+      </div>
+    </div>
   );
 }
 

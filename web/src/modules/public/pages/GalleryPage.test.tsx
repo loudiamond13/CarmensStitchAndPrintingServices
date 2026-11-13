@@ -309,6 +309,12 @@ describe('GalleryPage Show More, states and the quote link (GAL-01, D-32)', { ti
   });
 });
 
+/** The lightbox once its chunk has loaded (the frame shown while it loads has no Close viewer button). */
+async function loadedViewer(): Promise<HTMLElement> {
+  await screen.findByRole('button', { name: 'Close viewer' });
+  return screen.getByRole('dialog', { name: 'Gallery image viewer' });
+}
+
 describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
   it('asks for the lightbox chunk only when a tile is first pressed, then shows the viewer on that item', async () => {
     await renderGallery();
@@ -320,12 +326,10 @@ describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
 
-    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
+    const viewer = await loadedViewer();
     expect(lightboxModule.requests).toBe(1);
-    expect(await within(viewer).findByText('3 / 16')).toBeInTheDocument();
-    expect(
-      await within(viewer).findByRole('img', { name: 'Poblacion Fastbreak, Basketball work' }),
-    ).toBeInTheDocument();
+    expect(within(viewer).getByText('3 / 16')).toBeInTheDocument();
+    expect(within(viewer).getByRole('img', { name: 'Poblacion Fastbreak, Basketball work' })).toBeInTheDocument();
   });
 
   it('opens inside the page root, not in a portal on the body', async () => {
@@ -334,9 +338,9 @@ describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
       expect(tiles()).toHaveLength(16);
     });
 
-    await userEvent.click(tiles()[0] as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: 'Open Brgy. Sample Ballers, Basketball' }));
 
-    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
+    const viewer = await loadedViewer();
     expect(container.contains(viewer)).toBe(true);
   });
 
@@ -346,8 +350,8 @@ describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
       expect(tiles()).toHaveLength(16);
     });
     await userEvent.click(screen.getByRole('button', { name: 'Open Barkada Custom Two, Custom' }));
-    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
-    expect(await within(viewer).findByText('16 / 16')).toBeInTheDocument();
+    const viewer = await loadedViewer();
+    expect(within(viewer).getByText('16 / 16')).toBeInTheDocument();
 
     await userEvent.click(within(viewer).getByRole('button', { name: 'Next image' }));
     expect(within(viewer).getByText('1 / 16')).toBeInTheDocument();

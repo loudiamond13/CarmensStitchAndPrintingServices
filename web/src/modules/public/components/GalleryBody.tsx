@@ -5,7 +5,8 @@
 // them, Get a Quote. Loading shows the pill and tile skeletons; a failed read the error with Try Again and no pills; nothing
 // shown the empty state. The lightbox opens from the tiles in plan 11-31.
 import clsx from 'clsx';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { UiLink } from '@/components/actions/UiLink';
 import { PUBLIC_COPY } from '../copy';
 import { useGalleryCategory } from '../hooks/useGalleryCategory';
@@ -14,9 +15,10 @@ import { isLineKey } from '../lineKey';
 import type { PublicGalleryItem } from '../services/contentService';
 import { GalleryFilterBar } from './GalleryFilterBar';
 import { GalleryMasonry } from './GalleryMasonry';
-import { GalleryEmpty, GallerySkeletons } from './GalleryStates';
+import { GalleryEmpty, GalleryLightboxFrame, GallerySkeletons } from './GalleryStates';
 import { PublicLoadingRegion, ProductsError, type LoadingMessages } from './ProductStates';
 import { galleryActionRowClasses, galleryBodyClasses, galleryStateClasses, showMoreClasses } from './gallery.recipe';
+import { LazyGalleryLightbox } from './lazyGallery';
 import { aBtnSecondaryClasses } from './public.recipe';
 
 const { gallery: COPY, states: STATES } = PUBLIC_COPY;
@@ -34,9 +36,27 @@ interface GalleryResultsProps {
 function GalleryResults({ items }: GalleryResultsProps) {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  // The position of the item the lightbox shows, or null while it is closed.
+  const [viewing, setViewing] = useState<number | null>(null);
+  const navigate = useNavigate();
   return (
     <div className={galleryBodyClasses}>
-      <GalleryMasonry items={items} shown={shown} focusIndex={focusIndex} />
+      <GalleryMasonry items={items} shown={shown} focusIndex={focusIndex} onOpen={setViewing} />
+      {viewing !== null && (
+        <Suspense fallback={<GalleryLightboxFrame />}>
+          <LazyGalleryLightbox
+            items={items}
+            index={viewing}
+            onIndexChange={setViewing}
+            onClose={() => {
+              setViewing(null);
+            }}
+            onQuote={() => {
+              void navigate('/contact');
+            }}
+          />
+        </Suspense>
+      )}
       {items.length > shown && (
         <div className={galleryActionRowClasses}>
           <button
