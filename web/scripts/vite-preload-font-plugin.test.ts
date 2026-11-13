@@ -221,11 +221,19 @@ describe('barlowNoPesoPlugin (D-28)', () => {
     ['a lone U+20B1', 'U+0100,U+20B1,U+2113', 'U+0100,U+2113'],
     ['a range that starts at U+20B1', 'U+20B1-20C0', 'U+20B2-20C0'],
     ['a range that ends at U+20B1', 'U+20A0-20B1', 'U+20A0-20B0'],
-    ['a range that is only U+20B1', 'U+20B1-20B1', ''],
     ['a range that does not reach it', 'U+20A0-20B0,U+20B2-20C0', 'U+20A0-20B0,U+20B2-20C0'],
   ])('handles %s', async (_name, range, expected) => {
     const result = await transform(barlowNoPesoPlugin(), `unicode-range: ${range};`, BARLOW_ID);
     expect(result ?? `unicode-range: ${range};`).toBe(`unicode-range: ${expected};`);
+  });
+
+  it('fails the build when a face lists only U+20B1, because an empty range would make the face cover every character', async () => {
+    await expect(transform(barlowNoPesoPlugin(), 'unicode-range: U+20B1-20B1;', BARLOW_ID)).rejects.toThrow(
+      /lists only U\+20B1/,
+    );
+    await expect(transform(barlowNoPesoPlugin(), 'unicode-range: U+20B1;', BARLOW_ID)).rejects.toThrow(
+      /lists only U\+20B1/,
+    );
   });
 
   it('leaves the latin face, which never listed U+20B1, untouched', async () => {
