@@ -1,6 +1,6 @@
 ---
 created: 2026-11-12T20:05:00-06:00
-updated: 2026-11-12T20:05:00-06:00
+updated: 2026-11-12T21:51:00-06:00
 ---
 
 # Phase 11: deferred items found during execution
@@ -20,3 +20,12 @@ Out-of-scope problems found while executing a plan. They were not fixed in that 
 
 - **Where:** `tests/Csps.Server.IntegrationTests/Auth/ForgotPasswordTests.cs`.
 - **What happens:** it failed once in the full Server run of plan 11-28 (22 seconds, while the whole suite ran). It passed when its class ran again (the class run above passed all of its tests). Nothing in plan 11-28 touches the auth code.
+
+## Found in plan 11-31
+
+### D-31-1: `@gallery at 1440px a focused tile is never under the header or the filter bar` fails in Firefox on the phase branch
+
+- **Where:** `web/e2e/gallery.spec.ts` (plan 11-29), Firefox project only, 1440px.
+- **What happens:** `Open Sample Riders MC, Moto starts below the header and the bar` fails with `Received: 22.5, Expected: >= 132` on every run (3 of 3 repeats in plan 11-31's tree, and 1 of 1 on a clean checkout of the base commit `862a9206` that has none of plan 11-31's changes). The other four projects and the 390px run pass.
+- **Likely cause:** plan 11-29 ran against the four-order demo seed; plan 11-28 (merged beside it) made the seed six public items, and Firefox's partial focus scroll now leaves a tile under the bars. Not checked further.
+- **Suggested fix:** check the tile order and the sticky bar offset in Firefox with the six-item seed, or scroll the tile with `scrollIntoView` in the spec before it measures.

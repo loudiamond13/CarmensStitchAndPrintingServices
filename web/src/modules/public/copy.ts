@@ -210,6 +210,9 @@ export const PUBLIC_COPY = {
       alt: (team: string, line: string) => `${team}, ${line} work`,
       altPhoto: (team: string, line: string, index: number, total: number) =>
         `${team}, ${line} work, photo ${String(index)} of ${String(total)}`,
+      // "{Basketball} · {17} pcs · {Dri-fit mesh, V-neck}"; the pieces and the note are left out when missing.
+      meta: (line: string, pieces: number | null, note: string | null) =>
+        [line, pieces === null ? '' : piecesText(pieces), note ?? ''].filter((part) => part !== '').join(' · '),
       getQuote: 'Get a quote for something like this',
       announceItem: (index: number, total: number, team: string, line: string) =>
         `Item ${String(index)} of ${String(total)}: ${team}, ${line}`,

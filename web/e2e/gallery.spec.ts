@@ -139,3 +139,230 @@ for (const width of [390, 1440]) {
     });
   });
 }
+
+// The lightbox (GAL-02, C-35, D-30). The viewer's own photos answer 404 for the demo ids, so each shows its placeholder.
+const VIEWER = 'Gallery image viewer';
+
+test('@gallery-lightbox pressing the third tile opens the viewer on it, Next wraps from the last item to the first and Esc closes', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+
+    await tiles.nth(2).click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer).toBeVisible();
+    await expect(viewer.getByText(`3 / ${String(total)}`)).toBeVisible();
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+
+    // The arrow key works on every project: the phone projects hide the 56px buttons.
+    for (let step = 3; step < total; step += 1) {
+      await page.keyboard.press('ArrowRight');
+    }
+    await expect(viewer.getByText(`${String(total)} / ${String(total)}`)).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+  });
+});
+
+const LONG_TEAM = 'Barangay Sampaguita Elementary School Varsity Basketball Team of Sample City';
+
+test('@gallery-lightbox the 56px buttons move between items on a desktop and the tap zones on a phone', async ({
+  page,
+  request,
+  guard,
+  isMobile,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    const shownNames = isMobile
+      ? { previous: 'Previous photo', next: 'Next photo' }
+      : { previous: 'Previous image', next: 'Next image' };
+    const hiddenNames = isMobile ? ['Previous image', 'Next image'] : ['Previous photo', 'Next photo'];
+    for (const name of hiddenNames) {
+      await expect(viewer.getByRole('button', { name })).toBeHidden();
+    }
+    const previous = viewer.getByRole('button', { name: shownNames.previous });
+    const next = viewer.getByRole('button', { name: shownNames.next });
+    await expect(previous).toBeVisible();
+    await expect(next).toBeVisible();
+
+    if (isMobile) {
+      // The tap zones are the left and right thirds of the photo box, as tall as the box.
+      const frame = await viewer.locator('[data-lightbox-frame]').boundingBox();
+      const zone = await next.boundingBox();
+      expect(frame).not.toBeNull();
+      expect(zone).not.toBeNull();
+      expect(Math.abs((zone?.width ?? 0) - (frame?.width ?? 0) / 3)).toBeLessThan(2);
+      expect(Math.abs((zone?.height ?? 0) - (frame?.height ?? 0))).toBeLessThan(2);
+      await next.tap();
+    } else {
+      const size = await next.boundingBox();
+      expect(Math.round(size?.width ?? 0)).toBe(56);
+      await next.click();
+    }
+    await expect(viewer.getByText(`2 / ${String(total)}`)).toBeVisible();
+    await previous.click();
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+    await previous.click();
+    await expect(viewer.getByText(`${String(total)} / ${String(total)}`)).toBeVisible();
+  });
+});
+
+// A horizontal pointer move over the photo box, as a finger drags it: down in the middle, then up `dx` pixels away.
+const SWIPE = `(dx) => {
+  const frame = document.querySelector('[data-lightbox-frame]');
+  const box = frame.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const at = (type, clientX) =>
+    document.elementFromPoint(x, y).dispatchEvent(
+      new PointerEvent(type, { bubbles: true, pointerId: 9, isPrimary: true, pointerType: 'touch', clientX, clientY: y }),
+    );
+  at('pointerdown', x);
+  at('pointerup', x + dx);
+}`;
+
+test('@gallery-lightbox on a phone a swipe of 80px moves between items and one of 20px does not', async ({
+  page,
+  request,
+  guard,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'the swipe is for the phone projects');
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    await page.evaluate(`(${SWIPE})(-80)`);
+    await expect(viewer.getByText(`2 / ${String(total)}`)).toBeVisible();
+    await page.evaluate(`(${SWIPE})(80)`);
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+    await page.evaluate(`(${SWIPE})(-20)`);
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+  });
+});
+
+for (const width of [320, 1440]) {
+  test(`@gallery-lightbox at ${String(width)}px a long team name wraps in the caption and nothing scrolls sideways`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    guard.expectStatus(TEST_IMAGES, 404);
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.route('**/api/v1/public/gallery', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { items: { team: string }[] };
+        const first = body.items[0];
+        if (first !== undefined) {
+          first.team = LONG_TEAM;
+        }
+        await route.fulfill({ response, json: body });
+      });
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/gallery');
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /^Open / })
+        .first()
+        .click();
+      const viewer = page.getByRole('dialog', { name: VIEWER });
+      const team = viewer.getByText(LONG_TEAM);
+      await expect(team).toBeVisible();
+
+      const box = await team.boundingBox();
+      if (width === 320) {
+        expect(box?.height ?? 0, 'the long name takes more than one line').toBeGreaterThan(40);
+      }
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+      expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+      await expectNoAxeViolations(page);
+    });
+  });
+}
+
+test('@gallery-lightbox the browser Back button closes the viewer, stays on the Gallery with the same category and focuses the last tile shown', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery?category=basketball');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(viewer.getByText(`${String((1 % total) + 1)} / ${String(total)}`)).toBeVisible();
+
+    await page.evaluate('document.fonts.ready.then(() => true)');
+    await page.goBack();
+
+    await expect(viewer).toBeHidden();
+    await expect(page).toHaveURL(/\/gallery\?category=basketball$/);
+    await expect(tiles.nth(1 % total)).toBeFocused();
+  });
+});
+
+test('@gallery-lightbox Esc leaves no extra history entry: Back from the Gallery goes to the page before it', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/');
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    await tiles.nth(2).click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    // The viewer is ready once its chunk has loaded and Close has the focus; Esc before that has nothing to answer it.
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+    await expect(tiles.nth(2)).toBeFocused();
+
+    // The viewer's display font loads when it first opens; leaving before it is in would abort that download (Firefox logs it).
+    await page.evaluate('document.fonts.ready.then(() => true)');
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    // The page before it is still loading its own fonts; ending the test now would abort them (Firefox logs it).
+    await page.waitForLoadState('load');
+    await page.evaluate('document.fonts.ready.then(() => true)');
+  });
+});

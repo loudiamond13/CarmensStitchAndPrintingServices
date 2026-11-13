@@ -48,13 +48,18 @@ export function tileRatio(photo: Pick<PublicGalleryPhoto, 'width' | 'height'> | 
   return `${String(width)} / ${String(height)}`;
 }
 
+/** A request to move the focus to a tile. Each request is a new object, so the same tile can be asked for again. */
+export interface TileFocusRequest {
+  index: number;
+}
+
 export interface GalleryMasonryProps {
   /** The items in gallery order (already filtered by the page). */
   items: readonly PublicGalleryItem[];
   /** How many tiles to draw from the start. */
   shown: number;
-  /** The index of the tile to move the focus to when it changes (the first tile Show More adds), or null for none. */
-  focusIndex?: number | null;
+  /** The tile to move the focus to (the first tile Show More adds, the tile of the item the lightbox showed last), or null. */
+  focusRequest?: TileFocusRequest | null;
   /** Called with the item's index in `items` when its tile is pressed (the lightbox opens from it). */
   onOpen?: (itemIndex: number) => void;
 }
@@ -106,13 +111,13 @@ function Tile({ item, index, onOpen }: TileProps) {
   );
 }
 
-export function GalleryMasonry({ items, shown, focusIndex = null, onOpen }: GalleryMasonryProps) {
+export function GalleryMasonry({ items, shown, focusRequest = null, onOpen }: GalleryMasonryProps) {
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (focusIndex !== null) {
-      root.current?.querySelector<HTMLElement>(`[data-tile-index="${String(focusIndex)}"]`)?.focus();
+    if (focusRequest !== null) {
+      root.current?.querySelector<HTMLElement>(`[data-tile-index="${String(focusRequest.index)}"]`)?.focus();
     }
-  }, [focusIndex]);
+  }, [focusRequest]);
   return (
     <div ref={root} className={masonryClasses}>
       {items.slice(0, shown).map((item, index) => (

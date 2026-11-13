@@ -1,9 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -16,6 +16,13 @@ import {
   largeGallery,
   resetPublicData,
 } from '@/test/publicFixtures';
+
+// The factory runs when the lightbox module is first requested, so the count says whether the chunk was fetched.
+const lightboxModule = vi.hoisted(() => ({ requests: 0 }));
+vi.mock('../components/GalleryLightbox', async (importOriginal) => {
+  lightboxModule.requests += 1;
+  return await importOriginal();
+});
 
 /** The real route tree at /gallery (under the URL-state layout), settled once the h1 is on screen. */
 async function renderGallery(path = '/gallery') {
@@ -301,3 +308,189 @@ describe('GalleryPage Show More, states and the quote link (GAL-01, D-32)', { ti
     await expectNoAxeViolations(populated.container);
   });
 });
+
+/** The lightbox once its chunk has loaded (the frame shown while it loads has no Close viewer button). */
+async function loadedViewer(): Promise<HTMLElement> {
+  await screen.findByRole('button', { name: 'Close viewer' });
+  return screen.getByRole('dialog', { name: 'Gallery image viewer' });
+}
+
+describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
+  it('asks for the lightbox chunk only when a tile is first pressed, then shows the viewer on that item', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    expect(lightboxModule.requests).toBe(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+
+    const viewer = await loadedViewer();
+    expect(lightboxModule.requests).toBe(1);
+    expect(within(viewer).getByText('3 / 16')).toBeInTheDocument();
+    expect(within(viewer).getByRole('img', { name: 'Poblacion Fastbreak, Basketball work' })).toBeInTheDocument();
+  });
+
+  it('opens inside the page root, not in a portal on the body', async () => {
+    const { container } = await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open Brgy. Sample Ballers, Basketball' }));
+
+    const viewer = await loadedViewer();
+    expect(container.contains(viewer)).toBe(true);
+  });
+
+  it('wraps from the last item to the first with Next, and closes on Esc', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Open Barkada Custom Two, Custom' }));
+    const viewer = await loadedViewer();
+    expect(within(viewer).getByText('16 / 16')).toBeInTheDocument();
+
+    await userEvent.click(within(viewer).getByRole('button', { name: 'Next image' }));
+    expect(within(viewer).getByText('1 / 16')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+});
+
+describe(
+  'GalleryPage lightbox focus, history and filter (GAL-02, UI-SPEC G2 Focus and History)',
+  { timeout: 30_000 },
+  () => {
+    it('puts focus back on the tile of the item last shown when the lightbox closes', async () => {
+      await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{ArrowRight}');
+      await userEvent.click(screen.getByRole('button', { name: 'Close viewer' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(screen.getByRole('button', { name: 'Open Riverside Rim Rockers, Basketball' })).toHaveFocus();
+    });
+
+    it('shows more tiles first when the last item shown was beyond the first 24, then focuses its tile', async () => {
+      answerGallery(largeGallery);
+      await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(24);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Team 1, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{ArrowRight}'.repeat(29));
+      expect(screen.getByText('30 / 60')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(tiles()).toHaveLength(48);
+      expect(tiles()[29]).toHaveFocus();
+      expect(tiles()[29]).toHaveAccessibleName('Open Team 30, Basketball');
+    });
+
+    it('adds one history entry with the same URL when it opens, and Back closes it and stays on the same category', async () => {
+      const { router } = await renderGallery('/gallery?category=basketball');
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(4);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Sample City Hoops, Basketball' }));
+      await loadedViewer();
+      expect(router.state.location.key).not.toBe(before);
+      expect(window.location.search).toBe('?category=basketball');
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(router.state.location.key).toBe(before);
+      expect(window.location.pathname).toBe('/gallery');
+      expect(window.location.search).toBe('?category=basketball');
+      expect(tiles()).toHaveLength(4);
+    });
+
+    it('removes the entry when it closes by Esc, so the page is on the entry it started from', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(router.state.location.key).toBe(before);
+    });
+
+    it('closes when the category changes while it is open', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await act(async () => {
+        await router.navigate('/gallery?category=volleyball');
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(3);
+      });
+    });
+
+    it('closes the lightbox and goes to /contact with "Get a quote for something like this", and Back lands on the Gallery with it closed', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.click(screen.getByRole('link', { name: 'Get a quote for something like this' }));
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/contact');
+      });
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Gallery image viewer' })).toBeNull();
+      });
+      await act(async () => {
+        await router.navigate(-1);
+      });
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      expect(router.state.location.key).toBe(before);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  },
+);
