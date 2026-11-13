@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-11-12T23:56:00-06:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-11-13T01:46:00-06:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -68,6 +68,8 @@ Run these once, in this order.
 5. **Seed development data.** The seed is an explicit command. Nothing seeds or migrates when the API starts. It only accepts `CSPS_Dev` (the default) or `CSPS_E2E`, and only on the `(localdb)\MSSQLLocalDB` instance or on a SQL Server container on this machine addressed as `127.0.0.1,<port>` or `localhost,<port>` (the container the CI tests use). It refuses every other database (including every `BetsLLC_*` database on the shared instance) and every other server, including other LocalDB instances, named-pipe (`np:`) and `tcp:` addresses, named instances, hosted servers such as the SmarterASP.NET database, and any connection string with a `Failover Partner`. A refusal exits with code 2 before anything connects. It also applies any pending migrations before seeding, and is safe to re-run. The seed also adds demo company expenses (60 over the last 60 days and 4 coming up, with made-up amounts) when the expenses table is empty and at least one active Admin or Manager who has signed in exists. It never creates accounts, so create your first Manager (see "Signing in locally") and run the seed again to get them.
 
    The seed also adds the eight orders of the UI spec (ORD-2026-0139 to ORD-2026-0159, with their items, discounts, payments and order expenses) when the Orders table is empty. They come in through the same import path as the legacy migration, so every figure is worked out from the children: ORD-2026-0148 reads a balance of 9,327.50 and ORD-2026-0151 reads Fully Paid. The next new order is ORD-2026-0160. Receivers and payers are the active staff who can pay, so create your first Manager and run the seed again before you rely on real names; with no staff yet, the seed uses the Legacy holder ("Legacy / unassigned") and still never creates an account. The names and the email in these orders are made up (the email ends in example.com). Order images are not seeded.
+
+   The seed then fills the public site, one part at a time, and skips any part whose table already holds something: demo business info with two phone numbers and no Facebook link, a week of hours (Monday to Saturday 9:00 AM to 6:00 PM, Sunday closed), one closure 20 days ahead, prices on the basketball and volleyball lines, three shown testimonials, and three demo orders (ORD-2026-0142, 0148 and 0157) shown on the website with the customer's OK. All of it is made up. A shown order reaches the public gallery only once it has a photo, and photos are not seeded.
 
    ```powershell
    dotnet run --project tools/Csps.DevSeed -- --reset
