@@ -6,8 +6,8 @@
 // the Testing image host, so their thumbs answer 404, which each test declares.
 import type { APIRequestContext, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
-import { press } from './helpers.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
 import { drawJpeg } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
@@ -96,6 +96,54 @@ test('@site-content-gallery a Manager adds E2E-Riders for Moto with 12 pieces, a
       await expect(page.getByRole('button', { name: /^Open / }).first()).toHaveAccessibleName(
         new RegExp(`^Open ${E2E_TEAM}, Moto`),
       );
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
+
+test('@site-content-gallery the line filter and the page size live in the URL, an order link and Back keep them, and at 320px the rows are cards', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  guard.expectStatus('/api/testing/images/', 404);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await withSiteContentLock(async () => {
+    try {
+      await seedDemoSiteContent(request);
+      await openGalleryTab(page);
+      const table = page.getByRole('table', { name: 'Gallery items' });
+      await expect(table.locator('tbody tr')).toHaveCount(6);
+
+      // A line and a page size are in the URL, and the list follows them.
+      await page.getByLabel('Product line').selectOption({ label: 'Basketball Jerseys' });
+      await expect(page).toHaveURL(/line=[0-9a-f-]{36}/);
+      await expect(page).toHaveURL(/tab=gallery/);
+      await page.getByLabel('Rows per page').selectOption('10');
+      await expect(page).toHaveURL(/size=10/);
+      await expect(page.getByText(/Showing\s+\d+\s+items?\s+·\s+in gallery order/)).toBeVisible();
+      const filtered = await table.locator('tbody tr').count();
+      expect(filtered).toBeGreaterThan(0);
+      expect(filtered).toBeLessThan(6);
+      const addressBefore = page.url();
+
+      // An order item links to its order, and Back returns to the same list.
+      await table.getByRole('link', { name: /^ORD-/ }).first().click();
+      await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}/);
+      await page.goBack();
+      await expect(page.getByRole('table', { name: 'Gallery items' })).toBeVisible();
+      expect(page.url()).toBe(addressBefore);
+      await expect(page.getByLabel('Product line')).not.toHaveValue('');
+      await expect(table.locator('tbody tr')).toHaveCount(filtered);
+
+      // Phone: no header row, each cell on its own line with its label, no sideways scroll.
+      await page.setViewportSize({ width: 320, height: 640 });
+      await expect(page.locator('thead')).toBeHidden();
+      await expect(page.locator('td[data-label="Status"]').first()).toHaveCSS('display', 'flex');
+      expect(await page.evaluate<boolean>(NO_SIDEWAYS_SCROLL)).toBe(true);
+      await expectNoAxeViolations(page);
     } finally {
       await seedDemoSiteContent(request);
     }

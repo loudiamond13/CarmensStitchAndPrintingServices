@@ -495,7 +495,13 @@ export const SITE_CONTENT_COPY = {
       status: 'Status',
       actions: 'Actions',
     },
-    filter: { label: 'Product line', all: 'All lines', hidden: (title: string): string => `${title} (hidden)` },
+    filter: {
+      label: 'Product line',
+      all: 'All lines',
+      /** The name of the toolbar landmark that holds the Select. */
+      landmark: 'Filter the gallery',
+      hidden: (title: string): string => `${title} (hidden)`,
+    },
     /** The result bar's nouns: "Showing 6 items · in gallery order" and "Showing 1 item". */
     resultThing: 'item',
     resultThings: 'items',

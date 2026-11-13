@@ -6,12 +6,16 @@
 //   - An order item shows its order number as a link to the order: it is changed and taken off the website there (D-15, D-27), never here.
 //   - A line that is hidden takes everything filed under it off the public site (D-08): the row says "Line hidden".
 //   - Names and notes are rendered as text only (CWE-79): React escapes them, and nothing here accepts or renders HTML.
+import clsx from 'clsx';
 import { useRef, useState } from 'react';
 import { Button, hitAreaClasses, UiLink } from '@/components/actions';
 import { MediaPlaceholder } from '@/components/brand';
-import { ResponsiveTable, ResultBar, type ResponsiveTableColumn } from '@/components/lists';
+import { EmptyState } from '@/components/feedback';
+import { Select, type SelectOption } from '@/components/forms';
+import { FilterBar, Pagination, ResponsiveTable, ResultBar, type ResponsiveTableColumn } from '@/components/lists';
 import { Badge } from '@/components/status';
 import { LazyImage } from '@/components/states';
+import { usePagedList } from '@/lib/url-state/usePagedList';
 import { SiteContentCard } from '@/modules/admin/components/SiteContentCard';
 import { GalleryPhotoModal } from '@/modules/admin/components/GalleryPhotoModal';
 import {
@@ -25,9 +29,10 @@ import {
   testimonialHomeNoteClasses,
 } from '@/modules/admin/components/siteContent.recipe';
 import { useGalleryItemsQuery } from '@/modules/admin/hooks/useGalleryItemQueries';
+import { useGalleryTabParams } from '@/modules/admin/hooks/useGalleryTabParams';
+import { useProductLineListQuery } from '@/modules/admin/hooks/useProductLineQueries';
 import type { GalleryItem } from '@/modules/admin/services/galleryItemsService';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
-import clsx from 'clsx';
 
 const COPY = SITE_CONTENT_COPY.gallery;
 
@@ -108,11 +113,25 @@ function columns(): readonly ResponsiveTableColumn<GalleryItem>[] {
   ];
 }
 
+/** The results caption Pagination moves focus to after a page change (it needs tabIndex -1). */
+const CAPTION_ID = 'gallery-items-caption';
+
 export function GalleryTab() {
   const addRef = useRef<HTMLButtonElement>(null);
   const [adding, setAdding] = useState(false);
-  const query = useGalleryItemsQuery({ line: null, page: 1, pageSize: 20 });
+  const lines = useProductLineListQuery();
+  const [values, set] = useGalleryTabParams(lines.data?.map((line) => line.id.toLowerCase()));
+  const query = useGalleryItemsQuery({ line: values.line, page: values.page, pageSize: values.size });
   const total = Number(query.data?.total ?? 0);
+  const { pastTheEnd, pageCount, showPager, fresh } = usePagedList(query, total, values.size, set.clampPage);
+
+  const lineOptions: readonly SelectOption[] = (lines.data ?? []).map((line) => ({
+    value: line.id.toLowerCase(),
+    label: line.isActive ? line.title : COPY.filter.hidden(line.title),
+  }));
+  const lineName = lines.data?.find((line) => line.id.toLowerCase() === values.line)?.shortName ?? null;
+  // A line with nothing filed under it: no table, one message and the way back to every line.
+  const emptyLine = values.line !== null && fresh && total === 0 && !pastTheEnd;
 
   return (
     <>
@@ -132,26 +151,73 @@ export function GalleryTab() {
           </Button>
         }
       >
-        <ResultBar count={total} thing={COPY.resultThing} things={COPY.resultThings} orderNote={COPY.orderNote} />
-        <ResponsiveTable<GalleryItem>
-          caption={COPY.table.caption}
-          columns={columns()}
-          rows={query.data?.rows}
-          rowKey={(item) => item.id}
-          isInactive={(item) => !item.isShown || item.lineHidden}
-          things={COPY.things}
-          pending={query.isPending}
-          failed={query.isError}
-          error={query.error}
-          onRetry={() => {
-            void query.refetch();
-          }}
-          emptyIcon="image"
-          emptyTitle={COPY.empty.title}
-          emptyMessage={COPY.empty.message}
-          emptyLevel={3}
-          skeletonRows={4}
+        <FilterBar label={COPY.filter.landmark}>
+          <Select
+            label={COPY.filter.label}
+            placeholder={COPY.filter.all}
+            options={lineOptions}
+            value={values.line ?? ''}
+            onChange={(event) => {
+              set.setFilter('line', event.target.value === '' ? null : event.target.value);
+            }}
+          />
+        </FilterBar>
+        <ResultBar
+          count={pastTheEnd ? 0 : total}
+          thing={COPY.resultThing}
+          things={COPY.resultThings}
+          orderNote={COPY.orderNote}
         />
+        {emptyLine ? (
+          <EmptyState
+            icon="image"
+            level={3}
+            title={COPY.emptyLine.title(lineName ?? '')}
+            action={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  set.setFilter('line', null);
+                }}
+              >
+                {COPY.emptyLine.showAll}
+              </Button>
+            }
+          />
+        ) : (
+          <ResponsiveTable<GalleryItem>
+            caption={COPY.table.caption}
+            captionId={CAPTION_ID}
+            columns={columns()}
+            rows={query.data?.rows}
+            rowKey={(item) => item.id}
+            isInactive={(item) => !item.isShown || item.lineHidden}
+            things={COPY.things}
+            pending={query.isPending || pastTheEnd}
+            refetching={query.isPlaceholderData && query.isFetching}
+            failed={query.isError}
+            error={query.error}
+            onRetry={() => {
+              void query.refetch();
+            }}
+            emptyIcon="image"
+            emptyTitle={COPY.empty.title}
+            emptyMessage={COPY.empty.message}
+            emptyLevel={3}
+            skeletonRows={4}
+          />
+        )}
+        {showPager && (
+          <Pagination
+            page={values.page}
+            pageCount={pageCount}
+            onPageChange={set.setPage}
+            focusTargetId={CAPTION_ID}
+            pageSize={values.size}
+            onPageSizeChange={set.setPageSize}
+            sizeOnlyWhenSinglePage
+          />
+        )}
       </SiteContentCard>
       <GalleryPhotoModal
         mode="add"

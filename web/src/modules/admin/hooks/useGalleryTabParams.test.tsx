@@ -18,7 +18,7 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 30));
 }
 
-function renderParams(searchParams = '', lineIds: readonly string[] | undefined = LINES) {
+function renderParams(searchParams = '', lineIds: readonly string[] | 'loading' = LINES) {
   const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
   const wrapper = ({ children }: { children: ReactNode }) => (
     <NuqsTestingAdapter
@@ -31,7 +31,7 @@ function renderParams(searchParams = '', lineIds: readonly string[] | undefined 
       {children}
     </NuqsTestingAdapter>
   );
-  const view = renderHook(({ ids }) => useGalleryTabParams(ids), { wrapper, initialProps: { ids: lineIds } });
+  const view = renderHook(({ ids }) => useGalleryTabParams(ids), { wrapper, initialProps: { ids: lineIds === 'loading' ? undefined : lineIds } });
   return { ...view, onUrlUpdate };
 }
 
@@ -84,7 +84,7 @@ describe('reading', () => {
 
 describe('the line is checked against the lines that loaded', () => {
   it('keeps the line while the lines are still loading', async () => {
-    const { result, onUrlUpdate } = renderParams(`?line=${LINE_IDS.moto}`, undefined);
+    const { result, onUrlUpdate } = renderParams(`?line=${LINE_IDS.moto}`, 'loading');
 
     expect(result.current[0].line).toBe(LINE_IDS.moto);
     await settle();
@@ -103,7 +103,7 @@ describe('the line is checked against the lines that loaded', () => {
 
   it('drops it once the lines arrive, and keeps a line that is among them', async () => {
     const stranger = '8c1f4a20-0000-4000-8000-0000000000ff';
-    const { result, rerender, onUrlUpdate } = renderParams(`?line=${stranger}`, undefined);
+    const { result, rerender, onUrlUpdate } = renderParams(`?line=${stranger}`, 'loading');
     await settle();
     expect(onUrlUpdate).not.toHaveBeenCalled();
 

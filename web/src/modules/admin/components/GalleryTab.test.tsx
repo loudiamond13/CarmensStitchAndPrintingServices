@@ -400,12 +400,14 @@ describe('the states', () => {
     await screen.findByRole('heading', { name: 'No gallery photos yet' });
     await expectNoAxeViolations(empty.container);
     empty.unmount();
+    queryClient.clear();
 
     galleryItemsBackend(demoGalleryItems().filter((item) => item.lineId === LINE_IDS.moto));
     const filtered = renderTab(`?line=${LINE_IDS.basketball}`);
     await screen.findByText('No items in Basketball yet.');
     await expectNoAxeViolations(filtered.container);
     filtered.unmount();
+    queryClient.clear();
 
     galleryItemsBackend(undefined, { onGet: () => problemAnswer(500) });
     const failed = renderTab();
