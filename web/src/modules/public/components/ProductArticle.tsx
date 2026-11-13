@@ -46,7 +46,9 @@ export interface ProductArticleProps {
 }
 
 export function ProductArticle({ line, index, total }: ProductArticleProps) {
-  const titleId = `${line.key}-title`;
+  // A key reaches an element id only when it passes the allow-list (T-11-44); otherwise the place names the title.
+  const safeKey = isLineKey(line.key) ? line.key : undefined;
+  const titleId = safeKey === undefined ? `product-line-${String(index + 1)}-title` : `${safeKey}-title`;
   const flip = index % 2 === 1;
   const texts = [
     line.customize.fabric,
@@ -56,7 +58,7 @@ export function ProductArticle({ line, index, total }: ProductArticleProps) {
     line.customize.logos,
   ];
   return (
-    <article id={line.key} aria-labelledby={titleId} data-flip={flip ? 'true' : undefined} className={articleClasses}>
+    <article id={safeKey} aria-labelledby={titleId} data-flip={flip ? 'true' : undefined} className={articleClasses}>
       <ProductMedia line={line} className={flip ? flipMediaClasses : undefined} />
       <div className={copyClasses}>
         <span className={numberClasses} aria-hidden="true">

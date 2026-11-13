@@ -387,7 +387,7 @@ same answer whatever their phone says (PUB-05, D-22). Anonymous and limited per 
 | `closesAt` | The closing time today as `"HH:mm"` when open; otherwise `null` |
 | `closedToday` | `true` when a closure covers today; the shop is then closed whatever the weekly hours say |
 | `todayClosureNote` | The note of the closure that covers today; `null` when none or no note |
-| `nextOpening` | When the shop opens next within 14 days; `null` when open, or when nothing opens in that time (for example while every day is closed) |
+| `nextOpening` | When the shop opens next within 38 days (the longest closure and a week); `null` when open, or when nothing opens in that time (for example while every day is closed) |
 
 `nextOpening.when` is `"today"` (it opens later today), `"tomorrow"` or `"weekday"` (a later day). `day` is 1 (Monday) to 7 (Sunday) and
 `date` is the business date, and a day covered by a closure is never the next opening. The page turns these facts into words; it does

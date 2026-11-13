@@ -29,6 +29,15 @@ describe('ProductArticle (PUB-01, PUB-02, D-07)', () => {
     expect(within(article).getByRole('heading', { level: 2, name: 'Basketball Jerseys' })).toBeInTheDocument();
   });
 
+  it('leaves a key that fails the allow-list out of the element id and names the article by its place instead', () => {
+    renderArticle({ ...BASKETBALL, key: 'bad key' }, 2);
+
+    const article = screen.getByRole('article', { name: 'Basketball Jerseys' });
+    expect(article).not.toHaveAttribute('id');
+    expect(article.getAttribute('aria-labelledby')).toBe('product-line-3-title');
+    expect(within(article).getByRole('heading', { level: 2 })).toHaveAttribute('id', 'product-line-3-title');
+  });
+
   it('shows the number as "01 / 06", hidden from assistive technology, and the description', () => {
     renderArticle(BASKETBALL, 0, 6);
 

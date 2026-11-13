@@ -72,6 +72,19 @@ public sealed class SiteSettingsEndpointTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task TheStaffReadIsNeverStoredByABrowserOrAProxy()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+
+        using var response = await Get(client, admin.AccessToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Headers.CacheControl.ShouldNotBeNull().NoStore.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task AnAnonymousCallerGets401Problem()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);

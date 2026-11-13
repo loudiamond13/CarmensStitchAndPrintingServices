@@ -8,6 +8,7 @@ import { invalidatePublicContent } from '@/lib/public-data/publicResource';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { BusinessInfoTab } from '@/modules/admin/components/BusinessInfoTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
+import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import { expectNoAxeViolations } from '@/test/axe';
 import { createDeferred } from '@/test/fakeFetch';
 import { server } from '@/test/msw';
@@ -447,6 +448,33 @@ describe('every rule runs in the browser first (OR-3)', () => {
     expect(backend.puts[0]?.mapEmbedUrl).toBe('https://www.google.com/maps/embed?pb=newmap');
   });
 
+  it('keeps only the src link when the form is sent with the pasted code still in the field (Enter, no blur)', async () => {
+    const backend = siteSettingsBackend();
+    const { user } = await openTab();
+    const field = screen.getByLabelText(/^Map embed link/);
+    await user.clear(field);
+
+    fireEvent.change(field, {
+      target: {
+        value:
+          '<iframe src="https://www.google.com/maps/embed?pb=newmap" width="600" height="450" loading="lazy"></iframe>',
+      },
+    });
+    const form = field.closest('form');
+    if (form === null) throw new Error('No form');
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(1);
+    });
+    expect(backend.puts[0]?.mapEmbedUrl).toBe('https://www.google.com/maps/embed?pb=newmap');
+    expect(
+      screen.queryByText(
+        'Paste the embed code or link from Google Maps. It starts with https://www.google.com/maps/embed.',
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it('refuses pasted code whose src is not a Google embed link, and leaves the text as pasted', async () => {
     siteSettingsBackend();
     const { user } = await openTab();
@@ -834,6 +862,35 @@ describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
     expect(await screen.findByText('Business info saved')).toBeVisible();
     expect(backend.puts).toHaveLength(1);
     expect(backend.puts[0]?.version).toBe(pictureVersionAfter(1));
+    expect(screen.queryByText('This was changed by someone else.')).not.toBeInTheDocument();
+  });
+
+  it('takes the picture version even when the form was saved while the picture was still going up', async () => {
+    const backend = siteSettingsBackend(demoSiteSettings, { onPut: versionGuard });
+    const gate = createDeferred<undefined>();
+    // A form body that waits cannot go through jsdom's FormData and Node's fetch, so the wait is held in the service.
+    vi.spyOn(siteSettingsService, 'uploadSharePicture').mockImplementation(async () => {
+      await gate.promise;
+      const picture = sharePicture('waited');
+      backend.current = { ...backend.current, sharePicture: picture, version: pictureVersionAfter(1) };
+      return picture;
+    });
+    vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
+    const { user } = await openTab();
+
+    await user.upload(pictureInput(), new File(['jpeg'], 'shop.jpg', { type: 'image/jpeg' }));
+    await user.type(screen.getByLabelText(/^Tagline/), '!');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    expect(await screen.findByText('Business info saved')).toBeVisible();
+    gate.resolve(undefined);
+    await screen.findByText('Picture saved');
+    await user.type(screen.getByLabelText(/^Tagline/), '?');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(2);
+    });
+    expect(backend.puts[1]?.version).toBe(pictureVersionAfter(1));
     expect(screen.queryByText('This was changed by someone else.')).not.toBeInTheDocument();
   });
 

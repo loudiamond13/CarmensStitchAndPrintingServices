@@ -22,7 +22,9 @@ function parseBlock(): BootBlock | null {
 
 /** Reads one part of the boot block, or undefined when the block or the part is missing. The caller knows the shape. */
 export function readBootData(key: BootKey): unknown {
-  block ??= parseBlock();
+  if (block === undefined) {
+    block = parseBlock();
+  }
   return block === null ? undefined : block[key];
 }
 

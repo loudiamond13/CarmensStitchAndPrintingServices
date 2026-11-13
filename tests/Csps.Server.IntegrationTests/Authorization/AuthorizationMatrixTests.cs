@@ -3,6 +3,7 @@ using Csps.Application.Security;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Authorization;
@@ -55,6 +56,13 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
     public async Task MatrixRowReturnsExpectedStatus(string endpointKey, Caller caller)
     {
         var row = AuthorizationMatrix.Row(endpointKey);
+
+        // One row at a time here, so a row whose answer depends on the demo share picture starts from none and gets one exact status.
+        if (row.ManagerAlso is not null)
+        {
+            await ClearSharePictureAsync();
+        }
+
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         using var request = ApiRequests.Create(row.RequestMethod, row.SamplePath, await TokenForAsync(caller));
@@ -63,10 +71,7 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
-        if (!row.Allows(caller, (int)response.StatusCode))
-        {
-            ((int)response.StatusCode).ShouldBe(row.ExpectedFor(caller), $"{caller} calling {row.Key} via {row.SamplePath}");
-        }
+        ((int)response.StatusCode).ShouldBe(row.ExpectedFor(caller), $"{caller} calling {row.Key} via {row.SamplePath}");
     }
 
     [Fact]
@@ -104,8 +109,19 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
         {
             if (!calls[i].row.Allows(calls[i].caller, statuses[i]))
             {
-                statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}");
+                var also = calls[i].caller == Caller.Manager && calls[i].row.ManagerAlso is { } other ? $" (or {other}, which depends on data another row changes)" : string.Empty;
+                statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}{also}");
             }
+        }
+    }
+
+    private async Task ClearSharePictureAsync()
+    {
+        await using var context = database.CreateContext();
+        var settings = await context.SiteSettings.SingleAsync(TestContext.Current.CancellationToken);
+        if (settings.RemoveSharePicture() is not null)
+        {
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
     }
 

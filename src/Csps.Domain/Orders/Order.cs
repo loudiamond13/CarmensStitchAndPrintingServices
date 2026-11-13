@@ -182,6 +182,9 @@ public sealed class Order : IAttributedRecord, IEditVersioned
     /// <summary>Gets a value indicating whether the order is put on the website.</summary>
     public bool IsShownOnWebsite => ShownOnWebsiteSinceUtc is not null;
 
+    /// <summary>Gets a value indicating whether the order is shown but has neither a public name nor a team name, so the gallery would drop it (D-13).</summary>
+    public bool IsShownWithoutName => IsShownOnWebsite && string.IsNullOrWhiteSpace(PublicName) && string.IsNullOrWhiteSpace(TeamName);
+
     /// <inheritdoc />
     public Guid EditVersion { get; private set; }
 

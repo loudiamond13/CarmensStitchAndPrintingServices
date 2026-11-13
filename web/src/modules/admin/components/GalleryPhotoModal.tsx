@@ -499,6 +499,8 @@ function GalleryPhotoForm({ item, open, onClose, onSaved, readLatest }: GalleryP
     setOpened(latest);
     setPicked(null);
     setUploaded(null);
+    // The next photo is a new upload, never the old answer with its old version.
+    replacing.reset();
     reset(galleryUploadValuesOf(latest));
     setConflicts(0);
     setFailure(null);

@@ -122,10 +122,14 @@ export function barlowNoPesoPlugin(): Plugin {
         if (!BARLOW_STYLESHEET.test(id)) {
           return null;
         }
-        const next = code.replace(
-          UNICODE_RANGE,
-          (_whole, prefix: string, list: string) => `${prefix}${withoutPeso(list)}`,
-        );
+        const next = code.replace(UNICODE_RANGE, (_whole, prefix: string, list: string) => {
+          const kept = withoutPeso(list);
+          if (kept === '') {
+            // An empty range is invalid CSS and would be ignored, so the face would then cover every character.
+            return this.error(`barlowNoPesoPlugin: a face in ${id} lists only U+20B1, so no range would be left.`);
+          }
+          return `${prefix}${kept}`;
+        });
         return next === code ? null : { code: next, map: null };
       },
     },

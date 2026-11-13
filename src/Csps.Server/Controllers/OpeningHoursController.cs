@@ -14,6 +14,7 @@ namespace Csps.Server.Controllers;
 [Route("api/v1/opening-hours")]
 [Authorize(Policy = Policies.Manager)]
 [Produces("application/json")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class OpeningHoursController(GetOpeningHoursHandler handler, UpdateOpeningHoursHandler update) : ControllerBase
 {
     /// <summary>

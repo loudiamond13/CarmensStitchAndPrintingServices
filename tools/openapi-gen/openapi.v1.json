@@ -3144,7 +3144,7 @@
               },
               {
                 "$ref": "#/components/schemas/NextOpeningDto",
-                "description": "The next opening within 14 days; null when open or when nothing opens in that time."
+                "description": "The next opening within 38 days (the longest closure and a week); null when open or when nothing opens in that time."
               }
             ]
           },
@@ -18535,7 +18535,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 14 days. The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
+        "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
         "tags": [
           "PublicSite"
         ]

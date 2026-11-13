@@ -103,6 +103,18 @@ describe('useSwipe (GAL-02, C-35)', () => {
     expect(zone).toBeInTheDocument();
   });
 
+  it('lets the next tap through when the swipe sent no click (a touch swipe), because the next pointer down drops the swallow', () => {
+    const onClick = vi.fn();
+    setup(onClick);
+    const inside = screen.getByRole('button', { name: 'Inside' });
+
+    drag(inside, -60, 0);
+    drag(inside, 2, 1);
+    fireEvent.click(inside);
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('stops listening when it unmounts', () => {
     const onLeft = vi.fn();
     const { unmount } = render(<Target onLeft={onLeft} onRight={vi.fn()} />);

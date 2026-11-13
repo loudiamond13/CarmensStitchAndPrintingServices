@@ -19,8 +19,8 @@ public sealed record OpenStatus(
     string? TodayClosureNote,
     NextOpening? NextOpening)
 {
-    /// <summary>How many days after today the search for the next opening looks.</summary>
-    public const int LookAheadDays = 14;
+    /// <summary>How many days after today the search for the next opening looks: the longest closure plus a week.</summary>
+    public const int LookAheadDays = ShopClosure.MaxSpanDays + 7;
 
     /// <summary>Works out the open status at the clock's instant.</summary>
     /// <param name="clock">The business clock that carries the zone and the current instant.</param>

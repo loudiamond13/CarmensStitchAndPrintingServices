@@ -119,7 +119,7 @@ public sealed class PublicSiteController(
     /// <summary>
     /// Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): <c>isOpen</c>, <c>closesAt</c> ("HH:mm")
     /// when open, <c>closedToday</c>, <c>todayClosureNote</c> and <c>nextOpening</c> (<c>date</c>, <c>day</c> 1 to 7, <c>opensAt</c> and
-    /// <c>when</c> of "today", "tomorrow" or "weekday") when closed and the shop opens within 14 days. The answer is public and may be
+    /// <c>when</c> of "today", "tomorrow" or "weekday") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be
     /// kept for 60 seconds (<c>Cache-Control: public, max-age=60</c>); it has no ETag.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>

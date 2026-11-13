@@ -422,6 +422,51 @@ describe('Move up and Move down (S5, D-51)', () => {
     expect(await screen.findByText("Couldn't move the testimonial from Ben Santos")).toBeVisible();
     expect(invalidatePublicContent).not.toHaveBeenCalled();
   });
+
+  it('sends a new Idempotency-Key for the same move once a lost answer and the list read again show it already ran', async () => {
+    let answerLost = true;
+    const backend = testimonialsBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The move ran on the server, but its answer never came back.
+        if (current.moves.length === 1) {
+          const items = [...current.items];
+          const index = items.findIndex((item) => item.name === 'Ben Santos');
+          const above = items[index - 1];
+          const ben = items[index];
+          if (above !== undefined && ben !== undefined) {
+            items[index - 1] = ben;
+            items[index] = above;
+          }
+          current.items = items.map((item, place) => ({ ...item, position: place + 1 }));
+        }
+        return problemAnswer(500);
+      },
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Move testimonial from Ben Santos up'));
+    expect(await screen.findByText("Couldn't move the testimonial from Ben Santos")).toBeVisible();
+    await waitFor(() => {
+      expect(
+        bodyRows(table)
+          .map((row) => cellText(row, 'Name'))
+          .at(1),
+      ).toContain('Ben Santos');
+    });
+    answerLost = false;
+    const firstKey = backend.moves[0]?.key;
+    const sent = backend.moves.length;
+    await user.click(action('Move testimonial from Ben Santos up'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(sent + 1);
+    });
+    expect(backend.moves[sent]?.key).not.toBe(firstKey);
+  });
 });
 
 describe('Hide and Show (S5, PUB-03)', () => {

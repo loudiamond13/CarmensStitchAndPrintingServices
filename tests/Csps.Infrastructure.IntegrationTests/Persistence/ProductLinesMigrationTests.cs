@@ -64,9 +64,15 @@ public sealed class ProductLinesMigrationTests(CspsDatabase database) : IClassFi
         negative.Message.ShouldContain("CK_ProductLines_Price");
         var lowest = NewKey();
         var highest = NewKey();
-        await ExecuteAsync(InsertLine(lowest, price: "0.01"));
-        await ExecuteAsync(InsertLine(highest, price: "999999.99"));
-        await DeleteLinesAsync(lowest, highest);
+        try
+        {
+            await ExecuteAsync(InsertLine(lowest, price: "0.01"));
+            await ExecuteAsync(InsertLine(highest, price: "999999.99"));
+        }
+        finally
+        {
+            await DeleteLinesAsync(lowest, highest);
+        }
     }
 
     [Fact]
@@ -79,9 +85,15 @@ public sealed class ProductLinesMigrationTests(CspsDatabase database) : IClassFi
         tooMany.Message.ShouldContain("CK_ProductLines_Minimum");
         var lowest = NewKey();
         var highest = NewKey();
-        await ExecuteAsync(InsertLine(lowest, minimum: "1"));
-        await ExecuteAsync(InsertLine(highest, minimum: "9999"));
-        await DeleteLinesAsync(lowest, highest);
+        try
+        {
+            await ExecuteAsync(InsertLine(lowest, minimum: "1"));
+            await ExecuteAsync(InsertLine(highest, minimum: "9999"));
+        }
+        finally
+        {
+            await DeleteLinesAsync(lowest, highest);
+        }
     }
 
     [Fact]

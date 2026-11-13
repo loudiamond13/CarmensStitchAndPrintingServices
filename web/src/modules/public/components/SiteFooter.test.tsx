@@ -1,7 +1,7 @@
 // The public footer from the stored shop facts (PUB-02, D-25, D-33, D-42).
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import {
   answerSite,
@@ -15,7 +15,14 @@ import {
   type PublicSiteFixture,
 } from '@/test/publicFixtures';
 import { server } from '@/test/msw';
+import FooterHours from './FooterHours';
 import { SiteFooter } from './SiteFooter';
+
+// The clock row loads as a lazy chunk. The spy lets a test wait until it has rendered before it asserts the row is absent.
+vi.mock('./FooterHours', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./FooterHours')>();
+  return { ...actual, default: vi.fn(actual.default) };
+});
 
 afterEach(() => {
   resetPublicData();
@@ -168,15 +175,15 @@ describe('SiteFooter clock row (CONT-04, PUB-02, D-21)', () => {
   });
 
   it('is not rendered when no day is open', async () => {
+    vi.mocked(FooterHours).mockClear();
     renderFullFrom({ ...demoSite, hours: closedWeek });
     const footer = screen.getByRole('contentinfo');
 
     await waitFor(() => {
-      expect(within(footer).getByText('Visit')).toBeInTheDocument();
+      expect(vi.mocked(FooterHours)).toHaveBeenCalled();
     });
-    await new Promise((resolve) => {
-      setTimeout(resolve, 50);
-    });
+    expect(within(footer).getByText('Visit')).toBeInTheDocument();
+    expect(vi.mocked(FooterHours).mock.results.at(-1)?.value).toBeNull();
     expect(within(footer).queryByText(/AM/)).not.toBeInTheDocument();
   });
 

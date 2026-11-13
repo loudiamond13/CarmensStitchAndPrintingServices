@@ -26,6 +26,26 @@ describe('readBootData', () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
+  it('reads the document only once when there is no block or a damaged one', () => {
+    const lookup = vi.spyOn(document, 'getElementById');
+
+    expect(readBootData('site')).toBeUndefined();
+    expect(readBootData('home')).toBeUndefined();
+    expect(lookup).toHaveBeenCalledTimes(1);
+
+    resetPublicData();
+    const block = document.createElement('script');
+    block.type = 'application/json';
+    block.id = 'csps-boot';
+    block.textContent = '{"site": {';
+    document.head.append(block);
+    lookup.mockClear();
+
+    expect(readBootData('site')).toBeUndefined();
+    expect(readBootData('home')).toBeUndefined();
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
   it('returns undefined when the page has no block', () => {
     expect(readBootData('site')).toBeUndefined();
   });

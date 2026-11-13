@@ -412,6 +412,44 @@ public sealed class UpdateOrderDetailsHandlerTests
         harness.Unit.Saves.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task ClearingTheTeamNameOfAShownOrderWithNoBlockIsRefusedOnTheTeamNameField()
+    {
+        var harness = new Harness();
+        harness.Order.SetPublicSettings(new OrderPublicSettings(true, true, null, null), CallerId, Basketball, Now).IsSuccess.ShouldBeTrue();
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, Valid() with { TeamName = null }, TestContext.Current.CancellationToken);
+
+        Fields(result).Keys.ShouldBe(["teamName"]);
+        Fields(result)["teamName"].ShouldBe(["This order has no team name. Enter the name to show."]);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearingTheTeamNameOfAShownOrderIsAllowedWhenAPublicNameIsSet()
+    {
+        var harness = new Harness();
+        harness.Order.SetPublicSettings(new OrderPublicSettings(true, true, null, "Shown Name"), CallerId, Basketball, Now).IsSuccess.ShouldBeTrue();
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, Valid() with { TeamName = null }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ClearingTheTeamNameWhileTheBlockTakesTheOrderOffTheWebsiteIsAllowed()
+    {
+        var harness = new Harness();
+        harness.Order.SetPublicSettings(new OrderPublicSettings(true, true, null, null), CallerId, Basketball, Now).IsSuccess.ShouldBeTrue();
+
+        var result = await harness.Handler.HandleAsync(harness.Order.Id, Valid() with { TeamName = null, PublicWebsite = new OrderPublicWebsiteFields(true, false, null, null) }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Order.IsShownOnWebsite.ShouldBeFalse();
+    }
+
     private static UpdateOrderDetailsRequest Valid() => new(
         "Juan Dela Cruz",
         "Brgy. San Roque Ballers",

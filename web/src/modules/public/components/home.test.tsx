@@ -257,6 +257,13 @@ describe('TestimonialRow (UI-SPEC H1 item 6, D-05, CONT-03)', () => {
     expect(screen.getAllByRole('img', { name: '4 out of 5' })).toHaveLength(1);
   });
 
+  it('shows two testimonials with the same name and quote as two cards, with no duplicate key', () => {
+    const twin = makeTestimonial({ name: 'Dan Cruz', quote: 'Same words.' });
+    render(<TestimonialRow testimonials={[twin, twin]} />);
+
+    expect(screen.getAllByRole('figure')).toHaveLength(2);
+  });
+
   it('shows only the first three when more are given, and as many as there are when fewer', () => {
     const four = [...demoHome.testimonials, makeTestimonial({ name: 'Dan Cruz' })];
     const { unmount } = render(<TestimonialRow testimonials={four} />);

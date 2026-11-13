@@ -14,6 +14,7 @@ namespace Csps.Server.Controllers;
 [Route("api/v1/site-settings")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public sealed class SiteSettingsController(GetSiteSettingsHandler handler, UpdateSiteSettingsHandler update) : ControllerBase
 {
     /// <summary>

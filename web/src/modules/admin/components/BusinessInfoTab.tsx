@@ -206,6 +206,11 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
   const [version, setVersion] = useState(settings.version);
   // What Undo Changes goes back to: the values the form opened with, then those of the last save or of Load Latest.
   const [baseline, setBaseline] = useState(() => businessInfoValuesOf(settings));
+  // The same baseline for a callback that outlives the render it was made in (the picture upload answering late).
+  const baselineRef = useRef(baseline);
+  useEffect(() => {
+    baselineRef.current = baseline;
+  }, [baseline]);
   // How many stale saves the server has refused since the form was last current; the banner shows from the first.
   const [conflicts, setConflicts] = useState(0);
   const [loadingLatest, setLoadingLatest] = useState(false);
@@ -312,7 +317,8 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
    * end in the stale banner, never be written over.
    */
   const takePictureVersion = (fresh: SiteSettings | null): void => {
-    if (fresh !== null && JSON.stringify(businessInfoValuesOf(fresh)) === JSON.stringify(baseline)) {
+    // The baseline as it is now, not as it was when the upload started: a save in between moves it.
+    if (fresh !== null && JSON.stringify(businessInfoValuesOf(fresh)) === JSON.stringify(baselineRef.current)) {
       setVersion(fresh.version);
     }
   };

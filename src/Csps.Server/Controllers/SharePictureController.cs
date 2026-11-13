@@ -39,6 +39,7 @@ public sealed class SharePictureController(UploadSharePictureHandler upload, Rem
     [HttpPost]
     [EndpointName("UploadSharePicture")]
     [EnableRateLimiting(RateLimitPolicies.ImageUpload)]
+    [UploadSlot]
     [RequestSizeLimitMetadata(ImageUploadLimits.BodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageUploadLimits.BodyBytes, MemoryBufferThreshold = ImageUploadLimits.BodyBytes + 1)]
     [ProducesResponseType<SharePictureDto>(StatusCodes.Status200OK)]

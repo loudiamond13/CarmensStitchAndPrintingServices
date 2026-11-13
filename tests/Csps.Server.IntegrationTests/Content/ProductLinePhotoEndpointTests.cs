@@ -221,17 +221,25 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
         blocked.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
         (await ProblemJson.ReadAsync(blocked, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("product-lines.in-use");
 
-        for (var round = 0; round < 6; round++)
+        for (var round = 0; round < 10; round++)
         {
             var line = await rig.AddAsync(LineBody.Shorts with { Title = $"Race {round}", ShortName = $"Race {round}" });
-            var upload = Task.Run(() => rig.UploadPhotoAsync(line.Id, "main", Photo), TestContext.Current.CancellationToken);
-            var delete = Task.Run(() => rig.DeleteAsync(line.Id), TestContext.Current.CancellationToken);
-            using var uploaded = await upload;
-            using var deleted = await delete;
+            var (uploaded, deleted) = await ConcurrentRequests.SendTogetherAsync(
+                () => rig.UploadPhotoAsync(line.Id, "main", Photo),
+                () => rig.DeleteAsync(line.Id));
+            using (uploaded)
+            using (deleted)
+            {
+                (uploaded.StatusCode, deleted.StatusCode).ShouldBeOneOf(
+                    (HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity),
+                    (HttpStatusCode.NotFound, HttpStatusCode.NoContent));
+            }
 
-            (uploaded.StatusCode, deleted.StatusCode).ShouldBeOneOf(
-                (HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity),
-                (HttpStatusCode.NotFound, HttpStatusCode.NoContent));
+            await using var context = database.CreateContext();
+            var orphans = await context.ProductLinePhotos
+                .Where(photo => !context.ProductLines.Any(existing => existing.Id == photo.LineId))
+                .CountAsync(TestContext.Current.CancellationToken);
+            orphans.ShouldBe(0);
         }
     }
 

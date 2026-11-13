@@ -392,6 +392,51 @@ describe('Move up and Move down (S3, D-51)', () => {
     expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
     expect(invalidatePublicContent).not.toHaveBeenCalled();
   });
+
+  it('sends a new Idempotency-Key for the same move once a lost answer and the list read again show it already ran', async () => {
+    let answerLost = true;
+    const backend = productLinesBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The move ran on the server, but its answer never came back.
+        if (current.moves.length === 1) {
+          const lines = [...current.lines];
+          const index = lines.findIndex((line) => line.id === LINE_IDS.moto);
+          const above = lines[index - 1];
+          const moto = lines[index];
+          if (above !== undefined && moto !== undefined) {
+            lines[index - 1] = moto;
+            lines[index] = above;
+          }
+          current.lines = lines.map((line, place) => ({ ...line, position: place + 1 }));
+        }
+        return problemAnswer(500);
+      },
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Move Moto and Riding Jerseys up'));
+    expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
+    await waitFor(() => {
+      expect(
+        bodyRows(table)
+          .map((row) => cellText(row, 'Product line'))
+          .at(1),
+      ).toContain('Moto and Riding Jerseys');
+    });
+    answerLost = false;
+    const firstKey = backend.moves[0]?.key;
+    const sent = backend.moves.length;
+    await user.click(action('Move Moto and Riding Jerseys up'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(sent + 1);
+    });
+    expect(backend.moves[sent]?.key).not.toBe(firstKey);
+  });
 });
 
 describe('Hide and Show (S3, D-08, PUB-03)', () => {

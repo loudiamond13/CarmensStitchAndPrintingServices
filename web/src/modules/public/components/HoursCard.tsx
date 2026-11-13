@@ -63,8 +63,8 @@ export function HoursCard({ site }: HoursCardProps) {
         <div className={closuresBlockClasses}>
           <h3 className={labelClasses}>{HOURS.closedOn}</h3>
           <ul className={closuresListClasses}>
-            {closures.map((text) => (
-              <li key={text}>{text}</li>
+            {closures.map((text, index) => (
+              <li key={`${String(index)}-${text}`}>{text}</li>
             ))}
           </ul>
         </div>

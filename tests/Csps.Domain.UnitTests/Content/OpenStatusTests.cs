@@ -158,9 +158,13 @@ public sealed class OpenStatusTests
     }
 
     [Fact]
-    public void ClosureCoveringTheNextFourteenDaysGivesNoNextOpening()
+    public void ClosuresCoveringTheWholeLookAheadGiveNoNextOpening()
     {
-        var closures = new[] { new ClosureSpan(new DateOnly(2026, 11, 9), new DateOnly(2026, 11, 23), "Renovation") };
+        var closures = new[]
+        {
+            new ClosureSpan(new DateOnly(2026, 11, 9), new DateOnly(2026, 12, 9), "Renovation"),
+            new ClosureSpan(new DateOnly(2026, 12, 10), new DateOnly(2027, 1, 9), "Renovation"),
+        };
 
         var status = OpenStatus.Compute(ManilaClockAt("2026-11-09T10:00:00"), NineToSixMondayToSaturday(), closures);
 
@@ -170,9 +174,13 @@ public sealed class OpenStatusTests
     }
 
     [Fact]
-    public void ClosureThroughTheFourteenthDayLeavesNothingInRange()
+    public void ClosuresThroughTheLastLookAheadDayLeaveNothingInRange()
     {
-        var closures = new[] { new ClosureSpan(new DateOnly(2026, 11, 10), new DateOnly(2026, 11, 23), null) };
+        var closures = new[]
+        {
+            new ClosureSpan(new DateOnly(2026, 11, 10), new DateOnly(2026, 12, 10), null),
+            new ClosureSpan(new DateOnly(2026, 12, 11), new DateOnly(2026, 12, 17), null),
+        };
 
         var status = OpenStatus.Compute(ManilaClockAt("2026-11-09T18:30:00"), NineToSixMondayToSaturday(), closures);
 
@@ -180,19 +188,35 @@ public sealed class OpenStatusTests
     }
 
     [Fact]
-    public void ClosureEndingBeforeTheFourteenthDayFindsTheFourteenth()
+    public void ClosuresEndingBeforeTheLastLookAheadDayFindThatDay()
     {
-        var closures = new[] { new ClosureSpan(new DateOnly(2026, 11, 10), new DateOnly(2026, 11, 22), null) };
+        var closures = new[]
+        {
+            new ClosureSpan(new DateOnly(2026, 11, 10), new DateOnly(2026, 12, 10), null),
+            new ClosureSpan(new DateOnly(2026, 12, 11), new DateOnly(2026, 12, 16), null),
+        };
 
         var status = OpenStatus.Compute(ManilaClockAt("2026-11-09T18:30:00"), NineToSixMondayToSaturday(), closures);
 
-        status.NextOpening.ShouldBe(new NextOpening(new DateOnly(2026, 11, 23), DayOfWeek.Monday, Nine, NextOpeningWhen.Weekday));
+        status.NextOpening.ShouldBe(new NextOpening(new DateOnly(2026, 12, 17), DayOfWeek.Thursday, Nine, NextOpeningWhen.Weekday));
     }
 
     [Fact]
-    public void LookAheadIsFourteenDays()
+    public void ALongestClosureStillShowsTheReopeningDay()
     {
-        OpenStatus.LookAheadDays.ShouldBe(14);
+        var closures = new[] { new ClosureSpan(new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31), "Year-end break") };
+
+        var status = OpenStatus.Compute(ManilaClockAt("2026-12-05T10:00:00"), NineToSixMondayToSaturday(), closures);
+
+        status.IsOpen.ShouldBeFalse();
+        status.ClosedToday.ShouldBeTrue();
+        status.NextOpening.ShouldBe(new NextOpening(new DateOnly(2027, 1, 1), DayOfWeek.Friday, Nine, NextOpeningWhen.Weekday));
+    }
+
+    [Fact]
+    public void LookAheadCoversTheLongestClosureAndAWeek()
+    {
+        OpenStatus.LookAheadDays.ShouldBe(ShopClosure.MaxSpanDays + 7);
     }
 
     [Fact]

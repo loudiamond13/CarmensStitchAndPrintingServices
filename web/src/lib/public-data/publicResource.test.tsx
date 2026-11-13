@@ -2,6 +2,7 @@
 // invalidate, and an error with a retry when a load fails.
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDeferred } from '@/test/fakeFetch';
 import { putBootBlock, resetPublicData, demoSite } from '@/test/publicFixtures';
 import { createPublicResource, invalidatePublicContent, type PublicResourceState } from './publicResource';
 
@@ -111,6 +112,64 @@ describe('createPublicResource', () => {
     const next = renderHook(() => resource.useResource());
     await waitFor(() => {
       expect(data(next.result.current)).toBe('three');
+    });
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
+  it('invalidate() while a load is in flight loads again once it answers, and the old answer is not held as fresh', async () => {
+    const pending = createDeferred<string>();
+    let calls = 0;
+    const load = vi.fn(() => {
+      calls += 1;
+      return calls === 1 ? pending.promise : Promise.resolve('new');
+    });
+    const resource = createPublicResource<string>({ load, staleMs: STALE_MS });
+    const mounted = renderHook(() => resource.useResource());
+    expect(load).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      resource.invalidate();
+    });
+    await act(async () => {
+      pending.resolve('old');
+      await pending.promise;
+    });
+
+    await waitFor(() => {
+      expect(load).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(data(mounted.result.current)).toBe('new');
+    });
+  });
+
+  it('invalidate() during a refresh of old data loads again once the refresh answers', async () => {
+    const refresh = createDeferred<string>();
+    let calls = 0;
+    const load = vi.fn(() => {
+      calls += 1;
+      return calls === 2 ? refresh.promise : Promise.resolve(calls === 1 ? 'first' : 'last');
+    });
+    const resource = createPublicResource<string>({ load, staleMs: STALE_MS });
+    const initial = renderHook(() => resource.useResource());
+    await waitFor(() => {
+      expect(data(initial.result.current)).toBe('first');
+    });
+    initial.unmount();
+    vi.setSystemTime(Date.now() + STALE_MS);
+    const mounted = renderHook(() => resource.useResource());
+    expect(load).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      resource.invalidate();
+    });
+    await act(async () => {
+      refresh.resolve('stale');
+      await refresh.promise;
+    });
+
+    await waitFor(() => {
+      expect(data(mounted.result.current)).toBe('last');
     });
     expect(load).toHaveBeenCalledTimes(3);
   });
