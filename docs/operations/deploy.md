@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-10-16T16:50:00-05:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-11-13T01:46:00-06:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -123,6 +123,8 @@ The site never changes its own database when it starts. A build that adds a migr
 3. Then run the deploy.
 
 Going the other way, an older version running over a newer database works only when the migration that was added is backward compatible (for example, a new nullable column). If it is not, a rollback of the app alone will fail its smoke test. Plan such a rollback with the developer before pressing Run.
+
+The go-live list for the public site pages (Phase 11) is in [go-live-public-site.md](go-live-public-site.md): what to fill in right after the deploy, the Cloudinary setup step and the checks on the live site.
 
 ## Who can deploy
 

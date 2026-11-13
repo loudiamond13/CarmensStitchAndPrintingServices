@@ -318,6 +318,6 @@ public sealed partial class DeployWorkflowTests
     [GeneratedRegex(@"url\(\s*['""]?(?!#)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex FileUrl();
 
-    [GeneratedRegex(@"^\*Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-05:00 · Updated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-05:00\*$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\*Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} · Updated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}\*$", RegexOptions.CultureInvariant)]
     private static partial Regex RunbookTimestamp();
 }
