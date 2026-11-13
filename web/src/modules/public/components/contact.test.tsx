@@ -1,16 +1,23 @@
 // The Contact parts (UI-SPEC C1; PUB-02, PUB-06, D-17, D-18, D-20, D-23): ContactNowCard, BigContactButton, PhoneListCard,
 // MapCard and ContactBar, each from the stored shop facts.
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { closedWeek, demoSite, mixedWeek, siteWithoutOptionals, siteWithThreePhones } from '@/test/publicFixtures';
 import { BigContactButton } from './BigContactButton';
+import CallHoursNote from './CallHoursNote';
 import { ContactBar } from './ContactBar';
 import { ContactNowCard } from './ContactNowCard';
 import { MapCard } from './MapCard';
 import { PhoneListCard } from './PhoneListCard';
+
+// The Call button's hours line loads as a lazy chunk. The spy lets a test wait until it has rendered before it asserts the line is absent.
+vi.mock('./CallHoursNote', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./CallHoursNote')>();
+  return { ...actual, default: vi.fn(actual.default) };
+});
 
 function inRouter(node: React.ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -95,11 +102,13 @@ describe('ContactNowCard (D-18)', () => {
   });
 
   it('leaves the second line out of the Call button when no day is open', async () => {
+    vi.mocked(CallHoursNote).mockClear();
     inRouter(<ContactNowCard site={{ ...demoSite, hours: closedWeek }} />);
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 50);
+    await waitFor(() => {
+      expect(vi.mocked(CallHoursNote)).toHaveBeenCalled();
     });
+    expect(vi.mocked(CallHoursNote).mock.results.at(-1)?.value).toBeNull();
     expect(screen.getByRole('link', { name: 'Call 0917 123 4567' })).toBeInTheDocument();
   });
 
