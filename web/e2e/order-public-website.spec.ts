@@ -222,10 +222,13 @@ test('@order-public-website at 320px the window is a bottom sheet with a footer 
   const dialog = page.getByRole('dialog', { name: 'Public Website' });
   await expect(dialog).toBeVisible();
   // A bottom sheet: it spans the width of the screen and rests on its bottom edge (UI-SPEC: 639px and below).
-  const box = await dialog.boundingBox();
-  expect(box, 'the window has a box').not.toBeNull();
-  expect(Math.round(box?.width ?? 0)).toBe(320);
-  expect(Math.round((box?.y ?? 0) + (box?.height ?? 0))).toBe(640);
+  // The sheet scales in, so its box is read until it has settled.
+  await expect
+    .poll(async () => {
+      const box = await dialog.boundingBox();
+      return box === null ? null : [Math.round(box.width), Math.round(box.y + box.height)];
+    })
+    .toEqual([320, 640]);
   // The footer fits: both buttons sit inside the sheet.
   for (const name of ['Cancel', 'Save Changes']) {
     const button = await dialog.getByRole('button', { name }).boundingBox();
@@ -258,6 +261,14 @@ test('@order-public-website at 820px the card joins the side grid after Customer
   await page.setViewportSize({ width: 820, height: 1100 });
   await openOrder(page, request, manager, id, number);
 
+  // The cards settle as the page lays out, so the widths are compared until they agree.
+  await expect
+    .poll(async () => {
+      const shown = await card(page).boundingBox();
+      const past = await page.getByRole('region', { name: 'Status history' }).boundingBox();
+      return Math.round(shown?.width ?? 0) - Math.round(past?.width ?? -1);
+    })
+    .toBe(0);
   const customer = await page.getByRole('region', { name: 'Customer' }).boundingBox();
   const publicCard = await card(page).boundingBox();
   const history = await page.getByRole('region', { name: 'Status history' }).boundingBox();
