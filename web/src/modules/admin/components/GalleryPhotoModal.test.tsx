@@ -13,13 +13,15 @@ import { createDeferred } from '@/test/fakeFetch';
 import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
+  demoGalleryItems,
+  demoLines,
   GALLERY_IDS,
   galleryItem,
   galleryItemsBackend,
   LINE_IDS,
-  uploadRefused,
+  problemAnswer,
   productLinesBackend,
-  demoLines,
+  uploadRefused,
 } from '@/test/siteContentFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
 
@@ -327,6 +329,234 @@ describe('the add window', () => {
     await expectNoAxeViolations(dialog);
 
     await choosePhoto(user);
+    await expectNoAxeViolations(dialog);
+  });
+});
+
+interface EditProps {
+  item?: GalleryItem;
+  onClose?: () => void;
+  onSaved?: (saved: GalleryItem) => void;
+  readLatest?: (id: string) => Promise<GalleryItem | undefined>;
+}
+
+function demoUpload(index = 0): GalleryItem {
+  const found = demoGalleryItems()[index];
+  if (found === undefined) {
+    throw new Error('No demo item.');
+  }
+  return found;
+}
+
+function renderEdit({
+  item = demoUpload(),
+  onClose = vi.fn<() => void>(),
+  onSaved = vi.fn<(saved: GalleryItem) => void>(),
+  readLatest = vi.fn<(id: string) => Promise<GalleryItem | undefined>>(() => Promise.resolve(undefined)),
+}: EditProps = {}) {
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <GalleryPhotoModal mode="edit" item={item} readLatest={readLatest} onClose={onClose} onSaved={onSaved} />
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+  return { ...view, user: userEvent.setup({ applyAccept: false }), onClose, onSaved, readLatest };
+}
+
+describe('the edit window', () => {
+  it('has the title, the saved words, line, pieces and note, the saved photo and Replace Photo instead of Choose Photo', async () => {
+    renderEdit();
+
+    expect(await screen.findByRole('dialog', { name: 'Edit Photo' })).toBeVisible();
+    expect(team()).toHaveValue('Sample Barangay Riders');
+    await waitFor(() => {
+      expect(line()).toHaveValue(LINE_IDS.moto);
+    });
+    expect(pieces()).toHaveValue('12');
+    expect(note()).toHaveValue('Dri-fit mesh, V-neck');
+    expect(show()).toBeChecked();
+    const group = screen.getByRole('group', { name: 'Photo' });
+    expect(within(group).getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+    expect(within(group).queryByRole('button', { name: 'Choose Photo' })).toBeNull();
+    expect(within(group).getByRole('img', { name: 'Photo of Sample Barangay Riders' })).toBeVisible();
+  });
+
+  it('shows a hidden upload with Show on the website unticked', async () => {
+    renderEdit({ item: demoUpload(5) });
+
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+
+    expect(show()).not.toBeChecked();
+  });
+
+  it('closes straight away when nothing changed, and asks when something did', async () => {
+    const onClose = vi.fn<() => void>();
+    const { user } = renderEdit({ onClose });
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    onClose.mockClear();
+
+    pick(note(), 'Changed');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(await screen.findByRole('dialog', { name: 'Discard changes?' })).toBeVisible();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('saves with PUT and the version it was opened with and no Idempotency-Key, shows the toast, hands the item on and closes', async () => {
+    const backend = galleryItemsBackend();
+    const { user, onSaved, onClose } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    pick(team(), ' Sample Riders Edited ');
+    pick(pieces(), '15');
+    pick(note(), '');
+
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+    expect(backend.puts).toEqual([
+      {
+        id: GALLERY_IDS.newUpload,
+        body: {
+          teamName: 'Sample Riders Edited',
+          productLineId: LINE_IDS.moto,
+          pieces: 15,
+          note: '',
+          isShown: true,
+          version: demoUpload().version,
+        },
+      },
+    ]);
+    expect(backend.photos).toHaveLength(0);
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sample Riders Edited' }));
+    expect(await screen.findByText('Photo saved')).toBeVisible();
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('checks the same rules as an add, but needs no new photo', async () => {
+    const backend = galleryItemsBackend();
+    const { user } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    pick(team(), '');
+    pick(pieces(), '10000');
+
+    await user.click(save());
+
+    expect(await screen.findByText('Enter the team or name.')).toBeVisible();
+    expect(screen.getByText('Enter a whole number from 1 to 9,999.')).toBeVisible();
+    expect(screen.queryByText('Choose a photo.')).toBeNull();
+    expect(backend.puts).toHaveLength(0);
+  });
+
+  it('sends a replacement photo first and the form after it with the version the replacement answered', async () => {
+    const backend = galleryItemsBackend();
+    const replace = vi.spyOn(galleryItemsService, 'replacePhoto');
+    const { user, onClose } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    await user.upload(fileInput(), new File(['jpeg'], 'new-riders.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo chosen');
+    pick(note(), 'New note');
+
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+    expect(replace).toHaveBeenCalledOnce();
+    expect(replace.mock.calls[0]?.[0]).toBe(GALLERY_IDS.newUpload);
+    expect(replace.mock.calls[0]?.[2]).toBe('new-riders-small.jpg');
+    expect(replace.mock.calls[0]?.[3]).toMatch(/\S/);
+    expect(backend.photos).toHaveLength(1);
+    expect(backend.puts[0]?.body.version).toBe('AAAAAAAAH31=');
+    expect(backend.puts[0]?.body.note).toBe('New note');
+  });
+
+  it('a replacement photo alone is a save: the form goes with it and the toast says Photo saved', async () => {
+    const backend = galleryItemsBackend();
+    const { user, onClose } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    await user.upload(fileInput(), new File(['jpeg'], 'only-photo.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo chosen');
+
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledOnce();
+    });
+    expect(backend.photos).toHaveLength(1);
+    expect(backend.puts).toHaveLength(1);
+    expect(await screen.findByText('Photo saved')).toBeVisible();
+  });
+
+  it('keeps a refused replacement photo off the form: nothing is saved and the reason shows above the fields', async () => {
+    const backend = galleryItemsBackend();
+    vi.spyOn(galleryItemsService, 'replacePhoto').mockRejectedValue(
+      uploadRefused(400, { code: 'images.type', detail: 'That file is not a photo we can use.' }),
+    );
+    const { user, onClose } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    await user.upload(fileInput(), new File(['jpeg'], 'bad.jpg', { type: 'image/jpeg' }));
+    await screen.findByText('Photo chosen');
+
+    await user.click(save());
+
+    expect(await screen.findByText('That file is not a photo we can use.')).toBeVisible();
+    expect(backend.puts).toHaveLength(0);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('on a stale save keeps the typed values behind the conflict banner, and Load Latest shows their words and uses the new version', async () => {
+    const latest: GalleryItem = { ...demoUpload(), name: 'Their Words', version: 'AAAAAAAAH88=' };
+    const backend = galleryItemsBackend(undefined, {
+      onPut: (_id, _body, current) =>
+        current.puts.length > 1 ? undefined : problemAnswer(409, { code: 'edit.stale' }),
+    });
+    const readLatest = vi.fn<(id: string) => Promise<GalleryItem | undefined>>(() => Promise.resolve(latest));
+    const { user, onSaved } = renderEdit({ readLatest });
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    pick(team(), 'My Words');
+
+    await user.click(save());
+
+    expect(await screen.findByText('This was changed by someone else.')).toBeVisible();
+    expect(team()).toHaveValue('My Words');
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Load Latest' }));
+    await waitFor(() => {
+      expect(team()).toHaveValue('Their Words');
+    });
+    expect(readLatest).toHaveBeenCalledWith(GALLERY_IDS.newUpload);
+    await user.click(save());
+
+    await waitFor(() => {
+      expect(onSaved).toHaveBeenCalledOnce();
+    });
+    expect(backend.puts[1]?.body.version).toBe('AAAAAAAAH88=');
+  });
+
+  it('says the photo was not found when it was deleted meanwhile', async () => {
+    galleryItemsBackend(undefined, { onPut: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
+    const { user, onClose } = renderEdit();
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    pick(team(), 'Changed');
+
+    await user.click(save());
+
+    expect(
+      await screen.findByText("This photo wasn't found. It may have been deleted or moved to another page."),
+    ).toBeVisible();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('has no axe violations', async () => {
+    renderEdit();
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Photo' });
+
     await expectNoAxeViolations(dialog);
   });
 });

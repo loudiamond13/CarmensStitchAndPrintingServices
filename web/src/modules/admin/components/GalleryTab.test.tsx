@@ -17,6 +17,7 @@ import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoGalleryItems,
   demoLines,
+  GALLERY_IDS,
   GALLERY_ORDER_IDS,
   galleryItemsBackend,
   LINE_IDS,
@@ -413,6 +414,306 @@ describe('the states', () => {
     const failed = renderTab();
     await screen.findByText("Couldn't load gallery items.");
     await expectNoAxeViolations(failed.container);
+  });
+});
+
+/** A named button of the list (a row action), whether or not it is aria-disabled. */
+function action(name: string): HTMLElement {
+  return screen.getByRole('button', { name });
+}
+
+describe('the row actions (GAL-03, D-15, D-27)', () => {
+  it('gives an order item Move up, Move down and a link to its order, and never Edit, Hide or Delete (D-15)', async () => {
+    galleryItemsBackend();
+    await openTab();
+
+    expect(action('Move Brgy. Sample Ballers up')).toBeVisible();
+    expect(action('Move Brgy. Sample Ballers down')).toBeVisible();
+    const change = screen.getByRole('link', { name: 'Change Brgy. Sample Ballers on order ORD-2026-0148' });
+    expect(change).toHaveAttribute('href', `/admin/orders/${GALLERY_ORDER_IDS.ballers}`);
+    for (const name of ['Edit', 'Hide', 'Show', 'Delete']) {
+      expect(screen.queryByRole('button', { name: `${name} Brgy. Sample Ballers` })).toBeNull();
+    }
+  });
+
+  it('gives an upload all five: Move up, Move down, Edit, Hide or Show, and Delete, each named for the row', async () => {
+    galleryItemsBackend();
+    await openTab();
+
+    for (const name of [
+      'Move Sample Old Hoopers up',
+      'Move Sample Old Hoopers down',
+      'Edit Sample Old Hoopers',
+      'Hide Sample Old Hoopers',
+      'Delete Sample Old Hoopers',
+      'Show Hidden Sample Team',
+    ]) {
+      expect(action(name)).toBeVisible();
+    }
+    expect(screen.queryByRole('button', { name: 'Show Sample Old Hoopers' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Change Sample Old Hoopers/ })).toBeNull();
+  });
+
+  it('leaves Move up aria-disabled on the first item and Move down aria-disabled on the last', async () => {
+    galleryItemsBackend();
+    await openTab();
+
+    expect(action('Move Sample Barangay Riders up')).toHaveAttribute('aria-disabled', 'true');
+    expect(action('Move Sample Barangay Riders down')).not.toHaveAttribute('aria-disabled');
+    expect(action('Move Hidden Sample Team down')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('moves an item down at once: one POST with the direction and one key, the new order, the polite line, and focus stays on Move down', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 1), 'Photo')).toContain('Sample Barangay Riders');
+    });
+    expect(backend.moves).toHaveLength(1);
+    expect(backend.moves[0]).toMatchObject({ id: GALLERY_IDS.newUpload, direction: 'down', lineId: undefined });
+    expect(backend.moves[0]?.key).toMatch(/\S/);
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+    expect(screen.getByText('Sample Barangay Riders moved to place 2 of 6.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(action('Move Sample Barangay Riders down')).toHaveFocus();
+    });
+  });
+
+  it('with a line filter sends the line, so the item swaps with the next item of that line', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    await openTab(`?line=${LINE_IDS.moto}`);
+
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(1);
+    });
+    expect(backend.moves[0]).toMatchObject({ direction: 'down', lineId: LINE_IDS.moto });
+  });
+
+  it('while one move saves, every other control waits and the pressed one is busy', async () => {
+    const gate = createDeferred<undefined>();
+    galleryItemsBackend(undefined, { onMove: () => gate.promise.then(() => undefined) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    await waitFor(() => {
+      expect(action('Move Sample Barangay Riders down')).toHaveAttribute('aria-busy', 'true');
+    });
+    expect(action('Move Sample Old Hoopers up')).toHaveAttribute('aria-disabled', 'true');
+    expect(action('Edit Sample Old Hoopers')).toHaveAttribute('aria-disabled', 'true');
+    gate.resolve(undefined);
+    await waitFor(() => {
+      expect(action('Move Sample Old Hoopers up')).not.toHaveAttribute('aria-disabled');
+    });
+  });
+
+  it('a move across the bottom edge of page 1 follows the item to page 2 with a push, focuses its Move down there and says "moved to page 2."', async () => {
+    const backend = galleryItemsBackend(manyGalleryItems(25));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    const { table } = await openTab('?size=10', onUrlUpdate);
+    expect(bodyRows(table)).toHaveLength(10);
+
+    await user.click(action('Move Sample Team 10 down'));
+
+    await waitFor(() => {
+      expect(backend.gets.at(-1)).toEqual({ line: null, page: '2', pageSize: '10' });
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'push', query: '?page=2&size=10' });
+    expect(screen.getByText('Sample Team 10 moved to page 2.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 0), 'Photo')).toContain('Sample Team 10');
+    });
+    await waitFor(() => {
+      expect(action('Move Sample Team 10 down')).toHaveFocus();
+    });
+  });
+
+  it('a move across the top edge of page 2 goes back to page 1, and the item is the last row there', async () => {
+    const backend = galleryItemsBackend(manyGalleryItems(25));
+    const user = userEvent.setup();
+    const { table } = await openTab('?page=2&size=10');
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 0), 'Photo')).toContain('Sample Team 11');
+    });
+
+    await user.click(action('Move Sample Team 11 up'));
+
+    await waitFor(() => {
+      expect(backend.gets.at(-1)).toEqual({ line: null, page: '1', pageSize: '10' });
+    });
+    expect(screen.getByText('Sample Team 11 moved to page 1.')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 9), 'Photo')).toContain('Sample Team 11');
+    });
+    await waitFor(() => {
+      expect(action('Move Sample Team 11 up')).toHaveFocus();
+    });
+  });
+
+  it('leaves Move up off on the first item of page 1 and Move down off on the last item of the last page', async () => {
+    galleryItemsBackend(manyGalleryItems(25));
+    await openTab('?size=10');
+    expect(action('Move Sample Team 01 up')).toHaveAttribute('aria-disabled', 'true');
+    expect(action('Move Sample Team 10 down')).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('hides an upload at once with no question: the toast, the Hidden badge, the Show control, and focus stays on it', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Hide Sample Old Hoopers'));
+
+    expect(await screen.findByText('Photo hidden')).toBeVisible();
+    expect(screen.getByText("It's off the Gallery. Nothing is deleted.")).toBeVisible();
+    expect(backend.hides).toEqual([GALLERY_IDS.hoopers]);
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 3), 'Status')).toBe('Hidden');
+    });
+    await waitFor(() => {
+      expect(action('Show Sample Old Hoopers')).toHaveFocus();
+    });
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('shows a hidden upload again with the toast "Photo shown"', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Show Hidden Sample Team'));
+
+    expect(await screen.findByText('Photo shown')).toBeVisible();
+    expect(backend.shows).toEqual([GALLERY_IDS.hiddenTeam]);
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 5), 'Status')).toContain('Shown');
+    });
+  });
+
+  it('a refused move says so in a danger toast and frees every control', async () => {
+    galleryItemsBackend(undefined, { onMove: () => problemAnswer(409) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    expect(await screen.findByText("Couldn't move Sample Barangay Riders")).toBeVisible();
+    await waitFor(() => {
+      expect(action('Move Sample Old Hoopers up')).not.toHaveAttribute('aria-disabled');
+    });
+    expect(invalidatePublicContent).not.toHaveBeenCalled();
+  });
+
+  it('a hide that finds the upload gone says so and reads the list again', async () => {
+    const backend = galleryItemsBackend(undefined, { onHide: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
+    const user = userEvent.setup();
+    await openTab();
+    const reads = backend.gets.length;
+
+    await user.click(action('Hide Sample Old Hoopers'));
+
+    expect(await screen.findByText("Couldn't hide Sample Old Hoopers")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets.length).toBeGreaterThan(reads);
+    });
+  });
+
+  it('opens the Edit Photo window for an upload with its saved words', async () => {
+    galleryItemsBackend();
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Edit Sample Old Hoopers'));
+
+    expect(await screen.findByRole('dialog', { name: 'Edit Photo' })).toBeVisible();
+    expect(screen.getByLabelText(/^Team or name/)).toHaveValue('Sample Old Hoopers');
+    expect(screen.getByRole('button', { name: 'Replace Photo' })).toBeVisible();
+  });
+
+  it('after a saved edit the list shows the new words and focus goes to its Edit control', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    const { table } = await openTab();
+    await user.click(action('Edit Sample Old Hoopers'));
+    await screen.findByRole('dialog', { name: 'Edit Photo' });
+    fireEvent.change(screen.getByLabelText(/^Team or name/), { target: { value: 'Sample Old Hoopers Two' } });
+
+    await user.click(screen.getByRole('button', { name: 'Save Photo' }));
+
+    expect(await screen.findByText('Photo saved')).toBeVisible();
+    expect(backend.puts[0]?.id).toBe(GALLERY_IDS.hoopers);
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 3), 'Photo')).toContain('Sample Old Hoopers Two');
+    });
+    await waitFor(() => {
+      expect(action('Edit Sample Old Hoopers Two')).toHaveFocus();
+    });
+  });
+
+  it('asks before deleting with Cancel focused first, names the team, and Cancel leaves the row', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Delete Sample Old Hoopers'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this photo?' });
+    expect(within(dialog).getByText("Sample Old Hoopers. It's removed from the Gallery for good.")).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(backend.deletes).toHaveLength(0);
+    expect(screen.getByText('Sample Old Hoopers')).toBeVisible();
+  });
+
+  it('deletes after the question: the row leaves, the toast says Photo deleted, and focus goes to the next row', async () => {
+    const backend = galleryItemsBackend();
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Delete Sample Old Hoopers'));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', { name: 'Delete Photo' }));
+
+    expect(await screen.findByText('Photo deleted')).toBeVisible();
+    expect(backend.deletes).toEqual([GALLERY_IDS.hoopers]);
+    await waitFor(() => {
+      expect(bodyRows(table)).toHaveLength(5);
+    });
+    expect(screen.queryByRole('button', { name: 'Delete Sample Old Hoopers' })).toBeNull();
+    await waitFor(() => {
+      expect(action('Move Sample Riders MC up')).toHaveFocus();
+    });
+    expect(invalidatePublicContent).toHaveBeenCalledOnce();
+  });
+
+  it('a delete that finds the upload already gone closes the question, says "Already deleted" and reads the list again', async () => {
+    const backend = galleryItemsBackend(undefined, { onDelete: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
+    const user = userEvent.setup();
+    await openTab();
+    const reads = backend.gets.length;
+
+    await user.click(action('Delete Sample Old Hoopers'));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', { name: 'Delete Photo' }));
+
+    expect(await screen.findByText('Already deleted')).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets.length).toBeGreaterThan(reads);
+    });
+  });
+
+  it('has no axe violations with every row action on the page', async () => {
+    galleryItemsBackend();
+    const { container } = await openTab();
+
+    await expectNoAxeViolations(container);
   });
 });
 
