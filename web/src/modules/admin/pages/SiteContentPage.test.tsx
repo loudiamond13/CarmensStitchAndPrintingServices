@@ -14,6 +14,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoSiteSettings,
+  galleryItemsBackend,
   openingHoursBackend,
   productLinesBackend,
   shopClosuresBackend,
@@ -101,13 +102,14 @@ describe('the tabs (WEB-10)', () => {
       'Hours & Closures',
       'Products',
       'Testimonials',
+      'Gallery',
     ]);
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Business Info' })).toBeVisible();
   });
 
-  it('shows Business Info for a tab that does not exist yet', async () => {
-    await openPage('?tab=gallery');
+  it('shows Business Info for a tab name that does not exist', async () => {
+    await openPage('?tab=bogus');
 
     expect(screen.getByRole('tab', { name: 'Business Info' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/^Tagline/)).toBeVisible();
@@ -122,6 +124,18 @@ describe('the tabs (WEB-10)', () => {
     await within(panel).findByRole('table', { name: 'Testimonials' });
     expect(within(panel).getByRole('heading', { level: 2, name: 'Testimonials' })).toBeVisible();
     expect(within(panel).getByRole('button', { name: 'Add Testimonial' })).toBeVisible();
+  });
+
+  it('opens the Gallery tab from ?tab=gallery and shows the Gallery card in its panel', async () => {
+    galleryItemsBackend();
+    productLinesBackend();
+    renderPage('?tab=gallery');
+
+    const panel = await screen.findByRole('tabpanel', { name: 'Gallery' });
+    expect(screen.getByRole('tab', { name: 'Gallery' })).toHaveAttribute('aria-selected', 'true');
+    await within(panel).findByRole('table', { name: 'Gallery items' });
+    expect(within(panel).getByRole('heading', { level: 2, name: 'Gallery' })).toBeVisible();
+    expect(within(panel).getByRole('button', { name: 'Add Photo' })).toBeVisible();
   });
 
   it('changes to the Testimonials tab at once from another tab, with nothing to discard', async () => {

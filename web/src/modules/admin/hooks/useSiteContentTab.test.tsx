@@ -97,6 +97,57 @@ describe('useSiteContentTab', () => {
     expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
   });
 
+  describe("the Gallery tab's line, page and size (plan 11-32)", () => {
+    const LINE = '8c1f4a20-0000-4000-8000-000000000003';
+
+    it('removes them in the same replace as the tab change when another tab is chosen', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=gallery&line=${LINE}&page=2&size=50`);
+
+      act(() => {
+        result.current.setTab('hours');
+      });
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=hours' }]);
+    });
+
+    it('removes them with one replace from a link that carries them on another tab', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=testimonials&line=${LINE}&page=2`);
+
+      expect(result.current.tab).toBe('testimonials');
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=testimonials' }]);
+    });
+
+    it('leaves them alone on the Gallery tab', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=gallery&line=${LINE}&page=2&size=50`);
+
+      expect(result.current.tab).toBe('gallery');
+      await settle();
+      expect(onUrlUpdate).not.toHaveBeenCalled();
+    });
+
+    it('writes nothing extra when another tab is chosen and there is nothing to remove', async () => {
+      const { result, onUrlUpdate } = renderTab('?tab=gallery');
+
+      act(() => {
+        result.current.setTab('products');
+      });
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=products' }]);
+    });
+  });
+
   it.each(['?tab=Hours', '?tab=', '?tab=hours%20', '?tab=business'])(
     'treats %s as non-canonical and rewrites it once',
     async (search) => {

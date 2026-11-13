@@ -7,6 +7,7 @@
 import { z } from 'zod';
 import { ENTRY_COPY } from '@/components/entry/copy';
 import { isEmailShaped } from '@/modules/admin/authSchemas';
+import type { GalleryItem, GalleryUploadRequest } from '@/modules/admin/services/galleryItemsService';
 import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
 import type { ProductLineDetail, ProductLineRequest } from '@/modules/admin/services/productLinesService';
 import type { ShopClosure, ShopClosureRequest } from '@/modules/admin/services/shopClosuresService';
@@ -869,6 +870,89 @@ export function toTestimonialRequest(values: TestimonialInput, version: string |
     name: values.name.trim(),
     teamOrRole: optional(values.teamOrRole),
     stars: Number(values.stars),
+    isShown: values.isShown,
+    version,
+  };
+}
+
+// ---- The gallery photo form (GAL-03, D-10; plans 11-28 and 11-32) ----------------------------------------------------------------------
+// It mirrors GalleryUploadRequestValidator with the server's own messages: a photo (on add), a team or name of 1 to 80 characters, a product
+// line, optional pieces (a whole number from 1 to 9,999) and an optional note of at most 120 characters, all counted after the trim.
+
+const GALLERY = SITE_CONTENT_COPY.gallery.errors;
+
+export const GALLERY_TEAM_MAX = 80;
+export const GALLERY_NOTE_MAX = 120;
+export const GALLERY_PIECES_MAX = 9999;
+
+/** The message under the pieces for `text`, or null when it is empty (no pieces) or a whole number from 1 to 9,999. */
+export function galleryPiecesError(text: string): string | null {
+  const value = text.trim();
+  if (value === '') {
+    return null;
+  }
+  return /^\d{1,5}$/.test(value) && Number(value) >= 1 && Number(value) <= GALLERY_PIECES_MAX ? null : GALLERY.pieces;
+}
+
+function galleryShape(requirePhoto: boolean) {
+  return z.object({
+    hasPhoto: z.boolean().superRefine((value, ctx) => {
+      if (requirePhoto && !value) {
+        ctx.addIssue({ code: 'custom', message: GALLERY.photoRequired });
+      }
+    }),
+    teamName: lineText(GALLERY.teamRequired, GALLERY_TEAM_MAX, GALLERY.teamTooLong),
+    productLineId: z.string().superRefine((value, ctx) => {
+      if (value.trim() === '') {
+        ctx.addIssue({ code: 'custom', message: GALLERY.lineRequired });
+      }
+    }),
+    pieces: z.string().superRefine((value, ctx) => {
+      const message = galleryPiecesError(value);
+      if (message !== null) {
+        ctx.addIssue({ code: 'custom', message });
+      }
+    }),
+    note: z.string().superRefine((value, ctx) => {
+      if (value.trim().length > GALLERY_NOTE_MAX) {
+        ctx.addIssue({ code: 'custom', message: GALLERY.noteTooLong });
+      }
+    }),
+    isShown: z.boolean(),
+  });
+}
+
+/** Every rule the server checks when a photo is added, with its message. The file itself is checked by prepareImage and the image rules. */
+export const galleryUploadSchema = galleryShape(true);
+/** The same rules for an edit, where the photo is already there (a new one is optional). */
+export const galleryEditSchema = galleryShape(false);
+
+/** What the gallery photo form holds while it is edited. `hasPhoto` is true once a file is chosen (add) or the upload already has one (edit). */
+export type GalleryUploadInput = z.input<typeof galleryUploadSchema>;
+
+/** The form values of a saved upload, or of a new one (null): no photo yet, every text empty, shown. */
+export function galleryUploadValuesOf(item: GalleryItem | null): GalleryUploadInput {
+  if (item === null) {
+    return { hasPhoto: false, teamName: '', productLineId: '', pieces: '', note: '', isShown: true };
+  }
+  return {
+    hasPhoto: true,
+    teamName: item.name,
+    productLineId: item.lineId ?? '',
+    pieces: item.pieces === null ? '' : String(Number(item.pieces)),
+    note: item.note ?? '',
+    isShown: item.isShown,
+  };
+}
+
+/** The fields of an add or an edit as the API takes them: trimmed, pieces as a number, an empty note as empty, and the version of an edit. */
+export function toGalleryUploadRequest(values: GalleryUploadInput, version: string | null): GalleryUploadRequest {
+  const pieces = values.pieces.trim();
+  return {
+    teamName: values.teamName.trim(),
+    productLineId: values.productLineId,
+    pieces: pieces === '' ? null : Number(pieces),
+    note: values.note.trim(),
     isShown: values.isShown,
     version,
   };

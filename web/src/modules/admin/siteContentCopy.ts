@@ -479,6 +479,125 @@ export const SITE_CONTENT_COPY = {
       stars: 'Choose 1 to 5 stars.',
     },
   },
+  /** S6 Gallery tab and its window (GAL-03, plan 11-32). SPEC-GAP wording where the UI-SPEC is silent; the owner reviews it. */
+  gallery: {
+    /** "Loading gallery items…", "Gallery items loaded." and "Couldn't load gallery items." */
+    things: 'gallery items',
+    card: {
+      title: 'Gallery',
+      hint: 'Every photo on the public Gallery, in this order. New items start at the top.',
+    },
+    add: 'Add Photo',
+    table: {
+      caption: 'Gallery items',
+      photo: 'Photo',
+      source: 'Source',
+      status: 'Status',
+      actions: 'Actions',
+    },
+    filter: {
+      label: 'Product line',
+      all: 'All lines',
+      /** The name of the toolbar landmark that holds the Select. */
+      landmark: 'Filter the gallery',
+      hidden: (title: string): string => `${title} (hidden)`,
+    },
+    /** The result bar's nouns: "Showing 6 items · in gallery order" and "Showing 1 item". */
+    resultThing: 'item',
+    resultThings: 'items',
+    orderNote: 'in gallery order',
+    /** The Source of an item that was added here rather than shown from an order. */
+    uploaded: 'Uploaded',
+    status: { shown: 'Shown', hidden: 'Hidden' },
+    lineHidden: 'Line hidden',
+    /** "Basketball · 17 pcs", "Basketball", "17 pcs": the short name and the pieces under the name. */
+    pieces: (count: number): string => `${String(count)} ${count === 1 ? 'pc' : 'pcs'}`,
+    rowActions: {
+      up: (team: string): string => `Move ${team} up`,
+      down: (team: string): string => `Move ${team} down`,
+      edit: (team: string): string => `Edit ${team}`,
+      hide: (team: string): string => `Hide ${team}`,
+      show: (team: string): string => `Show ${team}`,
+      remove: (team: string): string => `Delete ${team}`,
+      /** An order item is changed on its order, not here (D-27). */
+      change: (team: string, orderNumber: string): string => `Change ${team} on order ${orderNumber}`,
+    },
+    /** The polite lines after a move: across a page edge (UI-SPEC), and within a page (SPEC-GAP). */
+    movedToPage: (team: string, page: number): string => `${team} moved to page ${String(page)}.`,
+    moved: (team: string, place: number, total: number): string =>
+      `${team} moved to place ${String(place)} of ${String(total)}.`,
+    empty: {
+      title: 'No gallery photos yet',
+      message: 'Show an order from its order page, or add a photo of older work.',
+    },
+    emptyLine: {
+      title: (line: string): string => `No items in ${line} yet.`,
+      showAll: 'Show All Lines',
+    },
+    toast: {
+      added: { title: 'Photo added', message: "It's at the top of the Gallery." },
+      saved: { title: 'Photo saved' },
+      hidden: { title: 'Photo hidden', message: "It's off the Gallery. Nothing is deleted." },
+      shown: { title: 'Photo shown' },
+      deleted: { title: 'Photo deleted' },
+      alreadyDeleted: 'Already deleted',
+    },
+    /** The danger toast of an immediate action that failed (SPEC-GAP); its message is the shared error line. */
+    failed: {
+      move: (team: string): string => `Couldn't move ${team}`,
+      hide: (team: string): string => `Couldn't hide ${team}`,
+      show: (team: string): string => `Couldn't show ${team}`,
+    },
+    remove: {
+      title: 'Delete this photo?',
+      message: (team: string): string => `${team}. It's removed from the Gallery for good.`,
+      confirm: 'Delete Photo',
+      pending: 'Deleting',
+    },
+    window: {
+      addTitle: 'Add Photo',
+      editTitle: 'Edit Photo',
+      note: 'Only add photos the customer said you may show.',
+      photo: 'Photo',
+      team: { label: 'Team or name' },
+      line: { label: 'Product line', placeholder: 'Choose a product line' },
+      pieces: { label: 'Pieces' },
+      noteField: { label: 'Note', placeholder: 'e.g. Dri-fit mesh, V-neck', hint: 'Shown in the photo viewer.' },
+      show: 'Show on the website',
+      cancel: 'Cancel',
+      save: 'Save Photo',
+      uploading: 'Uploading',
+      saving: 'Saving',
+      /** The picked file's name above the preview, and the empty frame's text (SPEC-GAP). */
+      noPhoto: 'No photo chosen yet',
+      photoHint: 'JPG, PNG, WEBP or HEIC · up to 10 MB',
+      /** The status line once a photo is chosen and prepared, before it is sent. */
+      photoChosen: 'Photo chosen',
+      previewAlt: (team: string): string => (team === '' ? 'The chosen photo' : `Photo of ${team}`),
+      /** The polite line after Load Latest. */
+      latestLoaded: 'Latest photo loaded. Make your changes again.',
+      /** A save or Load Latest finds the photo gone, or no longer on the page the list shows (SPEC-GAP). */
+      gone: "This photo wasn't found. It may have been deleted or moved to another page.",
+      /** The lines list could not be read, so the Product line Select has nothing to offer (SPEC-GAP). */
+      linesFailed: "Couldn't load the product lines. Close this window and try again.",
+    },
+    /** The "Discard changes?" dialog over a changed window (08 D-58), the order windows' own words. */
+    discard: {
+      title: 'Discard changes?',
+      message: "What you typed in this window hasn't been saved. If you close it now, it's lost.",
+      keep: 'Keep Editing',
+      discard: 'Discard Changes',
+    },
+    /** The server's own words (UI-SPEC Validation), so the browser and the API say the same thing. */
+    errors: {
+      photoRequired: 'Choose a photo.',
+      teamRequired: 'Enter the team or name.',
+      teamTooLong: 'Keep this to 80 characters or fewer.',
+      lineRequired: 'Choose the product line.',
+      pieces: 'Enter a whole number from 1 to 9,999.',
+      noteTooLong: 'Keep the note to 120 characters or fewer.',
+    },
+  },
   /**
    * One photo place (PhotoSlot; plan 11-22), shared by the line photos, the link preview picture and the gallery window. The noun is "Photo" or
    * "Picture". SPEC-GAP: the UI-SPEC names the buttons, the status line and the toasts; the rest is new wording the owner reviews.

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   demoClosures,
+  demoGalleryItems,
   demoLineDetail,
   demoOpeningHours,
   demoSiteSettings,
@@ -17,6 +18,10 @@ import {
   closureValuesOf,
   DEFAULT_CLOSES,
   DEFAULT_OPENS,
+  galleryEditSchema,
+  galleryPiecesError,
+  galleryUploadSchema,
+  galleryUploadValuesOf,
   hasBracketPlaceholder,
   HOURS_TIME_OPTIONS,
   hoursSchema,
@@ -34,6 +39,7 @@ import {
   readLinePrice,
   reduceEmbedCode,
   toClosureRequest,
+  toGalleryUploadRequest,
   toOpeningHoursRequest,
   toProductLineRequest,
   testimonialSchema,
@@ -43,6 +49,7 @@ import {
   weekOfValues,
   type BusinessInfoInput,
   type ClosureInput,
+  type GalleryUploadInput,
   type HoursInput,
   type TestimonialInput,
 } from './siteContentSchemas';
@@ -955,5 +962,113 @@ describe('the testimonial form values and request (CONT-03; plan 11-24)', () => 
     expect(
       toTestimonialRequest({ quote: typed, name: 'N', teamOrRole: '', stars: '5', isShown: true }, null).quote,
     ).toBe(typed);
+  });
+});
+
+describe('galleryUploadSchema: every GalleryUploadRequestValidator rule with the server message (OR-3, GAL-03; plan 11-32)', () => {
+  const good: GalleryUploadInput = {
+    hasPhoto: true,
+    teamName: 'Sample Barangay Riders',
+    productLineId: '8c1f4a20-0000-4000-8000-000000000003',
+    pieces: '12',
+    note: 'Dri-fit mesh, V-neck',
+    isShown: true,
+  };
+
+  /** The first message per field for these values on the add form, by field name. */
+  function messagesOf(overrides: Partial<GalleryUploadInput>, schema = galleryUploadSchema): Record<string, string> {
+    const result = schema.safeParse({ ...good, ...overrides });
+    const messages: Record<string, string> = {};
+    if (!result.success) {
+      for (const issue of result.error.issues) {
+        messages[String(issue.path[0])] ??= issue.message;
+      }
+    }
+    return messages;
+  }
+
+  it('accepts a full form and one with no pieces and no note', () => {
+    expect(messagesOf({})).toEqual({});
+    expect(messagesOf({ pieces: '', note: '' })).toEqual({});
+  });
+
+  it('photo: required on add, optional on edit', () => {
+    expect(messagesOf({ hasPhoto: false }).hasPhoto).toBe('Choose a photo.');
+    expect(messagesOf({ hasPhoto: false }, galleryEditSchema)).toEqual({});
+  });
+
+  it('team or name: required, and at most 80 characters counted after the trim', () => {
+    expect(messagesOf({ teamName: '' }).teamName).toBe('Enter the team or name.');
+    expect(messagesOf({ teamName: '   ' }).teamName).toBe('Enter the team or name.');
+    expect(messagesOf({ teamName: 'a'.repeat(81) }).teamName).toBe('Keep this to 80 characters or fewer.');
+    expect(messagesOf({ teamName: 'a'.repeat(80) })).toEqual({});
+    expect(messagesOf({ teamName: `  ${'a'.repeat(80)}  ` })).toEqual({});
+  });
+
+  it('product line: required', () => {
+    expect(messagesOf({ productLineId: '' }).productLineId).toBe('Choose the product line.');
+  });
+
+  it('pieces: empty, or a whole number from 1 to 9,999', () => {
+    for (const bad of ['0', '10000', '-3', '2.5', '1,200', 'twelve', '12 pcs', '٣']) {
+      expect(messagesOf({ pieces: bad }).pieces, bad).toBe('Enter a whole number from 1 to 9,999.');
+    }
+    for (const fine of ['1', '9999', ' 12 ', '007']) {
+      expect(messagesOf({ pieces: fine }), fine).toEqual({});
+    }
+    expect(galleryPiecesError('')).toBeNull();
+  });
+
+  it('note: at most 120 characters counted after the trim', () => {
+    expect(messagesOf({ note: 'a'.repeat(121) }).note).toBe('Keep the note to 120 characters or fewer.');
+    expect(messagesOf({ note: 'a'.repeat(120) })).toEqual({});
+    expect(messagesOf({ note: `  ${'a'.repeat(120)}  ` })).toEqual({});
+  });
+
+  it('a new form has no photo, empty texts, and Show on the website ticked', () => {
+    expect(galleryUploadValuesOf(null)).toEqual({
+      hasPhoto: false,
+      teamName: '',
+      productLineId: '',
+      pieces: '',
+      note: '',
+      isShown: true,
+    });
+  });
+
+  it('the form of a saved upload holds its words, its line and its pieces, with a photo', () => {
+    const upload = demoGalleryItems()[0];
+
+    expect(upload && galleryUploadValuesOf(upload)).toEqual({
+      hasPhoto: true,
+      teamName: 'Sample Barangay Riders',
+      productLineId: '8c1f4a20-0000-4000-8000-000000000003',
+      pieces: '12',
+      note: 'Dri-fit mesh, V-neck',
+      isShown: true,
+    });
+    const hidden = demoGalleryItems()[5];
+    expect(hidden && galleryUploadValuesOf(hidden)).toMatchObject({ note: '', isShown: false });
+  });
+
+  it('sends the texts trimmed, the pieces as a number (null for none) and the version of an edit', () => {
+    expect(
+      toGalleryUploadRequest(
+        { ...good, teamName: '  Riders  ', pieces: ' 12 ', note: ' Mesh ', isShown: false },
+        'AAAAAAAAH01=',
+      ),
+    ).toEqual({
+      teamName: 'Riders',
+      productLineId: good.productLineId,
+      pieces: 12,
+      note: 'Mesh',
+      isShown: false,
+      version: 'AAAAAAAAH01=',
+    });
+    expect(toGalleryUploadRequest({ ...good, pieces: '', note: '   ' }, null)).toMatchObject({
+      pieces: null,
+      note: '',
+      version: null,
+    });
   });
 });
