@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T17:40:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T19:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -324,6 +324,15 @@ A stress test with several hosts on one database showed database deadlocks (SQL 
 - **B:** turn on READ_COMMITTED_SNAPSHOT for the database (a database setting; check the host allows it).
 - **C:** study the query plans and add an index (a schema change).
 
+## P11-BL-36 · Which photo the Gallery link preview uses (plan 11-26, owner item O-1)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+When someone shares the Gallery page link on Facebook, the preview shows one photo. The plan said "the newest public photo".
+
+- **A (built, recommended):** the cover photo of the first team shown on the Gallery page, so the preview matches what visitors see first.
+- **B:** the photo with the newest date.
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -336,6 +345,6 @@ A stress test with several hosts on one database showed database deadlocks (SQL 
 | 5 (in 11-13) | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` | failed once | passed 20 of 20 (class alone) |
 | 6 | web `scripts/third-party-notices.test.ts` "--check exits 1 ... and --write fixes it" | failed once (245 s under load) | passed in 9.5 s |
 | 9 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (second time, see wave 5) | failed once | passed 5 of 5; the gate now keeps the full output so the cause can be read next time |
-| 10 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (third time) | failed: the losing upload answered **500** instead of 409 or 422 | **not a flake: a real race.** Fixed in ec98f325: the check before storage now reads the order again when another upload changes it, so the loser gets the photo limit (422). Confirm in the next gate. |
+| 10 | `OrderImagesEndpointTests.TwoUploadsTogetherForTheLastFreeSlotLeaveExactlyFivePhotos` (third time) | failed: the losing upload answered **500** instead of 409 or 422 | **not a flake: a real race.** Fixed in ec98f325: the check before storage now reads the order again when another upload changes it, so the loser gets the photo limit (422). Confirmed: the wave 11 gate passed with 0 failures. |
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
