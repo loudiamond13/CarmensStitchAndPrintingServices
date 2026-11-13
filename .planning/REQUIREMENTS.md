@@ -183,24 +183,24 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Public Site (PUB)
 
-- [ ] **PUB-01**: Visitors can browse Home, Products, Gallery and Contact/Get a Quote, built to UI-SPEC §7, plus the legal pages (§13) and a 404 page
-- [ ] **PUB-02**: Prices, product lines, address, contact numbers, hours, Messenger link and other business info on public pages load from the database, not hard-coded values ⚑ C-21
-- [ ] **PUB-03**: A Manager can edit all public content and the price list (create/edit/reorder/activate/deactivate/delete), and changes appear publicly at once (cache invalidated)
-- [ ] **PUB-04**: Public pages have unique titles/meta descriptions, Open Graph tags and `LocalBusiness` JSON-LD from site settings, present in the server-sent HTML (link-preview scrapers don't run JS). `robots.txt` and `sitemap.xml` are served, admin routes are `noindex`, and unknown paths return a real 404
+- [x] **PUB-01**: Visitors can browse Home, Products, Gallery and Contact/Get a Quote, built to UI-SPEC §7, plus the legal pages (§13) and a 404 page
+- [x] **PUB-02**: Prices, product lines, address, contact numbers, hours, Messenger link and other business info on public pages load from the database, not hard-coded values ⚑ C-21
+- [x] **PUB-03**: A Manager can edit all public content and the price list (create/edit/reorder/activate/deactivate/delete), and changes appear publicly at once (cache invalidated)
+- [x] **PUB-04**: Public pages have unique titles/meta descriptions, Open Graph tags and `LocalBusiness` JSON-LD from site settings, present in the server-sent HTML (link-preview scrapers don't run JS). `robots.txt` and `sitemap.xml` are served, admin routes are `noindex`, and unknown paths return a real 404
 - [ ] **PUB-05**: The Contact page shows "Open now / Closed now" computed from business hours and closure dates in Asia/Manila
 - [ ] **PUB-06**: Visitors can reach the shop via Messenger (`m.me` link) and phone (`tel:`) CTAs, including the phone-only sticky bar on Contact
 
 ### Gallery (GAL)
 
-- [ ] **GAL-01**: Visitors can browse a masonry gallery filtered by category pills with correct counts. The chosen category lives in the URL (WEB-10, owner 2026-10-07), so a shared gallery link opens on the same category
-- [ ] **GAL-02**: Visitors can open a gallery item in a lightbox with position, prev/next wrapping within the filter, Esc/←/→, and swipe plus a button alternative on phones ⚑ C-35
-- [ ] **GAL-03**: A Manager can manage gallery items (upload photo, team, category, pieces, note, order, publish/unpublish)
+- [x] **GAL-01**: Visitors can browse a masonry gallery filtered by category pills with correct counts. The chosen category lives in the URL (WEB-10, owner 2026-10-07), so a shared gallery link opens on the same category
+- [x] **GAL-02**: Visitors can open a gallery item in a lightbox with position, prev/next wrapping within the filter, Esc/←/→, and swipe plus a button alternative on phones ⚑ C-35
+- [x] **GAL-03**: A Manager can manage gallery items (upload photo, team, category, pieces, note, order, publish/unpublish)
 
 ### Site Content (CONT)
 
-- [ ] **CONT-01**: A Manager can edit site settings: business name, tagline, address, map link, phone numbers, email, Messenger URL, social links, business hours, about text, time zone, currency/locale
-- [ ] **CONT-02**: A Manager can manage product lines/price list: name, description, "starts at" price, minimum quantity, display order, active flag ⚑ C-21
-- [ ] **CONT-03**: A Manager can manage testimonials and the "Recent work" strip
+- [x] **CONT-01**: A Manager can edit site settings: business name, tagline, address, map link, phone numbers, email, Messenger URL, social links, business hours, about text, time zone, currency/locale
+- [x] **CONT-02**: A Manager can manage product lines/price list: name, description, "starts at" price, minimum quantity, display order, active flag ⚑ C-21
+- [x] **CONT-03**: A Manager can manage testimonials and the "Recent work" strip
 - [ ] **CONT-04**: A Manager can record holiday and special closure dates, which feed "Open now" and JSON-LD opening hours
 - [ ] **CONT-05**: Site settings and the price list are served from an output cache / HybridCache, with `ETag`/`Cache-Control`, and invalidated when a Manager edits them
 
@@ -448,18 +448,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MONEY-06 | Phase 10 | Pending |
 | MONEY-07 | Phase 10 | Pending |
 | MONEY-08 | Phase 10 | Pending |
-| PUB-01 | Phase 11 | Pending |
-| PUB-02 | Phase 11 | Pending |
-| PUB-03 | Phase 11 | Pending |
-| PUB-04 | Phase 11 | Pending |
+| PUB-01 | Phase 11 | Complete |
+| PUB-02 | Phase 11 | Complete |
+| PUB-03 | Phase 11 | Complete |
+| PUB-04 | Phase 11 | Complete |
 | PUB-05 | Phase 11 | Pending |
 | PUB-06 | Phase 11 | Pending |
-| GAL-01 | Phase 11 | Pending |
-| GAL-02 | Phase 11 | Pending |
-| GAL-03 | Phase 11 | Pending |
-| CONT-01 | Phase 11 | Pending |
-| CONT-02 | Phase 11 | Pending |
-| CONT-03 | Phase 11 | Pending |
+| GAL-01 | Phase 11 | Complete |
+| GAL-02 | Phase 11 | Complete |
+| GAL-03 | Phase 11 | Complete |
+| CONT-01 | Phase 11 | Complete |
+| CONT-02 | Phase 11 | Complete |
+| CONT-03 | Phase 11 | Complete |
 | CONT-04 | Phase 11 | Pending |
 | CONT-05 | Phase 11 | Pending |
 | INQ-01 | Phase 13 | Pending |
