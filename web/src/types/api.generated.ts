@@ -2081,7 +2081,7 @@ export interface paths {
         /**
          * Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` ("HH:mm")
          *     when open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and
-         *     `when` of "today", "tomorrow" or "weekday") when closed and the shop opens within 14 days. The answer is public and may be
+         *     `when` of "today", "tomorrow" or "weekday") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be
          *     kept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.
          */
         get: operations["GetOpenStatus"];

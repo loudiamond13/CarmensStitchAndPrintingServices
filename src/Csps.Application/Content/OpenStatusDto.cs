@@ -17,7 +17,7 @@ public sealed record NextOpeningDto(string Date, int Day, string OpensAt, string
 /// <param name="ClosesAt">The closing time today as "HH:mm" when open; otherwise null.</param>
 /// <param name="ClosedToday">True when a closure covers today.</param>
 /// <param name="TodayClosureNote">The note of the closure that covers today; null when none or no note.</param>
-/// <param name="NextOpening">The next opening within 14 days; null when open or when nothing opens in that time.</param>
+/// <param name="NextOpening">The next opening within 38 days (the longest closure and a week); null when open or when nothing opens in that time.</param>
 public sealed record OpenStatusDto(bool IsOpen, string? ClosesAt, bool ClosedToday, string? TodayClosureNote, NextOpeningDto? NextOpening)
 {
     private const string DateFormat = "yyyy-MM-dd";
