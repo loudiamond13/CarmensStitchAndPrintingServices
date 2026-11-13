@@ -10,6 +10,7 @@ import {
   LIGHTHOUSE_URL,
   LIGHTHOUSE_URLS,
   ORIGIN,
+  PAGE_PAUSE_MS,
   planSteps,
   REPORT_PATH,
   reportPathFor,
@@ -41,6 +42,10 @@ function fakeDeps(options: { reports?: Record<string, unknown>; runStatus?: Reco
       const page = step.name === 'lighthouse' ? ` ${step.args[1] ?? ''}` : '';
       events.push(`run ${step.name}${page}`);
       return options.runStatus?.[`${step.name}${page}`] ?? 0;
+    },
+    sleep: (ms: number) => {
+      events.push(`sleep ${String(ms)}`);
+      return Promise.resolve();
     },
     startHost: () => {
       events.push('start host');
@@ -132,6 +137,11 @@ describe('planSteps for four pages (lighthouse.mjs)', () => {
 });
 
 describe('executeSteps for four pages (lighthouse.mjs)', () => {
+  // Lighthouse answers NO_NAVSTART ("run it again") when a second Chrome starts within seconds of the first one closing.
+  it('pauses 15 seconds between pages, never before the first or after the last', () => {
+    expect(PAGE_PAUSE_MS).toBe(15_000);
+  });
+
   it('runs every page on the one host, stops the host after the last page, then reads every report', async () => {
     const { events, deps } = fakeDeps();
 
@@ -141,8 +151,11 @@ describe('executeSteps for four pages (lighthouse.mjs)', () => {
       'run build',
       'start host',
       `run lighthouse ${ORIGIN}/`,
+      `sleep ${String(PAGE_PAUSE_MS)}`,
       `run lighthouse ${ORIGIN}/products`,
+      `sleep ${String(PAGE_PAUSE_MS)}`,
       `run lighthouse ${ORIGIN}/gallery`,
+      `sleep ${String(PAGE_PAUSE_MS)}`,
       `run lighthouse ${ORIGIN}/contact`,
       'stop host',
       'read report.json',
@@ -210,7 +223,9 @@ describe('executeSteps for four pages (lighthouse.mjs)', () => {
       'run build',
       'start host',
       `run lighthouse ${ORIGIN}/`,
+      `sleep ${String(PAGE_PAUSE_MS)}`,
       `run lighthouse ${ORIGIN}/products`,
+      `sleep ${String(PAGE_PAUSE_MS)}`,
       `run lighthouse ${ORIGIN}/gallery`,
       'stop host',
     ]);

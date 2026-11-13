@@ -32,6 +32,7 @@ export const SERVER_PROJECT = fileURLToPath(new URL('../../src/Csps.Server', imp
 export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', import.meta.url));
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
+export const PAGE_PAUSE_MS = 0;
 export const LIGHTHOUSE_URL = `${ORIGIN}/`;
 /** The real public pages that are scored, Home first (D-28). */
 export const LIGHTHOUSE_PAGES = Object.freeze(['/', '/products', '/gallery', '/contact']);
