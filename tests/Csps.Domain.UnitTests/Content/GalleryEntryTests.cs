@@ -108,6 +108,111 @@ public sealed class GalleryEntryTests
         failed.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["teamName", "productLineId"], ignoreOrder: true);
     }
 
+    private static GalleryEntry NewUpload(bool shown = true) => GalleryEntry.CreateUpload(GalleryEntry.NewId(Now), Valid with { IsShown = shown }, File, 0, Now).Value;
+
+    [Fact]
+    public void AnEditNamesTheChangedFieldsInFormOrderAndKeepsTheOldTeamAndLine()
+    {
+        var entry = NewUpload();
+        var basketball = Guid.Parse("c4e6a8b0-2d3f-4b71-9ca5-6e8f0a2b4d31");
+
+        var result = entry.UpdateUpload(new GalleryUploadValues("Tondo Sample Riders MC", basketball, 20m, "A new note", null));
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Fields.ShouldBe(["team", "line", "pieces", "note"]);
+        (result.Value.OldTeam, result.Value.NewTeam, result.Value.OldLineId, result.Value.NewLineId, result.Value.NowShown).ShouldBe(("Tondo Sample Riders", "Tondo Sample Riders MC", Moto, basketball, null));
+        result.Value.HasChange.ShouldBeTrue();
+        (entry.TeamName, entry.ProductLineId, entry.Pieces, entry.Note, entry.IsShown).ShouldBe(("Tondo Sample Riders MC", basketball, 20, "A new note", true));
+    }
+
+    [Fact]
+    public void AFormWithTheSameValuesChangesNothingAndANullShownFlagKeepsTheFlag()
+    {
+        var entry = NewUpload();
+
+        var result = entry.UpdateUpload(new GalleryUploadValues("  Tondo Sample Riders ", Moto, 12m, "Dri-fit mesh, V-neck", null));
+
+        result.Value.Fields.ShouldBeEmpty();
+        result.Value.NowShown.ShouldBeNull();
+        result.Value.HasChange.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AnEditCanClearThePiecesAndTheNoteAndFlipTheShownFlagWhichIsNotAField()
+    {
+        var entry = NewUpload();
+
+        var cleared = entry.UpdateUpload(Valid with { Pieces = null, Note = "  ", IsShown = false });
+        var again = entry.UpdateUpload(Valid with { Pieces = null, Note = null, IsShown = false });
+        var shown = entry.UpdateUpload(Valid with { Pieces = null, Note = null, IsShown = true });
+
+        cleared.Value.Fields.ShouldBe(["pieces", "note"]);
+        cleared.Value.NowShown.ShouldBe(false);
+        cleared.Value.HasChange.ShouldBeTrue();
+        again.Value.HasChange.ShouldBeFalse();
+        shown.Value.Fields.ShouldBeEmpty();
+        shown.Value.NowShown.ShouldBe(true);
+        shown.Value.HasChange.ShouldBeTrue();
+        (entry.Pieces, entry.Note, entry.IsShown).ShouldBe((null, null, true));
+    }
+
+    [Fact]
+    public void ABrokenEditChangesNothingAndNamesTheFields()
+    {
+        var entry = NewUpload();
+
+        var result = entry.UpdateUpload(new GalleryUploadValues("", null, 0m, new string('n', 121), false));
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["teamName", "productLineId", "pieces", "note"], ignoreOrder: true);
+        (entry.TeamName, entry.ProductLineId, entry.Pieces, entry.Note, entry.IsShown).ShouldBe(("Tondo Sample Riders", Moto, 12, "Dri-fit mesh, V-neck", true));
+    }
+
+    [Fact]
+    public void ReplacingThePhotoGivesBackTheOldIdAndKeepsTheRest()
+    {
+        var entry = NewUpload();
+
+        var old = entry.ReplacePhoto(new LinePhotoFile("csps/content/gallery/abc/new", 900, 700, 222, "png"));
+
+        old.ShouldBe("csps/content/gallery/abc/def");
+        (entry.PublicId, entry.Width, entry.Height, entry.Bytes, entry.Format).ShouldBe(("csps/content/gallery/abc/new", 900, 700, 222, "png"));
+        entry.TeamName.ShouldBe("Tondo Sample Riders");
+    }
+
+    [Fact]
+    public void HidingAndShowingSayWhetherTheFlagChanged()
+    {
+        var entry = NewUpload();
+
+        entry.Hide().ShouldBeTrue();
+        entry.Hide().ShouldBeFalse();
+        entry.IsShown.ShouldBeFalse();
+        entry.Show().ShouldBeTrue();
+        entry.Show().ShouldBeFalse();
+        entry.IsShown.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AnOrderEntryRefusesEveryUploadChangeBecauseItIsManagedFromItsOrder()
+    {
+        var entry = GalleryEntry.ForOrder(Guid.NewGuid(), 0, Now);
+
+        Should.Throw<InvalidOperationException>(() => entry.UpdateUpload(Valid));
+        Should.Throw<InvalidOperationException>(() => entry.ReplacePhoto(File));
+        Should.Throw<InvalidOperationException>(() => entry.Hide());
+        Should.Throw<InvalidOperationException>(() => entry.Show());
+    }
+
+    [Fact]
+    public void TheUploadChangesGuardTheirArguments()
+    {
+        var entry = NewUpload();
+
+        Should.Throw<ArgumentNullException>(() => entry.UpdateUpload(null!));
+        Should.Throw<ArgumentNullException>(() => entry.ReplacePhoto(null!));
+    }
+
     [Fact]
     public void ThePhotoMessageIsTheUiSpecWording()
     {

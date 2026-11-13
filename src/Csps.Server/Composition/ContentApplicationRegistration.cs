@@ -50,6 +50,10 @@ public static class ContentApplicationRegistration
         services.AddSingleton<IValidator<MoveTestimonialRequest>, MoveTestimonialRequestValidator>();
         services.AddScoped<ListGalleryItemsHandler>();
         services.AddScoped<CreateGalleryUploadHandler>();
+        services.AddScoped<UpdateGalleryUploadHandler>();
+        services.AddScoped<ReplaceGalleryPhotoHandler>();
+        services.AddScoped<SetGalleryUploadShownHandler>();
+        services.AddScoped<DeleteGalleryUploadHandler>();
         services.AddSingleton<IValidator<ListGalleryItemsRequest>, ListGalleryItemsRequestValidator>();
         services.AddSingleton<IValidator<GalleryUploadRequest>, GalleryUploadRequestValidator>();
         return services;

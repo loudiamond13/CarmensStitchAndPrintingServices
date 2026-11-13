@@ -8,15 +8,19 @@ namespace Csps.Application.Content;
 /// Builds the detail of the <c>gallery-photo.*</c> and <c>gallery-item.moved</c> audit entries (AUDIT-01, T-11-73). An entry names the
 /// team or name shown (public anyway) and the line title, never the address of the photo. A change names every changed field in a
 /// <c>fields=</c> pair and then holds <c>team=old&gt;new</c> and <c>line=old&gt;new</c> for the short values that changed. The note is
-/// named and never copied, so the audit screen reads <c>fields=note</c> as "Note changed". A pair that would push the detail past
-/// <see cref="AuditEntry.DetailMaxLength"/> is left out, so the entry is always written.
+/// named and never copied, so the audit screen reads <c>fields=note</c> as "Note changed". A replaced photo is <c>fields=photo</c>. A pair
+/// that would push the detail past <see cref="AuditEntry.DetailMaxLength"/> is left out, so the entry is always written.
 /// </summary>
 public static class GalleryAuditDetail
 {
     /// <summary>The target type of every gallery audit entry.</summary>
     public const string TargetType = "GalleryEntry";
 
+    /// <summary>The detail of a replaced photo: the field name only.</summary>
+    public const string PhotoReplaced = "fields=photo";
+
     private const char PairSeparator = ';';
+    private const char FieldSeparator = ',';
 
     /// <summary>Writes the detail of an added, hidden, shown or deleted upload: its team and the line title.</summary>
     /// <param name="entry">The upload.</param>
@@ -29,7 +33,32 @@ public static class GalleryAuditDetail
         return Fit(AuditDetailFormat.Pair("team", entry.TeamName ?? string.Empty), AuditDetailFormat.Pair("line", lineTitle));
     }
 
-    // Joins the pairs in order and drops any pair that would not fit.
+    /// <summary>Writes the detail of a changed upload.</summary>
+    /// <param name="change">What changed.</param>
+    /// <param name="oldLineTitle">The title of the line before; used when the line changed.</param>
+    /// <param name="newLineTitle">The title of the line after; used when the line changed.</param>
+    /// <returns>The detail text.</returns>
+    public static string Changed(GalleryUploadChanges change, string oldLineTitle, string newLineTitle)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        ArgumentNullException.ThrowIfNull(oldLineTitle);
+        ArgumentNullException.ThrowIfNull(newLineTitle);
+
+        List<string> pairs = [AuditDetailFormat.Pair("fields", string.Join(FieldSeparator, change.Fields))];
+        if (change.Fields.Contains("team"))
+        {
+            pairs.Add(AuditDetailFormat.Change("team", change.OldTeam, change.NewTeam));
+        }
+
+        if (change.Fields.Contains("line"))
+        {
+            pairs.Add(AuditDetailFormat.Change("line", oldLineTitle, newLineTitle));
+        }
+
+        return Fit([.. pairs]);
+    }
+
+    // Joins the pairs in order and drops any pair after the first that would not fit.
     private static string Fit(params string[] pairs)
     {
         var detail = pairs[0];

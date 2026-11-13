@@ -53,6 +53,12 @@ public static class SiteContentErrors
         SiteSettings.InvalidMessage,
         new Dictionary<string, string[]>(StringComparer.Ordinal) { ["productLineId"] = [GalleryEntry.LineRequiredMessage] });
 
+    /// <summary>Gets the 400 for a gallery photo replace that came with no file, under <c>file</c>.</summary>
+    public static Error GalleryPhotoMissing { get; } = Error.Validation(
+        InvalidCode,
+        SiteSettings.InvalidMessage,
+        new Dictionary<string, string[]>(StringComparer.Ordinal) { ["file"] = [GalleryEntry.PhotoRequiredMessage] });
+
     /// <summary>The machine code of a delete refused because something is filed under the product line.</summary>
     public const string LineInUseCode = "product-lines.in-use";
 

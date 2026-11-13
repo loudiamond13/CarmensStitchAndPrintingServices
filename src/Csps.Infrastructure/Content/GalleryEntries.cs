@@ -16,6 +16,9 @@ internal sealed class GalleryEntries(CspsDbContext context) : IGalleryEntries
     public Task<GalleryEntry?> FindForOrderAsync(Guid orderId, CancellationToken cancellationToken) =>
         context.GalleryEntries.SingleOrDefaultAsync(entry => entry.OrderId == orderId, cancellationToken);
 
+    public Task<GalleryEntry?> FindUploadAsync(Guid id, CancellationToken cancellationToken) =>
+        context.GalleryEntries.SingleOrDefaultAsync(entry => entry.Id == id && entry.Kind == GalleryEntryKind.Upload, cancellationToken);
+
     // Positions are given out under the site-content lock, so two writers never take the same top place.
     public async Task<int> GetTopPositionAsync(CancellationToken cancellationToken) =>
         (await context.GalleryEntries.MinAsync(entry => (int?)entry.Position, cancellationToken).ConfigureAwait(false) ?? 1) - 1;

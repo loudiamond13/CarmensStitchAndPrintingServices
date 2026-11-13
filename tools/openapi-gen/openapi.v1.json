@@ -2344,6 +2344,66 @@
         ],
         "type": "object"
       },
+      "GalleryUploadRequest": {
+        "description": "The fields of the gallery upload form (GAL-03, SEC-07), for adding (sent as form parts next to the photo) and for editing (sent as JSON).\nAny other member is ignored: who added the upload and when come from the server (SEC-08).",
+        "properties": {
+          "isShown": {
+            "description": "True to show the upload on the website. A new upload is hidden when this is missing; an edit keeps it as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "note": {
+            "description": "The note, at most 120 characters; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pieces": {
+            "description": "The pieces, a whole number from 1 to 9,999; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "productLineId": {
+            "description": "The line the upload is filed under, required.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or name shown, required, at most 80 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "teamName",
+          "productLineId",
+          "pieces",
+          "note",
+          "isShown",
+          "version"
+        ],
+        "type": "object"
+      },
       "IFormFile": {
         "format": "binary",
         "type": "string"
@@ -10736,6 +10796,460 @@
           }
         },
         "summary": "Adds a photo of older work to the Gallery as a multipart form with the file in the `file` part and the fields\n`teamName`, `productLineId`, `pieces` (optional), `note` (optional) and `isShown` as form parts. The type is read from\nthe first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can\nuse, is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The\nphoto is stored under a random id the client never chooses, in the entry's own content folder. The upload joins at the top of\nthe gallery. It is hidden unless `isShown` is `true`, and a line that is hidden keeps it off the public site. When photo\nstorage is not set up the answer is 503 `images.not-configured`. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more. Who added it and when come from the token and the clock. The change is\nrecorded in the audit log without the address, and the public pages show it at once.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}": {
+      "delete": {
+        "operationId": "DeleteGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes an upload for good. Its photo is queued for removal in the same save and leaves the storage on the next cleanup run;\nnothing calls the storage during the request. It takes no version. Deleting an upload that is already gone is a 404, and so is an\nitem that came from an order: it is taken off the website from its order.",
+        "tags": [
+          "GalleryItems"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits an upload with the version the form was opened with, as JSON: `teamName`, `productLineId`, `pieces`,\n`note`, `isShown` and `version`. The values follow the same rules as when adding. A `version` that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change stores nothing\nand keeps the version. The photo is replaced through its own route. An item that came from an order answers 404: it is changed on\nits order. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/hide": {
+      "post": {
+        "operationId": "HideGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides an upload: it leaves the public site and stays in this list, and nothing is lost. Hiding a hidden upload is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.\nAn item that came from an order answers 404: it is taken off the website from its order.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/photo": {
+      "post": {
+        "operationId": "ReplaceGalleryPhoto",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Puts a new photo in the place of an upload's photo, as a multipart form with the file in the `file` part. The file is held\nto the same rules as when adding (type read from the first bytes, 10 MB, 25 megapixels, location and camera data removed) and is\nstored under a new random id in the upload's own folder. The old file is queued for removal in the same save. It takes no\nversion; the answer carries the new one. An item that came from an order answers 404: its photos come from the order. A retry\nwith the same `Idempotency-Key` and body answers with the stored answer. The change is recorded in the audit log as a photo\nchange, never with the address, and the public pages show it at once.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/show": {
+      "post": {
+        "operationId": "ShowGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden upload on the public site again (a hidden line still keeps it off). Showing a shown upload is a 204 that changes\nand records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. An item\nthat came from an order answers 404.",
         "tags": [
           "GalleryItems"
         ]

@@ -14,6 +14,12 @@ public interface IGalleryEntries
     /// <returns>The entry, or null when the order has none.</returns>
     Task<GalleryEntry?> FindForOrderAsync(Guid orderId, CancellationToken cancellationToken);
 
+    /// <summary>Loads a direct upload as a tracked row. An order entry is not found here: it is managed from its order (D-27).</summary>
+    /// <param name="id">The entry id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The entry, or null when it does not exist or is an order entry.</returns>
+    Task<GalleryEntry?> FindUploadAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Gives the place that puts a new entry above every other one.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>One below the lowest position, or 0 when there are no entries.</returns>
