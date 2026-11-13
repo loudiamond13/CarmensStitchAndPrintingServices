@@ -1107,6 +1107,7 @@ const GROUP_NAMES = [
   'Orders',
   'Order lists',
   'Staff money',
+  'Site content',
 ];
 
 function optionTexts(select: HTMLElement): (string | null)[] {
@@ -1114,7 +1115,7 @@ function optionTexts(select: HTMLElement): (string | null)[] {
 }
 
 describe('A1 the Group select (D-80)', () => {
-  it('sits before Action, lists All groups then the eight groups, and starts at All groups', async () => {
+  it('sits before Action, lists All groups then the nine groups, and starts at All groups', async () => {
     backend();
     await openPage();
 

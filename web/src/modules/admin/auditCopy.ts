@@ -8,7 +8,7 @@ import type { components } from '@/types/api.generated';
 import { formatPeso } from '@/utils/csps';
 import { formatCalendarDate } from '@/utils/format';
 
-/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6, the two order groups Phase 7). */
+/** The groups of the Action select, in the order the UI-SPEC lists them (A1; the two expense groups are Phase 6, the two order groups Phase 7, Site content Phase 11). */
 export const AUDIT_GROUPS = [
   'Sign-in and security',
   'Staff accounts',
@@ -18,6 +18,7 @@ export const AUDIT_GROUPS = [
   'Orders',
   'Order lists',
   'Staff money',
+  'Site content',
 ] as const;
 export type AuditGroup = (typeof AUDIT_GROUPS)[number];
 
@@ -36,6 +37,7 @@ const CATEGORIES = AUDIT_GROUPS[4];
 const ORDERS = AUDIT_GROUPS[5];
 const ORDER_LISTS = AUDIT_GROUPS[6];
 const STAFF_MONEY = AUDIT_GROUPS[7];
+const SITE_CONTENT = AUDIT_GROUPS[8];
 
 /** Every action code with its plain-English label and group, in the order the select lists them. */
 export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
@@ -118,6 +120,11 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order-image.cover-changed', label: 'Order cover photo changed', group: ORDERS },
   { code: 'order-image.description-changed', label: 'Order photo description changed', group: ORDERS },
   { code: 'order-image.deleted', label: 'Order photo deleted', group: ORDERS },
+  { code: 'order.public-consent-recorded', label: 'Customer OK to show recorded', group: ORDERS },
+  { code: 'order.public-consent-removed', label: 'Customer OK to show removed', group: ORDERS },
+  { code: 'order.shown-on-website', label: 'Order shown on the website', group: ORDERS },
+  { code: 'order.taken-off-website', label: 'Order taken off the website', group: ORDERS },
+  { code: 'order.public-details-changed', label: 'Order public details changed', group: ORDERS },
   { code: 'product-type.added', label: 'Product type added', group: ORDER_LISTS },
   { code: 'product-type.renamed', label: 'Product type renamed', group: ORDER_LISTS },
   { code: 'product-type.recolored', label: 'Product type color changed', group: ORDER_LISTS },
@@ -140,6 +147,32 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'money-transfer.deleted', label: 'Money transfer deleted', group: STAFF_MONEY },
   { code: 'money-transfer.permanently-deleted', label: 'Money transfer removed permanently', group: STAFF_MONEY },
   { code: 'money-transfer.handed-over', label: 'Money handed over', group: STAFF_MONEY },
+  { code: 'site-settings.changed', label: 'Site settings changed', group: SITE_CONTENT },
+  { code: 'site-settings.share-picture-changed', label: 'Link preview picture changed', group: SITE_CONTENT },
+  { code: 'opening-hours.changed', label: 'Opening hours changed', group: SITE_CONTENT },
+  { code: 'shop-closure.added', label: 'Closure added', group: SITE_CONTENT },
+  { code: 'shop-closure.changed', label: 'Closure changed', group: SITE_CONTENT },
+  { code: 'shop-closure.deleted', label: 'Closure deleted', group: SITE_CONTENT },
+  { code: 'product-line.added', label: 'Product line added', group: SITE_CONTENT },
+  { code: 'product-line.changed', label: 'Product line changed', group: SITE_CONTENT },
+  { code: 'product-line.moved', label: 'Product line moved', group: SITE_CONTENT },
+  { code: 'product-line.hidden', label: 'Product line hidden', group: SITE_CONTENT },
+  { code: 'product-line.shown', label: 'Product line shown', group: SITE_CONTENT },
+  { code: 'product-line.deleted', label: 'Product line deleted', group: SITE_CONTENT },
+  { code: 'product-line.photo-changed', label: 'Product line photo changed', group: SITE_CONTENT },
+  { code: 'product-type.line-linked', label: 'Order product type linked to a product line', group: SITE_CONTENT },
+  { code: 'testimonial.added', label: 'Testimonial added', group: SITE_CONTENT },
+  { code: 'testimonial.changed', label: 'Testimonial changed', group: SITE_CONTENT },
+  { code: 'testimonial.moved', label: 'Testimonial moved', group: SITE_CONTENT },
+  { code: 'testimonial.hidden', label: 'Testimonial hidden', group: SITE_CONTENT },
+  { code: 'testimonial.shown', label: 'Testimonial shown', group: SITE_CONTENT },
+  { code: 'testimonial.deleted', label: 'Testimonial deleted', group: SITE_CONTENT },
+  { code: 'gallery-photo.added', label: 'Gallery photo added', group: SITE_CONTENT },
+  { code: 'gallery-photo.changed', label: 'Gallery photo changed', group: SITE_CONTENT },
+  { code: 'gallery-item.moved', label: 'Gallery item moved', group: SITE_CONTENT },
+  { code: 'gallery-photo.hidden', label: 'Gallery photo hidden', group: SITE_CONTENT },
+  { code: 'gallery-photo.shown', label: 'Gallery photo shown', group: SITE_CONTENT },
+  { code: 'gallery-photo.deleted', label: 'Gallery photo deleted', group: SITE_CONTENT },
 ];
 
 /** The codes the Action filter accepts in the URL. */
@@ -248,6 +281,11 @@ function describeFields(list: string): string | null {
  */
 export function describeAuditDetail(action: string, detail: string | null): string | null {
   if (detail === null || detail === '') return null;
+  const siteContent = SITE_CONTENT_DETAIL.get(action);
+  if (siteContent !== undefined) {
+    const sentences = siteContent(parseDetailParts(detail));
+    return sentences.length === 0 ? null : sentences.join('. ');
+  }
   if (detail.startsWith(FIELDS_PREFIX)) {
     return action === 'user.details-changed' || action === 'profile.name-changed'
       ? describeFields(detail.slice(FIELDS_PREFIX.length))
@@ -460,6 +498,298 @@ export function describeAuditOrderSnapshot(snapshot: AuditOrderSnapshot): string
   ].join(', ');
 }
 
+/** One `key=value` or `key=old>new` pair of a stored site content detail, with its percent escapes undone (AUDIT-01). */
+interface DetailPart {
+  readonly key: string;
+  /** The old value of a change; null for a single value. */
+  readonly from: string | null;
+  readonly to: string;
+}
+
+const DETAIL_ESCAPES: ReadonlyMap<string, string> = new Map([
+  ['%25', '%'],
+  ['%3B', ';'],
+  ['%3D', '='],
+  ['%3E', '>'],
+]);
+
+function decodeDetailText(text: string): string {
+  return text.replace(/%(?:25|3B|3D|3E)/gu, (escape) => DETAIL_ESCAPES.get(escape) ?? escape);
+}
+
+/** Reads a stored detail into its pairs. A part with no "=" is skipped. */
+function parseDetailParts(detail: string): DetailPart[] {
+  const parts: DetailPart[] = [];
+  for (const part of detail.split(';')) {
+    const equals = part.indexOf('=');
+    if (equals <= 0) continue;
+    const value = part.slice(equals + 1);
+    const arrow = value.indexOf('>');
+    parts.push({
+      key: part.slice(0, equals),
+      from: arrow < 0 ? null : decodeDetailText(value.slice(0, arrow)),
+      to: decodeDetailText(arrow < 0 ? value : value.slice(arrow + 1)),
+    });
+  }
+  return parts;
+}
+
+/** Reads one stored value as text; null when it cannot be shown. A value that is an email address is never shown (D-25). */
+type ValueFormat = (value: string) => string | null;
+
+const EMAIL_LIKE = /[\w.+-]+@[\w-]+\.[\w.]+/u;
+const PRICE_TEXT = /^\d+(?:\.\d+)?$/u;
+const HOURS_TEXT = /^([01]\d|2[0-3]):([0-5]\d)-([01]\d|2[0-3]):([0-5]\d)$/u;
+
+const asText: ValueFormat = (value) => (EMAIL_LIKE.test(value) ? null : value);
+const asPeso: ValueFormat = (value) => (PRICE_TEXT.test(value) ? formatPeso(value) : null);
+const asNumber: ValueFormat = (value) => (NUMBER_TEXT.test(value) ? value : null);
+
+function clockText(hours: string, minutes: string): string {
+  const hour = Number(hours);
+  return `${String(hour % 12 === 0 ? 12 : hour % 12)}:${minutes} ${hour < 12 ? 'AM' : 'PM'}`;
+}
+
+/** "closed" as "Closed", "09:00-18:00" as "9:00 AM - 6:00 PM". */
+const asHours: ValueFormat = (value) => {
+  if (value === 'closed') return 'Closed';
+  const match = HOURS_TEXT.exec(value);
+  return match === null ? null : `${clockText(match[1] ?? '', match[2] ?? '')} - ${clockText(match[3] ?? '', match[4] ?? '')}`;
+};
+
+/** "Label: old to new" for a change pair; an empty side reads "Not set". A side that cannot be read gives "<Label> changed". */
+function changeSentence(label: string, part: DetailPart, format: ValueFormat): string {
+  const side = (value: string): string | null => (value === '' ? NOT_SET : format(value));
+  const from = part.from === null ? null : side(part.from);
+  const to = side(part.to);
+  return from === null || to === null ? changedOnly(label) : pair(label, from, to);
+}
+
+/** "Label: value" for a single value, as a list of one; empty when the value is empty or cannot be shown. */
+function valueSentence(label: string, part: DetailPart | undefined, format: ValueFormat): string[] {
+  if (part?.from !== null || part.to === '') return [];
+  const text = format(part.to);
+  return text === null ? [] : [`${label}: ${text}`];
+}
+
+function findPart(parts: readonly DetailPart[], key: string): DetailPart | undefined {
+  return parts.find((part) => part.key === key);
+}
+
+/** A change pair as one sentence; empty when the entry holds no pair under that key. */
+function changeOf(parts: readonly DetailPart[], key: string, label: string, format: ValueFormat): string[] {
+  const part = findPart(parts, key);
+  if (part === undefined) return [];
+  return part.from === null ? [] : [changeSentence(label, part, format)];
+}
+
+/** How one named field reads: "<Label> changed", or the old and new value when the log stores them under `pair`. */
+interface FieldRule {
+  readonly label: string;
+  readonly pair?: string | undefined;
+  readonly format?: ValueFormat | undefined;
+  /** The sentence when the log names the field with no values; "<Label> changed" when left out. */
+  readonly changed?: string | undefined;
+}
+
+/** A field the log names and never copies (a long text, an email, phone numbers). */
+const named = (label: string): FieldRule => ({ label });
+
+/** A short value the log stores as old and new under the key `pairKey`. */
+const shown = (label: string, pairKey: string, format: ValueFormat = asText): FieldRule => ({ label, pair: pairKey, format });
+
+const SITE_SETTINGS_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
+  ['businessName', shown('Business name', 'businessName')],
+  ['tagline', named('Tagline')],
+  ['aboutText', named('About text')],
+  ['turnaroundLine', named('Turnaround line')],
+  ['street', named('Street')],
+  ['townOrCity', named('Town or city')],
+  ['province', named('Province')],
+  ['postalCode', named('Postal code')],
+  ['directionsUrl', shown('Directions link', 'directionsUrl')],
+  ['mapEmbedUrl', shown('Map link', 'mapEmbedUrl')],
+  ['messengerUrl', shown('Messenger link', 'messengerUrl')],
+  ['facebookUrl', shown('Facebook link', 'facebookUrl')],
+  ['instagramUrl', shown('Instagram link', 'instagramUrl')],
+  ['tiktokUrl', shown('TikTok link', 'tiktokUrl')],
+  ['contactEmail', named('Shop email')],
+  ['phones', named('Phone numbers')],
+]);
+
+const PRODUCT_LINE_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
+  ['title', shown('Title', 'title')],
+  ['shortName', shown('Short name', 'shortName')],
+  ['number', named('Number')],
+  ['cardText', named('Card text')],
+  ['description', named('Description')],
+  ['fabricText', named('Fabric text')],
+  ['collarText', named('Collar text')],
+  ['cutText', named('Cut text')],
+  ['namesText', named('Names text')],
+  ['logosText', named('Logos text')],
+  ['startsAtPrice', shown('Starts-at price', 'price', asPeso)],
+  ['minimumQuantity', shown('Minimum quantity', 'minimum', asNumber)],
+]);
+
+const TESTIMONIAL_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
+  ['quote', named('Quote')],
+  ['name', shown('Name', 'name')],
+  ['teamOrRole', named('Team or role')],
+  ['stars', shown('Stars', 'stars', asNumber)],
+]);
+
+const GALLERY_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
+  ['team', shown('Team', 'team')],
+  ['line', shown('Product line', 'line')],
+  ['pieces', named('Pieces')],
+  ['note', named('Note')],
+  ['photo', { label: 'Photo', changed: 'Photo replaced' }],
+]);
+
+const CLOSURE_FIELDS: ReadonlyMap<string, FieldRule> = new Map([['note', named('Note')]]);
+
+const ORDER_PUBLIC_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
+  ['line', named('Product line')],
+  ['name', named('Name shown')],
+]);
+
+/** The sentences of a `fields=` pair: each named field reads by its rule, a field with no rule as "Other detail changed". */
+function fieldSentences(parts: readonly DetailPart[], rules: ReadonlyMap<string, FieldRule>): string[] {
+  const list = parts.find((part) => part.key === 'fields' && part.from === null);
+  if (list === undefined) return [];
+  const sentences: string[] = [];
+  for (const field of list.to.split(',')) {
+    const rule = rules.get(field);
+    const change = rule?.pair === undefined ? undefined : parts.find((part) => part.key === rule.pair && part.from !== null);
+    const sentence =
+      rule === undefined
+        ? OTHER_DETAIL_CHANGED
+        : change === undefined
+          ? (rule.changed ?? changedOnly(rule.label))
+          : changeSentence(rule.label, change, rule.format ?? asText);
+    if (!sentences.includes(sentence)) sentences.push(sentence);
+  }
+  return sentences;
+}
+
+const DAY_NAMES: ReadonlyMap<string, string> = new Map([
+  ['monday', 'Monday'],
+  ['tuesday', 'Tuesday'],
+  ['wednesday', 'Wednesday'],
+  ['thursday', 'Thursday'],
+  ['friday', 'Friday'],
+  ['saturday', 'Saturday'],
+  ['sunday', 'Sunday'],
+]);
+
+const SHARE_PICTURE_SENTENCES: ReadonlyMap<string, string> = new Map([
+  ['added', 'Picture added'],
+  ['replaced', 'Picture replaced'],
+  ['removed', 'Picture removed'],
+]);
+
+const PHOTO_SLOT_LABELS: ReadonlyMap<string, string> = new Map([
+  ['main', 'Main photo'],
+  ['back', 'Back photo'],
+  ['fabric', 'Fabric photo'],
+]);
+
+const PHOTO_CHANGE_WORDS: ReadonlySet<string> = new Set(['added', 'replaced', 'removed']);
+
+/** "Closed on Dec 25, 2026" or "Closed Dec 24, 2026 to Dec 26, 2026"; empty when the entry holds no days. */
+function closureRange(parts: readonly DetailPart[]): string[] {
+  const first = findPart(parts, 'first');
+  const last = findPart(parts, 'last');
+  if (first === undefined || last === undefined) return [];
+  const from = dateText(first.to);
+  const to = dateText(last.to);
+  if (from === null || to === null) return [];
+  return [from === to ? `Closed on ${from}` : `Closed ${from} to ${to}`];
+}
+
+const placeOf = (parts: readonly DetailPart[]): string[] => changeOf(parts, 'position', 'Place', asNumber);
+
+type DetailReader = (parts: readonly DetailPart[]) => string[];
+
+const lineNamed: DetailReader = (parts) => valueSentence('Product line', findPart(parts, 'title'), asText);
+
+/**
+ * How each Phase 11 entry's stored detail reads (UI-SPEC Audit log; 06 D-27). Each reader says what the item is and what changed,
+ * with old and new values for short public values (names, prices, hours, places) and only the fact of a change for a quote, a note,
+ * a long text, the shop email or the phone numbers.
+ */
+const SITE_CONTENT_DETAIL: ReadonlyMap<string, DetailReader> = new Map<string, DetailReader>([
+  ['site-settings.changed', (parts) => fieldSentences(parts, SITE_SETTINGS_FIELDS)],
+  [
+    'site-settings.share-picture-changed',
+    (parts) => {
+      const sentence = SHARE_PICTURE_SENTENCES.get(findPart(parts, 'change')?.to ?? '');
+      return sentence === undefined ? [] : [sentence];
+    },
+  ],
+  [
+    'opening-hours.changed',
+    (parts) => [...DAY_NAMES].flatMap(([key, label]) => changeOf(parts, key, label, asHours)),
+  ],
+  ...['shop-closure.added', 'shop-closure.changed', 'shop-closure.deleted'].map((action): [string, DetailReader] => [
+    action,
+    (parts) => [
+      ...closureRange(parts),
+      ...changeOf(parts, 'first', 'First day', dateText),
+      ...changeOf(parts, 'last', 'Last day', dateText),
+      ...fieldSentences(parts, CLOSURE_FIELDS),
+    ],
+  ]),
+  ...['product-line.added', 'product-line.hidden', 'product-line.shown', 'product-line.deleted'].map(
+    (action): [string, DetailReader] => [action, lineNamed],
+  ),
+  ['product-line.changed', (parts) => fieldSentences(parts, PRODUCT_LINE_FIELDS)],
+  ['product-line.moved', (parts) => [...lineNamed(parts), ...placeOf(parts)]],
+  [
+    'product-line.photo-changed',
+    (parts) => {
+      const slot = PHOTO_SLOT_LABELS.get(findPart(parts, 'slot')?.to ?? '') ?? 'Photo';
+      const change = findPart(parts, 'change')?.to ?? '';
+      return [...lineNamed(parts), ...(PHOTO_CHANGE_WORDS.has(change) ? [`${slot} ${change}`] : [])];
+    },
+  ],
+  ['product-type.line-linked', (parts) => changeOf(parts, 'line', 'Product line', asText)],
+  ...['testimonial.added', 'testimonial.hidden', 'testimonial.shown', 'testimonial.deleted'].map(
+    (action): [string, DetailReader] => [action, (parts) => valueSentence('Testimonial', findPart(parts, 'name'), asText)],
+  ),
+  ['testimonial.changed', (parts) => fieldSentences(parts, TESTIMONIAL_FIELDS)],
+  [
+    'testimonial.moved',
+    (parts) => [...valueSentence('Testimonial', findPart(parts, 'name'), asText), ...placeOf(parts)],
+  ],
+  ...['gallery-photo.added', 'gallery-photo.hidden', 'gallery-photo.shown', 'gallery-photo.deleted'].map(
+    (action): [string, DetailReader] => [
+      action,
+      (parts) => [...valueSentence('Team', findPart(parts, 'team'), asText), ...valueSentence('Product line', findPart(parts, 'line'), asText)],
+    ],
+  ),
+  ['gallery-photo.changed', (parts) => fieldSentences(parts, GALLERY_FIELDS)],
+  ['gallery-item.moved', (parts) => [...valueSentence('Gallery item', findPart(parts, 'name'), asText), ...placeOf(parts)]],
+  ['order.public-details-changed', (parts) => fieldSentences(parts, ORDER_PUBLIC_FIELDS)],
+  // The order number is already the Order line of the entry, so these four have no What changed line.
+  ['order.public-consent-recorded', () => []],
+  ['order.public-consent-removed', () => []],
+  ['order.shown-on-website', () => []],
+  ['order.taken-off-website', () => []],
+]);
+
+/** The actions whose `fields=` words are fixed, with the rules that read them. */
+const FIELD_RULES_BY_ACTION: readonly (readonly [string, ReadonlyMap<string, FieldRule>])[] = [
+  ['site-settings.changed', SITE_SETTINGS_FIELDS],
+  ['product-line.changed', PRODUCT_LINE_FIELDS],
+  ['testimonial.changed', TESTIMONIAL_FIELDS],
+  ['gallery-photo.changed', GALLERY_FIELDS],
+  ['shop-closure.added', CLOSURE_FIELDS],
+  ['shop-closure.changed', CLOSURE_FIELDS],
+  ['order.public-details-changed', ORDER_PUBLIC_FIELDS],
+];
+
 /** One "What changed" sentence: the action and the stored word that give it. */
 export interface AuditDetailSentence {
   readonly action: string;
@@ -488,6 +818,18 @@ export const AUDIT_DETAIL_SENTENCES: readonly AuditDetailSentence[] = [
   ...[...REASONS.entries()].flatMap(([action, reasons]) =>
     [...reasons.entries()].map(([word, sentence]) => ({ action, word, sentence })),
   ),
+  ...FIELD_RULES_BY_ACTION.flatMap(([action, rules]) =>
+    [...rules.entries()].map(([field, rule]) => ({
+      action,
+      word: `${FIELDS_PREFIX}${field}`,
+      sentence: rule.changed ?? changedOnly(rule.label),
+    })),
+  ),
+  ...[...SHARE_PICTURE_SENTENCES.entries()].map(([change, sentence]) => ({
+    action: 'site-settings.share-picture-changed',
+    word: `change=${change}`,
+    sentence,
+  })),
 ];
 
 /** The copy of the Audit Log page (A1). */

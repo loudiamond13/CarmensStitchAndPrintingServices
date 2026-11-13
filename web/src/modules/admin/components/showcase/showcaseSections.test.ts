@@ -17,7 +17,7 @@ function scenario(id: string, group: string): Scenario {
 }
 
 describe('scenariosBySection', () => {
-  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos and Dashboard and staff money', () => {
+  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos, Dashboard and staff money and Site content and public website', () => {
     expect(SHOWCASE_SECTIONS.map((section) => section.title)).toEqual([
       'Brand & icons',
       'Buttons',
@@ -34,7 +34,15 @@ describe('scenariosBySection', () => {
       'Orders',
       'Order photos',
       'Dashboard and staff money',
+      'Site content and public website',
     ]);
+  });
+
+  it('gives the Site content and public website section no scenario group, only its live demos, so no group is left unplaced', () => {
+    const section = SHOWCASE_SECTIONS.find((item) => item.id === 'site-content');
+
+    expect(section?.groups).toEqual([]);
+    expect(scenariosBySection(scenarios).get('site-content')).toEqual([]);
   });
 
   it('places every scenario of the shared list once, except the whole-page layouts', () => {

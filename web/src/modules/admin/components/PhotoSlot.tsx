@@ -8,7 +8,7 @@
 //   - The slot is reused by the link preview picture ("Picture" instead of "Photo") and the gallery window.
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { useToast } from '@/components/feedback';
@@ -133,11 +133,158 @@ function failureReason(error: unknown): string {
 }
 
 /** The control that was pressed to pick, so only that one shows the spinner. */
-type Pressed = 'choose' | 'take';
+export type SlotPressed = 'choose' | 'take';
+type Pressed = SlotPressed;
 
-interface PickError {
+/** A file the slot refused, and why. */
+export interface SlotPickError {
   fileName: string;
   reason: string;
+}
+type PickError = SlotPickError;
+
+export interface PhotoSlotViewProps {
+  label: string;
+  noun: 'Photo' | 'Picture';
+  ratio: SlotRatio;
+  photo: SlotPhoto | null;
+  alt: string;
+  placeholder: ReactNode;
+  hint?: string | undefined;
+  /** The control that is preparing and sending a file, or null. */
+  pressed: SlotPressed | null;
+  /** A removal is being sent. */
+  removing: boolean;
+  /** The last send went through. */
+  saved: boolean;
+  /** The files the slot refused, with the reasons. */
+  refused: readonly SlotPickError[];
+  /** A slot with a photo and a way to take it off has a Remove button. */
+  removable: boolean;
+  /** Another slot of the same card is saving: every action here waits. */
+  locked: boolean;
+  chooseRef?: Ref<HTMLButtonElement> | undefined;
+  onChoose: () => void;
+  onTake: () => void;
+  onAskRemove: () => void;
+  /** The hidden file inputs and the removal question: the behaviour parts of the slot, drawn inside its fieldset. */
+  children?: ReactNode;
+}
+
+/** What a slot shows for a given state. PhotoSlot feeds it its own state; the Component Showcase feeds it each state in turn. */
+export function PhotoSlotView({
+  label,
+  noun,
+  ratio,
+  photo,
+  alt,
+  placeholder,
+  hint,
+  pressed,
+  removing,
+  saved,
+  refused,
+  removable,
+  locked,
+  chooseRef,
+  onChoose,
+  onTake,
+  onAskRemove,
+  children,
+}: PhotoSlotViewProps) {
+  const busy = pressed !== null || removing;
+  /** Whether a control other than the pressed one waits: another slot saves, or this one does. */
+  const waiting = (control: Pressed | 'remove'): boolean => locked || (busy && pressed !== control);
+
+  return (
+    <fieldset className={slotClasses}>
+      <legend className={slotLabelClasses}>{label}</legend>
+      <div data-ratio={ratio} className={slotFrameClasses[ratio]}>
+        {photo === null ? (
+          placeholder
+        ) : (
+          <LazyImage
+            src={photo.src}
+            srcSet={photo.srcSet}
+            width={Number(photo.width)}
+            height={Number(photo.height)}
+            alt={alt}
+            ratio={ratio.replace('/', ' / ')}
+            className="size-full"
+          />
+        )}
+      </div>
+      {hint !== undefined && <p className={slotHintClasses}>{hint}</p>}
+      <div className={slotActionsClasses}>
+        <Button
+          {...(chooseRef === undefined ? {} : { ref: chooseRef })}
+          variant="secondary"
+          size="sm"
+          icon="cloud-upload"
+          pending={pressed === 'choose'}
+          aria-disabled={waiting('choose')}
+          onClick={onChoose}
+        >
+          {photo === null ? COPY.choose(noun) : COPY.replace(noun)}
+        </Button>
+        {photo === null && (
+          <span className={slotTouchOnlyClasses}>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="camera"
+              pending={pressed === 'take'}
+              aria-disabled={waiting('take')}
+              onClick={onTake}
+            >
+              {COPY.take(noun)}
+            </Button>
+          </span>
+        )}
+        {photo !== null && removable && (
+          <Button variant="ghost-danger" size="sm" icon="trash-2" aria-disabled={waiting('remove')} onClick={onAskRemove}>
+            {COPY.remove(noun)}
+          </Button>
+        )}
+      </div>
+      <div role="status" aria-live="polite" className={slotStatusClasses}>
+        {pressed !== null && (
+          <>
+            <span className={statusIconClasses}>
+              <Icon name="loader-circle" size={14} className={spinnerClasses} />
+            </span>
+            {COPY.uploading}
+          </>
+        )}
+        {pressed === null && saved && (
+          <>
+            <span className={statusIconClasses}>
+              <Icon name="check" size={14} />
+            </span>
+            {COPY.saved}
+          </>
+        )}
+      </div>
+      {refused.length > 0 && (
+        <div className={clsx(pickErrorClasses, slotPickErrorClasses)} role="alert">
+          <span className={pickErrorIconClasses}>
+            <Icon name="triangle-alert" size={16} />
+          </span>
+          <div className={pickErrorBodyClasses}>
+            <ul className={pickErrorListClasses}>
+              {refused.map((error) => (
+                <li key={error.fileName}>
+                  <span className={pickErrorNameClasses}>{error.fileName}</span>
+                  <span className={pickErrorReasonClasses}>{error.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+      {children}
+    </fieldset>
+  );
 }
 
 export function PhotoSlot({
@@ -262,107 +409,32 @@ export function PhotoSlot({
     return outcome;
   };
 
-  /** Whether a control other than the pressed one waits: another slot saves, or this one does. */
-  const waiting = (control: Pressed | 'remove'): boolean => locked || (busy && pressed !== control);
-
   return (
-    <fieldset className={slotClasses}>
-      <legend className={slotLabelClasses}>{label}</legend>
-      <div data-ratio={ratio} className={slotFrameClasses[ratio]}>
-        {photo === null ? (
-          placeholder
-        ) : (
-          <LazyImage
-            src={photo.src}
-            srcSet={photo.srcSet}
-            width={Number(photo.width)}
-            height={Number(photo.height)}
-            alt={alt}
-            ratio={ratio.replace('/', ' / ')}
-            className="size-full"
-          />
-        )}
-      </div>
-      {hint !== undefined && <p className={slotHintClasses}>{hint}</p>}
-      <div className={slotActionsClasses}>
-        <Button
-          ref={chooseRef}
-          variant="secondary"
-          size="sm"
-          icon="cloud-upload"
-          pending={pressed === 'choose'}
-          aria-disabled={waiting('choose')}
-          onClick={() => {
-            chooseInputRef.current?.click();
-          }}
-        >
-          {photo === null ? COPY.choose(noun) : COPY.replace(noun)}
-        </Button>
-        {photo === null && (
-          <span className={slotTouchOnlyClasses}>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="camera"
-              pending={pressed === 'take'}
-              aria-disabled={waiting('take')}
-              onClick={() => {
-                takeInputRef.current?.click();
-              }}
-            >
-              {COPY.take(noun)}
-            </Button>
-          </span>
-        )}
-        {photo !== null && canRemove && (
-          <Button
-            variant="ghost-danger"
-            size="sm"
-            icon="trash-2"
-            aria-disabled={waiting('remove')}
-            onClick={() => {
-              setAsking(true);
-            }}
-          >
-            {COPY.remove(noun)}
-          </Button>
-        )}
-      </div>
-      <div role="status" aria-live="polite" className={slotStatusClasses}>
-        {pressed !== null && (
-          <>
-            <span className={statusIconClasses}>
-              <Icon name="loader-circle" size={14} className={spinnerClasses} />
-            </span>
-            {COPY.uploading}
-          </>
-        )}
-        {pressed === null && saved && (
-          <>
-            <span className={statusIconClasses}>
-              <Icon name="check" size={14} />
-            </span>
-            {COPY.saved}
-          </>
-        )}
-      </div>
-      {refused.length > 0 && (
-        <div className={clsx(pickErrorClasses, slotPickErrorClasses)} role="alert">
-          <span className={pickErrorIconClasses}>
-            <Icon name="triangle-alert" size={16} />
-          </span>
-          <div className={pickErrorBodyClasses}>
-            <ul className={pickErrorListClasses}>
-              {refused.map((error) => (
-                <li key={error.fileName}>
-                  <span className={pickErrorNameClasses}>{error.fileName}</span>
-                  <span className={pickErrorReasonClasses}>{error.reason}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+    <PhotoSlotView
+      label={label}
+      noun={noun}
+      ratio={ratio}
+      photo={photo}
+      alt={alt}
+      placeholder={placeholder}
+      hint={hint}
+      pressed={pressed}
+      removing={removing}
+      saved={saved}
+      refused={refused}
+      removable={canRemove}
+      locked={locked}
+      chooseRef={chooseRef}
+      onChoose={() => {
+        chooseInputRef.current?.click();
+      }}
+      onTake={() => {
+        takeInputRef.current?.click();
+      }}
+      onAskRemove={() => {
+        setAsking(true);
+      }}
+    >
       <input ref={chooseInputRef} type="file" accept={ACCEPT} hidden onChange={pick('choose')} />
       <input ref={takeInputRef} type="file" accept="image/*" capture="environment" hidden onChange={pick('take')} />
       {canRemove && (
@@ -378,6 +450,6 @@ export function PhotoSlot({
           }}
         />
       )}
-    </fieldset>
+    </PhotoSlotView>
   );
 }
