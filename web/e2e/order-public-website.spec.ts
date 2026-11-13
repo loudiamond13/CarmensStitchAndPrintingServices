@@ -330,3 +330,91 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
   await expect(saved.getByText('Shown', { exact: true })).toBeVisible();
   await expect(saved).toContainText('E2E Form Public Team');
 });
+
+test('@order-form-public a Manager edits a shown order, changes Name shown, saves, and the public gallery shows the new name', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const order = await openOrderWithPhoto(page, request, 'Manager', 'Form Edit');
+  await showFromWindow(page);
+  await expect(page.getByText('Order shown on the website')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Edit Details' }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/admin/orders/${order.id}/edit$`));
+  const region = formCard(page);
+  await expect(region).toBeVisible();
+  await expect(region.getByRole('checkbox', { name: 'Customer said OK to show' })).toBeChecked();
+  await expect(region.getByRole('checkbox', { name: 'Show on the website' })).toBeChecked();
+  await expect(region.getByRole('textbox', { name: /^Name shown/ })).toHaveValue('');
+  await expectNoAxeViolations(page);
+
+  // A seeded order has no contact number, which an edit needs.
+  await page.getByLabel(/^Contact number/).fill('0917 555 0102');
+  const shownName = `E2E Renamed ${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+  await region.getByRole('textbox', { name: /^Name shown/ }).fill(shownName);
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/admin/orders/${order.id}$`));
+  await expect(page.getByText('Order details saved')).toBeVisible();
+  await expect(valueOf(page, 'Name shown')).toContainText(shownName);
+  await expect(valueOf(page, 'On the website')).toContainText('Shown');
+
+  // The public gallery is one set for all projects, so it is read under the lock.
+  await withSiteContentLock(async () => {
+    const teams = await publicGalleryTeams(request);
+    expect(teams, 'GET /api/v1/public/gallery answers').not.toBeNull();
+    expect(teams).toContain(shownName);
+  });
+});
+
+/** Every label, box and line of the card sits inside the screen, and the page has no sideways scroll. */
+async function expectCardInsideScreen(page: Page, width: number): Promise<void> {
+  const region = formCard(page);
+  await expect(region).toBeVisible();
+  await region.scrollIntoViewIfNeeded();
+  const parts = region.locator('label, input, select, p');
+  const count = await parts.count();
+  expect(count, 'the card has parts to measure').toBeGreaterThan(4);
+  for (let index = 0; index < count; index += 1) {
+    const box = await parts.nth(index).boundingBox();
+    if (box !== null) {
+      expect(box.x + box.width, `part ${String(index)} of the card ends inside the screen`).toBeLessThanOrEqual(
+        width + 0.5,
+      );
+    }
+  }
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+}
+
+test('@order-form-public at 320px the card stacks on the New Order and Edit Order forms with no sideways scroll', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(
+    request,
+    { prefix: 'ORD-2081', label: 'Form Narrow', itemDescription: 'E2E form narrow jersey' },
+    manager.userId,
+  );
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openOrder(page, request, manager, id, number);
+
+  await page.goto(`/admin/orders/${id}/edit`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Edit Order' })).toBeVisible();
+  await expectCardInsideScreen(page, 320);
+  await expectNoAxeViolations(page);
+
+  // The New Order form comes last: it is left changed, so nothing navigates away from it.
+  await page.goto('/admin/orders/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Customer said OK to show' }).check();
+  await page.getByLabel(/^Name shown/).fill('E2E A Very Long Name Shown On The Website To Test Wrapping');
+  await expectCardInsideScreen(page, 320);
+  await expectNoAxeViolations(page);
+});
