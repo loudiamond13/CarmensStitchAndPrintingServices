@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T20:00:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T22:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -351,6 +351,29 @@ The staff gallery list accepts any page size from 1 to 100 (the shared list rule
 
 - **A (built, recommended):** keep both as built.
 - **B:** allow only 10, 20, 50 and 100, or make a new upload shown when the setting is left out.
+
+## P11-BL-39 · Gallery tab in Site Content: three behaviour and wording points (plan 11-32, owner items O-1 to O-3)
+
+**Status:** open · **Blocks:** nothing. Built as option A for each.
+
+1. **Moving an item past the end of a page.** The UI spec says the list stays and focus goes to "the row that took its place"; the plan says it shows the next page. Built: the tab follows the moved item to its new page and focuses it. Option B: stay on the page and focus the row that took its place.
+2. **New wording the spec does not give.** All in `web/src/modules/admin/siteContentCopy.ts` (Gallery tab section). Option B: give your own words.
+3. **Replace photo while editing.** The new photo is saved with the one Save button, not at once. Option B: save the new photo as soon as it is picked.
+
+- **A (built, recommended):** keep all three as built.
+- **B:** change any of them as above.
+
+## P11-BL-40 · The default link preview picture (plan 11-30, owner items OI-1 to OI-4)
+
+**Status:** open · **Blocks:** nothing. Built as option A for each.
+
+1. **Shared version stamp.** Changing the picture moves the business settings version. The Business Info card (plan 11-34) reloads the settings after an upload or removal, so a later save does not get "someone else changed this". Option B: keep the picture in its own table (a schema change that needs your approval).
+2. **New admin text:** "There's no link preview picture to remove." Option B: your own words.
+3. **The 404 page with no picture** still has no large card tag, as before. Option B: add one.
+4. **Live steps (go-live list):** the Cloudinary setup step (P11-BL-21), then check one shared link in the Facebook Sharing Debugger (plan 11-38).
+
+- **A (built, recommended):** keep 1 to 3 as built; do 4 at go-live.
+- **B:** change any of 1 to 3 as above.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
