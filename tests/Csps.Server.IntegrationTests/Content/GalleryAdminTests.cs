@@ -390,6 +390,116 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
         (await rig.ListAsync()).Rows.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task AnSvgNamedAsAJpegAFileOverTenMegabytesAndAPhotoWithTooManyPixelsAreRefusedWithThePhaseNineMessagesAndNothingIsStored()
+    {
+        await using var rig = await GalleryAdminRig.StartAsync(database);
+        var big = new byte[Csps.Application.Images.ImageUploadLimits.MaxFileBytes + 1];
+        Photo.AsSpan(0, Photo.Length - 2).CopyTo(big);
+        big[^2] = 0xFF;
+        big[^1] = 0xD9;
+        var added = await rig.AddAsync(UploadForm.Riders);
+
+        using var svg = await rig.UploadAsync(UploadForm.Riders, SyntheticImages.Svg(), fileName: "Logo.jpg");
+        using var tooLarge = await rig.UploadAsync(UploadForm.Riders, big, fileName: "Team shirt.jpg");
+        using var tooBig = await rig.UploadAsync(UploadForm.Riders, SyntheticImages.Jpeg(6000, 5000), fileName: "Wide print.jpg");
+        using var replaceSvg = await rig.ReplacePhotoAsync(added.Id, SyntheticImages.Svg(), fileName: "Logo.jpg");
+
+        foreach (var (response, code, message) in new[]
+        {
+            (svg, "images.type", "Logo.jpg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
+            (tooLarge, "images.too-large", "Team shirt.jpg is over 10 MB. Choose a smaller photo."),
+            (tooBig, "images.too-big", "Wide print.jpg is too big. Photos can be at most 25 megapixels."),
+            (replaceSvg, "images.type", "Logo.jpg isn't a photo we can use. Choose a JPG, PNG, WEBP or HEIC file."),
+        })
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe(code);
+            problem.GetProperty("errors").GetProperty("file").EnumerateArray().Select(item => item.GetString()).ShouldBe([message]);
+        }
+
+        var storage = rig.Factory.Services.GetRequiredService<TestingImageStorage>();
+        storage.Uploads.Where(recorded => recorded.AssetFolder.Contains("/content/", StringComparison.Ordinal)).Count().ShouldBe(1);
+        (await rig.ListAsync()).Rows.ShouldHaveSingleItem().Id.ShouldBe(added.Id);
+    }
+
+    [Fact]
+    public async Task AnUploadOrAnEditRacingTheDeleteOfItsLineEndsAs200Or201With422OrAs400With204AndNeverAs500()
+    {
+        await using var rig = await GalleryAdminRig.StartAsync(database);
+        var existing = await rig.AddAsync(UploadForm.Riders);
+
+        for (var round = 0; round < 6; round++)
+        {
+            var lineId = await rig.AddLineAsync($"Race {round}");
+            var upload = Task.Run(() => rig.UploadAsync(UploadForm.Riders with { LineId = lineId }, Photo), TestContext.Current.CancellationToken);
+            var delete = Task.Run(() => rig.DeleteLineAsync(lineId), TestContext.Current.CancellationToken);
+            using var uploaded = await upload;
+            using var deleted = await delete;
+
+            (uploaded.StatusCode, deleted.StatusCode).ShouldBeOneOf(
+                (HttpStatusCode.Created, HttpStatusCode.UnprocessableEntity),
+                (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+        }
+
+        for (var round = 0; round < 6; round++)
+        {
+            var lineId = await rig.AddLineAsync($"Edit race {round}");
+            var current = (await rig.ListAsync()).Rows.Single(row => row.Id == existing.Id);
+            var edit = Task.Run(() => rig.UpdateAsync(existing.Id, new { teamName = "Tondo Sample Riders", productLineId = lineId, pieces = 12, note = "Dri-fit mesh, V-neck", isShown = true, version = current.Version }), TestContext.Current.CancellationToken);
+            var delete = Task.Run(() => rig.DeleteLineAsync(lineId), TestContext.Current.CancellationToken);
+            using var edited = await edit;
+            using var deleted = await delete;
+
+            (edited.StatusCode, deleted.StatusCode).ShouldBeOneOf(
+                (HttpStatusCode.OK, HttpStatusCode.UnprocessableEntity),
+                (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
+            if (edited.StatusCode == HttpStatusCode.OK)
+            {
+                // Put the upload back on its first line so the next round can move it again.
+                var back = (await rig.ListAsync()).Rows.Single(row => row.Id == existing.Id);
+                using var restored = await rig.UpdateAsync(existing.Id, new { teamName = "Tondo Sample Riders", productLineId = GallerySeeding.LineId("moto"), pieces = 12, note = "Dri-fit mesh, V-neck", isShown = true, version = back.Version });
+                restored.StatusCode.ShouldBe(HttpStatusCode.OK);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task EveryGalleryWriteGivesANewPublicETagOnTheNextRead()
+    {
+        await using var rig = await GalleryAdminRig.StartAsync(database);
+        var etags = new List<string>();
+        async Task Mark()
+        {
+            var (document, etag) = await rig.PublicGalleryAsync();
+            document.Dispose();
+            etags.Add(etag);
+        }
+
+        await Mark();
+        var first = await rig.AddAsync(UploadForm.Riders with { Team = "First ETag Sample" });
+        await Mark();
+        using var edit = await rig.UpdateAsync(first.Id, new { teamName = "First ETag Sample MC", productLineId = GallerySeeding.LineId("moto"), pieces = 12, note = "Dri-fit mesh, V-neck", isShown = true, version = first.Version });
+        await Mark();
+        using var replace = await rig.ReplacePhotoAsync(first.Id, SyntheticImages.Jpeg(700, 700));
+        await Mark();
+        var second = await rig.AddAsync(UploadForm.Riders with { Team = "Second ETag Sample" });
+        await Mark();
+        using var move = await rig.MoveAsync(second.Id, "down");
+        await Mark();
+        using var hide = await rig.HideAsync(first.Id);
+        await Mark();
+        using var show = await rig.ShowAsync(first.Id);
+        await Mark();
+        using var delete = await rig.DeleteAsync(second.Id);
+        await Mark();
+
+        new[] { edit, replace, move, hide, show, delete }.ShouldAllBe(response => response.IsSuccessStatusCode);
+        etags.Count.ShouldBe(9);
+        etags.Zip(etags.Skip(1)).ShouldAllBe(pair => pair.First != pair.Second);
+    }
+
     private static async Task<string> FieldMessageAsync(HttpResponseMessage response, string field)
     {
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);

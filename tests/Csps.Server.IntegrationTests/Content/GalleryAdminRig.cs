@@ -160,6 +160,19 @@ internal sealed class GalleryAdminRig : IAsyncDisposable
         return (await response.Content.ReadFromJsonAsync<GalleryRow>(JsonSerializerOptions.Web, TestContext.Current.CancellationToken))!;
     }
 
+    /// <summary>Adds a hidden product line with the given title (also its short name) and returns its id.</summary>
+    public async Task<Guid> AddLineAsync(string title)
+    {
+        using var response = await SendAsync(HttpMethod.Post, "/api/v1/product-lines", Manager, LineBody.Shorts with { Title = title, ShortName = title });
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Created, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.GetProperty("id").GetGuid();
+    }
+
+    /// <summary>Deletes a product line through the Manager route.</summary>
+    public Task<HttpResponseMessage> DeleteLineAsync(Guid id) => SendAsync(HttpMethod.Delete, $"/api/v1/product-lines/{id:D}", Manager);
+
     /// <summary>Reads the anonymous public gallery answer and its ETag.</summary>
     public async Task<(JsonDocument Document, string ETag)> PublicGalleryAsync()
     {
