@@ -1,5 +1,8 @@
 #if CSPS_TESTING
 using Csps.Domain.Content;
+using Csps.Domain.Identity;
+using Csps.Domain.OrderLists;
+using Csps.Domain.Orders;
 using Csps.Domain.Time;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +14,9 @@ namespace Csps.Infrastructure.Content;
 /// closure (20 days after the business today, note "Demo holiday") in place for E2E specs (QUAL-05). It puts the six product lines back to
 /// their seeded text (shown, no price), gives basketball the demo price 650.00 with a minimum of 10, and deletes the lines whose short
 /// name starts with "E2E-" with their photos and links. It puts the four demo testimonials in place (three shown in order and one
-/// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". Every value is clearly fake. It saves through the
+/// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". It puts the five demo gallery orders in place: four
+/// shown (made-up teams on the basketball, volleyball and moto lines, one with four photos) and one with the customer's OK that is not
+/// shown. Their customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
 /// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
 /// own tables, deleting rows whose name starts with "E2E-". Demo testimonials exist only here: the migration and the production seed
 /// never create one.
@@ -28,6 +33,20 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
 
     private const string E2EPrefix = "E2E-";
 
+    /// <summary>The text every demo customer value contains, so a spec can prove none of them reaches a public page.</summary>
+    public const string PrivateMarker = "PRIVATE-DEMO";
+
+    private const string DemoOrderPrefix = "DEMO-GALLERY-";
+
+    private static readonly DemoOrder[] DemoOrders =
+    [
+        new("Brgy. Sample Ballers", "basketball", 17, [(1600, 1200), (1200, 1600), (1500, 1500), (1600, 900)], Shown: true),
+        new("Sample City Spikers", "volleyball", 12, [(1200, 1600)], Shown: true),
+        new("Sample Riders MC", "moto", 8, [(1600, 900), (1200, 1200)], Shown: true),
+        new("Tondo Sample Hoopers", "basketball", 24, [(1600, 1200)], Shown: true),
+        new("Hidden Sample Team", "basketball", 6, [(1200, 1200)], Shown: false),
+    ];
+
     private const string DemoPricedLineKey = "basketball";
 
     private const decimal DemoLinePrice = 650.00m;
@@ -41,6 +60,8 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         new("Light jerseys, and the sponsor logos printed sharp.", "Ben Santos", "President, Sample Riders MC", 4, true),
         new("A hidden demo testimonial for tests.", "Carlo Mendoza", null, 3, false),
     ];
+
+    private sealed record DemoOrder(string Team, string LineKey, int Pieces, (int Width, int Height)[] Photos, bool Shown);
 
     private static readonly TimeOnly DemoOpens = new(9, 0);
 
@@ -96,13 +117,89 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
 
             await ResetProductLinesAsync(cancellationToken).ConfigureAwait(false);
             await ResetTestimonialsAsync(cancellationToken).ConfigureAwait(false);
-
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            await ResetDemoOrdersAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             Gate.Release();
         }
+    }
+
+    // The five demo orders are made new, so a run always ends with the same facts. The old ones go first (their photos, items and gallery
+    // entries go with them through the foreign keys), and so does a demo order a test changed. The product types of the three demo lines are
+    // filed under their lines, which the orders need for their auto line. The first shown order is at the top of the gallery and is the
+    // newest shown, and the customer's OK is recorded by the legacy holder user.
+    private async Task ResetDemoOrdersAsync(CancellationToken cancellationToken)
+    {
+        var stale = await context.Orders
+            .IgnoreQueryFilters(["SoftDelete"])
+            .Where(order => order.Number.StartsWith(DemoOrderPrefix))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.Orders.RemoveRange(stale);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var now = time.GetUtcNow();
+        var types = await context.ProductTypes.ToListAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var key in DemoOrders.Select(demo => demo.LineKey).Distinct())
+        {
+            DemoTypeOf(types, key).LinkToLine(ProductLineSeed.All.Single(entry => entry.Key == key).Id);
+        }
+
+        for (var index = 0; index < DemoOrders.Length; index++)
+        {
+            var demo = DemoOrders[index];
+            var lineId = ProductLineSeed.All.Single(entry => entry.Key == demo.LineKey).Id;
+            var details = new OrderDetails(
+                $"{PrivateMarker}-NAME-{index + 1}",
+                demo.Team,
+                "0917 999 0002",
+                "private-demo@csps.test",
+                $"{PrivateMarker}-ADDRESS",
+                new DateOnly(2026, 10, 1),
+                null,
+                $"{PrivateMarker}-NOTES");
+            var item = new NewOrderItem(DemoTypeOf(types, demo.LineKey).Id, $"{PrivateMarker}-ITEM", null, demo.Pieces, 650.00m);
+            var order = Order.Import(new OrderImportSnapshot($"{DemoOrderPrefix}{index + 1}", details, OrderStatus.Pending, [item]), OrderImportRules.Default, now).Value;
+            foreach (var (width, height) in demo.Photos)
+            {
+                var photo = order.AddImage(new NewOrderImage($"csps-test/demo/{Guid.NewGuid():N}", width, height, 120_000, "jpg", $"{PrivateMarker}-PHOTO"), now);
+                if (photo.IsFailure)
+                {
+                    throw new InvalidOperationException("The demo photo was refused.");
+                }
+            }
+
+            var shownAt = now.AddMinutes(-index);
+            var saved = order.SetPublicSettings(new OrderPublicSettings(CustomerConsent: true, ShowOnWebsite: demo.Shown, ProductLineId: null, PublicName: null), LegacyHolder.Id, lineId, shownAt);
+            if (saved.IsFailure)
+            {
+                throw new InvalidOperationException("The demo public settings were refused.");
+            }
+
+            context.Orders.Add(order);
+            if (demo.Shown)
+            {
+                context.GalleryEntries.Add(GalleryEntry.ForOrder(order.Id, index + 1, shownAt));
+            }
+        }
+
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    // The Basketball, Volleyball and Moto Riding Jersey product types are the first three of the seeded list, like the first three lines.
+    private static ProductType DemoTypeOf(List<ProductType> types, string lineKey)
+    {
+        var seeded = OrderListSeed.ProductTypes[lineKey switch
+        {
+            "basketball" => 0,
+            "volleyball" => 1,
+            "moto" => 2,
+            _ => throw new ArgumentOutOfRangeException(nameof(lineKey), lineKey, "No demo product type for this line."),
+        }];
+        return types.Single(type => type.Id == seeded.Id);
     }
 
     // The four demo testimonials are made new at places 1 to 4, so a run always ends with the same facts. A testimonial a test added

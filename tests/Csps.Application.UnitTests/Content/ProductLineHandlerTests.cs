@@ -57,7 +57,7 @@ public sealed class ProductLineHandlerTests
             new ProductLineListRow(unused, [], 0, 0),
             new ProductLineListRow(withPhoto, [], 2, 0),
             new ProductLineListRow(withType, [typeId], 0, 0),
-            new ProductLineListRow(withGallery, [], 0, 3),
+            new ProductLineListRow(withGallery, [], 0, 3, ShownGalleryCount: 2),
         ]);
 
         var result = await harness.List.HandleAsync(Token);
@@ -65,7 +65,7 @@ public sealed class ProductLineHandlerTests
         result.Value.Select(item => item.CanDelete).ShouldBe([true, false, false, false]);
         result.Value[1].PhotoCount.ShouldBe(2);
         result.Value[2].ProductTypeIds.ShouldBe([typeId]);
-        result.Value[3].ShownGalleryCount.ShouldBe(3);
+        result.Value[3].ShownGalleryCount.ShouldBe(2, "the count shows the public items; the delete guard uses the filed items (3)");
         result.Value[0].Version.ShouldBe(VersionText);
         result.Value[0].MainPhotoThumb.ShouldBeNull();
     }

@@ -95,6 +95,27 @@ internal sealed class StubPublicContentReader : IPublicContentReader
     public ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken) =>
         (_failure ?? HomeFailure) is { } failure ? throw failure : ValueTask.FromResult(HomeSnapshot(Home));
 
+    /// <summary>The Gallery data the stub returns; empty by default.</summary>
+    public PublicGalleryDto Gallery { get; set; } = new([], [], 0);
+
+    /// <summary>The link preview address the stub gives the Gallery; none by default.</summary>
+    public string? GalleryShareImageUrl { get; set; }
+
+    /// <summary>When set, only the Gallery read throws it; the site read still works.</summary>
+    public Exception? GalleryFailure { get; set; }
+
+    public ValueTask<PublicGallerySnapshot> GetGalleryAsync(CancellationToken cancellationToken)
+    {
+        if ((_failure ?? GalleryFailure) is { } failure)
+        {
+            throw failure;
+        }
+
+        var json = JsonSerializer.Serialize(Gallery, JsonOptions);
+        var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+        return ValueTask.FromResult(new PublicGallerySnapshot(Gallery, new PublicJsonSnapshot(json, etag, new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero)), GalleryShareImageUrl));
+    }
+
     public static PublicHomeSnapshot HomeSnapshot(PublicHomeDto home)
     {
         var json = JsonSerializer.Serialize(home, JsonOptions);

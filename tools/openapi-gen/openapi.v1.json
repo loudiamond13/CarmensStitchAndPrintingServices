@@ -4892,7 +4892,7 @@
             "type": "string"
           },
           "shownGalleryCount": {
-            "description": "How many shown gallery items are filed under the line.",
+            "description": "How many public gallery items a visitor sees under the line.",
             "format": "int32",
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -5339,8 +5339,184 @@
         ],
         "type": "object"
       },
+      "PublicGalleryDto": {
+        "description": "Everything the Gallery draws, in one read (GAL-01, D-10): every public item in gallery order, the pills in display order and the total.",
+        "properties": {
+          "items": {
+            "description": "The public items in gallery order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryItemDto"
+            },
+            "type": "array"
+          },
+          "pills": {
+            "description": "One pill for each shown line that has at least one item, in display order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPillDto"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The number of items.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "pills",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryItemDto": {
+        "description": "One tile of the Gallery (D-10): an order with all its photos, or one uploaded photo. It holds public text only (D-13): the name shown, the\nline, the pieces and, for an upload, the note. It never holds a customer's name, phone, email or address, a price, an order note or a\nphoto description.",
+        "properties": {
+          "id": {
+            "description": "The id of the gallery entry, stable for the life of the tile.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineKey": {
+            "description": "The key of the line the item is filed under, such as \"basketball\".",
+            "type": "string"
+          },
+          "lineShortName": {
+            "description": "The short name of that line, such as \"Basketball\".",
+            "type": "string"
+          },
+          "note": {
+            "description": "The note of an upload; null for an order and for an upload with none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photos": {
+            "description": "The photos in display order, the cover first.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPhotoDto"
+            },
+            "type": "array"
+          },
+          "pieces": {
+            "description": "How many pieces; null for an upload that gives none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when no photo address is available: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "team": {
+            "description": "The name shown: the public name when staff typed one, else the team.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team",
+          "lineKey",
+          "lineShortName",
+          "pieces",
+          "note",
+          "placeholderArt",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPhotoDto": {
+        "description": "One photo of a gallery item, with the addresses of each place the Gallery draws it (D-12, D-30).",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src": {
+            "description": "The masonry tile address, at the largest masonry size that fits the photo.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The masonry `srcset` text with the smaller sizes.",
+            "type": "string"
+          },
+          "thumbSrc": {
+            "description": "The address of the square lightbox thumb.",
+            "type": "string"
+          },
+          "viewerSrc": {
+            "description": "The lightbox address, the whole photo at the middle viewer size.",
+            "type": "string"
+          },
+          "viewerSrcSet": {
+            "description": "The lightbox `srcset` text.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "srcSet",
+          "viewerSrc",
+          "viewerSrcSet",
+          "thumbSrc",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPillDto": {
+        "description": "One category pill of the Gallery: a shown line that has at least one public item.",
+        "properties": {
+          "count": {
+            "description": "How many public items are filed under the line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "key": {
+            "description": "The line key, which the page writes to the address.",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name on the pill.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "shortName",
+          "count"
+        ],
+        "type": "object"
+      },
       "PublicHeroTagDto": {
-        "description": "The Home page's hero tag: the newest shown order. It stays null until the plan that reads shown orders fills it.",
+        "description": "The Home page's hero tag: the newest shown order (D-14).",
         "properties": {
           "name": {
             "description": "The public name of the order.",
@@ -5363,7 +5539,7 @@
         "type": "object"
       },
       "PublicHomeDto": {
-        "description": "What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three\nshown testimonials in display order, the Recent work strip and the hero tag. The last two are empty until a later plan fills them.",
+        "description": "What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three\nshown testimonials in display order, the Recent work strip and the hero tag. The last two are empty when no order is shown.",
         "properties": {
           "heroTag": {
             "oneOf": [
@@ -5372,7 +5548,7 @@
               },
               {
                 "$ref": "#/components/schemas/PublicHeroTagDto",
-                "description": "The hero tag; null for now."
+                "description": "The hero tag; null when no order is shown."
               }
             ]
           },
@@ -5393,7 +5569,7 @@
             "type": "array"
           },
           "recentWork": {
-            "description": "The Recent work tiles; empty for now.",
+            "description": "The Recent work tiles, newest first, at most six; empty when no order is shown.",
             "items": {
               "$ref": "#/components/schemas/PublicRecentWorkDto"
             },
@@ -5671,7 +5847,7 @@
         "type": "object"
       },
       "PublicRecentWorkDto": {
-        "description": "One tile of the Home page's Recent work strip. It stays empty until the plan that reads shown orders fills it.",
+        "description": "One tile of the Home page's Recent work strip: one of the six newest shown orders (D-14).",
         "properties": {
           "lineKey": {
             "description": "The key of the order's line, which the tile links to in the Gallery.",
@@ -5688,7 +5864,7 @@
               },
               {
                 "$ref": "#/components/schemas/PublicPhotoDto",
-                "description": "The cover photo; null when there is none."
+                "description": "The cover photo at the 4:5 strip sizes; null when the account has no address for it."
               }
             ]
           },
@@ -17111,6 +17287,43 @@
         ]
       }
     },
+    "/api/v1/public/gallery": {
+      "get": {
+        "operationId": "GetPublicGallery",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicGalleryDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the Gallery (GAL-01, D-10): `items`, every public item in gallery order, each with its `id`, `team` (the name shown),\n`lineKey`, `lineShortName`, `pieces` (null when not given), `note` (uploads only), `placeholderArt` and\n`photos` (the cover first, each with the masonry `src` and `srcSet`, the lightbox `viewerSrc` and\n`viewerSrcSet`, the `thumbSrc` and the `width` and `height`); `pills`, one for each shown line that has at\nleast one item, with its `key`, `shortName` and `count`; and `total`. Only work with the customer's recorded OK,\nshown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,\na price, an order note or a photo description. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/public/home": {
       "get": {
         "operationId": "GetPublicHome",
@@ -17142,7 +17355,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its\n`key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main\nphoto), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,\n`teamOrRole` and `stars`), `recentWork` (empty for now) and `heroTag` (null for now). A hidden line or testimonial\nis left out. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "summary": "Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its\n`key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main\nphoto), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,\n`teamOrRole` and `stars`), `recentWork` (the six newest shown orders, newest first, each with its `team`,\n`lineKey`, `lineShortName`, `pieces`, `placeholderArt` and cover `photo` at the strip sizes) and `heroTag`\n(the newest shown order's `name` and `pieces`; null when none is shown). A hidden line or testimonial is left out. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
         "tags": [
           "PublicSite"
         ]
@@ -17210,7 +17423,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,\n`title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and\n`minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each\nnull until a photo is added) and `hasGalleryItems`. A hidden line is left out; with none shown the list is empty. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
+        "summary": "Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,\n`title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and\n`minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each\nnull until a photo is added) and `hasGalleryItems` (true when the Gallery has a public item under the line). A hidden line is left out; with none shown the list is empty. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
         "tags": [
           "PublicSite"
         ]

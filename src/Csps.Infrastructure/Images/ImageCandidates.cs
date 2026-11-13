@@ -42,11 +42,33 @@ internal static class ImageCandidates
             Fill(ImageNamedSizes.ProductSquares, Math.Min(width, height), preferredBox: 400, address),
             address(ImageNamedSizes.SquareOf(44)));
 
+    /// <summary>Builds the masonry tile, lightbox and thumb sources of a public gallery photo.</summary>
+    /// <param name="width">The stored upright width in pixels.</param>
+    /// <param name="height">The stored upright height in pixels.</param>
+    /// <param name="address">Makes the address of one named size.</param>
+    /// <returns>The sources.</returns>
+    public static GalleryPhotoUrls ForGallery(int width, int height, Func<ImageNamedSize, string> address) =>
+        new(
+            Limited(width, address, [280, 400, 560, 800], preferredBox: 400),
+            Viewer(width, height, address),
+            address(ImageNamedSizes.SquareOf(88)));
+
+    /// <summary>Builds the 4:5 strip tile sources of a Recent work photo.</summary>
+    /// <param name="width">The stored upright width in pixels.</param>
+    /// <param name="height">The stored upright height in pixels.</param>
+    /// <param name="address">Makes the address of one named size.</param>
+    /// <returns>The sources.</returns>
+    public static ImageSource ForStrip(int width, int height, Func<ImageNamedSize, string> address) =>
+        Fill(ImageNamedSizes.Strips, Math.Min(width, RoundHalfUp(height * 4L, 5)), preferredBox: 480, address);
+
     // The product large cell offers 400, 640, 800 and 1280 wide. The whole photo fits, so a candidate is never wider than the photo.
-    private static ImageSource Limited(int width, Func<ImageNamedSize, string> address)
+    private static ImageSource Limited(int width, Func<ImageNamedSize, string> address) =>
+        Limited(width, address, [400, 640, 800, 1280], preferredBox: 800);
+
+    private static ImageSource Limited(int width, Func<ImageNamedSize, string> address, int[] boxes, int preferredBox)
     {
         List<Candidate> candidates = [];
-        foreach (var size in ImageNamedSizes.Widths.Where(size => size.BoxWidth is 400 or 640 or 800 or 1280))
+        foreach (var size in ImageNamedSizes.Widths.Where(size => boxes.Contains(size.BoxWidth)))
         {
             var atOrAbove = size.BoxWidth >= width;
             var trueWidth = atOrAbove ? width : size.BoxWidth;
@@ -61,7 +83,7 @@ internal static class ImageCandidates
             }
         }
 
-        return ToWidthSource(candidates, preferredBox: 800);
+        return ToWidthSource(candidates, preferredBox);
     }
 
     // A fill crop is as wide as the box ratio allows from the photo; candidates stay within that width, and the smallest is always kept.

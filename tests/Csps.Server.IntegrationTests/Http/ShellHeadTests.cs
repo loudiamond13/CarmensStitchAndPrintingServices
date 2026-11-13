@@ -419,7 +419,86 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     }
 
     [Fact]
-    public async Task OnlyTheProductsPageCarriesALinkPreviewPictureAndEveryOtherPageHasTheSmallCard()
+    public async Task TheGalleryPageUsesTheCoverOfTheTopPublicItemAsItsLinkPreviewPicture()
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await GallerySeeding.LinkProductTypesAsync(database);
+        var now = new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        var staff = await OrderSeeding.AddStaffAsync(database, "Gallery", now);
+        var ids = await GallerySeeding.AddOrdersAsync(
+            database,
+            [new SeedGalleryOrder("Top team") { Photos = [(1600, 900), (900, 1600)], Position = 1 }, new SeedGalleryOrder("Lower team") { Position = 2 }],
+            staff,
+            now);
+        try
+        {
+            string coverId;
+            await using (var context = database.CreateContext())
+            {
+                coverId = await context.Set<Csps.Domain.Orders.OrderImage>().AsNoTracking()
+                    .Where(image => image.OrderId == ids[0] && image.Position == 0)
+                    .Select(image => image.PublicId)
+                    .SingleAsync(TestContext.Current.CancellationToken);
+            }
+
+            await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+            using var client = factory.CreateClient();
+
+            var body = await GetBodyAsync(client, "/gallery");
+
+            var name = Meta(body, "property", "og:site_name").ShouldNotBeNull();
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_share_1200");
+            Meta(body, "property", "og:image:width").ShouldBe("1200");
+            Meta(body, "property", "og:image:height").ShouldBe("630");
+            Meta(body, "property", "og:image:alt").ShouldBe(name);
+            Meta(body, "name", "twitter:card").ShouldBe("summary_large_image");
+            using var boot = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
+            boot.RootElement.EnumerateObject().Select(property => property.Name).ShouldBe(["site"], "the Gallery fetches its items and its boot data stays small");
+        }
+        finally
+        {
+            await database.ResetAsync();
+            await ProductLineSeeding.RestoreSixAsync(database);
+        }
+    }
+
+    [Fact]
+    public async Task WhenOnlyTheGalleryReadThrowsTheGalleryPageStillCarriesTheSiteAndTheFailureIsNotCached()
+    {
+        var reader = new StubPublicContentReader("Sample Shop") { GalleryFailure = new InvalidOperationException("the gallery is down") };
+        await using var factory = new ShellTestFactory(reader);
+        using var client = factory.CreateClient();
+
+        var failing = await GetBodyAsync(client, "/gallery");
+        reader.GalleryFailure = null;
+        reader.GalleryShareImageUrl = "/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200";
+        var recovered = await GetBodyAsync(client, "/gallery");
+
+        Meta(failing, "property", "og:site_name").ShouldBe("Sample Shop");
+        Meta(failing, "property", "og:image").ShouldBeNull();
+        Meta(recovered, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+    }
+
+    [Fact]
+    public async Task WithNoPublicGalleryItemTheGalleryPageHasNoPreviewPictureAndTheSmallCard()
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, "/gallery");
+
+        Meta(body, "property", "og:image").ShouldBeNull();
+        Meta(body, "property", "og:image:width").ShouldBeNull();
+        Meta(body, "property", "og:image:height").ShouldBeNull();
+        Meta(body, "property", "og:image:alt").ShouldBeNull();
+        Meta(body, "name", "twitter:card").ShouldBe("summary");
+    }
+
+    [Fact]
+    public async Task WithNoPublicGalleryItemOnlyTheProductsPageCarriesALinkPreviewPictureAndEveryOtherPageHasTheSmallCard()
     {
         var publicId = $"csps-test/content/lines/{BasketballId:D}/abcdefghijklmnopqrstuvwxyz";
         await AddMainPhotoAsync(publicId);

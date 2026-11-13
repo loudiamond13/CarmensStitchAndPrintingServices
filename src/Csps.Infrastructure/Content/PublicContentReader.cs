@@ -28,6 +28,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
     internal const string HomeCacheKey = "csps:public:home:v1";
 
+    internal const string GalleryCacheKey = "csps:public:gallery:v1";
+
     internal const string MissingHoursMessage =
         "The seven OpeningHours rows are missing. Apply the EF migrations.";
 
@@ -52,6 +54,9 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
 
     public ValueTask<PublicHomeSnapshot> GetHomeAsync(CancellationToken cancellationToken) =>
         cache.GetOrCreateAsync(HomeCacheKey, LoadHomeAsync, EntryOptions, Tags, cancellationToken);
+
+    public ValueTask<PublicGallerySnapshot> GetGalleryAsync(CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(GalleryCacheKey, LoadGalleryAsync, EntryOptions, Tags, cancellationToken);
 
     private async ValueTask<PublicSiteSnapshot> LoadSiteAsync(CancellationToken cancellationToken)
     {
@@ -150,7 +155,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            // The gallery flag arrives with the plan that adds gallery items.
+            // A line has gallery items when the one gallery projection holds a public item under it.
+            var withItems = (await PublicGalleryProjection.LoadAsync(db, cancellationToken).ConfigureAwait(false)).Items.Select(item => item.LineId).ToHashSet();
             var lineIds = rows.Select(row => row.Id).ToList();
             var photos = await db.ProductLinePhotos
                 .AsNoTracking()
@@ -174,7 +180,7 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                     row.MinimumQuantity,
                     ArtName(row.PlaceholderArt),
                     new PublicLinePhotosDto(PhotoOf(row.Id, ProductLinePhotoSlot.Main), PhotoOf(row.Id, ProductLinePhotoSlot.Back), PhotoOf(row.Id, ProductLinePhotoSlot.Fabric)),
-                    HasGalleryItems: false)),
+                    HasGalleryItems: withItems.Contains(row.Id))),
             ]);
             var json = JsonSerializer.Serialize(lines, JsonOptions);
             var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
@@ -216,6 +222,15 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
+            // Recent work is the six newest shown orders by their shown date, whatever the gallery order is; an upload has no shown date and never
+            // appears. The hero tag is the newest one.
+            var recent = (await PublicGalleryProjection.LoadAsync(db, cancellationToken).ConfigureAwait(false)).Items
+                .Where(item => item.Kind == GalleryEntryKind.Order)
+                .OrderByDescending(item => item.ShownSinceUtc)
+                .ThenByDescending(item => item.Id)
+                .Take(6)
+                .ToList();
+
             var home = new PublicHomeDto(
                 [
                     .. rows.Select(row => new PublicHomeLineDto(
@@ -228,17 +243,85 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                 ],
                 rows.Count,
                 [.. testimonials.Select(row => new PublicTestimonialDto(row.Quote, row.Name, row.TeamOrRole, row.Stars))],
-                [],
-                null);
+                [.. recent.Select(RecentWorkOf)],
+                recent.Count == 0 ? null : new PublicHeroTagDto(recent[0].Team, recent[0].Pieces ?? 0));
             var json = JsonSerializer.Serialize(home, JsonOptions);
             var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
             var lastChanged = rows.Select(row => row.ChangedAtUtc)
                 .Concat(mains.Select(photo => photo.UpdatedAtUtc ?? photo.CreatedAtUtc))
                 .Concat(testimonials.Select(row => row.ChangedAtUtc))
+                .Concat(recent.Select(item => item.ChangedAtUtc))
                 .DefaultIfEmpty(DateTimeOffset.MinValue)
                 .Max();
             return new PublicHomeSnapshot(home, new PublicJsonSnapshot(json, etag, lastChanged));
         }
+    }
+
+    // The Gallery: the public items from the one projection, with the addresses made here and never stored. A photo the delivery has no
+    // address for is left out of its item, which then shows the line's drawing.
+    private async ValueTask<PublicGallerySnapshot> LoadGalleryAsync(CancellationToken cancellationToken)
+    {
+        var db = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (db.ConfigureAwait(false))
+        {
+            var read = await PublicGalleryProjection.LoadAsync(db, cancellationToken).ConfigureAwait(false);
+            var items = read.Items.Select(row => new PublicGalleryItemDto(
+                row.Id,
+                row.Team,
+                row.LineKey,
+                row.LineShortName,
+                row.Pieces,
+                row.Note,
+                row.Art,
+                [.. row.Photos.Select(photo => (Photo: photo, Urls: delivery.ForGallery(photo.PublicId, photo.Width, photo.Height)))
+                    .Where(pair => pair.Urls.Masonry.Src.Length > 0)
+                    .Select(pair => new PublicGalleryPhotoDto(
+                        pair.Urls.Masonry.Src,
+                        pair.Urls.Masonry.SrcSet,
+                        pair.Urls.Viewer.Src,
+                        pair.Urls.Viewer.SrcSet,
+                        pair.Urls.Thumb,
+                        pair.Photo.Width,
+                        pair.Photo.Height))]))
+                .ToList();
+            var pills = read.ShownLines
+                .Select(line => new PublicGalleryPillDto(line.Key, line.ShortName, read.Items.Count(row => row.LineId == line.Id)))
+                .Where(pill => pill.Count > 0)
+                .ToList();
+
+            var gallery = new PublicGalleryDto(items, pills, items.Count);
+            var json = JsonSerializer.Serialize(gallery, JsonOptions);
+            var etag = $"\"{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)))}\"";
+            var lastChanged = read.Items.Select(row => row.ChangedAtUtc).DefaultIfEmpty(DateTimeOffset.MinValue).Max();
+            return new PublicGallerySnapshot(gallery, new PublicJsonSnapshot(json, etag, lastChanged), ShareImageOf(read));
+        }
+    }
+
+    // One tile of the Recent work strip: the cover photo at the 4:5 strip sizes, or none when the delivery has no address.
+    private PublicRecentWorkDto RecentWorkOf(PublicGalleryRow item)
+    {
+        var cover = item.Photos[0];
+        var strip = delivery.ForStrip(cover.PublicId, cover.Width, cover.Height);
+        return new PublicRecentWorkDto(
+            item.Team,
+            item.LineKey,
+            item.LineShortName,
+            item.Pieces,
+            item.Art,
+            strip.Src.Length == 0 ? null : new PublicPhotoDto(strip.Src, strip.SrcSet, cover.Width, cover.Height));
+    }
+
+    // The cover photo of the item at the top of the gallery as the link preview picture; none when there is no item or no address.
+    private string? ShareImageOf(PublicGalleryRead read)
+    {
+        if (read.Items.Count == 0)
+        {
+            return null;
+        }
+
+        var cover = read.Items[0].Photos[0];
+        var address = delivery.ForShare(cover.PublicId);
+        return address.Length == 0 ? null : address;
     }
 
     // The first shown line's main photo as the link preview picture; none when it has no main photo or the delivery has no address.
@@ -254,11 +337,7 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
     }
 
     // "LongSleeves" is sent as "longSleeves", like every other JSON name.
-    private static string ArtName(PlaceholderArt art)
-    {
-        var name = art.ToString();
-        return char.ToLowerInvariant(name[0]) + name[1..];
-    }
+    private static string ArtName(PlaceholderArt art) => PublicGalleryProjection.ArtName(art);
 
     private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, BusinessClock clock)
     {

@@ -22,3 +22,9 @@ public sealed record CoverUrls(ImageSource Card, ImageSource Table);
 /// <param name="Small">The 1:1 product small cell, with width candidates.</param>
 /// <param name="Thumb">The address of the 44 px square thumb of the Manager's list.</param>
 public sealed record LinePhotoUrls(ImageSource Card, ImageSource Large, ImageSource Small, string Thumb);
+
+/// <summary>The addresses of one public gallery photo, one per display slot (Phase 11).</summary>
+/// <param name="Masonry">The masonry tile, the whole photo limited by width, with width candidates.</param>
+/// <param name="Viewer">The lightbox, the whole photo, with width candidates.</param>
+/// <param name="Thumb">The address of the square lightbox thumb.</param>
+public sealed record GalleryPhotoUrls(ImageSource Masonry, ImageSource Viewer, string Thumb);

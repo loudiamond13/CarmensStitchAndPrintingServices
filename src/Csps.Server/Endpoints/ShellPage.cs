@@ -150,6 +150,9 @@ internal sealed partial class ShellRenderer(
     // The same for the Home read.
     private int _homeFailing;
 
+    // The same for the Gallery read.
+    private int _galleryFailing;
+
     public async Task WriteAsync(HttpContext context)
     {
         var parts = template.Get();
@@ -235,6 +238,17 @@ internal sealed partial class ShellRenderer(
 
             linesJson = lines.Json.Json;
             shareImage = AbsoluteAddress(origin, lines.ShareImageUrl);
+        }
+        else if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Gallery)
+        {
+            // The Gallery fetches its items, so only the link preview picture comes from the read.
+            var gallery = await ReadGalleryAsync(context).ConfigureAwait(false);
+            if (gallery is null)
+            {
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
+            }
+
+            shareImage = AbsoluteAddress(origin, gallery.ShareImageUrl);
         }
         else if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Home)
         {
@@ -334,6 +348,26 @@ internal sealed partial class ShellRenderer(
         }
     }
 
+    // Null when the Gallery cannot be read.
+    private async Task<PublicGallerySnapshot?> ReadGalleryAsync(HttpContext context)
+    {
+        try
+        {
+            var snapshot = await reader.GetGalleryAsync(context.RequestAborted).ConfigureAwait(false);
+            Interlocked.Exchange(ref _galleryFailing, 0);
+            return snapshot;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            if (Interlocked.Exchange(ref _galleryFailing, 1) == 0)
+            {
+                LogGalleryFailed(exception);
+            }
+
+            return null;
+        }
+    }
+
     // Null when the Home data cannot be read.
     private async Task<PublicHomeSnapshot?> ReadHomeAsync(HttpContext context)
     {
@@ -374,4 +408,7 @@ internal sealed partial class ShellRenderer(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The Home data could not be read, so the Home page is sent without it")]
     private partial void LogHomeFailed(Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The Gallery could not be read, so the Gallery page is sent without a link preview picture")]
+    private partial void LogGalleryFailed(Exception exception);
 }

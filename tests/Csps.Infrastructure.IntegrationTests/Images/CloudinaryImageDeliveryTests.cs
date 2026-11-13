@@ -254,6 +254,52 @@ public sealed partial class CloudinaryImageDeliveryTests
         Should.Throw<ArgumentException>(() => Delivery(string.Empty).ForPhoto("Not A Valid Id", 100, 100));
     }
 
+    [Fact]
+    public void AGalleryPhotoGetsMasonryCandidatesTheViewerCandidatesAndTheEightyEightPixelThumb()
+    {
+        var gallery = Delivery().ForGallery(Id, 4000, 3000);
+
+        gallery.Masonry.SrcSet.ShouldBe(Widths(("csps_w_280", 280), ("csps_w_400", 400), ("csps_w_560", 560), ("csps_w_800", 800)));
+        gallery.Masonry.Src.ShouldBe(Address("csps_w_400"));
+        gallery.Viewer.ShouldBe(Delivery().ForPhoto(Id, 4000, 3000).Viewer);
+        gallery.Thumb.ShouldBe(Address("csps_sq_88"));
+    }
+
+    [Fact]
+    public void AGalleryPhotoNarrowerThanTheBiggestMasonrySizeEndsItsListAtItsOwnWidthNeverAnUpscale()
+    {
+        var gallery = Delivery().ForGallery(Id, 300, 200);
+
+        gallery.Masonry.SrcSet.ShouldBe(Widths(("csps_w_280", 280), ("csps_w_400", 300)));
+        gallery.Masonry.Src.ShouldBe(Address("csps_w_400"));
+    }
+
+    [Fact]
+    public void ARecentWorkPhotoGetsTheFourByFiveStripCandidatesWithinTheCropWidth()
+    {
+        var delivery = Delivery();
+
+        var wide = delivery.ForStrip(Id, 4000, 3000);
+        var narrow = delivery.ForStrip(Id, 200, 300);
+
+        wide.SrcSet.ShouldBe(Widths(("csps_strip_240", 240), ("csps_strip_480", 480), ("csps_strip_720", 720), ("csps_strip_1060", 1060)));
+        wide.Src.ShouldBe(Address("csps_strip_480"));
+        narrow.SrcSet.ShouldBe(Widths(("csps_strip_240", 200)));
+    }
+
+    [Fact]
+    public void AMissingCloudNameGivesEmptyGalleryAndStripAddresses()
+    {
+        var delivery = Delivery(string.Empty);
+
+        var gallery = delivery.ForGallery(Id, 4000, 3000);
+
+        gallery.Masonry.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        gallery.Viewer.ShouldBe(new ImageSource(string.Empty, string.Empty));
+        gallery.Thumb.ShouldBeEmpty();
+        delivery.ForStrip(Id, 4000, 3000).ShouldBe(new ImageSource(string.Empty, string.Empty));
+    }
+
     [GeneratedRegex(@"^https://res\.cloudinary\.com/demo-cloud/image/private/t_(?<name>[a-z0-9_]+)/v1/csps/orders/0b0f/abcdefghijklmnopqrstuvwxyz$")]
     private static partial Regex AddressShape();
 }

@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-12T16:53:00-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-12T18:00:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -204,6 +204,12 @@ Both routes follow the rule above: Debug builds only, Testing environment only, 
 ### Shared public site content (plan 11-10)
 
 The business info and the phone list are singleton content shared by all five projects. A spec that reads or changes them calls `seedDemoSiteContent(request)` (`POST /api/testing/site-content`, 204, the demo shop facts and two demo numbers) and runs under `withSiteContentLock` from `web/e2e/site-content-lock.ts`, the photo host lock with its own lock directory, so two specs never reset the facts under each other.
+
+The same reset (plan 11-26) also puts five demo gallery orders in place, numbered `DEMO-GALLERY-1` to `DEMO-GALLERY-5`: four shown (teams
+"Brgy. Sample Ballers" with four photos, "Sample City Spikers", "Sample Riders MC" and "Tondo Sample Hoopers") and one with the customer's OK
+that is not shown ("Hidden Sample Team"). Every customer value on them contains `PRIVATE-DEMO`, so a spec can search a public page for that
+text. The photo ids are Testing ids with no stored file, so a photo address answers 404 until a spec stores one. The orders show in the
+admin Orders list; a spec that counts orders there must count its own.
 
 ### Cookie attributes and the WebKit jar (plan 04-27)
 
