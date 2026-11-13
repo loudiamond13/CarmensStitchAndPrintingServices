@@ -26,18 +26,27 @@ export function useSwipe(
       return undefined;
     }
     let start: { id: number; x: number; y: number } | null = null;
+    // Drops the swallow of the last swipe; a touch swipe sends no click, so its swallow must not outlive the next press.
+    let disarm: (() => void) | null = null;
 
     const swallowClick = () => {
+      disarm?.();
       const stop = (event: Event) => {
         event.stopPropagation();
         event.preventDefault();
       };
-      element.addEventListener('click', stop, { capture: true, once: true });
-      window.setTimeout(() => {
-        element.removeEventListener('click', stop, { capture: true });
+      const timer = window.setTimeout(() => {
+        disarm?.();
       }, CLICK_WINDOW_MS);
+      disarm = () => {
+        window.clearTimeout(timer);
+        element.removeEventListener('click', stop, { capture: true });
+        disarm = null;
+      };
+      element.addEventListener('click', stop, { capture: true, once: true });
     };
     const onDown = (event: PointerEvent) => {
+      disarm?.();
       start = event.isPrimary ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null;
     };
     const onUp = (event: PointerEvent) => {
