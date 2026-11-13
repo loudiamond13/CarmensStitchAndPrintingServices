@@ -1,5 +1,6 @@
-// Site Content, the Business Info tab, end to end (CONT-01, PUB-03, D-27; plan 11-12), in all five projects. A Manager opens Site
-// Content from the sidebar (the drawer on a phone), changes the tagline, saves, and the public footer shows it in the same browser.
+// Site Content, the Business Info tab, end to end (CONT-01, PUB-03, PUB-04, D-26, D-27; plans 11-12 and 11-34), in all five projects. A
+// Manager opens Site Content from the sidebar (the drawer on a phone), changes the tagline, saves, and the public footer shows it in the same
+// browser. The link preview picture (@site-content-share) is chosen and removed on its own, and the server's HTML of Home follows it.
 // The shop facts are one set for every project, so a test that reads or saves them runs under the site content lock and puts the demo
 // shop back at the end. Signing in takes the longest, so every test signs in before it takes the lock and holds the lock only for the
 // work on the settings. Every test runs under the shared guard (console, page errors, CSP, failed responses).

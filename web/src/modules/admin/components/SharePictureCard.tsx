@@ -7,7 +7,7 @@ import { MediaPlaceholder } from '@/components/brand';
 import { Note } from '@/components/states';
 import { PhotoSlot, type SlotPhoto } from '@/modules/admin/components/PhotoSlot';
 import { SiteContentCard } from '@/modules/admin/components/SiteContentCard';
-import { useUploadSharePicture } from '@/modules/admin/hooks/useSiteSettingsQuery';
+import { useRemoveSharePicture, useUploadSharePicture } from '@/modules/admin/hooks/useSiteSettingsQuery';
 import type { SharePicture, SiteSettings } from '@/modules/admin/services/siteSettingsService';
 import { SITE_CONTENT_COPY } from '@/modules/admin/siteContentCopy';
 
@@ -36,6 +36,11 @@ export function SharePictureCard({ picture, onSettingsChange }: SharePictureCard
       onSettingsChange?.(settings);
     },
   });
+  const remove = useRemoveSharePicture({
+    onSuccess: (settings) => {
+      onSettingsChange?.(settings);
+    },
+  });
   return (
     <SiteContentCard title={COPY.card.title} hint={COPY.card.hint}>
       <PhotoSlot
@@ -47,7 +52,10 @@ export function SharePictureCard({ picture, onSettingsChange }: SharePictureCard
         placeholder={<MediaPlaceholder label={COPY.empty} ratio="1.91 / 1" className="h-full" />}
         hint={COPY.hint}
         onUpload={(file) => upload.submit(file)}
+        onRemove={() => remove.submit()}
+        removeConfirm={COPY.remove}
         savedToast={COPY.toast.saved}
+        removedToast={COPY.toast.removed}
       />
       <Note icon="info">{COPY.note}</Note>
     </SiteContentCard>
