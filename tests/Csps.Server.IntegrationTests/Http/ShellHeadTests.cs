@@ -116,8 +116,15 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
-        var body = await GetBodyAsync(client, "/contact");
-        await PublicContentSeeding.SaveClosuresAsync(database, []);
+        string body;
+        try
+        {
+            body = await GetBodyAsync(client, "/contact");
+        }
+        finally
+        {
+            await PublicContentSeeding.SaveClosuresAsync(database, []);
+        }
 
         using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
         var special = document.RootElement.GetProperty("specialOpeningHoursSpecification").EnumerateArray().ShouldHaveSingleItem();
@@ -138,8 +145,15 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
-        var body = await GetBodyAsync(client, "/");
-        await PublicContentSeeding.SaveClosuresAsync(database, []);
+        string body;
+        try
+        {
+            body = await GetBodyAsync(client, "/");
+        }
+        finally
+        {
+            await PublicContentSeeding.SaveClosuresAsync(database, []);
+        }
 
         using var document = JsonDocument.Parse(LdJson(body).ShouldHaveSingleItem());
         var specials = document.RootElement.GetProperty("specialOpeningHoursSpecification").EnumerateArray().ToList();
