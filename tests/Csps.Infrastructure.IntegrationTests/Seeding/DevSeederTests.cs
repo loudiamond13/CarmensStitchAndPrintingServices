@@ -4,6 +4,7 @@ using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Seeding;
 using Csps.Testing;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Infrastructure.IntegrationTests.Seeding;
@@ -130,6 +131,164 @@ public sealed class DevSeederTests(CspsDatabase database) : IClassFixture<CspsDa
         var expenses = DevSeedSteps.All.OfType<CompanyExpensesSeedStep>().ShouldHaveSingleItem();
         orders.Order.ShouldBeGreaterThan(expenses.Order);
         orders.Name.ShouldBe("Orders");
+    }
+
+    [Fact]
+    public void TheSiteContentStepRunsAfterTheOrdersStepWithItsOwnOrder()
+    {
+        DevSeedSteps.All.Select(step => step.Order).ShouldBeUnique();
+        var orders = DevSeedSteps.All.Single(step => step.Name == "Orders");
+
+        var content = DevSeedSteps.All.SingleOrDefault(step => step.Name == "SiteContent");
+
+        content.ShouldNotBeNull();
+        content.Order.ShouldBeGreaterThan(orders.Order);
+    }
+
+    [Fact]
+    public async Task TheSiteContentStepFillsADemoPublicSite()
+    {
+        await StartWithAnEmptyPublicSiteAsync();
+
+        var results = await RunStepsAsync("Orders", "SiteContent");
+
+        results.Select(result => result.Name).ShouldBe(["Orders", "SiteContent"]);
+        results.ShouldAllBe(result => result.Changed);
+
+        var context = database.CreateContext();
+        await using (context)
+        {
+            var settings = await context.SiteSettings.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+            settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
+            settings.Street.ShouldNotBeNullOrWhiteSpace();
+            settings.TownOrCity.ShouldNotBeNullOrWhiteSpace();
+            settings.MessengerUrl.ShouldNotBeNullOrWhiteSpace();
+
+            var phones = await context.SitePhoneNumbers.AsNoTracking().OrderBy(phone => phone.Position).ToListAsync(TestContext.Current.CancellationToken);
+            phones.Count.ShouldBe(2);
+            phones[0].IsMain.ShouldBeTrue();
+            phones.Count(phone => phone.IsMain).ShouldBe(1);
+
+            var week = await context.OpeningHours.AsNoTracking().OrderBy(day => day.DayOfWeek).ToListAsync(TestContext.Current.CancellationToken);
+            week.Select(day => day.DayOfWeek).ShouldBe([1, 2, 3, 4, 5, 6, 7]);
+            week.Take(6).ShouldAllBe(day => day.OpensAt == new TimeOnly(9, 0) && day.ClosesAt == new TimeOnly(18, 0));
+            week[6].OpensAt.ShouldBeNull();
+            week[6].ClosesAt.ShouldBeNull();
+
+            var closure = (await context.ShopClosures.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+            closure.FirstDay.ShouldBe(new DateOnly(2026, 10, 28));
+
+            var lines = await context.ProductLines.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+            lines.Where(line => line.StartsAtPrice is not null).Select(line => line.Key).Order().ShouldBe(["basketball", "volleyball"]);
+            lines.Single(line => line.Key == "basketball").StartsAtPrice!.Value.ShouldBeGreaterThan(0m);
+            lines.Single(line => line.Key == "basketball").MinimumQuantity.ShouldNotBeNull();
+
+            var testimonials = await context.Testimonials.AsNoTracking().OrderBy(testimonial => testimonial.Position).ToListAsync(TestContext.Current.CancellationToken);
+            testimonials.Count.ShouldBe(3);
+            testimonials.ShouldAllBe(testimonial => testimonial.IsShown);
+
+            var shown = (await context.Orders.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).Where(order => order.IsShownOnWebsite).ToList();
+            shown.Count.ShouldBeGreaterThanOrEqualTo(2);
+            shown.ShouldAllBe(order => order.HasCustomerConsent);
+            var entries = await context.GalleryEntries.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+            entries.Select(entry => entry.OrderId).Order().ShouldBe(shown.Select(order => (Guid?)order.Id).Order());
+        }
+    }
+
+    [Fact]
+    public async Task ASecondRunOfTheSiteContentStepChangesNothing()
+    {
+        await StartWithAnEmptyPublicSiteAsync();
+        await RunStepsAsync("SiteSettings", "Orders", "SiteContent");
+        var before = await CountPublicRowsAsync();
+
+        var results = await RunStepsAsync("SiteSettings", "Orders", "SiteContent");
+
+        results.Select(result => result.Name).ShouldBe(["SiteSettings", "Orders", "SiteContent"]);
+        results.ShouldAllBe(result => !result.Changed);
+        (await CountPublicRowsAsync()).ShouldBe(before);
+    }
+
+    [Fact]
+    public async Task TheSiteContentStepKeepsWhatAManagerAlreadyEntered()
+    {
+        await StartWithAnEmptyPublicSiteAsync();
+        var context = database.CreateContext();
+        await using (context)
+        {
+            context.SitePhoneNumbers.Add(SitePhoneNumber.Create("0917 555 0100", "Own", isMain: true, 1, Now).Value);
+            context.Testimonials.Add(Testimonial.Create(new TestimonialValues("Our own quote.", "Own Name", null, 4, true), 1, Now).Value);
+            context.ShopClosures.Add(ShopClosure.Create(new DateOnly(2026, 12, 25), null, "Own closure", new DateOnly(2026, 10, 8), Now).Value);
+            (await context.OpeningHours.SingleAsync(day => day.DayOfWeek == 1, TestContext.Current.CancellationToken)).SetHours(new TimeOnly(8, 0), new TimeOnly(12, 0)).IsSuccess.ShouldBeTrue();
+            var basketball = await context.ProductLines.SingleAsync(line => line.Key == "basketball", TestContext.Current.CancellationToken);
+            basketball.Update(new ProductLineValues(
+                basketball.Title, basketball.ShortName, basketball.Number, basketball.CardText, basketball.Description, basketball.FabricText,
+                basketball.CollarText, basketball.CutText, basketball.NamesText, basketball.LogosText, 500m, 5m, null)).IsSuccess.ShouldBeTrue();
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await RunStepsAsync("Orders", "SiteContent");
+
+        var after = database.CreateContext();
+        await using (after)
+        {
+            (await after.SitePhoneNumbers.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().Label.ShouldBe("Own");
+            (await after.Testimonials.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().Name.ShouldBe("Own Name");
+            (await after.ShopClosures.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().Note.ShouldBe("Own closure");
+            (await after.OpeningHours.AsNoTracking().SingleAsync(day => day.DayOfWeek == 1, TestContext.Current.CancellationToken)).OpensAt.ShouldBe(new TimeOnly(8, 0));
+            (await after.ProductLines.AsNoTracking().SingleAsync(line => line.Key == "basketball", TestContext.Current.CancellationToken)).StartsAtPrice.ShouldBe(500m);
+        }
+    }
+
+    // A freshly migrated database holds no phones, closures, testimonials, orders or gallery entries, a closed week and six lines with no
+    // price. The week and the lines survive the reset helper, so they are put back here.
+    private async Task StartWithAnEmptyPublicSiteAsync()
+    {
+        await database.ResetAsync();
+        var context = database.CreateContext();
+        await using (context)
+        {
+            foreach (var day in await context.OpeningHours.ToListAsync(TestContext.Current.CancellationToken))
+            {
+                day.SetHours(null, null).IsSuccess.ShouldBeTrue();
+            }
+
+            foreach (var line in await context.ProductLines.ToListAsync(TestContext.Current.CancellationToken))
+            {
+                line.ResetToSeed(ProductLineSeed.All.Single(entry => entry.Id == line.Id), null, null);
+            }
+
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    private async Task<(int Phones, int Closures, int Testimonials, int Entries, int ShownOrders, int PricedLines, int OpenDays)> CountPublicRowsAsync()
+    {
+        var context = database.CreateContext();
+        await using (context)
+        {
+            var orders = await context.Orders.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+            var lines = await context.ProductLines.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+            var week = await context.OpeningHours.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);
+            return (
+                await context.SitePhoneNumbers.CountAsync(TestContext.Current.CancellationToken),
+                await context.ShopClosures.CountAsync(TestContext.Current.CancellationToken),
+                await context.Testimonials.CountAsync(TestContext.Current.CancellationToken),
+                await context.GalleryEntries.CountAsync(TestContext.Current.CancellationToken),
+                orders.Count(order => order.IsShownOnWebsite),
+                lines.Count(line => line.StartsAtPrice is not null),
+                week.Count(day => day.OpensAt is not null));
+        }
+    }
+
+    private async Task<IReadOnlyList<SeedStepResult>> RunStepsAsync(params string[] names)
+    {
+        var context = database.CreateContext();
+        await using (context)
+        {
+            return await new DevSeeder(DevSeedSteps.All.Where(step => names.Contains(step.Name)), new FakeTimeProvider(Now))
+                .RunAsync(context, TestContext.Current.CancellationToken);
+        }
     }
 
     private async Task<IReadOnlyList<SeedStepResult>> RunSeedAsync()
