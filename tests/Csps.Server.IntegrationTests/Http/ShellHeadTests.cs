@@ -548,6 +548,116 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         }
     }
 
+    [Fact]
+    public async Task ProductsAndGalleryFallBackToTheDefaultSharePictureWhenTheyHaveNoPhotoOfTheirOwn()
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await using var rig = await SharePictureRig.StartAsync(database, reset: false);
+        using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1200, 630));
+        uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var address = DefaultAddress(rig);
+        using var client = rig.Factory.CreateClient();
+
+        foreach (var path in new[] { "/products", "/gallery" })
+        {
+            var body = await GetBodyAsync(client, path);
+
+            Meta(body, "property", "og:image").ShouldBe(address, path);
+            Meta(body, "property", "og:image:width").ShouldBe("1200", path);
+            Meta(body, "property", "og:image:height").ShouldBe("630", path);
+            Meta(body, "name", "twitter:card").ShouldBe("summary_large_image", path);
+        }
+    }
+
+    [Fact]
+    public async Task ProductsKeepsItsOwnLinePhotoOverTheDefaultSharePicture()
+    {
+        var publicId = $"csps-test/content/lines/{BasketballId:D}/abcdefghijklmnopqrstuvwxyz";
+        await AddMainPhotoAsync(publicId);
+        try
+        {
+            await using var rig = await SharePictureRig.StartAsync(database, reset: false);
+            using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1200, 630));
+            uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+            using var client = rig.Factory.CreateClient();
+
+            var products = await GetBodyAsync(client, "/products");
+            var home = await GetBodyAsync(client, "/");
+
+            Meta(products, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+            Meta(home, "property", "og:image").ShouldBe(DefaultAddress(rig));
+        }
+        finally
+        {
+            await RemovePhotosAsync();
+        }
+    }
+
+    [Fact]
+    public async Task GalleryKeepsTheCoverOfItsTopItemOverTheDefaultSharePicture()
+    {
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await GallerySeeding.LinkProductTypesAsync(database);
+        var now = new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero);
+        var staff = await OrderSeeding.AddStaffAsync(database, "Gallery", now);
+        var ids = await GallerySeeding.AddOrdersAsync(database, [new SeedGalleryOrder("Top team") { Photos = [(1600, 900)], Position = 1 }], staff, now);
+        try
+        {
+            await using var rig = await SharePictureRig.StartAsync(database, reset: false);
+            using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1200, 630));
+            uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+            string coverId;
+            await using (var context = database.CreateContext())
+            {
+                coverId = await context.Set<Csps.Domain.Orders.OrderImage>().AsNoTracking()
+                    .Where(image => image.OrderId == ids[0] && image.Position == 0)
+                    .Select(image => image.PublicId)
+                    .SingleAsync(TestContext.Current.CancellationToken);
+            }
+
+            using var client = rig.Factory.CreateClient();
+            var body = await GetBodyAsync(client, "/gallery");
+
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_share_1200");
+            Meta(body, "property", "og:image").ShouldNotBe(DefaultAddress(rig));
+        }
+        finally
+        {
+            await database.ResetAsync();
+            await ProductLineSeeding.RestoreSixAsync(database);
+        }
+    }
+
+    [Fact]
+    public async Task TheJsonLdImageIsTheDefaultSharePictureAndIsAbsentWithNone()
+    {
+        await using var rig = await SharePictureRig.StartAsync(database, reset: false);
+        using var client = rig.Factory.CreateClient();
+        using (var without = JsonDocument.Parse(LdJson(await GetBodyAsync(client, "/")).ShouldHaveSingleItem()))
+        {
+            without.RootElement.TryGetProperty("image", out _).ShouldBeFalse();
+        }
+
+        using var uploaded = await rig.UploadAsync(SyntheticImages.Jpeg(1200, 630));
+        uploaded.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        foreach (var path in new[] { "/", "/contact", "/products", "/gallery" })
+        {
+            using var with = JsonDocument.Parse(LdJson(await GetBodyAsync(client, path)).ShouldHaveSingleItem());
+            with.RootElement.GetProperty("image").GetString().ShouldBe(DefaultAddress(rig), path);
+        }
+    }
+
+    // The 1200 x 630 address of the picture a rig stored, as a page head writes it.
+    private static string DefaultAddress(SharePictureRig rig)
+    {
+        var publicId = rig.Factory.Services.GetRequiredService<TestingImageStorage>().Uploads
+            .Last(recorded => recorded.AssetFolder.Contains("/content/share/", StringComparison.Ordinal)).PublicId;
+        return $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_share_1200";
+    }
+
     private static readonly Guid BasketballId = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
 
     private async Task AddMainPhotoAsync(string publicId)
