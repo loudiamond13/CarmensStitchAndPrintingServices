@@ -5,9 +5,11 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
 import { server } from './msw';
 import {
+  demoGallery,
   demoHome,
   demoLines,
   demoSite,
+  galleryHandler,
   homeHandler,
   openStatusAt0900,
   openStatusHandler,
@@ -64,6 +66,7 @@ if (typeof window !== 'undefined') {
       openStatusHandler(openStatusAt0900),
       productLinesHandler(demoLines),
       homeHandler(demoHome),
+      galleryHandler(demoGallery),
     );
   });
   afterEach(() => {

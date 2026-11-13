@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { isHttpError } from '@/core/api/errors';
 import { createFakeFetch } from '@/test/fakeFetch';
-import { demoHome, demoLines } from '@/test/publicFixtures';
+import { demoGallery, demoHome, demoLines } from '@/test/publicFixtures';
 import { createContentService } from './contentService';
 
 describe('contentService.getHome', () => {
@@ -27,6 +27,36 @@ describe('contentService.getHome', () => {
 
     const error = await createContentService(client)
       .getHome()
+      .then(
+        () => undefined,
+        (failure: unknown) => failure,
+      );
+
+    expect(isHttpError(error)).toBe(true);
+  });
+});
+
+describe('contentService.getGallery', () => {
+  it('calls GET /api/v1/public/gallery once and resolves the typed body', async () => {
+    const fake = createFakeFetch([{ body: demoGallery }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const gallery = await createContentService(client).getGallery(new AbortController().signal);
+
+    expect(gallery).toEqual(demoGallery);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe('/api/v1/public/gallery');
+  });
+
+  it('rejects with an HttpError when the read fails', async () => {
+    const fake = createFakeFetch([
+      { status: 500, headers: { 'Content-Type': 'application/problem+json' }, body: { title: 'Failed', status: 500 } },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch, retry: { max: 0 } });
+
+    const error = await createContentService(client)
+      .getGallery()
       .then(
         () => undefined,
         (failure: unknown) => failure,

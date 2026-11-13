@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
@@ -47,5 +48,69 @@ describe('GalleryPage at /gallery (PUB-01, UI-SPEC G1 item 1)', { timeout: 20_00
   it('has no axe violations', async () => {
     const { container } = await renderGallery();
     await expectNoAxeViolations(container);
+  });
+});
+
+/** Every tile button on the page: the pills are buttons too, so the tiles are the ones named "Open ...". */
+function tiles(): HTMLElement[] {
+  return screen.queryAllByRole('button', { name: /^Open / });
+}
+
+describe('GalleryPage with the gallery read (GAL-01, D-03, WEB-10)', { timeout: 20_000 }, () => {
+  it('shows all 16 demo items, with All pressed and the pill counts of the server', async () => {
+    await renderGallery();
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    expect(screen.getByRole('button', { name: 'All 16 items' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Basketball 4 items' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('opens /gallery?category=basketball on the basketball tiles only, with the pill count equal to the tiles', async () => {
+    await renderGallery('/gallery?category=basketball');
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(4);
+    });
+    const pill = screen.getByRole('button', { name: 'Basketball 4 items' });
+    expect(pill).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'All 16 items' })).toHaveAttribute('aria-pressed', 'false');
+    for (const tile of tiles()) {
+      expect(tile.textContent).toContain('Basketball');
+    }
+  });
+
+  it('drops an unknown category from the address with one replace once the pills are known', async () => {
+    const { router } = await renderGallery('/gallery?category=bogus');
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('');
+    });
+    expect(screen.getByRole('button', { name: 'All 16 items' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('filters when a pill is pressed, writes the line to the address and leaves All out of it', async () => {
+    const { router } = await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Volleyball 3 items' }));
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(3);
+    });
+    expect(router.state.location.search).toBe('?category=volleyball');
+
+    await userEvent.click(screen.getByRole('button', { name: 'All 16 items' }));
+
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    expect(router.state.location.search).toBe('');
   });
 });
