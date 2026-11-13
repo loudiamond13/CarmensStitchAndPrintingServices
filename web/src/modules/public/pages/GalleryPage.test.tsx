@@ -14,6 +14,7 @@ import {
   galleryFailureHandler,
   galleryHandler,
   largeGallery,
+  resetPublicData,
 } from '@/test/publicFixtures';
 
 /** The real route tree at /gallery (under the URL-state layout), settled once the h1 is on screen. */
@@ -283,12 +284,14 @@ describe('GalleryPage Show More, states and the quote link (GAL-01, D-32)', { ti
     await screen.findByText("Couldn't load the gallery.");
     await expectNoAxeViolations(failed.container);
     failed.unmount();
+    resetPublicData();
 
     answerGallery(emptyGallery);
     const empty = await renderGallery();
     await screen.findByRole('heading', { name: 'No photos yet' });
     await expectNoAxeViolations(empty.container);
     empty.unmount();
+    resetPublicData();
 
     answerGallery(largeGallery);
     const populated = await renderGallery();

@@ -68,17 +68,19 @@ export function ProductsLoadingRegion({ loading, children }: ProductsLoadingRegi
 }
 
 export interface ProductsErrorProps {
-  /** Reads the lines again. */
+  /** Reads the data again. */
   onRetry: () => void;
+  /** What could not be loaded, as the banner says it; the product lines by default. */
+  title?: string;
 }
 
-/** "Couldn't load the product lines." over the reassurance line, with Try Again. */
-export function ProductsError({ onRetry }: ProductsErrorProps) {
+/** "Couldn't load the product lines." (or the given title) over the reassurance line, with Try Again. */
+export function ProductsError({ onRetry, title = errors.products }: ProductsErrorProps) {
   return (
     <div className={bannerStartClasses} role="alert">
       <Icon name="triangle-alert" size={20} />
       <div className={bannerTextClasses}>
-        <strong>{errors.products}</strong>
+        <strong>{title}</strong>
         <span>{errors.body}</span>
       </div>
       <button type="button" className={buttonClasses({ variant: 'secondary', size: 'sm' })} onClick={onRetry}>

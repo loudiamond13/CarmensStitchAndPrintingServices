@@ -303,7 +303,7 @@ describe('GalleryFilterBar keyboard (UI-SPEC G1 item 2; roving focus)', () => {
     const user = userEvent.setup();
     const status = screen.getByRole('status');
     expect(status).toHaveAttribute('aria-live', 'polite');
-    expect(status).toHaveTextContent('');
+    expect(status.textContent).toBe('');
 
     await user.click(pill('Basketball 4 items'));
     expect(status).toHaveTextContent('Showing 4 items');

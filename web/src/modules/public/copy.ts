@@ -280,7 +280,7 @@ export const PUBLIC_COPY = {
       contact: 'Loading our contact details…',
     },
     // SPEC-GAP: what a loading region says when it is done.
-    loaded: { products: 'The product lines loaded.', page: 'The page loaded.' },
+    loaded: { products: 'The product lines loaded.', page: 'The page loaded.', gallery: 'The gallery loaded.' },
     errors: {
       products: "Couldn't load the product lines.",
       gallery: "Couldn't load the gallery.",

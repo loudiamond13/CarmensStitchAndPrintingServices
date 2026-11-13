@@ -55,5 +55,23 @@ export const tileTeamClasses = tw(
   'font-display text-[20px] leading-[1.1] font-bold wrap-anywhere text-ink uppercase pg-phone:text-[16px]',
 );
 
+/** A centered row of one button, 32px under what is above it. */
+export const galleryActionRowClasses = tw('mt-8 flex justify-center');
+
+/** Show More Photos is a button: the `.s-a-secondary` look on a transparent ground. */
+export const showMoreClasses = tw('cursor-pointer bg-transparent');
+
+/** The column that holds the error or the empty state: 24px above, 48px below. */
+export const galleryStateClasses = tw('mx-auto max-w-(--container-max) px-6 pt-8 pb-12 pg-phone:px-4');
+
+/** A skeleton pill: one of the 44px pill frames, never shrinking. */
+export const pillSkeletonClasses = tw('flex-none');
+
+/** A skeleton tile: a clipped, rounded frame that stays in its column like a real tile. */
+export const tileSkeletonClasses = tw('mb-4 break-inside-avoid overflow-hidden rounded-md pg-phone:mb-3');
+
+/** The skeleton tiles' ratios in turn: 4 / 5, 1 / 1, 3 / 4 and 4 / 3 (UI-SPEC G1 States). */
+export const tileSkeletonRatios = [tw('aspect-4/5'), tw('aspect-square'), tw('aspect-3/4'), tw('aspect-4/3')] as const;
+
 /** `.s-tile-cap span`: the line and pieces. */
 export const tileMetaClasses = tw('text-[12px] leading-4 font-semibold text-ink-muted');

@@ -7,7 +7,7 @@
 //   - `main` keeps at least the viewport height minus the header, so the footer stays put while a route chunk loads;
 //     it is `aria-busy` until the chunk lands (UI consideration: loading, route chunks).
 //   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
-//     so a focused control stops 24px below it (WCAG 2.4.11); on /products it also clears the sticky pill bar.
+//     so a focused control stops 24px below it (WCAG 2.4.11); on /products and /gallery it also clears the sticky pill bar.
 //   - Home and Products show the full footer; Gallery, Contact and the 404 page show the base row (UI-SPEC Footer).
 //   - On /contact the phone-only ContactBar sits after the footer (sticky to the bottom of the page root), and the page gets
 //     a bottom scroll padding at 767px and below, so a focused control stops clear of the bar (PUB-06, WCAG 2.4.11).
@@ -33,7 +33,7 @@ const ContactBarSlot = lazy(() => import('@/modules/public/components/ContactBar
 const contactScrollPaddingClasses = tw('vp-lt-md:[:root:has(&)]:scroll-pb-[calc(77px+var(--space-6))]');
 
 // The page's top scroll padding: the sticky header, 1px and 24px, plus --bar-top: 0 here and the 69px pill bar (44px pill,
-// 12px above and below, 1px rule) on Products, so a focused control or an address target stops clear of both bars (WCAG
+// 12px above and below, 1px rule) on Products and Gallery, so a focused control or an address target stops clear of both bars (WCAG
 // 2.4.11). One padding rule and one extra property keep the shared layout chunk small (PERF-01).
 const topScrollPaddingClasses = tw(
   '[:root:has(&)]:scroll-pt-[calc(var(--header-height)+1px+var(--space-6)+var(--bar-top,0px))]',
@@ -50,7 +50,7 @@ export function PublicLayout() {
   const { pathname } = useLocation();
   const link = currentSiteLink(pathname);
   const onContact = link === 'Contact';
-  const onProducts = link === 'Products';
+  const onBarPage = link === 'Products' || link === 'Gallery';
   const site = useSiteQuery();
   const outletContext: PublicOutletContext = {
     messengerUrl: site.status === 'success' ? site.data.messengerUrl : null,
@@ -70,7 +70,7 @@ export function PublicLayout() {
           className={clsx(
             'min-h-[calc(100dvh-var(--header-height))]',
             topScrollPaddingClasses,
-            onProducts && productsBarClasses,
+            onBarPage && productsBarClasses,
             onContact && contactScrollPaddingClasses,
           )}
         >
