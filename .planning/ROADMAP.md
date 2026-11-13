@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 27/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 29/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1238,8 +1238,8 @@ Plans:
 - [x] 11-27-PLAN.md — Public website card and window on the order page (GAL-03, CONT-03)
 
 **Wave 12**
-- [ ] 11-28-PLAN.md — Gallery admin API: uploads, edit, hide, show, delete, moves (GAL-03, CONT-03, PUB-03)
-- [ ] 11-29-PLAN.md — Gallery page with category pills and masonry; Home Recent work (GAL-01, CONT-03, PUB-01)
+- [x] 11-28-PLAN.md — Gallery admin API: uploads, edit, hide, show, delete, moves (GAL-03, CONT-03, PUB-03)
+- [x] 11-29-PLAN.md — Gallery page with category pills and masonry; Home Recent work (GAL-01, CONT-03, PUB-01)
 
 **Wave 13**
 - [ ] 11-30-PLAN.md — Default share picture and og:image on every page (PUB-04, CONT-01)
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 27/38 | In Progress | - |
+| 11. Public Site & Content Management | 29/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
