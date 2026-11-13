@@ -1,6 +1,6 @@
 ---
 created: 2026-11-13T10:00:00-06:00
-updated: 2026-11-13T10:00:00-06:00
+updated: 2026-11-13T17:55:00-06:00
 ---
 
 # Phase 11: UI Review
@@ -66,6 +66,24 @@ Scope note: this was a targeted code audit by grep and spot reads of `web/src/mo
 - `SharePictureCard` and `PublicWebsiteCard` show no loading, error or confirm references; they may rely on the parent. Verify.
 - Public pages have dedicated state files (`GalleryStates.tsx`, `ProductStates.tsx`, `ProductsEmpty.tsx`) with a retry button (`ProductStates.tsx:86`).
 - No third-party registry audit: shadcn is not used.
+
+## Outcomes
+
+Every finding has one outcome, under the owner's instruction for quick 261113-nqv (owner, 2026-11-13). The fixes are in commits b14b020c (fixes 1 and 2) and 6a706946 (fixes 3 and 6). The pillar scores above are the review's own and are not rescored.
+
+| ID | Finding | Outcome | Evidence |
+|----|---------|---------|----------|
+| R-01 | Typography drift (fix 1, Pillar 4) | Fixed. 23 `--text-N` tokens of the same px values in `app.css`; 64 hand-typed sizes in 9 files now use them; both `font-[650]` use `font-button`. The review undercounted: it was 9 files, not 4. | `web/src/test/public-look.node.test.ts` fails on any hand-typed size or weight in `web/src/modules/public` and on any `--text-N` outside the pinned list. `text-14` compiles to `font-size` only, so the look is unchanged. |
+| R-02 | MapCard hard-coded colour (fix 2, Pillar 3) | Fixed. All five road strokes (lines 116, 119, 120, 121, 125), not only line 116, use the Blush tokens of the same values (`surface-3`, `surface`, `neutral-soft`, `nav-bg`). | The same gate fails on any hex colour in public TSX except `HeroArt.tsx` and `JerseyArt.tsx`. A second test pins the four Blush values. |
+| R-03 | Gallery tile inline `--ratio` (fix 3) | Fixed. The drawn tile gets its height from a hidden SVG sizer's viewBox, so the module sets no style. The review's CSP risk was weaker than stated (React sets custom properties through the CSSOM); the real gap was 11-UI-SPEC lines 48 and 51. | The gate fails on any `style=` in the module. `gallery.test.tsx` covers the sizer for no photo, a blank address and both clamps. |
+| R-04 | Lightbox prev and next on narrow screens (Pillar 2) | Closed, already met. Below 768px the C-35 tap zones replace the buttons: 96 by 216 px at 320, in the tab order, with a focus ring, arrow keys and swipe. GAL-02 asks for a "button alternative". A visible arrow on phones is an owner question. | `galleryLightbox.recipe.ts` lines 7 to 36, `GalleryLightbox.tsx` zone buttons, `GalleryLightbox.test.tsx` lines 167 to 243. Parked as P11-BL-60. |
+| R-05 | ProductLinesTab and TestimonialsTab empty state (Pillar 6) | Closed, not a defect. Both tabs pass `emptyIcon`, `emptyTitle` and `emptyMessage` to ResponsiveTable, which renders the shared EmptyState. | `ProductLinesTab.tsx` lines 466 to 469, `TestimonialsTab.tsx` lines 467 to 470, `ResponsiveTable.tsx` lines 21, 227, 244, copy in `siteContentCopy.ts` lines 241 to 244 and 442 to 445, tests `ProductLinesTab.test.tsx:236` and `TestimonialsTab.test.tsx:246`. |
+| R-06 | Sticky bar safe area (Pillar 5) | Fixed. The bar pads its bottom 16px plus `env(safe-area-inset-bottom)`, and the Contact scroll padding adds the same inset. The inset is 0 until `viewport-fit=cover` is set; that is an owner question. | `public-look.node.test.ts` compiles the bar padding; `PublicLayout.test.tsx` pins the exact scroll-padding class. Parked as P11-BL-61. |
+| R-07 | SharePictureCard and PublicWebsiteCard states (Pillar 6) | Closed, verified. PhotoSlot owns the status line, the pick-error box and the ConfirmDialog, and the settings come from BusinessInfoTab. PublicWebsiteCard gets `order` from OrderPage, which owns loading and error, and edits go through PublicWebsiteModal. | Code read in quick 261113-nqv. |
+| R-08 | Arbitrary spacing values (Pillar 5) | Closed as allowed. They are 11-UI-SPEC Spacing declared exceptions or recipe box sizes. | 11-UI-SPEC lines 145 to 153. |
+| R-09 | Checks that need screenshots (Pillars 2 and 3; Further Notes: focal point, 60/30/10, 320px overflow, contrast, Espresso) | Deferred. No dev servers on the shared machine, so these go to the owner screenshot pass. | 11-UI-SPEC Visual Review, P11-BL-54. |
+| R-10 | Older style uses in AuthFrame and OrdersByStatusCard (Further Notes) | Closed as allowed. They pre-date Phase 11, set custom properties only and follow the P2 inline style rule. | `AuthFrame.tsx:34`, `OrdersByStatusCard.tsx:91`. |
+| R-11 | Copy not compared string by string with the spec (Pillar 1) | Deferred. This is a limit of the audit, not a defect, and new copy is reviewed by the owner before release. | 11-UI-SPEC line 33. |
 
 ## Further Notes (not in top 3)
 - Existing `style=` uses at `modules/admin/components/AuthFrame.tsx:34` and `OrdersByStatusCard.tsx:91` pre-date this phase and use custom properties only.

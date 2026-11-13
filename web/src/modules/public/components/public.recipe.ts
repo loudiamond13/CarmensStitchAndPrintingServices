@@ -20,19 +20,19 @@ export const pageHeadFlatBottomClasses = tw('pb-12');
 export const pageHeadWrapClasses = tw('mx-auto flex max-w-(--container-max) flex-col gap-[20px] px-6 pg-phone:px-4');
 
 /** `.s-crumbs`: the breadcrumb row, 13px muted, 16px below. */
-export const crumbsClasses = tw('mb-4 flex gap-2 text-[13px] text-ink-subtle');
+export const crumbsClasses = tw('mb-4 flex gap-2 text-13 text-ink-subtle');
 
 /** `.s-crumbs a`: no underline. */
 export const crumbLinkClasses = tw('no-underline');
 
 /** `.s-eyebrow`: the display caps line with the skewed accent dash before it. */
 export const eyebrowClasses = tw(
-  'inline-flex items-center gap-2 font-display text-[14px] leading-[1.15] font-bold tracking-[.16em] text-accent-ink uppercase before:h-[3px] before:w-[24px] before:[transform:skewX(-18deg)] before:bg-accent-line',
+  'inline-flex items-center gap-2 font-display text-14 leading-[1.15] font-bold tracking-[.16em] text-accent-ink uppercase before:h-[3px] before:w-[24px] before:[transform:skewX(-18deg)] before:bg-accent-line',
 );
 
 /** `.s-pagehead .s-h1`: 80px (52px on phones); it outranks the 76px tablet `.s-h1` rule, so it stays 80px down to phones. */
 export const pageH1Classes = tw(
-  'font-display text-[80px] leading-[.88] font-heavy tracking-[-.01em] uppercase italic pg-phone:text-[52px]',
+  'font-display text-80 leading-[.88] font-heavy tracking-[-.01em] uppercase italic pg-phone:text-52',
 );
 
 /** `.s-h1 em` and `.s-pagehead .s-h1 em`: the accent word. */
@@ -40,12 +40,12 @@ export const h1EmClasses = tw('text-accent-ink italic');
 
 /** `.s-h1`: the hero heading, 96px, 76px up to 1023px and 56px on phones. */
 export const heroH1Classes = tw(
-  'font-display text-[96px] leading-[.88] font-heavy tracking-[-.01em] uppercase italic pg-phone:text-[56px] pg-lt-lg:text-[76px]',
+  'font-display text-96 leading-[.88] font-heavy tracking-[-.01em] uppercase italic pg-phone:text-56 pg-lt-lg:text-76',
 );
 
 /** `.s-lead`: 18/28 muted, at most 560px wide; 16/24 on phones. */
 export const leadClasses = tw(
-  'max-w-[560px] text-[18px] leading-[28px] text-ink-muted pg-phone:text-[16px] pg-phone:leading-[24px]',
+  'max-w-[560px] text-18 leading-[28px] text-ink-muted pg-phone:text-16 pg-phone:leading-[24px]',
 );
 
 /** `.s-btnrow`: the buttons in a wrapping row. */
@@ -53,28 +53,28 @@ export const btnRowClasses = tw('flex flex-wrap items-center gap-3');
 
 /** `.s-a-primary`: the maroon fill. */
 export const aBtnPrimaryClasses = tw(
-  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-primary bg-primary px-6 text-[16px] font-button whitespace-nowrap text-on-primary no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:bg-primary-hover hover:[box-shadow:0_6px_20px_-10px_var(--primary)]',
+  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-primary bg-primary px-6 text-16 font-button whitespace-nowrap text-on-primary no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:bg-primary-hover hover:[box-shadow:0_6px_20px_-10px_var(--primary)]',
 );
 
 /** `.s-a-secondary`: the outline. */
 export const aBtnSecondaryClasses = tw(
-  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-line-strong px-6 text-[16px] font-button whitespace-nowrap text-ink no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:bg-surface-2',
+  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-line-strong px-6 text-16 font-button whitespace-nowrap text-ink no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:bg-surface-2',
 );
 
 // SPEC-GAP: the approved dark button hovers to #000. The class gate bans colour literals, so --ink stands in for it.
 /** `.s-cut-accent .s-a-dark`: the light button on the orange call-to-action band. */
 export const aBtnDarkClasses = tw(
-  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-on-accent bg-on-accent px-6 text-[16px] font-button whitespace-nowrap text-accent no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:border-ink hover:bg-ink',
+  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-on-accent bg-on-accent px-6 text-16 font-button whitespace-nowrap text-accent no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease] hover:border-ink hover:bg-ink',
 );
 
 /** `.s-cut-accent .s-a-ghost`: the outline button on the orange band. */
 export const aBtnGhostClasses = tw(
-  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-on-accent px-6 text-[16px] font-button whitespace-nowrap text-on-accent no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease]',
+  'inline-flex h-[52px] items-center justify-center gap-2 rounded-sm border border-on-accent px-6 text-16 font-button whitespace-nowrap text-on-accent no-underline transition-[background-color,transform,box-shadow] duration-150 ease-[ease]',
 );
 
 /** `.s-link`: the accent text link with an underline on hover. */
 export const linkClasses = tw(
-  'inline-flex items-center gap-[6px] font-[650] text-accent-ink no-underline hover:underline hover:underline-offset-4',
+  'inline-flex items-center gap-[6px] font-button text-accent-ink no-underline hover:underline hover:underline-offset-4',
 );
 
 /** `.s-hero.s-mesh`: 64px above, 96px plus the cut angle below; 32px above and 64px plus 32px below on phones. */
@@ -95,7 +95,7 @@ export const chipsClasses = tw('flex flex-wrap gap-2');
 
 /** `.s-chip`: a 32px bordered chip with its accent icon. */
 export const chipClasses = tw(
-  'inline-flex h-8 items-center gap-[6px] rounded-xs border border-line bg-surface px-3 text-[13px] font-semibold text-ink-muted',
+  'inline-flex h-8 items-center gap-[6px] rounded-xs border border-line bg-surface px-3 text-13 font-semibold text-ink-muted',
 );
 
 /** `.s-chip .csp-icon`: the chip icon takes the accent ink. */

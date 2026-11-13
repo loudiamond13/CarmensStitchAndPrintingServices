@@ -26,6 +26,10 @@ import {
   mapLabelTextClasses,
   mapPinClasses,
   mapPinHeadClasses,
+  mapRoadDashClasses,
+  mapRoadFarClasses,
+  mapRoadMainClasses,
+  mapRoadSideClasses,
   mapRoadsClasses,
   smallMutedClasses,
 } from './contact.recipe';
@@ -103,6 +107,7 @@ export function MapCard({ site }: MapCardProps) {
           />
         ) : (
           <>
+            {/* SPEC-DEVIATION: 11-UI-REVIEW fix 2: App. E.4 draws the roads in hex; here they are the Blush tokens of the same values (public pages are Blush only). */}
             <svg
               className={mapRoadsClasses}
               viewBox="0 0 400 250"
@@ -113,16 +118,16 @@ export function MapCard({ site }: MapCardProps) {
               <path
                 d="M-10,180 C80,160 160,190 240,150 S380,120 420,130"
                 fill="none"
-                stroke="#fff6f0"
+                className={mapRoadMainClasses}
                 strokeWidth="14"
               />
-              <path d="M120,-10 L170,260" fill="none" stroke="#fff6f0" strokeWidth="10" />
-              <path d="M290,-10 C270,80 300,160 260,260" fill="none" stroke="#fbebe2" strokeWidth="8" />
-              <path d="M-10,70 L420,40" fill="none" stroke="#ead1c4" strokeWidth="6" />
+              <path d="M120,-10 L170,260" fill="none" className={mapRoadMainClasses} strokeWidth="10" />
+              <path d="M290,-10 C270,80 300,160 260,260" fill="none" className={mapRoadSideClasses} strokeWidth="8" />
+              <path d="M-10,70 L420,40" fill="none" className={mapRoadFarClasses} strokeWidth="6" />
               <path
                 d="M-10,180 C80,160 160,190 240,150 S380,120 420,130"
                 fill="none"
-                stroke="#d4bbab"
+                className={mapRoadDashClasses}
                 strokeWidth="1"
                 strokeDasharray="8 6"
               />

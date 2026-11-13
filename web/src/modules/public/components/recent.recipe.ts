@@ -36,11 +36,11 @@ export const stripCaptionClasses = tw(
 
 /** `.s-tile-cap strong`: the team in display caps; long names wrap. */
 export const stripTeamClasses = tw(
-  'font-display text-[20px] leading-[1.1] font-bold wrap-anywhere text-ink uppercase pg-phone:text-[16px]',
+  'font-display text-20 leading-[1.1] font-bold wrap-anywhere text-ink uppercase pg-phone:text-16',
 );
 
 /** `.s-tile-cap span`: the line and pieces. */
-export const stripMetaClasses = tw('text-[12px] leading-4 font-semibold text-ink-muted');
+export const stripMetaClasses = tw('text-12 leading-4 font-semibold text-ink-muted');
 
 /** A skeleton tile: a 4:5 frame in the strip's own columns. */
 export const stripSkeletonClasses = tw('aspect-4/5 snap-start overflow-hidden rounded-md');
@@ -51,7 +51,7 @@ export const heroTagClasses = tw(
 );
 
 /** `.s-hero-tag strong`: the name in display caps. */
-export const heroTagNameClasses = tw('font-display text-[20px] leading-[1.1] font-bold wrap-anywhere uppercase');
+export const heroTagNameClasses = tw('font-display text-20 leading-[1.1] font-bold wrap-anywhere uppercase');
 
 /** `.s-cap`: the small muted lines above and below the name. */
-export const heroTagCapClasses = tw('text-[12px] leading-4 text-ink-muted');
+export const heroTagCapClasses = tw('text-12 leading-4 text-ink-muted');

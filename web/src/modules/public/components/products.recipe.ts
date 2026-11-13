@@ -50,12 +50,10 @@ export const jerseySvgClasses = tw('h-auto w-[70%]');
 export const copyClasses = tw('flex min-w-0 flex-col gap-5 wrap-anywhere');
 
 /** `.s-prod-no`: the italic display number in the accent ink. */
-export const numberClasses = tw('font-display text-[20px] font-heavy tracking-[.04em] text-accent-ink italic');
+export const numberClasses = tw('font-display text-20 font-heavy tracking-[.04em] text-accent-ink italic');
 
 /** `.s-h2`: display 800 at 48px (36px on phones), caps. */
-export const articleTitleClasses = tw(
-  'font-display text-[48px] leading-none font-heavy uppercase pg-phone:text-[36px]',
-);
+export const articleTitleClasses = tw('font-display text-48 leading-none font-heavy uppercase pg-phone:text-36');
 
 /** The "What you can customize" eyebrow with its 8px top margin. */
 export const customizeEyebrowClasses = tw('mt-2');
@@ -72,22 +70,22 @@ export const customCardClasses = tw('flex flex-col gap-1 rounded-sm border borde
 export const customCardWideClasses = tw('col-span-full');
 
 /** `.s-custom-item h4`: the bold 14px title with its icon. */
-export const customTitleClasses = tw('flex items-center gap-2 text-[14px] leading-5 font-bold');
+export const customTitleClasses = tw('flex items-center gap-2 text-14 leading-5 font-bold');
 
 /** `.s-custom-item h4 .csp-icon`. */
 export const customIconClasses = tw('text-accent-ink');
 
 /** `.s-custom-item p`. */
-export const customTextClasses = tw('text-[13px] leading-[18px] text-ink-muted');
+export const customTextClasses = tw('text-13 leading-[18px] text-ink-muted');
 
 /** `.s-price`: the price line, baseline aligned, wrapping on a narrow screen. */
 export const priceClasses = tw('flex flex-wrap items-baseline gap-2 pt-2');
 
 /** `.s-price strong`: the display 700 28px figure. */
-export const priceStrongClasses = tw('font-display text-[28px] font-bold');
+export const priceStrongClasses = tw('font-display text-28 font-bold');
 
 /** `.s-muted.s-small`. */
-export const priceMutedClasses = tw('text-[14px] leading-5 text-ink-muted');
+export const priceMutedClasses = tw('text-14 leading-5 text-ink-muted');
 
 /** `.s-anchors`: the bar sticks under the header (56px on phones) on a blurred page ground with a rule below. */
 export const anchorsClasses = tw(
@@ -103,7 +101,7 @@ export const anchorsInClasses = tw(
 
 /** `.s-pill`: a 44px pill link (OQ-3 A) that never wraps its title. */
 export const pillClasses = tw(
-  'inline-flex min-h-11 items-center gap-[6px] rounded-sm border border-line bg-surface px-4 text-[14px] font-semibold whitespace-nowrap text-ink-muted no-underline hover:border-line-strong hover:text-ink',
+  'inline-flex min-h-11 items-center gap-[6px] rounded-sm border border-line bg-surface px-4 text-14 font-semibold whitespace-nowrap text-ink-muted no-underline hover:border-line-strong hover:text-ink',
 );
 
 /** The column that holds the error or the empty state: 24px above, 48px below. */
@@ -130,4 +128,4 @@ export const helpCardClasses = tw(
 export const helpTextClasses = tw('flex max-w-[620px] flex-col gap-2');
 
 /** The help card's `.s-h2` at 40px. */
-export const helpTitleClasses = tw('font-display text-[40px] leading-none font-heavy uppercase');
+export const helpTitleClasses = tw('font-display text-40 leading-none font-heavy uppercase');

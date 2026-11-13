@@ -36,8 +36,8 @@ const SHOP_LINKS = [
 
 // The clock row (summarizeOpenDays, in FooterHours) loads on its own, so no page's first download carries the hours
 // formatters (PERF-01).
-const columnTitleClasses = tw('mb-4 font-display text-[16px] font-bold tracking-[.12em] text-ink-muted uppercase');
-const columnListClasses = tw('flex flex-col gap-3 text-[14px] leading-5');
+const columnTitleClasses = tw('mb-4 font-display text-16 font-bold tracking-[.12em] text-ink-muted uppercase');
+const columnListClasses = tw('flex flex-col gap-3 text-14 leading-5');
 const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
 const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
@@ -127,7 +127,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
     return (
       <footer className={baseFooterClasses}>
         <div className="mx-auto max-w-(--container-max) px-6 pg-phone:px-4">
-          <div className="flex flex-wrap justify-between gap-3 text-[12px] leading-4 text-ink-subtle">
+          <div className="flex flex-wrap justify-between gap-3 text-12 leading-4 text-ink-subtle">
             <Logo size="sm" />
             {site !== undefined && <span>{FOOTER.baseCopyright(Number(site.year), site.businessName)}</span>}
             <StaffLogin />
@@ -147,7 +147,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           <div>
             <Logo size="md" context="footer" />
             {site !== undefined && (
-              <p className="mt-4 max-w-[320px] text-[14px] leading-5 text-ink-muted">{site.tagline}</p>
+              <p className="mt-4 max-w-[320px] text-14 leading-5 text-ink-muted">{site.tagline}</p>
             )}
             {socials.length > 0 && (
               <div className="mt-5 flex gap-2">
@@ -156,7 +156,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
                     key={social.short}
                     to={social.href}
                     aria-label={social.name}
-                    className="grid size-11 place-items-center rounded-sm border border-line-strong font-display text-[15px] font-bold no-underline hover:border-accent-line hover:text-accent-ink"
+                    className="grid size-11 place-items-center rounded-sm border border-line-strong font-display text-15 font-bold no-underline hover:border-accent-line hover:text-accent-ink"
                   >
                     {social.short}
                   </UiLink>
@@ -179,7 +179,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           {showVisit && <VisitColumn site={site} />}
           {showContact && <ContactColumn site={site} />}
         </div>
-        <div className="mt-12 flex flex-wrap justify-between gap-3 border-t-2 border-dashed border-line pt-6 text-[12px] leading-4 text-ink-subtle">
+        <div className="mt-12 flex flex-wrap justify-between gap-3 border-t-2 border-dashed border-line pt-6 text-12 leading-4 text-ink-subtle">
           {site !== undefined && <span>{FOOTER.copyright(Number(site.year), site.businessName)}</span>}
           <StaffLogin />
         </div>

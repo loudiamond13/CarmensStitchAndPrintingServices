@@ -23,13 +23,13 @@ export const formCardClasses = tw(
 export const cardHeadClasses = tw('flex flex-col gap-[6px]');
 
 /** `.s-title`: display 700 at 32px. */
-export const cardTitleClasses = tw('font-display text-[32px] leading-[1.05] font-bold');
+export const cardTitleClasses = tw('font-display text-32 leading-[1.05] font-bold');
 
 /** `.s-small.s-muted`. */
-export const smallMutedClasses = tw('text-[14px] leading-5 text-ink-muted');
+export const smallMutedClasses = tw('text-14 leading-5 text-ink-muted');
 
 /** `.csp-label`: the 14px semi-bold ink label. */
-export const labelClasses = tw('text-[14px] leading-5 font-semibold text-ink');
+export const labelClasses = tw('text-14 leading-5 font-semibold text-ink');
 
 /** The two big buttons, 16px apart. */
 export const bigButtonsClasses = tw('flex flex-col gap-4');
@@ -41,7 +41,7 @@ export const sendBlockClasses = tw('flex flex-col gap-3');
 export const sendListClasses = tw('flex flex-col gap-2');
 
 /** One "What to send" row: an 18px accent icon and Small text. */
-export const sendRowClasses = tw('flex items-start gap-2 text-[14px] leading-5');
+export const sendRowClasses = tw('flex items-start gap-2 text-14 leading-5');
 
 /** The accent icon of a "What to send" row. */
 export const sendIconClasses = tw('mt-px flex-none text-accent-ink');
@@ -68,10 +68,10 @@ export const bigButtonTileClasses = tw(
 export const bigButtonTilePrimaryClasses = tw('bg-on-accent text-accent');
 
 /** `.s-bigbtn strong`: the display 24px caps line. */
-export const bigButtonTitleClasses = tw('block font-display text-[24px] leading-[1.05] font-heavy uppercase');
+export const bigButtonTitleClasses = tw('block font-display text-24 leading-[1.05] font-heavy uppercase');
 
 /** `.s-bigbtn span` (the note), 13px. */
-export const bigButtonNoteClasses = tw('block text-[13px] leading-[18px]');
+export const bigButtonNoteClasses = tw('block text-13 leading-[18px]');
 
 /** The note on the light button: `.s-muted`. */
 export const bigButtonNoteMutedClasses = tw('text-ink-muted');
@@ -86,7 +86,7 @@ export const bigButtonGoMutedClasses = tw('text-ink-muted');
 export const infoCardClasses = tw('flex flex-col gap-3 rounded-md border border-line bg-surface p-5');
 
 /** The info card title: display 700 at 20px, caps (App. E.4's `h3` look on an `h2`, A11Y-H). */
-export const infoTitleClasses = tw('font-display text-[20px] font-bold uppercase');
+export const infoTitleClasses = tw('font-display text-20 font-bold uppercase');
 
 /** A phone row: the link, then its label and badge. */
 export const phoneRowClasses = tw('flex flex-wrap items-center gap-x-3 gap-y-1');
@@ -107,6 +107,18 @@ export const mapRoadsClasses = tw(
   'absolute inset-0 size-full bg-[image:radial-gradient(circle_at_1px_1px,color-mix(in_srgb,var(--ink)_9%,transparent)_1px,transparent_1.6px)] bg-size-[6px_6px]',
 );
 
+/** The two main roads of the drawn map: the Surface 3 tint. */
+export const mapRoadMainClasses = tw('stroke-surface-3');
+
+/** The side road of the drawn map: the Surface tint. */
+export const mapRoadSideClasses = tw('stroke-surface');
+
+/** The far road of the drawn map: the Neutral soft tint. */
+export const mapRoadFarClasses = tw('stroke-neutral-soft');
+
+/** The dashed centre line of the drawn map: the Nav tint. */
+export const mapRoadDashClasses = tw('stroke-nav-bg');
+
 /** `.s-map-pin`: the pin column, anchored by its tip. */
 export const mapPinClasses = tw(
   'absolute top-[46%] left-1/2 flex [transform:translate(-50%,-100%)] flex-col items-center gap-1',
@@ -122,7 +134,7 @@ export const mapFrameClasses = tw('absolute inset-0 size-full border-0');
 
 /** `.s-map-label`: the label card (static under a live map). It wraps its actions under the address at 420px and below. */
 export const mapLabelClasses = tw(
-  'flex items-center justify-between gap-3 rounded-sm bg-surface-3 p-3 text-[13px] leading-[18px] pg-xs:flex-wrap',
+  'flex items-center justify-between gap-3 rounded-sm bg-surface-3 p-3 text-13 leading-[18px] pg-xs:flex-wrap',
 );
 
 /** The label card laid over the drawn map: 12px in from the left, right and bottom. */
@@ -136,12 +148,16 @@ export const mapActionsClasses = tw('flex flex-none flex-wrap items-center gap-3
 
 /** The Directions link: the `.s-link` look at least 44px tall. */
 export const mapDirectionsClasses = tw(
-  'inline-flex min-h-11 items-center gap-[6px] font-[650] text-accent-ink no-underline hover:underline hover:underline-offset-4',
+  'inline-flex min-h-11 items-center gap-[6px] font-button text-accent-ink no-underline hover:underline hover:underline-offset-4',
 );
 
-/** `.s-mbar`: the phone-only sticky bar. It is hidden above 767px and a grid at 767px and below; `.s-mbar` is 77px tall. */
+/**
+ * `.s-mbar`: the phone-only sticky bar. It is hidden above 767px and a grid at 767px and below; it is 77px tall plus the
+ * device's safe area.
+ */
+// SPEC-DEVIATION: 11-UI-REVIEW fix 6: App. C pads the bottom 16px; the safe area is added, as on the admin tab bar.
 export const barClasses = tw(
-  'sticky bottom-0 z-30 hidden gap-2 border-t border-line bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 pt-3 pb-4 backdrop-blur-[12px] pg-phone:grid',
+  'sticky bottom-0 z-30 hidden gap-2 border-t border-line bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] backdrop-blur-[12px] pg-phone:grid',
 );
 
 /** Two columns: Messenger and Call us side by side. */
@@ -155,5 +171,5 @@ export const barPrimaryClasses = tw('border-primary bg-primary text-on-primary h
 
 /** `.s-a-secondary` in the bar. */
 export const barSecondaryClasses = tw(
-  'inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-line-strong px-3 text-[16px] font-button whitespace-nowrap text-ink no-underline hover:bg-surface-2',
+  'inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-line-strong px-3 text-16 font-button whitespace-nowrap text-ink no-underline hover:bg-surface-2',
 );
