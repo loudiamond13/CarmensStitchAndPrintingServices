@@ -36,13 +36,14 @@ function report(lcp = 1500, overrides: { seo?: number; cls?: number } = {}): unk
   };
 }
 
-function fakeDeps(options: { reports?: Record<string, unknown>; runStatus?: Record<string, number> } = {}) {
+function fakeDeps(options: { reports?: Record<string, unknown>; runStatus?: Record<string, number | number[]> } = {}) {
   const events: string[] = [];
   const deps = {
     run: (step: { name: string; args: readonly string[] }) => {
       const page = step.name === 'lighthouse' ? ` ${step.args[1] ?? ''}` : '';
       events.push(`run ${step.name}${page}`);
-      return options.runStatus?.[`${step.name}${page}`] ?? 0;
+      const planned = options.runStatus?.[`${step.name}${page}`];
+      return Array.isArray(planned) ? (planned.shift() ?? 0) : (planned ?? 0);
     },
     sleep: (ms: number) => {
       events.push(`sleep ${String(ms)}`);
@@ -215,21 +216,39 @@ describe('executeSteps for four pages (lighthouse.mjs)', () => {
     }
   });
 
-  it('stops the host and the run when lighthouse fails on a page, and never reads a report', async () => {
-    const { events, deps } = fakeDeps({ runStatus: { [`lighthouse ${ORIGIN}/gallery`]: 2 } });
+  // Lighthouse answers NO_NAVSTART on some runs and says "run it again"; a page gets two more tries before the run fails.
+  it('runs a failed page again after the pause, up to two more times, then stops the host and the run', async () => {
+    const { events, deps } = fakeDeps({ runStatus: { [`lighthouse ${ORIGIN}/gallery`]: [2, 2, 2] } });
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(2);
 
+    const pause = `sleep ${String(PAGE_PAUSE_MS)}`;
     expect(withoutLogs(events)).toEqual([
       'run build',
       'start host',
       `run lighthouse ${ORIGIN}/`,
-      `sleep ${String(PAGE_PAUSE_MS)}`,
+      pause,
       `run lighthouse ${ORIGIN}/products`,
-      `sleep ${String(PAGE_PAUSE_MS)}`,
+      pause,
+      `run lighthouse ${ORIGIN}/gallery`,
+      pause,
+      `run lighthouse ${ORIGIN}/gallery`,
+      pause,
       `run lighthouse ${ORIGIN}/gallery`,
       'stop host',
     ]);
+    expect(events).toContain('log lighthouse /gallery: run 1 of 3 failed with exit code 2, running it again.');
+    expect(events).toContain('log lighthouse: lighthouse /gallery failed with exit code 2.');
+  });
+
+  it('carries on when a page passes on its second try, and reads every report', async () => {
+    const { events, deps } = fakeDeps({ runStatus: { [`lighthouse ${ORIGIN}/products`]: [1, 0] } });
+
+    expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(0);
+
+    expect(events.filter((event) => event === `run lighthouse ${ORIGIN}/products`)).toHaveLength(2);
+    expect(events.filter((event) => event.startsWith('read '))).toHaveLength(4);
+    expect(events).toContain('log lighthouse /products: run 1 of 3 failed with exit code 1, running it again.');
   });
 });
 
