@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T02:30:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T04:20:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -424,6 +424,19 @@ Layout shift (CLS) is 0.041 on /products and 0.043 on /contact against the 0.05 
 
 - **A (built, recommended):** keep both as built.
 - **B:** change either as above.
+
+## P11-BL-46 · Firefox can leave a focused control partly under a sticky bar (plan 11-37)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+When you move through a page with the Tab key, Firefox scrolls only far enough that some of the control shows. A control can stay partly under the sticky header or bottom bar: the Gallery tiles, the footer "Staff Login" link, and the Contact Call button on a 390 px phone. Chrome, Safari (WebKit) and both phone test setups show the whole control.
+
+- The accessibility standard (WCAG 2.2 AA, "not entirely hidden") is met in all five browsers.
+- The project's stricter rule (the whole control must show, D-70 to D-72) is met in four. The tests record Firefox's partly covered controls as notes instead of failing.
+
+- **A (built, recommended):** accept. The standard is met, and the stricter rule is met where the browser allows it.
+- **B:** add a small script to the public pages that scrolls a focused control fully clear. Contact has only 0.63 KB of its size budget left, so the script would have to load late.
+- **C:** make the stricter rule fail Firefox too, and then do B.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
