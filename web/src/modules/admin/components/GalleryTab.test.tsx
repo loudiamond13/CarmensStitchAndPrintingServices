@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
@@ -11,12 +11,17 @@ import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOp
 import { GalleryTab } from '@/modules/admin/components/GalleryTab';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { createDeferred } from '@/test/fakeFetch';
 import { useOrderHandlers } from '@/test/orderFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 import {
   demoGalleryItems,
+  demoLines,
   GALLERY_ORDER_IDS,
   galleryItemsBackend,
+  LINE_IDS,
+  manyGalleryItems,
+  problemAnswer,
   type GalleryItemFixture,
   productLinesBackend,
 } from '@/test/siteContentFixtures';
@@ -210,6 +215,202 @@ describe('the first load', () => {
     await openTab();
 
     expect(backend.gets[0]).toEqual({ line: null, page: '1', pageSize: '20' });
+  });
+});
+
+type UrlUpdateSpy = ReturnType<typeof vi.fn<OnUrlUpdateFunction>>;
+
+/** The URL writes the tab made, in order, as the history mode and the query string. */
+function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[] {
+  return onUrlUpdate.mock.calls.map(([event]) => ({ history: event.options.history, query: event.queryString }));
+}
+
+const lineSelect = (): HTMLSelectElement => screen.getByLabelText('Product line');
+
+describe('the Product line filter (WEB-10)', () => {
+  it('offers All lines first, then every line in the Manager order, a hidden one as "{title} (hidden)"', async () => {
+    productLinesBackend(demoLines().map((line) => (line.id === LINE_IDS.polo ? { ...line, isActive: false } : line)));
+    galleryItemsBackend();
+    await openTab();
+
+    await waitFor(() => {
+      expect(within(lineSelect()).getAllByRole('option').length).toBe(7);
+    });
+    const labels = within(lineSelect())
+      .getAllByRole('option')
+      .map((option) => option.textContent);
+    expect(labels[0]).toBe('All lines');
+    expect(labels).toContain('Basketball Jerseys');
+    expect(labels.filter((label) => label.endsWith(' (hidden)'))).toHaveLength(1);
+    expect(lineSelect()).toHaveValue('');
+  });
+
+  it('choosing a line asks the server for that line, replaces the URL entry and drops the page', async () => {
+    const backend = galleryItemsBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openTab('?page=2', onUrlUpdate);
+    await waitFor(() => {
+      expect(within(lineSelect()).getAllByRole('option').length).toBeGreaterThan(1);
+    });
+
+    fireEvent.change(lineSelect(), { target: { value: LINE_IDS.moto } });
+
+    await waitFor(() => {
+      expect(backend.gets.at(-1)).toEqual({ line: LINE_IDS.moto, page: '1', pageSize: '20' });
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: `?line=${LINE_IDS.moto}` });
+    expect(await screen.findByText(/Showing/)).toHaveTextContent('Showing 2 items · in gallery order');
+  });
+
+  it('reads a line from the URL, asks for it, and shows it chosen', async () => {
+    const backend = galleryItemsBackend();
+    await openTab(`?line=${LINE_IDS.moto}`);
+
+    await waitFor(() => {
+      expect(lineSelect()).toHaveValue(LINE_IDS.moto);
+    });
+    expect(backend.gets[0]).toEqual({ line: LINE_IDS.moto, page: '1', pageSize: '20' });
+  });
+
+  it('drops a line that the lines list does not hold, with one replace, once the lines have loaded', async () => {
+    const backend = galleryItemsBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openTab('?line=8c1f4a20-0000-4000-8000-0000000000ff', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    await waitFor(() => {
+      expect(backend.gets.at(-1)?.line).toBeNull();
+    });
+  });
+});
+
+describe('paging and the page size (WEB-10)', () => {
+  it('pages the rows with the server: Page 1 of 2, Next pushes ?page=2 and reads page 2', async () => {
+    const backend = galleryItemsBackend(manyGalleryItems(25));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    const { table } = await openTab('', onUrlUpdate);
+
+    expect(bodyRows(table)).toHaveLength(20);
+    expect(screen.getByText(/Showing/)).toHaveTextContent('Showing 25 items · in gallery order');
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toHaveTextContent('Page 1 of 2');
+
+    await user.click(screen.getByRole('button', { name: /Next/ }));
+
+    await waitFor(() => {
+      expect(backend.gets.at(-1)).toEqual({ line: null, page: '2', pageSize: '20' });
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'push', query: '?page=2' });
+    await waitFor(() => {
+      expect(bodyRows(table)).toHaveLength(5);
+    });
+  });
+
+  it('offers 10, 20, 50 and 100 rows per page, and a size change replaces the entry and drops the page', async () => {
+    const backend = galleryItemsBackend(manyGalleryItems(25));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openTab('?page=2', onUrlUpdate);
+    const rows = screen.getByLabelText('Rows per page');
+    expect(within(rows).getAllByRole('option').map((option) => option.textContent)).toEqual(['10', '20', '50', '100']);
+
+    fireEvent.change(rows, { target: { value: '10' } });
+
+    await waitFor(() => {
+      expect(backend.gets.at(-1)).toEqual({ line: null, page: '1', pageSize: '10' });
+    });
+    expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?size=10' });
+  });
+
+  it('replaces a page past the last page with the last page', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    galleryItemsBackend(manyGalleryItems(25));
+    await openTab('?page=9', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toContainEqual({ history: 'replace', query: '?page=2' });
+    });
+  });
+
+  it('falls back from size=9999 and page=0 and removes both with one replace', async () => {
+    const backend = galleryItemsBackend();
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    await openTab('?size=9999&page=0', onUrlUpdate);
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    expect(backend.gets[0]).toEqual({ line: null, page: '1', pageSize: '20' });
+  });
+});
+
+describe('the states', () => {
+  it('shows "No gallery photos yet" with the way to fill it and no button, when nothing is on the gallery', async () => {
+    galleryItemsBackend([]);
+    renderTab();
+
+    expect(await screen.findByRole('heading', { name: 'No gallery photos yet' })).toBeVisible();
+    expect(screen.getByText('Show an order from its order page, or add a photo of older work.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Show All Lines' })).toBeNull();
+  });
+
+  it('with a line filter and no items shows "No items in {Basketball} yet." and Show All Lines clears the filter', async () => {
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    galleryItemsBackend(demoGalleryItems().filter((item) => item.lineId === LINE_IDS.moto));
+    const user = userEvent.setup();
+    renderTab(`?line=${LINE_IDS.basketball}`, onUrlUpdate);
+
+    expect(await screen.findByText('No items in Basketball yet.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Show All Lines' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    });
+    expect(await screen.findByRole('table', { name: 'Gallery items' })).toBeVisible();
+  });
+
+  it('shows "Loading gallery items…" while the first page is read', async () => {
+    const gate = createDeferred<undefined>();
+    galleryItemsBackend(undefined, { onGet: () => gate.promise.then(() => undefined) });
+    renderTab();
+
+    expect(await screen.findByText('Loading gallery items…')).toBeVisible();
+    gate.resolve(undefined);
+    expect(await screen.findByRole('table', { name: 'Gallery items' })).toBeVisible();
+  });
+
+  it('shows "Couldn\'t load gallery items." with Try Again, and reads again on Try Again', async () => {
+    let failing = true;
+    const backend = galleryItemsBackend(undefined, { onGet: () => (failing ? problemAnswer(500) : undefined) });
+    const user = userEvent.setup();
+    renderTab();
+
+    expect(await screen.findByText("Couldn't load gallery items.")).toBeVisible();
+    failing = false;
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('table', { name: 'Gallery items' })).toBeVisible();
+    expect(backend.gets.length).toBeGreaterThan(1);
+  });
+
+  it('has no axe violations when empty, filtered to nothing, loading and failed', async () => {
+    galleryItemsBackend([]);
+    const empty = renderTab();
+    await screen.findByRole('heading', { name: 'No gallery photos yet' });
+    await expectNoAxeViolations(empty.container);
+    empty.unmount();
+
+    galleryItemsBackend(demoGalleryItems().filter((item) => item.lineId === LINE_IDS.moto));
+    const filtered = renderTab(`?line=${LINE_IDS.basketball}`);
+    await screen.findByText('No items in Basketball yet.');
+    await expectNoAxeViolations(filtered.container);
+    filtered.unmount();
+
+    galleryItemsBackend(undefined, { onGet: () => problemAnswer(500) });
+    const failed = renderTab();
+    await screen.findByText("Couldn't load gallery items.");
+    await expectNoAxeViolations(failed.container);
   });
 });
 
