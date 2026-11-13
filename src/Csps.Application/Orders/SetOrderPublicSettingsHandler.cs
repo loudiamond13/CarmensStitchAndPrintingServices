@@ -1,9 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
-using Csps.Domain.Auditing;
 using Csps.Domain.Common;
-using Csps.Domain.Content;
 using Csps.Domain.Orders;
 using FluentValidation;
 
@@ -19,10 +17,7 @@ namespace Csps.Application.Orders;
 /// </summary>
 /// <param name="orders">The order store.</param>
 /// <param name="reader">The order reader, for the answer.</param>
-/// <param name="lines">The product line store, for the display order and the filing of the product types.</param>
-/// <param name="gallery">The gallery entry store.</param>
-/// <param name="siteLock">The site-content lock.</param>
-/// <param name="audit">The audit trail.</param>
+/// <param name="publicWebsite">The writer that applies the settings, adds or removes the gallery entry and writes the audit entries.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="requestContext">The signed-in user.</param>
 /// <param name="time">The clock.</param>
@@ -30,10 +25,7 @@ namespace Csps.Application.Orders;
 public sealed class SetOrderPublicSettingsHandler(
     IOrders orders,
     IOrderReader reader,
-    IProductLines lines,
-    IGalleryEntries gallery,
-    ISiteContentLock siteLock,
-    IAuditTrail audit,
+    OrderPublicWebsiteWriter publicWebsite,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     TimeProvider time,
@@ -87,7 +79,7 @@ public sealed class SetOrderPublicSettingsHandler(
 
     private async Task<Result<bool>> AttemptAsync(Guid id, OrderPublicSettings values, byte[] version, Guid callerId, CancellationToken cancellationToken)
     {
-        await siteLock.TakeAsync(cancellationToken).ConfigureAwait(false);
+        await publicWebsite.LockAsync(cancellationToken).ConfigureAwait(false);
         var order = await orders.FindAsync(id, includeDeleted: false, cancellationToken).ConfigureAwait(false);
         if (order is null)
         {
@@ -99,15 +91,8 @@ public sealed class SetOrderPublicSettingsHandler(
             return Result.Failure<bool>(EditErrors.Stale);
         }
 
-        var listed = await lines.ListAsync(cancellationToken).ConfigureAwait(false);
-        if (values.ProductLineId is { } chosen && listed.All(row => row.Line.Id != chosen))
-        {
-            return OrderRules.Reject<bool>(OrderPublicSettings.LineField, OrderPublicSettings.LineRequiredMessage);
-        }
-
-        var autoLine = AutoLineOf(order, listed);
         var now = time.GetUtcNow();
-        var changes = order.SetPublicSettings(values, callerId, autoLine, now);
+        var changes = await publicWebsite.ApplyAsync(order, values, callerId, now, string.Empty, cancellationToken).ConfigureAwait(false);
         if (changes.IsFailure)
         {
             return Result.Failure<bool>(changes.Error);
@@ -118,58 +103,8 @@ public sealed class SetOrderPublicSettingsHandler(
             return Result.Success(false);
         }
 
-        await ApplyGalleryAsync(order, changes.Value, now, cancellationToken).ConfigureAwait(false);
-        RecordAudit(order, changes.Value);
+        await publicWebsite.RecordAsync(order, changes.Value, now, cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
-    }
-
-    // One entry for each thing that changed, in the change's own save. They name the order and never the customer (AUDIT-01).
-    private void RecordAudit(Order order, OrderPublicSettingsChanges changes)
-    {
-        var key = AuditKey.Of(order.Id);
-        if (changes.ConsentChange is { } consent)
-        {
-            audit.Record(consent ? AuditActions.OrderPublicConsentRecorded : AuditActions.OrderPublicConsentRemoved, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicSetting(order));
-        }
-
-        if (changes.ShownChange is { } shown)
-        {
-            audit.Record(shown ? AuditActions.OrderShownOnWebsite : AuditActions.OrderTakenOffWebsite, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicSetting(order));
-        }
-
-        if (changes.DetailFields.Count > 0)
-        {
-            audit.Record(AuditActions.OrderPublicDetailsChanged, OrderAuditDetail.OrderTarget, key, OrderAuditDetail.PublicDetailsChanged(order, changes));
-        }
-    }
-
-    private static Guid? AutoLineOf(Order order, IReadOnlyList<ProductLineListRow> listed)
-    {
-        var lineOfType = new Dictionary<Guid, Guid>();
-        foreach (var row in listed)
-        {
-            foreach (var typeId in row.ProductTypeIds)
-            {
-                lineOfType[typeId] = row.Line.Id;
-            }
-        }
-
-        var items = order.Items.Select(item => new PublicFilingItem(lineOfType.TryGetValue(item.ProductTypeId, out var line) ? line : null, item.Quantity));
-        return OrderPublicFiling.AutoLine(items, [.. listed.Select(row => row.Line.Id)]);
-    }
-
-    // A shown order joins the gallery at the top; an order taken off leaves it. The order's photos are never touched (D-15).
-    private async Task ApplyGalleryAsync(Order order, OrderPublicSettingsChanges changes, DateTimeOffset now, CancellationToken cancellationToken)
-    {
-        if (changes.ShownChange is true)
-        {
-            var position = await gallery.GetTopPositionAsync(cancellationToken).ConfigureAwait(false);
-            gallery.Add(GalleryEntry.ForOrder(order.Id, position, now));
-        }
-        else if (changes.ShownChange is false && await gallery.FindForOrderAsync(order.Id, cancellationToken).ConfigureAwait(false) is { } entry)
-        {
-            gallery.Remove(entry);
-        }
     }
 }

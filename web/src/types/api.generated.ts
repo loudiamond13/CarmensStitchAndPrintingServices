@@ -3272,6 +3272,7 @@ export interface components {
             orderDate: null | string;
             /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
             payments?: null | components["schemas"]["OrderPaymentRequest"][];
+            publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
             /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
             status: null | string;
             /** @description The team or club name. */
@@ -4656,6 +4657,23 @@ export interface components {
              * @description When the order was put on the website; null while it is not shown.
              */
             shownSinceUtc: null | string;
+        };
+        /**
+         * @description The optional `publicWebsite` block of the New Order and Edit Order forms (UI-SPEC F1, F2). Any other member in the block, such as a
+         *     forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock (D-11).
+         */
+        OrderPublicWebsiteFields: {
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /**
+             * Format: uuid
+             * @description The line to show the order under; null to use the auto line from the items.
+             */
+            productLineId: null | string;
+            /** @description The name shown instead of the team, at most 80 characters; null or empty to show the team. */
+            publicName: null | string;
+            /** @description True to show the order on the website; needs the customer's OK. */
+            showOnWebsite: boolean;
         };
         /** @description One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in. */
         OrderRefundResponse: {

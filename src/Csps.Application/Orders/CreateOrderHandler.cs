@@ -16,7 +16,9 @@ namespace Csps.Application.Orders;
 /// checked again by the domain before any lock is taken, so a refused order allocates no number. The number, the order, its first
 /// history row, the counter and one audit entry save in one transaction. The audit entry holds the number, status, dates, item
 /// count and total, never customer details or notes (D-31). Who recorded the order and when come from the token and the clock,
-/// never from the request (SEC-08).
+/// never from the request (SEC-08). When the form carries a public website block that sets something, the same transaction takes the
+/// site-content lock and applies it through <see cref="OrderPublicWebsiteWriter"/> (which calls <c>Order.SetPublicSettings</c>) before the number is taken, so a refused block
+/// allocates no number; the customer's OK and Show on the website then save with the order (UI-SPEC F1, D-11).
 /// </summary>
 public sealed class CreateOrderHandler(
     IOrders orders,
@@ -28,7 +30,8 @@ public sealed class CreateOrderHandler(
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
-    IValidator<CreateOrderRequest> validator)
+    IValidator<CreateOrderRequest> validator,
+    OrderPublicWebsiteWriter publicWebsite)
 {
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
@@ -62,18 +65,41 @@ public sealed class CreateOrderHandler(
         }
 
         var order = created.Value;
+        var block = request.PublicWebsite is { } set && !set.SetsNothing() ? set : null;
         try
         {
-            await unitOfWork.InTransactionAsync(
+            var outcome = await unitOfWork.InTransactionAsync(
                 async token =>
                 {
+                    OrderPublicSettingsChanges? publicChanges = null;
+                    if (block is not null)
+                    {
+                        await publicWebsite.LockAsync(token).ConfigureAwait(false);
+                        var applied = await publicWebsite.ApplyAsync(order, block.ToSettings(), callerId, clock.UtcNow, OrderPublicWebsiteFields.FieldPrefix, token).ConfigureAwait(false);
+                        if (applied.IsFailure)
+                        {
+                            return Result.Failure<Guid>(applied.Error);
+                        }
+
+                        publicChanges = applied.Value;
+                    }
+
                     order.AssignNumber(await numbers.NextAsync(clock.Year, clock.UtcNow, token).ConfigureAwait(false));
                     orders.Add(order);
                     audit.Record(AuditActions.OrderCreated, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Created(order));
+                    if (publicChanges is not null)
+                    {
+                        await publicWebsite.RecordAsync(order, publicChanges, clock.UtcNow, token).ConfigureAwait(false);
+                    }
+
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                    return order.Id;
+                    return Result.Success(order.Id);
                 },
                 cancellationToken).ConfigureAwait(false);
+            if (outcome.IsFailure)
+            {
+                return Result.Failure<OrderDetailResponse>(outcome.Error);
+            }
         }
         catch (OrderListEntryDeletedException deleted)
         {
@@ -81,6 +107,10 @@ public sealed class CreateOrderHandler(
             return Result.Failure<OrderDetailResponse>(await OrderReferenceChecks.DeletedErrorAsync(lists, staff, request, deleted.Kind, cancellationToken).ConfigureAwait(false));
         }
         catch (OrderNumberBusyException)
+        {
+            return Result.Failure<OrderDetailResponse>(OrderErrors.Busy);
+        }
+        catch (SiteContentBusyException)
         {
             return Result.Failure<OrderDetailResponse>(OrderErrors.Busy);
         }
