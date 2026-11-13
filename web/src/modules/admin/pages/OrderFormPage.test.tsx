@@ -1002,8 +1002,9 @@ describe('the Public website card on the Edit Order form (UI-SPEC F2; D-11, D-13
     useOrderHandlers();
     await openEditWithLines();
 
+    // The Summary aside follows the cards of the form column.
     const titles = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(titles).toEqual(['Customer details', 'Order details', 'Public website']);
+    expect(titles).toEqual(['Customer details', 'Order details', 'Public website', 'Summary']);
     expect(screen.getByText("Only with the customer's OK.")).toBeVisible();
     expect(screen.queryByText(/^Visitors see:/)).toBeNull();
   });

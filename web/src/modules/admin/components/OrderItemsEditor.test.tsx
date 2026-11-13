@@ -13,6 +13,7 @@ import {
   type CreateOrderFormValues,
   type OrderItemFormInput,
 } from '@/modules/admin/orderFormSchemas';
+import { blankPublicWebsite } from '@/modules/admin/publicWebsiteSchemas';
 import { useOrderHandlers } from '@/test/orderFixtures';
 
 // The item grid of the New Order form (UI-SPEC F1 card 4; plan 08-13): one blank row to start, Add and Remove with their focus
@@ -48,6 +49,7 @@ function Harness({ items }: { items: OrderItemFormInput[] }) {
       status: 'pending',
       notes: '',
       items,
+      ...blankPublicWebsite(),
     },
   });
   return (
