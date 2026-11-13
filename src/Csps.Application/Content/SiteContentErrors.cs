@@ -38,6 +38,21 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a photo slot that holds no photo.</summary>
     public static Error PhotoNotFound { get; } = Error.NotFound(PhotoNotFoundCode, PhotoNotFoundMessage);
 
+    /// <summary>The machine code of a gallery item that does not exist, or is not an upload where an upload is needed.</summary>
+    public const string GalleryItemNotFoundCode = "gallery-items.not-found";
+
+    /// <summary>The plain-English text for a gallery item that does not exist.</summary>
+    public const string GalleryItemNotFoundMessage = "This gallery item wasn't found.";
+
+    /// <summary>Gets the 404 for a gallery item that does not exist, or for an order item where an upload is needed.</summary>
+    public static Error GalleryItemNotFound { get; } = Error.NotFound(GalleryItemNotFoundCode, GalleryItemNotFoundMessage);
+
+    /// <summary>Gets the 400 for a gallery upload filed under a product line that does not exist, under <c>productLineId</c>.</summary>
+    public static Error GalleryLineUnknown { get; } = Error.Validation(
+        InvalidCode,
+        SiteSettings.InvalidMessage,
+        new Dictionary<string, string[]>(StringComparer.Ordinal) { ["productLineId"] = [GalleryEntry.LineRequiredMessage] });
+
     /// <summary>The machine code of a delete refused because something is filed under the product line.</summary>
     public const string LineInUseCode = "product-lines.in-use";
 

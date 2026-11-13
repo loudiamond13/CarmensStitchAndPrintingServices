@@ -2195,6 +2195,155 @@
         ],
         "type": "object"
       },
+      "GalleryItemListDto": {
+        "description": "One page of the Manager's gallery list.",
+        "properties": {
+          "page": {
+            "description": "The page number, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "rows": {
+            "description": "The rows of the page, in gallery order.",
+            "items": {
+              "$ref": "#/components/schemas/GalleryItemRowDto"
+            },
+            "type": "array"
+          },
+          "size": {
+            "description": "The page size.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many items match the filter over every page.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "size"
+        ],
+        "type": "object"
+      },
+      "GalleryItemRowDto": {
+        "description": "One gallery item as the Manager's Gallery tab reads it (GAL-03, D-10).",
+        "properties": {
+          "id": {
+            "description": "The gallery entry id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isShown": {
+            "description": "True while the item can show on the website; always true for an order item, which is listed while it is shown.",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "`order` or `upload`.",
+            "type": "string"
+          },
+          "lineHidden": {
+            "description": "True when the line is hidden, so the item is off the public site.",
+            "type": "boolean"
+          },
+          "lineId": {
+            "description": "The line the item is filed under; null when an order has none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineShortName": {
+            "description": "The line's short name; null when there is no line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "The name shown.",
+            "type": "string"
+          },
+          "note": {
+            "description": "The note of an upload; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderId": {
+            "description": "The order of an order item; null on an upload.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "The number of an order item; null on an upload.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pieces": {
+            "description": "The pieces; null for an upload that gives none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "thumb": {
+            "description": "The address of the small square photo; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit of an upload must send back; null on an order item.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "lineId",
+          "lineShortName",
+          "lineHidden",
+          "pieces",
+          "isShown",
+          "orderId",
+          "orderNumber",
+          "note",
+          "thumb",
+          "version"
+        ],
+        "type": "object"
+      },
       "IFormFile": {
         "format": "binary",
         "type": "string"
@@ -10354,6 +10503,241 @@
         "summary": "Retires a category, Managers only: it can no longer be chosen on a new expense but stays in the list and the list filter,\nmarked `retired`, and old expenses keep it. Others can never be retired. Retiring a retired category is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "ExpenseCategories"
+        ]
+      }
+    },
+    "/api/v1/gallery-items": {
+      "get": {
+        "operationId": "ListGalleryItems",
+        "parameters": [
+          {
+            "description": "A product line id; none means every line.",
+            "in": "query",
+            "name": "line",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemListDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the gallery in gallery order, one page at a time: every upload (shown or hidden) and every order that is shown. Each row\nhas its kind (`order` or `upload`), the name shown, the line and the short name of the line, whether the line is\nhidden (the item is then off the public site), the pieces, whether it is shown, the order id and number of an order item, the\nnote and the version of an upload, and a small photo address. A page past the last answers no rows and the real total.",
+        "tags": [
+          "GalleryItems"
+        ]
+      },
+      "post": {
+        "operationId": "CreateGalleryUpload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "properties": {
+                      "file": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "teamName": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "productLineId": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "pieces": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "isShown": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Adds a photo of older work to the Gallery as a multipart form with the file in the `file` part and the fields\n`teamName`, `productLineId`, `pieces` (optional), `note` (optional) and `isShown` as form parts. The type is read from\nthe first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can\nuse, is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The\nphoto is stored under a random id the client never chooses, in the entry's own content folder. The upload joins at the top of\nthe gallery. It is hidden unless `isShown` is `true`, and a line that is hidden keeps it off the public site. When photo\nstorage is not set up the answer is 503 `images.not-configured`. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more. Who added it and when come from the token and the clock. The change is\nrecorded in the audit log without the address, and the public pages show it at once.",
+        "tags": [
+          "GalleryItems"
         ]
       }
     },
@@ -20142,6 +20526,9 @@
     },
     {
       "name": "ExpenseCategories"
+    },
+    {
+      "name": "GalleryItems"
     },
     {
       "name": "Invite"

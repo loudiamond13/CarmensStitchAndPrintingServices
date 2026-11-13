@@ -1,4 +1,3 @@
-using System.Reflection;
 using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
@@ -203,7 +202,7 @@ public static class GallerySeeding
         }
     }
 
-    /// <summary>Writes one direct upload entry. The domain gets its own factory for it in a later plan; until then the entry is built through its private constructor.</summary>
+    /// <summary>Writes one direct upload entry through the domain's own factory.</summary>
     /// <param name="database">The test database.</param>
     /// <param name="spec">The upload.</param>
     /// <param name="now">The instant it is written at.</param>
@@ -212,30 +211,18 @@ public static class GallerySeeding
     {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(spec);
-        var entry = (GalleryEntry)Activator.CreateInstance(
-            typeof(GalleryEntry),
-            BindingFlags.Instance | BindingFlags.NonPublic,
-            binder: null,
-            [Guid.CreateVersion7(now), GalleryEntryKind.Upload, spec.Position, now],
-            culture: null)!;
+        var id = GalleryEntry.NewId(now);
+        var file = new LinePhotoFile($"csps/content/gallery/{id:D}/{Guid.NewGuid():N}", spec.Width, spec.Height, 1000, "jpg");
+        var values = new GalleryUploadValues(spec.Team, LineId(spec.LineKey), spec.Pieces, spec.Note, spec.Shown);
+        var created = GalleryEntry.CreateUpload(id, values, file, spec.Position, now);
+        Require(created.IsSuccess, "The seeded upload was refused.");
         var context = database.CreateContext();
         await using (context.ConfigureAwait(false))
         {
-            context.GalleryEntries.Add(entry);
-            var tracked = context.Entry(entry);
-            tracked.Property(row => row.PublicId).CurrentValue = $"csps/content/gallery/{Guid.NewGuid():N}";
-            tracked.Property(row => row.Width).CurrentValue = spec.Width;
-            tracked.Property(row => row.Height).CurrentValue = spec.Height;
-            tracked.Property(row => row.Bytes).CurrentValue = 1000;
-            tracked.Property(row => row.Format).CurrentValue = "jpg";
-            tracked.Property(row => row.TeamName).CurrentValue = spec.Team;
-            tracked.Property(row => row.ProductLineId).CurrentValue = LineId(spec.LineKey);
-            tracked.Property(row => row.Pieces).CurrentValue = spec.Pieces;
-            tracked.Property(row => row.Note).CurrentValue = spec.Note;
-            tracked.Property(row => row.IsShown).CurrentValue = spec.Shown;
+            context.GalleryEntries.Add(created.Value);
             await context.SaveChangesAsync().ConfigureAwait(false);
         }
 
-        return entry.Id;
+        return id;
     }
 }

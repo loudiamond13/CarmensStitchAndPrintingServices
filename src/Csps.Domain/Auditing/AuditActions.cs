@@ -201,6 +201,24 @@ public static class AuditActions
     /// <summary>A Manager deleted a testimonial.</summary>
     public const string TestimonialDeleted = "testimonial.deleted";
 
+    /// <summary>A Manager added a gallery photo for older work (GAL-03). The detail holds the team and the line title, never the address.</summary>
+    public const string GalleryPhotoAdded = "gallery-photo.added";
+
+    /// <summary>A Manager changed a gallery upload or replaced its photo. The detail names the changed fields and never copies the note.</summary>
+    public const string GalleryPhotoChanged = "gallery-photo.changed";
+
+    /// <summary>A Manager took a gallery upload off the website.</summary>
+    public const string GalleryPhotoHidden = "gallery-photo.hidden";
+
+    /// <summary>A Manager put a gallery upload on the website.</summary>
+    public const string GalleryPhotoShown = "gallery-photo.shown";
+
+    /// <summary>A Manager deleted a gallery upload.</summary>
+    public const string GalleryPhotoDeleted = "gallery-photo.deleted";
+
+    /// <summary>A Manager moved an item (an order or an upload) in the gallery order (GAL-03).</summary>
+    public const string GalleryItemMoved = "gallery-item.moved";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -622,5 +640,11 @@ public static class AuditActions
         OrderShownOnWebsite,
         OrderTakenOffWebsite,
         OrderPublicDetailsChanged,
+        GalleryPhotoAdded,
+        GalleryPhotoChanged,
+        GalleryPhotoHidden,
+        GalleryPhotoShown,
+        GalleryPhotoDeleted,
+        GalleryItemMoved,
     ];
 }
