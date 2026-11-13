@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-12T22:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T01:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -374,6 +374,46 @@ The staff gallery list accepts any page size from 1 to 100 (the shared list rule
 
 - **A (built, recommended):** keep 1 to 3 as built; do 4 at go-live.
 - **B:** change any of 1 to 3 as above.
+
+## P11-BL-41 · The link preview picture card in Business Info (plan 11-34, owner items OI-1 to OI-4)
+
+**Status:** open · **Blocks:** nothing. Built as option A for each.
+
+1. Removing a picture that is already gone counts as removed, as for product line photos (P11-BL-28).
+2. New screen reader names: "The link preview picture", and the empty box reads "No picture yet".
+3. Save Business Info is not held while a picture saves. In the rare race the "someone else changed this" banner shows and Load Latest recovers.
+4. The small preview box may load the 640 px image where 320 px would do (a little extra data on the admin page only).
+
+- **A (built, recommended):** keep all four.
+- **B:** change any of them.
+
+## P11-BL-42 · The page speed check now fails some runs (plan 11-36) · IMPORTANT
+
+**Status:** open · **Blocks:** a green CI run may need a re-run until decided. Built as option A.
+
+The speed check (Lighthouse) now scores four public pages, not one. Its performance score must be at least 0.95. That score includes page load time (LCP), which is about 2.1 to 2.6 s on every page on this machine against the 2.0 s target. /contact and /products scored 0.94 in some runs, so the check failed. No limit was loosened.
+
+- **A (built, recommended):** keep the check as it is and do the font follow-up (P11-BL-43) first; re-run CI if it fails until then.
+- **B:** apply the hard limits to Home only for now and just print the other three pages.
+- **C:** treat the performance score as report-only on all four pages (like LCP, D-29) until the font follow-up lands.
+
+## P11-BL-43 · Font subsetting follow-up (plan 11-36, applies D-124)
+
+**Status:** open · **Blocks:** nothing. Needs your yes on a tool.
+
+Every public page still loads in more than 2.0 s (LCP): Home about 2.35 s, Products 2.1 to 2.5 s, Gallery 2.3 s, Contact 2.1 to 2.6 s. Per D-124 the next step is a /gsd-quick that tries cutting the font files down to the characters the site uses. The look stays the same. It needs a font tool (for example fontTools, MIT license) with the usual package check and your yes before it is added.
+
+- **A (recommended):** run the follow-up quick task with the package check.
+- **B:** leave it; LCP stays report-only.
+
+## P11-BL-44 · Layout shift is close to its limit on two pages (plan 11-36)
+
+**Status:** open · **Blocks:** nothing.
+
+Layout shift (CLS) is 0.041 on /products and 0.043 on /contact against the 0.05 limit, the same in every run.
+
+- **A (recommended):** a small quick task to find and stop the shift.
+- **B:** leave it while it stays under the limit.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
