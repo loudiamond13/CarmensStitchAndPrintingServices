@@ -19110,6 +19110,61 @@
       }
     },
     "/api/v1/site-settings/share-picture": {
+      "delete": {
+        "operationId": "RemoveSharePicture",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages\ncarry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;\nnothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.",
+        "tags": [
+          "SharePicture"
+        ]
+      },
       "post": {
         "operationId": "UploadSharePicture",
         "requestBody": {

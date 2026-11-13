@@ -16,12 +16,13 @@ namespace Csps.Server.Controllers;
 /// and are held in memory, never on disk. Never cached.
 /// </summary>
 /// <param name="upload">The upload handler.</param>
+/// <param name="remove">The remove handler.</param>
 [ApiController]
 [Route("api/v1/site-settings/share-picture")]
 [Authorize(Policy = Policies.Manager)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class SharePictureController(UploadSharePictureHandler upload) : ControllerBase
+public sealed class SharePictureController(UploadSharePictureHandler upload, RemoveSharePictureHandler remove) : ControllerBase
 {
     /// <summary>
     /// Sets the default link preview picture as a multipart form with the file in the <c>file</c> part. The type is read from the first
@@ -60,5 +61,25 @@ public sealed class SharePictureController(UploadSharePictureHandler upload) : C
         var request = new UploadSharePictureRequest(buffer.GetBuffer().AsMemory(0, (int)buffer.Length), file?.FileName);
         var result = await upload.HandleAsync(request, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static picture => TypedResults.Ok(picture));
+    }
+
+    /// <summary>
+    /// Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
+    /// carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+    /// nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>204, 401 without a valid token, 403 for an Admin, 404 when no picture is set, or 409 when two saves lost a race twice.</returns>
+    [HttpDelete]
+    [EndpointName("RemoveSharePicture")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> RemoveSharePicture(CancellationToken cancellationToken)
+    {
+        var result = await remove.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

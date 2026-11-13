@@ -234,11 +234,11 @@ internal sealed partial class ShellRenderer(
             var lines = await ReadLinesAsync(context).ConfigureAwait(false);
             if (lines is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
             }
 
             linesJson = lines.Json.Json;
-            shareImage = AbsoluteAddress(origin, lines.ShareImageUrl);
+            shareImage = AbsoluteAddress(origin, lines.ShareImageUrl) ?? siteImage;
         }
         else if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Gallery)
         {
@@ -246,17 +246,17 @@ internal sealed partial class ShellRenderer(
             var gallery = await ReadGalleryAsync(context).ConfigureAwait(false);
             if (gallery is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: null, homeJson: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
             }
 
-            shareImage = AbsoluteAddress(origin, gallery.ShareImageUrl);
+            shareImage = AbsoluteAddress(origin, gallery.ShareImageUrl) ?? siteImage;
         }
         else if (match.Kind == PublicRouteKind.Page && match.Page == PublicPage.Home)
         {
             var home = await ReadHomeAsync(context).ConfigureAwait(false);
             if (home is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
             }
 
             homeJson = home.Json.Json;
@@ -271,8 +271,8 @@ internal sealed partial class ShellRenderer(
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
         return await cache.GetOrCreateAsync(
             key,
-            (snapshot, match, origin, linesJson, shareImage, homeJson),
-            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage, state.homeJson)),
+            (snapshot, match, origin, linesJson, shareImage, homeJson, siteImage),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage, state.homeJson, state.siteImage)),
             HeadCacheOptions,
             Tags,
             context.RequestAborted).ConfigureAwait(false);
@@ -282,7 +282,7 @@ internal sealed partial class ShellRenderer(
     private static string? AbsoluteAddress(string origin, string? address) =>
         address is { Length: > 0 } && address[0] == '/' ? origin + address : address;
 
-    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage, string? homeJson)
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage, string? homeJson, string? siteImage)
     {
         var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson, homeJson);
         if (match.Kind == PublicRouteKind.NotFound)
@@ -301,7 +301,7 @@ internal sealed partial class ShellRenderer(
                 origin + match.CanonicalPath,
                 site.BusinessName,
                 NoIndex: false,
-                JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin),
+                JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin, siteImage),
                 BootJson: boot,
                 ShareImageUrl: shareImage));
         return head.ToString();

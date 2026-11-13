@@ -128,8 +128,9 @@ internal static class PublicHeadWriter
     /// <param name="site">The public site facts.</param>
     /// <param name="closures">The closures to list as closed days, by first day: the ones that touch the next 60 days.</param>
     /// <param name="origin">The site's own address, from <c>App:PublicBaseUrl</c>, without a trailing slash.</param>
+    /// <param name="image">The absolute address of the default link preview picture, written as the business <c>image</c>; left out when null.</param>
     /// <returns>The JSON text, safe inside a script block.</returns>
-    public static string LocalBusinessJsonLd(PublicSiteDto site, IReadOnlyList<ClosureSpan> closures, string origin)
+    public static string LocalBusinessJsonLd(PublicSiteDto site, IReadOnlyList<ClosureSpan> closures, string origin, string? image = null)
     {
         ArgumentNullException.ThrowIfNull(site);
         ArgumentNullException.ThrowIfNull(closures);
@@ -143,6 +144,7 @@ internal static class PublicHeadWriter
             site.BusinessName,
             site.AboutText ?? site.Tagline,
             origin,
+            image,
             main?.E164,
             AddressModel.From(site.Address),
             HoursModel.From(site.Hours),
@@ -204,6 +206,7 @@ internal static class PublicHeadWriter
         string Name,
         string Description,
         string Url,
+        string? Image,
         string? Telephone,
         AddressModel? Address,
         IReadOnlyList<HoursModel>? OpeningHoursSpecification,

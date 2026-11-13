@@ -38,6 +38,15 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a photo slot that holds no photo.</summary>
     public static Error PhotoNotFound { get; } = Error.NotFound(PhotoNotFoundCode, PhotoNotFoundMessage);
 
+    /// <summary>The machine code of a link preview picture removal when no picture is set.</summary>
+    public const string SharePictureNotFoundCode = "site-settings.share-picture-not-found";
+
+    /// <summary>The plain-English text for a link preview picture removal when no picture is set.</summary>
+    public const string SharePictureNotFoundMessage = "There's no link preview picture to remove.";
+
+    /// <summary>Gets the 404 for a link preview picture removal when no picture is set.</summary>
+    public static Error SharePictureNotFound { get; } = Error.NotFound(SharePictureNotFoundCode, SharePictureNotFoundMessage);
+
     /// <summary>The machine code of a gallery item that does not exist, or is not an upload where an upload is needed.</summary>
     public const string GalleryItemNotFoundCode = "gallery-items.not-found";
 

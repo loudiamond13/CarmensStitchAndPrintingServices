@@ -3,6 +3,7 @@ using Csps.Application.Content;
 using Csps.Application.Images;
 using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
+using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Testing.Images;
 using NSubstitute;
@@ -90,6 +91,9 @@ public sealed class UploadSharePictureHandlerTests
         (harness.Settings.SharePictureWidth, harness.Settings.SharePictureHeight, harness.Settings.SharePictureFormat).ShouldBe((1200, 630, "jpg"));
         harness.Queue.Calls.ShouldBeEmpty();
         harness.Unit.Commits.ShouldBe(1);
+        var entry = harness.Audit.Entries.ShouldHaveSingleItem();
+        (entry.Action, entry.TargetType, entry.TargetId, entry.Detail).ShouldBe((AuditActions.SharePictureChanged, "SiteSettings", "1", "change=added"));
+        entry.Detail!.ShouldNotContain(storedId);
     }
 
     [Fact]
@@ -108,6 +112,7 @@ public sealed class UploadSharePictureHandlerTests
         harness.Settings.SharePicturePublicId.ShouldBe(storedId);
         harness.Queue.Calls.ShouldBe([(OldId, ImageDeletionReason.PhotoReplaced, false)]);
         queuedInsideTransaction.ShouldBeTrue();
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("change=replaced");
     }
 
     [Fact]
@@ -136,6 +141,7 @@ public sealed class UploadSharePictureHandlerTests
 
         result.Error.ShouldBe(ImageErrors.StorageFailed);
         harness.Queue.Calls.Count.ShouldBe(queued);
+        harness.Audit.Entries.ShouldBeEmpty();
     }
 
     [Fact]
@@ -244,7 +250,7 @@ public sealed class UploadSharePictureHandlerTests
             SiteLock.TakeAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
             var delivery = Substitute.For<IImageDelivery>();
             delivery.ForSharePreview(Arg.Any<string>()).Returns(new SharePreviewUrls("https://images.example.test/320", "https://images.example.test/640"));
-            Handler = new UploadSharePictureHandler(Store, SiteLock, Unit, Context, Storage, Queue, delivery, new ImageUploadSettings());
+            Handler = new UploadSharePictureHandler(Store, SiteLock, Audit, Unit, Context, Storage, Queue, delivery, new ImageUploadSettings());
         }
 
         public SiteSettings Settings { get; private set; } = null!;
@@ -260,6 +266,8 @@ public sealed class UploadSharePictureHandlerTests
         public ISiteContentLock SiteLock { get; }
 
         public FakeUnitOfWork Unit { get; } = new();
+
+        public RecordingAudit Audit { get; } = new();
 
         public RecordingQueue Queue { get; } = new();
 

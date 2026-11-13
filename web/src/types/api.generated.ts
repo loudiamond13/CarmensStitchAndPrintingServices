@@ -2271,7 +2271,12 @@ export interface paths {
          *     picture at once.
          */
         post: operations["UploadSharePicture"];
-        delete?: never;
+        /**
+         * Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
+         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+         *     nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
+         */
+        delete: operations["RemoveSharePicture"];
         options?: never;
         head?: never;
         patch?: never;
@@ -13785,6 +13790,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    RemoveSharePicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

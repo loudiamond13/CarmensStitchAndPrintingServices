@@ -1,7 +1,9 @@
+using System.Globalization;
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Images;
 using Csps.Application.Ports;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 
@@ -14,12 +16,14 @@ namespace Csps.Application.Content;
 /// done), and only then is it sent to the storage under a new random id in the share folder of the content area, never the orders
 /// folder. Every picture gets a new id, because Facebook keeps pictures by their address and would keep showing an old one. The settings
 /// row is saved in one transaction under the site-content lock, and the file the row named before is queued for removal in the same
-/// save. When the row cannot be saved after the file reached storage, the new file is queued for removal as <c>UploadUndone</c> on its
-/// own short context (JOB-02). The client file name and content type never shape the stored id. The public cache is cleared after the
-/// commit by the data layer, so the next page head carries the new address.
+/// save, and so is one <c>site-settings.share-picture-changed</c> audit entry that names the change and never the address. When the row
+/// cannot be saved after the file reached storage, the new file is queued for removal as <c>UploadUndone</c> on its own short context
+/// (JOB-02). The client file name and content type never shape the stored id. The public cache is cleared after the commit by the data
+/// layer, so the next page head carries the new address.
 /// </summary>
 /// <param name="store">The business info store.</param>
 /// <param name="siteLock">The site-content lock.</param>
+/// <param name="audit">The audit trail.</param>
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="requestContext">The signed-in user of the request.</param>
 /// <param name="storage">The image storage.</param>
@@ -29,6 +33,7 @@ namespace Csps.Application.Content;
 public sealed class UploadSharePictureHandler(
     ISiteContentStore store,
     ISiteContentLock siteLock,
+    IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IImageStorage storage,
@@ -137,11 +142,18 @@ public sealed class UploadSharePictureHandler(
         var current = await store.GetSettingsForUpdateAsync(cancellationToken).ConfigureAwait(false);
 
         // The old file leaves the storage with the next cleanup run, and only if this save goes through.
+        string change;
         if (current.Settings.SetSharePicture(file) is { } old)
         {
             imageDeletions.Enqueue(old, ImageDeletionReason.PhotoReplaced);
+            change = SiteSettingsAuditDetail.SharePictureReplaced;
+        }
+        else
+        {
+            change = SiteSettingsAuditDetail.SharePictureAdded;
         }
 
+        audit.Record(AuditActions.SharePictureChanged, SiteSettingsAuditDetail.TargetType, SiteSettings.SingletonId.ToString(CultureInfo.InvariantCulture), SiteSettingsAuditDetail.SharePictureChanged(change));
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }
