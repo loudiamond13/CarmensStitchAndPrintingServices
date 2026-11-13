@@ -279,6 +279,39 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task APostStoresATinyPhotoFileForEveryDemoPhotoAndTheSharePictureSoTheirAddressesAnswer200()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var seed = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        using var read = await client.GetAsync(new Uri("/api/v1/public/gallery", UriKind.Relative), TestContext.Current.CancellationToken);
+        var home = await client.GetStringAsync(new Uri("/", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var addresses = document.RootElement.GetProperty("items").EnumerateArray()
+            .SelectMany(item => item.GetProperty("photos").EnumerateArray())
+            .SelectMany(photo => new[] { photo.GetProperty("src").GetString(), photo.GetProperty("thumbSrc").GetString() })
+            .ToList();
+        addresses.Count.ShouldBe(20);
+        const string ShareMarker = "<meta property=\"og:image\" content=\"";
+        var shareStart = home.IndexOf(ShareMarker, StringComparison.Ordinal);
+        shareStart.ShouldBeGreaterThanOrEqualTo(0);
+        shareStart += ShareMarker.Length;
+        addresses.Add(home[shareStart..home.IndexOf('"', shareStart)]);
+        foreach (var address in addresses)
+        {
+            var uri = new Uri(address!, UriKind.RelativeOrAbsolute);
+            using var photo = await client.GetAsync(new Uri(uri.IsAbsoluteUri ? uri.PathAndQuery : address!, UriKind.Relative), TestContext.Current.CancellationToken);
+            photo.StatusCode.ShouldBe(HttpStatusCode.OK, address);
+            photo.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("image/png");
+            (await photo.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length.ShouldBeGreaterThan(0);
+        }
+    }
+
+    [Fact]
     public async Task APostRemovesTheUploadsNamedWithTheE2EPrefixAndRunningItTwiceLeavesTheSameTwoDemoUploads()
     {
         Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
