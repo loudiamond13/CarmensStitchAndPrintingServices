@@ -149,3 +149,55 @@ test('@site-content-gallery the line filter and the page size live in the URL, a
     }
   });
 });
+
+test('@site-content-gallery a Manager moves E2E-Riders below a shown order, hides it so it leaves /gallery, then deletes it', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  guard.expectStatus('/api/testing/images/', 404);
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await withSiteContentLock(async () => {
+    try {
+      await seedDemoSiteContent(request);
+      await openGalleryTab(page);
+      const table = page.getByRole('table', { name: 'Gallery items' });
+      await addE2ePhoto(page);
+      await expect(table.locator('tbody tr')).toHaveCount(7);
+      await expect(table.locator('tbody tr').first()).toContainText(E2E_TEAM);
+      // The first row has no Move up; every order item has no Edit, Hide or Delete (an order is taken off the website from its order).
+      await expect(page.getByRole('button', { name: `Move ${E2E_TEAM} up` })).toHaveAttribute('aria-disabled', 'true');
+      const orderRow = table.locator('tbody tr', { has: page.getByRole('link', { name: /^ORD-/ }) }).first();
+      await expect(orderRow.getByRole('link', { name: /^Change .* on order ORD-/ })).toBeVisible();
+      await expect(orderRow.getByRole('button', { name: /^(Edit|Hide|Show|Delete) / })).toHaveCount(0);
+
+      // Move it down one place: below the next item, and /gallery shows the new order.
+      await press(page, page.getByRole('button', { name: `Move ${E2E_TEAM} down` }));
+      await expect(page.getByText(`${E2E_TEAM} moved to place 2 of 7.`)).toBeAttached({ timeout: SAVE_WAIT_MS });
+      await expect(table.locator('tbody tr').nth(1)).toContainText(E2E_TEAM);
+      await expect(page.getByRole('button', { name: `Move ${E2E_TEAM} down` })).toBeFocused();
+      expect((await publicGalleryTeams(request)).indexOf(E2E_TEAM)).toBe(1);
+
+      // Hide it: it stays in the list as Hidden and leaves the public Gallery.
+      await press(page, page.getByRole('button', { name: `Hide ${E2E_TEAM}` }));
+      await expect(page.getByText('Photo hidden')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(page.getByText("It's off the Gallery. Nothing is deleted.")).toBeVisible();
+      await expect(table.locator('tbody tr').nth(1)).toContainText('Hidden');
+      await expect(page.getByRole('button', { name: `Show ${E2E_TEAM}` })).toBeFocused();
+      expect(await publicGalleryTeams(request)).not.toContain(E2E_TEAM);
+
+      // Delete it: the question names it, Cancel has focus, and the row goes.
+      await press(page, page.getByRole('button', { name: `Delete ${E2E_TEAM}` }));
+      const question = page.getByRole('dialog', { name: 'Delete this photo?' });
+      await expect(question.getByText(`${E2E_TEAM}. It's removed from the Gallery for good.`)).toBeVisible();
+      await expect(question.getByRole('button', { name: 'Cancel' })).toBeFocused();
+      await press(page, question.getByRole('button', { name: 'Delete Photo' }));
+      await expect(page.getByText('Photo deleted')).toBeVisible({ timeout: SAVE_WAIT_MS });
+      await expect(table.locator('tbody tr')).toHaveCount(6);
+      expect(await publicGalleryTeams(request)).not.toContain(E2E_TEAM);
+    } finally {
+      await seedDemoSiteContent(request);
+    }
+  });
+});
