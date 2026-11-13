@@ -9,6 +9,7 @@ import {
   LIGHTHOUSE_PAGES,
   LIGHTHOUSE_URL,
   LIGHTHOUSE_URLS,
+  lighthouseExitStatus,
   ORIGIN,
   PAGE_PAUSE_MS,
   planSteps,
@@ -229,5 +230,26 @@ describe('executeSteps for four pages (lighthouse.mjs)', () => {
       `run lighthouse ${ORIGIN}/gallery`,
       'stop host',
     ]);
+  });
+});
+
+// On Windows, chrome-launcher deletes Chrome's temp profile after Lighthouse has saved the report, and that delete can fail
+// with EPERM (Chrome still holds a file), which exits 1 with a complete report on disk. The saved report is the real result.
+describe('lighthouseExitStatus (lighthouse.mjs)', () => {
+  it('keeps a clean exit', () => {
+    expect(lighthouseExitStatus(0, null)).toBe(0);
+  });
+
+  it.each([1, 2])('accepts exit %s when the report was saved complete', (status) => {
+    expect(lighthouseExitStatus(status, report())).toBe(0);
+  });
+
+  it.each([
+    ['no report file', null],
+    ['an empty report', {}],
+    ['a report with no audits', { audits: {} }],
+    ['a report with a runtime error', { ...(report() as object), runtimeError: { code: 'NO_NAVSTART' } }],
+  ])('keeps the failing exit when there is %s', (_name, saved) => {
+    expect(lighthouseExitStatus(1, saved)).toBe(1);
   });
 });

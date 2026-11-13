@@ -33,6 +33,16 @@ export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', im
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
 /**
+ * The exit status of one Lighthouse run. Stub for the RED step: returns the status unchanged.
+ * @param {number} status
+ * @param {unknown} _report
+ * @returns {number}
+ */
+export function lighthouseExitStatus(status, _report) {
+  return status;
+}
+
+/**
  * The pause before every page after the first. Lighthouse reports NO_NAVSTART ("run Lighthouse again") when a second Chrome
  * starts within a few seconds of the first one closing; 20 seconds always worked, 4 never did.
  */
