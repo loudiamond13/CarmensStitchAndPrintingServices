@@ -191,6 +191,18 @@ describe('HoursCard: closures (CONT-04, D-21)', () => {
     await screen.findByText('Open now');
   });
 
+  it('lists two closures with the same dates and note as two rows, with no duplicate key', async () => {
+    answerOpenStatus(openStatusAt0900);
+    const same = { firstDay: '2026-12-25', lastDay: '2026-12-25', note: 'Christmas' };
+    renderFor({ ...demoSite, upcomingClosures: [same, same] });
+
+    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Dec 25, 2026 · Christmas',
+      'Dec 25, 2026 · Christmas',
+    ]);
+    await screen.findByText('Open now');
+  });
+
   it('shows no "Closed on" block when no closure is coming', async () => {
     answerOpenStatus(openStatusAt0900);
     renderCard();

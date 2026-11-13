@@ -59,9 +59,9 @@ export function TestimonialRow({ testimonials }: TestimonialRowProps) {
           // eslint-disable-next-line jsx-a11y-x/no-noninteractive-tabindex -- a sideways-scrolling region must take keyboard focus (WCAG 2.1.1)
           tabIndex={phone ? 0 : undefined}
         >
-          {testimonials.slice(0, SHOWN).map((testimonial) => (
+          {testimonials.slice(0, SHOWN).map((testimonial, index) => (
             <TestimonialCard
-              key={`${testimonial.name}|${testimonial.quote}`}
+              key={`${String(index)}|${testimonial.name}|${testimonial.quote}`}
               quote={testimonial.quote}
               name={testimonial.name}
               team={testimonial.teamOrRole ?? ''}
