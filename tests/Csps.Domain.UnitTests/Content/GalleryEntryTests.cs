@@ -66,6 +66,32 @@ public sealed class GalleryEntryTests
         GalleryEntry.Check(Valid with { TeamName = $" {new string('a', 81)} " })["teamName"].ShouldBe(["Keep this to 80 characters or fewer."]);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(9999)]
+    public void PiecesFromOneToNineThousandNineHundredNinetyNineAreFine(int pieces)
+    {
+        GalleryEntry.Check(Valid with { Pieces = pieces }).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(10000)]
+    [InlineData(2.5)]
+    public void PiecesOutsideTheRangeOrFractionalAreRefused(double pieces)
+    {
+        GalleryEntry.Check(Valid with { Pieces = (decimal)pieces })["pieces"].ShouldBe(["Enter a whole number from 1 to 9,999."]);
+    }
+
+    [Fact]
+    public void ANoteOfOneHundredTwentyCharactersIsFineAndOneHundredTwentyOneIsTooLong()
+    {
+        GalleryEntry.Check(Valid with { Note = new string('n', 120) }).ShouldBeEmpty();
+        GalleryEntry.Check(Valid with { Note = $" {new string('n', 121)} " })["note"].ShouldBe(["Keep the note to 120 characters or fewer."]);
+        GalleryEntry.Check(Valid with { Note = null }).ShouldBeEmpty();
+    }
+
     [Fact]
     public void ALineIsRequired()
     {

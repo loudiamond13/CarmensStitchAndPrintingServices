@@ -60,6 +60,38 @@ public sealed class GalleryUploadRequestValidatorTests
         Errors(Valid with { ProductLineId = null })["productLineId"].ShouldBe(["Choose the product line."]);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(9999)]
+    public void PiecesFromOneToNineThousandNineHundredNinetyNineAreFine(int pieces)
+    {
+        Errors(Valid with { Pieces = pieces }).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(10000)]
+    [InlineData(2.5)]
+    public void PiecesOutsideOneToNineThousandNineHundredNinetyNineOrFractionalAreRefused(double pieces)
+    {
+        Errors(Valid with { Pieces = (decimal)pieces })["pieces"].ShouldBe(["Enter a whole number from 1 to 9,999."]);
+    }
+
+    [Fact]
+    public void PiecesAreOptional()
+    {
+        Errors(Valid with { Pieces = null }).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void ANoteIsOptionalAndAtMostOneHundredTwentyCharacters()
+    {
+        Errors(Valid with { Note = null }).ShouldBeEmpty();
+        Errors(Valid with { Note = new string('n', 120) }).ShouldBeEmpty();
+        Errors(Valid with { Note = $" {new string('n', 121)} " })["note"].ShouldBe(["Keep the note to 120 characters or fewer."]);
+    }
+
     [Fact]
     public void AnEditNeedsAVersion()
     {

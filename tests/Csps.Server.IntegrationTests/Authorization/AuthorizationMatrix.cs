@@ -119,6 +119,11 @@ public static class AuthorizationMatrix
         // Gallery items (GAL-03, D-10): Managers only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 on the upload.
         new("GET", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 200),
         new("POST", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/gallery-items/{id:guid}", "/api/v1/gallery-items/5d8a1f36-7e02-4c94-b3a7-0f6c2e9d4b18", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/gallery-items/{id:guid}/photo", "/api/v1/gallery-items/a2c6e094-3b71-4d58-8f1e-9d0b5a7c3e62/photo", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/gallery-items/{id:guid}/hide", "/api/v1/gallery-items/c9f3b715-2a80-4e64-b1d9-6e4a8c0f5d37/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/gallery-items/{id:guid}/show", "/api/v1/gallery-items/17e5d9a3-b406-4f82-9c1b-3a8f6d2e0b54/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/gallery-items/{id:guid}", "/api/v1/gallery-items/e84b0c27-6d91-4a53-b7f2-1c5d9e3a8f06", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).

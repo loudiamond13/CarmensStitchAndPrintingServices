@@ -62,6 +62,25 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
     }
 
     [Fact]
+    public async Task AGalleryUploadPhotoIsKnownAndNamedByAPhotoSoTheSweepKeepsIt()
+    {
+        await SeedAsync();
+        var entryId = GalleryEntry.NewId(Now);
+        var galleryPhoto = $"csps-test/content/gallery/{entryId:D}/gallerygallerygallerygall2";
+        await using var context = database.CreateContext();
+        var entry = GalleryEntry.CreateUpload(entryId, new GalleryUploadValues("Tondo Sample Riders", LineId, 12m, null, true), new LinePhotoFile(galleryPhoto, 800, 600, 50_000, "jpg"), 0, Now).Value;
+        context.GalleryEntries.Add(entry);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var inventory = new ImageInventory(context);
+
+        var known = await inventory.KnownAsync([galleryPhoto, LivePhoto, Unknown], TestContext.Current.CancellationToken);
+        var named = await inventory.NamedByPhotosAsync([galleryPhoto, Unknown, QueuedOnly], TestContext.Current.CancellationToken);
+
+        known.OrderBy(id => id, StringComparer.Ordinal).ShouldBe([galleryPhoto, LivePhoto]);
+        named.ShouldBe([galleryPhoto]);
+    }
+
+    [Fact]
     public async Task AReplacedLinePhotosOldIdIsKnownOnlyWhileItsQueueRowIsHeldAndNeverNamedByAPhoto()
     {
         await SeedAsync();

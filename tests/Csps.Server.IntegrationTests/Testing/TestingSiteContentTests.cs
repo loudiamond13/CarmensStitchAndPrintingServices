@@ -215,7 +215,7 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task APostLeavesTheFourDemoShownOrdersAndTheOneNotShownEvenWhenRunTwiceAndTheGalleryListsTheFour()
+    public async Task APostLeavesTheFourDemoShownOrdersTheOneNotShownAndTheTwoDemoUploadsEvenWhenRunTwiceAndTheGalleryListsTheSix()
     {
         Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -233,15 +233,48 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
             demo.Count.ShouldBe(5);
             demo.Count(order => order.ShownOnWebsiteSinceUtc != null).ShouldBe(4);
             demo.Where(order => order.ShownOnWebsiteSinceUtc == null).ShouldHaveSingleItem().PublicConsentAtUtc.ShouldNotBeNull();
-            (await context.GalleryEntries.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(4);
+            (await context.GalleryEntries.AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(6);
+            var uploads = await context.GalleryEntries.AsNoTracking().Where(entry => entry.Kind == GalleryEntryKind.Upload).OrderBy(entry => entry.Position).ToListAsync(TestContext.Current.CancellationToken);
+            uploads.Select(entry => entry.TeamName).ShouldBe(["Sample Old Hoopers", "Sample Barangay Riders"]);
+            uploads.Select(entry => entry.Pieces).ShouldBe([14, null]);
+            uploads.Select(entry => entry.Note).ShouldBe(["Dri-fit mesh, V-neck", null]);
+            uploads.ShouldAllBe(entry => entry.IsShown);
         }
 
         using var document = JsonDocument.Parse(await read.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var items = document.RootElement.GetProperty("items").EnumerateArray().ToList();
-        items.Select(item => item.GetProperty("team").GetString()).ShouldBe(["Brgy. Sample Ballers", "Sample City Spikers", "Sample Riders MC", "Tondo Sample Hoopers"]);
-        items.Select(item => item.GetProperty("lineKey").GetString()).ShouldBe(["basketball", "volleyball", "moto", "basketball"]);
-        items.Select(item => item.GetProperty("photos").GetArrayLength()).ShouldBe([4, 1, 2, 1]);
-        document.RootElement.GetProperty("pills").EnumerateArray().Select(pill => pill.GetProperty("count").GetInt32()).ShouldBe([2, 1, 1]);
+        items.Select(item => item.GetProperty("team").GetString()).ShouldBe(["Brgy. Sample Ballers", "Sample City Spikers", "Sample Riders MC", "Tondo Sample Hoopers", "Sample Old Hoopers", "Sample Barangay Riders"]);
+        items.Select(item => item.GetProperty("lineKey").GetString()).ShouldBe(["basketball", "volleyball", "moto", "basketball", "basketball", "moto"]);
+        items.Select(item => item.GetProperty("photos").GetArrayLength()).ShouldBe([4, 1, 2, 1, 1, 1]);
+        document.RootElement.GetProperty("pills").EnumerateArray().Select(pill => pill.GetProperty("count").GetInt32()).ShouldBe([3, 1, 2]);
+    }
+
+    [Fact]
+    public async Task APostRemovesTheUploadsNamedWithTheE2EPrefixAndRunningItTwiceLeavesTheSameTwoDemoUploads()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
+        await GallerySeeding.AddUploadAsync(database, new SeedGalleryUpload("E2E-Upload", "moto") { Position = 50 }, new DateTimeOffset(2026, 11, 12, 8, 0, 0, TimeSpan.Zero));
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var first = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        var once = await UploadFactsAsync();
+        using var second = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+        var twice = await UploadFactsAsync();
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        once.ShouldBe(["Sample Old Hoopers|14|Dri-fit mesh, V-neck|True", "Sample Barangay Riders|||True"]);
+        twice.ShouldBe(once);
+    }
+
+    private async Task<List<string>> UploadFactsAsync()
+    {
+        await using var context = database.CreateContext();
+        var rows = await context.GalleryEntries.AsNoTracking().Where(entry => entry.Kind == GalleryEntryKind.Upload).OrderBy(entry => entry.Position).ThenBy(entry => entry.Id).ToListAsync(TestContext.Current.CancellationToken);
+        return [.. rows.Select(row => $"{row.TeamName}|{row.Pieces}|{row.Note}|{row.IsShown}")];
     }
 
     private async Task<List<string>> TestimonialFactsAsync()
