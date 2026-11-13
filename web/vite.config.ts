@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { PUBLIC_PRELOAD_ROUTE } from './scripts/budget.ts';
 import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
 import { brotliPlugin } from './scripts/vite-brotli-plugin.ts';
-import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
+import { barlowNoPesoPlugin, preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
@@ -66,6 +66,9 @@ export default defineConfig(({ mode }) => {
       // SPEC-DEVIATION: PERF-05 woff2 only. The Fontsource weight files list a .woff fallback after each woff2; it
       // is dropped before the CSS pipeline, so the web root ships woff2 files only (research Pattern 14).
       woff2OnlyPlugin(),
+      // D-28 (plan 11-36): Barlow Condensed has no peso sign, so a peso in display text no longer downloads its latin-ext
+      // files; the peso is drawn by Archivo Variable as before, so the look is unchanged.
+      barlowNoPesoPlugin(),
       // SPEC-DEVIATION: PERF-05 preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2 (the
       // LCP font), and the build fails if that file is missing or matched twice (research Pattern 14).
       preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
