@@ -174,3 +174,133 @@ test('@gallery-lightbox pressing the third tile opens the viewer on it, Next wra
     await expect(viewer).toBeHidden();
   });
 });
+
+const LONG_TEAM = 'Barangay Sampaguita Elementary School Varsity Basketball Team of Sample City';
+
+test('@gallery-lightbox the 56px buttons move between items on a desktop and the tap zones on a phone', async ({
+  page,
+  request,
+  guard,
+  isMobile,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    const shownNames = isMobile ? ['Previous photo', 'Next photo'] : ['Previous image', 'Next image'];
+    const hiddenNames = isMobile ? ['Previous image', 'Next image'] : ['Previous photo', 'Next photo'];
+    for (const name of hiddenNames) {
+      await expect(viewer.getByRole('button', { name })).toBeHidden();
+    }
+    const previous = viewer.getByRole('button', { name: shownNames[0] });
+    const next = viewer.getByRole('button', { name: shownNames[1] });
+    await expect(previous).toBeVisible();
+    await expect(next).toBeVisible();
+
+    if (isMobile) {
+      // The tap zones are the left and right thirds of the photo box, as tall as the box.
+      const frame = await viewer.locator('[data-lightbox-frame]').boundingBox();
+      const zone = await next.boundingBox();
+      expect(frame).not.toBeNull();
+      expect(zone).not.toBeNull();
+      expect(Math.abs((zone?.width ?? 0) - (frame?.width ?? 0) / 3)).toBeLessThan(2);
+      expect(Math.abs((zone?.height ?? 0) - (frame?.height ?? 0))).toBeLessThan(2);
+      await next.tap();
+    } else {
+      const size = await next.boundingBox();
+      expect(Math.round(size?.width ?? 0)).toBe(56);
+      await next.click();
+    }
+    await expect(viewer.getByText(`2 / ${String(total)}`)).toBeVisible();
+    await previous.click();
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+    await previous.click();
+    await expect(viewer.getByText(`${String(total)} / ${String(total)}`)).toBeVisible();
+  });
+});
+
+// A horizontal pointer move over the photo box, as a finger drags it: down in the middle, then up `dx` pixels away.
+const SWIPE = `(dx) => {
+  const frame = document.querySelector('[data-lightbox-frame]');
+  const box = frame.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + box.height / 2;
+  const at = (type, clientX) =>
+    document.elementFromPoint(x, y).dispatchEvent(
+      new PointerEvent(type, { bubbles: true, pointerId: 9, isPrimary: true, pointerType: 'touch', clientX, clientY: y }),
+    );
+  at('pointerdown', x);
+  at('pointerup', x + dx);
+}`;
+
+test('@gallery-lightbox on a phone a swipe of 80px moves between items and one of 20px does not', async ({
+  page,
+  request,
+  guard,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'the swipe is for the phone projects');
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    await page.evaluate(`(${SWIPE})(-80)`);
+    await expect(viewer.getByText(`2 / ${String(total)}`)).toBeVisible();
+    await page.evaluate(`(${SWIPE})(80)`);
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+    await page.evaluate(`(${SWIPE})(-20)`);
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+  });
+});
+
+for (const width of [320, 1440]) {
+  test(`@gallery-lightbox at ${String(width)}px a long team name wraps in the caption and nothing scrolls sideways`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    guard.expectStatus(TEST_IMAGES, 404);
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.route('**/api/v1/public/gallery', async (route) => {
+        const response = await route.fetch();
+        const body = (await response.json()) as { items: { team: string }[] };
+        const first = body.items[0];
+        if (first !== undefined) {
+          first.team = LONG_TEAM;
+        }
+        await route.fulfill({ response, json: body });
+      });
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/gallery');
+      await page
+        .getByRole('main')
+        .getByRole('button', { name: /^Open / })
+        .first()
+        .click();
+      const viewer = page.getByRole('dialog', { name: VIEWER });
+      const team = viewer.getByText(LONG_TEAM);
+      await expect(team).toBeVisible();
+
+      const box = await team.boundingBox();
+      expect(box?.height ?? 0, 'the long name takes more than one line').toBeGreaterThan(40);
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
+      expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+      await expectNoAxeViolations(page);
+    });
+  });
+}
