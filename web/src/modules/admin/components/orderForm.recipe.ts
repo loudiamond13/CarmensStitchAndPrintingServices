@@ -48,6 +48,9 @@ export const orderFormCardHintClasses = tw('text-[13px] text-ink-muted');
 /** A card body of fields: two columns, one on phones, 20px padding. */
 export const orderFormGridClasses = tw('grid grid-cols-2 items-start gap-4 p-5 pg-phone:grid-cols-1');
 
+/** The Public website card body: the four fields in one column, 20px padding, so a long name never pushes the page sideways. */
+export const orderFormPublicBodyClasses = tw('min-w-0 p-5');
+
 /** A field that takes the full row. */
 export const orderFormFullClasses = tw('col-span-2 pg-phone:col-span-1');
 

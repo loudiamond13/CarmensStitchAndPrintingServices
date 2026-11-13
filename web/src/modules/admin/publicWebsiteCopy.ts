@@ -30,6 +30,11 @@ export const PUBLIC_WEBSITE_COPY = {
     title: 'Public Website',
     save: 'Save Changes',
   },
+  /** The card of the New Order and Edit Order forms (F1, F2; plan 11-35). */
+  formCard: {
+    title: 'Public website',
+    hint: "Only with the customer's OK.",
+  },
   /** The fields, shared with the order form card (plan 11-35). */
   fields: {
     consent: 'Customer said OK to show',

@@ -1,7 +1,8 @@
 // The order form schemas (OR-3; plan 08-13): the browser checks every rule of OrderRules.cs and the order validators before a
 // request is sent, with the server's own words. Every control is text; the quantity and the unit price stay text until the check
 // has passed and only then become numbers for the request (T-06-39). `orderDetailsSchema` holds the customer and date rules the
-// edit form reuses; `orderItemSchema` is the item rule the item windows reuse.
+// edit form reuses; `orderItemSchema` is the item rule the item windows reuse. Both forms also hold the four Public website values (plan
+// 11-35) with the rules of the order window; they send a `publicWebsite` block only once the card was changed.
 import type { Control } from 'react-hook-form';
 import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
@@ -9,6 +10,12 @@ import { isCalendarDate } from '@/lib/url-state/parsers';
 import { isMoneyText, moneyTextToCentavos } from '@/utils/format';
 import type { CreateOrderRequest, UpdateOrderDetailsRequest } from '@/modules/admin/services/ordersService';
 import { ORDER_FORM_COPY } from './orderFormCopy';
+import {
+  checkPublicWebsite,
+  publicWebsiteShape,
+  toPublicWebsiteBlock,
+  type PublicWebsiteFormInput,
+} from './publicWebsiteSchemas';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
 z.config({ jitless: true });
@@ -146,14 +153,21 @@ export const orderDetailsSchema = z.object(detailsShape).superRefine(checkDateOr
 export type OrderDetailsFormInput = z.input<typeof orderDetailsSchema>;
 export type OrderDetailsFormValues = z.output<typeof orderDetailsSchema>;
 
-/** The New Order form (CreateOrderRequestValidator): the details, a starting status, and 1 to 100 items. */
+/**
+ * The New Order form (CreateOrderRequestValidator): the details, a starting status, 1 to 100 items and the Public website card. The
+ * line is not checked here: the server works it out from the items on save.
+ */
 export const createOrderSchema = z
   .object({
     ...detailsShape,
     status: z.string().refine((text) => (CREATE_STATUSES as readonly string[]).includes(text), COPY.statusInvalid),
     items: z.array(orderItemSchema).min(1, COPY.itemsRequired).max(MAX_ORDER_ITEMS, COPY.itemsTooMany),
+    ...publicWebsiteShape,
   })
-  .superRefine(checkDateOrder);
+  .superRefine((values, context) => {
+    checkDateOrder(values, context);
+    checkPublicWebsite(values, { hasTeam: values.teamName !== null, lineRequired: false }, context);
+  });
 
 export type CreateOrderFormInput = z.input<typeof createOrderSchema>;
 export type CreateOrderFormValues = z.output<typeof createOrderSchema>;
@@ -161,8 +175,12 @@ export type CreateOrderFormValues = z.output<typeof createOrderSchema>;
 /** The form control of the New Order form, for the parts that read or write its rows. */
 export type CreateOrderControl = Control<CreateOrderFormInput, unknown, CreateOrderFormValues>;
 
-/** The request body for a checked form. It carries no attribution field: who recorded the order comes from the token (SEC-08). */
+/**
+ * The request body for a checked form. It carries no attribution field: who recorded the order comes from the token (SEC-08). The
+ * `publicWebsite` block goes only when the card was ticked or filled in.
+ */
 export function toCreateOrderRequest(values: CreateOrderFormValues): CreateOrderRequest {
+  const publicWebsite = toPublicWebsiteBlock(values);
   return {
     customerName: values.customerName,
     teamName: values.teamName,
@@ -180,23 +198,35 @@ export function toCreateOrderRequest(values: CreateOrderFormValues): CreateOrder
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
     })),
+    ...(publicWebsite === undefined ? {} : { publicWebsite }),
   };
 }
 
-/** The Edit Order form (UpdateOrderDetailsRequestValidator): the same customer and date rules, with the due date required. */
-export const updateOrderDetailsSchema = orderDetailsSchema;
+/**
+ * The Edit Order form (UpdateOrderDetailsRequestValidator): the same customer and date rules, with the due date required, and the Public
+ * website card. The items are already saved, so showing needs a line chosen (the form starts on the server's auto line).
+ */
+export const updateOrderDetailsSchema = z
+  .object({ ...detailsShape, ...publicWebsiteShape })
+  .superRefine((values, context) => {
+    checkDateOrder(values, context);
+    checkPublicWebsite(values, { hasTeam: values.teamName !== null, lineRequired: true }, context);
+  });
 
 export type UpdateOrderDetailsFormInput = z.input<typeof updateOrderDetailsSchema>;
 export type UpdateOrderDetailsFormValues = z.output<typeof updateOrderDetailsSchema>;
 
 /**
  * The request body for a checked edit, with the row version the form was opened with (SEC-07). It carries no status, number or
- * attribution field: who changed the order comes from the token (SEC-08).
+ * attribution field: who changed the order comes from the token (SEC-08). The `publicWebsite` block goes only once the card differs from
+ * `publicBefore`, the values it opened with: a block that is sent states the whole public state, so an unchanged card sends nothing.
  */
 export function toUpdateOrderDetailsRequest(
   values: UpdateOrderDetailsFormValues,
   version: string,
+  publicBefore?: PublicWebsiteFormInput,
 ): UpdateOrderDetailsRequest {
+  const publicWebsite = toPublicWebsiteBlock(values, publicBefore);
   return {
     customerName: values.customerName,
     teamName: values.teamName,
@@ -207,5 +237,6 @@ export function toUpdateOrderDetailsRequest(
     dueDate: values.dueDate.trim(),
     notes: values.notes,
     version,
+    ...(publicWebsite === undefined ? {} : { publicWebsite }),
   };
 }

@@ -14,6 +14,7 @@ import { ORDER_WINDOWS_COPY } from '@/modules/admin/orderWindowsCopy';
 import { PUBLIC_WEBSITE_COPY } from '@/modules/admin/publicWebsiteCopy';
 import {
   publicWebsiteSchema,
+  publicWebsiteValuesOf,
   type PublicWebsiteFormInput,
   type PublicWebsiteFormValues,
 } from '@/modules/admin/publicWebsiteSchemas';
@@ -34,17 +35,6 @@ export interface PublicWebsiteModalProps {
   onClose: () => void;
   /** The settings were saved and the page already holds the answer. */
   onSaved?: ((order: OrderDetailResponse) => void) | undefined;
-}
-
-/** What the form shows for an order: the line is the one the order is shown under, else the server's auto line, else empty. */
-function valuesOf(order: OrderDetailResponse): PublicWebsiteFormInput {
-  const block = order.publicWebsite;
-  return {
-    customerConsent: block.customerConsent,
-    showOnWebsite: block.shownOnWebsite,
-    productLineId: block.productLineId ?? block.autoProductLineId ?? '',
-    publicName: block.publicName ?? '',
-  };
 }
 
 export function PublicWebsiteModal({ open = true, order, onClose, onSaved }: PublicWebsiteModalProps) {
@@ -76,7 +66,7 @@ function PublicWebsiteForm({ open, order, onClose, onSaved }: PublicWebsiteFormP
   const form = useForm<PublicWebsiteFormInput, unknown, PublicWebsiteFormValues>({
     resolver: zodResolver(publicWebsiteSchema(hasTeam)),
     mode: 'onBlur',
-    defaultValues: valuesOf(opened),
+    defaultValues: publicWebsiteValuesOf(opened),
   });
   const {
     handleSubmit,
@@ -111,7 +101,7 @@ function PublicWebsiteForm({ open, order, onClose, onSaved }: PublicWebsiteFormP
   // Load Latest: the latest settings and version replace what was typed.
   const takeLatest = (latest: OrderDetailResponse): boolean => {
     setOpened(latest);
-    reset(valuesOf(latest));
+    reset(publicWebsiteValuesOf(latest));
     return true;
   };
 

@@ -3,8 +3,10 @@
 // order (with a photo, drawn in the page) through the Testing routes, runs under the shared guard (console, page errors, CSP, failed
 // responses), and checks the public gallery under the site content lock, because the gallery is one set for all projects.
 import type { APIRequestContext, Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
+import { manilaDate, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, type StaffRole } from './testing-api.ts';
@@ -271,5 +273,148 @@ test('@order-public-website at 820px the card joins the side grid after Customer
   expect(history?.y ?? 0).toBeGreaterThanOrEqual((publicCard?.y ?? 0) + (publicCard?.height ?? 0) - 1);
   expect(Math.round(publicCard?.width ?? 0)).toBe(Math.round(history?.width ?? -1));
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
+
+// The Public website card on the New Order and Edit Order forms (UI-SPEC F1 and F2; D-11, D-16; plan 11-35).
+
+/** The Public website card of an order form. */
+function formCard(page: Page) {
+  return page.getByRole('region', { name: 'Public website' });
+}
+
+/** Fills the New Order form with one basketball item, the minimum a save needs. */
+async function fillNewOrder(page: Page, customer: string, team: string): Promise<void> {
+  await page.getByLabel(/^Customer name/).fill(customer);
+  await page.getByLabel(/^Team \/ organization/).fill(team);
+  await page.getByLabel(/^Contact number/).fill('0917 000 0000');
+  await page.getByLabel(/^Due date/).fill(manilaDate(5));
+  await page.getByLabel(/^Product type/).selectOption({ label: 'Basketball Jersey' });
+  await page.getByLabel(/^Description/).fill('E2E form public jersey');
+  await page.getByLabel(/^Qty/).fill('12');
+  await page.getByLabel(/^Unit price/).fill('780');
+}
+
+test('@order-form-public an Admin creates an order with the customer OK and Show ticked on the form, and its page shows it on the website', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  const customer = `E2E Form Public ${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+  await signInAs(page, request, admin);
+
+  await page.goto('/admin/orders/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
+  const region = formCard(page);
+  await expect(region).toBeVisible();
+  await expect(region.getByText("Only with the customer's OK.")).toBeVisible();
+  await expect(region.getByRole('checkbox', { name: 'Customer said OK to show' })).not.toBeChecked();
+  await expect(region.getByRole('checkbox', { name: 'Show on the website' })).not.toBeChecked();
+  await expect(region.getByRole('checkbox', { name: 'Show on the website' })).toHaveAttribute('aria-disabled', 'true');
+  await expectNoAxeViolations(page);
+
+  await fillNewOrder(page, customer, 'E2E Form Public Team');
+  await region.getByRole('checkbox', { name: 'Customer said OK to show' }).check();
+  await region.getByRole('checkbox', { name: 'Show on the website' }).check();
+  await region.getByRole('combobox', { name: /^Show under/ }).selectOption({ index: 1 });
+  await expectNoAxeViolations(page);
+  await page.getByRole('button', { name: 'Save Order' }).click();
+
+  await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
+  const saved = formCard(page);
+  await expect(saved).toBeVisible();
+  await expect(saved).toContainText(/Yes, recorded .+ by .+/);
+  await expect(saved.getByText('Shown', { exact: true })).toBeVisible();
+  await expect(saved).toContainText('E2E Form Public Team');
+});
+
+test('@order-form-public a Manager edits a shown order, changes Name shown, saves, and the public gallery shows the new name', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const order = await openOrderWithPhoto(page, request, 'Manager', 'Form Edit');
+  await showFromWindow(page);
+  await expect(page.getByText('Order shown on the website')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Edit Details' }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/admin/orders/${order.id}/edit$`));
+  const region = formCard(page);
+  await expect(region).toBeVisible();
+  await expect(region.getByRole('checkbox', { name: 'Customer said OK to show' })).toBeChecked();
+  await expect(region.getByRole('checkbox', { name: 'Show on the website' })).toBeChecked();
+  await expect(region.getByRole('textbox', { name: /^Name shown/ })).toHaveValue('');
+  await expectNoAxeViolations(page);
+
+  // A seeded order has no contact number, which an edit needs.
+  await page.getByLabel(/^Contact number/).fill('0917 555 0102');
+  const shownName = `E2E Renamed ${randomUUID().replaceAll('-', '').slice(0, 8)}`;
+  await region.getByRole('textbox', { name: /^Name shown/ }).fill(shownName);
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/admin/orders/${order.id}$`));
+  await expect(page.getByText('Order details saved')).toBeVisible();
+  await expect(valueOf(page, 'Name shown')).toContainText(shownName);
+  await expect(valueOf(page, 'On the website')).toContainText('Shown');
+
+  // The public gallery is one set for all projects, so it is read under the lock.
+  await withSiteContentLock(async () => {
+    const teams = await publicGalleryTeams(request);
+    expect(teams, 'GET /api/v1/public/gallery answers').not.toBeNull();
+    expect(teams).toContain(shownName);
+  });
+});
+
+/** Every label, box and line of the card sits inside the screen, and the page has no sideways scroll. */
+async function expectCardInsideScreen(page: Page, width: number): Promise<void> {
+  const region = formCard(page);
+  await expect(region).toBeVisible();
+  await region.scrollIntoViewIfNeeded();
+  const parts = region.locator('label, input, select, p');
+  const count = await parts.count();
+  expect(count, 'the card has parts to measure').toBeGreaterThan(4);
+  for (let index = 0; index < count; index += 1) {
+    const box = await parts.nth(index).boundingBox();
+    if (box !== null) {
+      expect(box.x + box.width, `part ${String(index)} of the card ends inside the screen`).toBeLessThanOrEqual(
+        width + 0.5,
+      );
+    }
+  }
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+}
+
+test('@order-form-public at 320px the card stacks on the New Order and Edit Order forms with no sideways scroll', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(240_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  const { id, number } = await seedOrder(
+    request,
+    { prefix: 'ORD-2081', label: 'Form Narrow', itemDescription: 'E2E form narrow jersey' },
+    manager.userId,
+  );
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openOrder(page, request, manager, id, number);
+
+  await page.goto(`/admin/orders/${id}/edit`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Edit Order' })).toBeVisible();
+  await expectCardInsideScreen(page, 320);
+  await expectNoAxeViolations(page);
+
+  // The New Order form comes last: it is left changed, so nothing navigates away from it.
+  await page.goto('/admin/orders/new');
+  await expect(page.getByRole('heading', { level: 1, name: 'New Order' })).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Customer said OK to show' }).check();
+  await page.getByLabel(/^Name shown/).fill('E2E A Very Long Name Shown On The Website To Test Wrapping');
+  await expectCardInsideScreen(page, 320);
   await expectNoAxeViolations(page);
 });
