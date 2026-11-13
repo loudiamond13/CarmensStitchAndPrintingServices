@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter } from 'react-router';
+import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
@@ -8,7 +8,9 @@ import { expectNoAxeViolations } from '@/test/axe';
 
 /** The real route tree at /gallery (under the URL-state layout), settled once the h1 is on screen. */
 async function renderGallery(path = '/gallery') {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
+  // nuqs writes the browser history directly, so the address is read from window.location (L-16).
+  window.history.replaceState(null, '', path);
+  const router = createBrowserRouter(routes);
   const view = render(<RouterProvider router={router} />);
   await screen.findByRole('heading', { level: 1, name: 'Worn on court & road.' }, { timeout: 15_000 });
   return { ...view, router };
@@ -82,19 +84,19 @@ describe('GalleryPage with the gallery read (GAL-01, D-03, WEB-10)', { timeout: 
   });
 
   it('drops an unknown category from the address with one replace once the pills are known', async () => {
-    const { router } = await renderGallery('/gallery?category=bogus');
+    await renderGallery('/gallery?category=bogus');
 
     await waitFor(() => {
       expect(tiles()).toHaveLength(16);
     });
     await waitFor(() => {
-      expect(router.state.location.search).toBe('');
+      expect(window.location.search).toBe('');
     });
     expect(screen.getByRole('button', { name: 'All 16 items' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('filters when a pill is pressed, writes the line to the address and leaves All out of it', async () => {
-    const { router } = await renderGallery();
+    await renderGallery();
     await waitFor(() => {
       expect(tiles()).toHaveLength(16);
     });
@@ -104,13 +106,13 @@ describe('GalleryPage with the gallery read (GAL-01, D-03, WEB-10)', { timeout: 
     await waitFor(() => {
       expect(tiles()).toHaveLength(3);
     });
-    expect(router.state.location.search).toBe('?category=volleyball');
+    expect(window.location.search).toBe('?category=volleyball');
 
     await userEvent.click(screen.getByRole('button', { name: 'All 16 items' }));
 
     await waitFor(() => {
       expect(tiles()).toHaveLength(16);
     });
-    expect(router.state.location.search).toBe('');
+    expect(window.location.search).toBe('');
   });
 });

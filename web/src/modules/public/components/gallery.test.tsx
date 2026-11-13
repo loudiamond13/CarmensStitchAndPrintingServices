@@ -104,12 +104,15 @@ describe('GalleryMasonry (GAL-01, D-30, D-31)', () => {
     expect(onOpen).toHaveBeenCalledExactlyOnceWith(5);
   });
 
-  it('has no style attribute except the ratio property', () => {
+  it('sets only custom properties inline (the ratio and the skeleton size), never a plain style', () => {
     const { container } = render(<GalleryMasonry items={demoGallery.items} shown={24} />);
 
-    for (const element of container.querySelectorAll<HTMLElement>('[style]')) {
-      expect(element.style.length).toBe(1);
-      expect(element.style.getPropertyValue('--ratio')).not.toBe('');
+    const styled = container.querySelectorAll<HTMLElement>('[style]');
+    expect(styled.length).toBeGreaterThan(0);
+    for (const element of styled) {
+      for (const name of Array.from(element.style)) {
+        expect(name.startsWith('--')).toBe(true);
+      }
     }
   });
 
@@ -146,7 +149,7 @@ describe('GalleryFilterBar (GAL-01, D-03, D-32)', () => {
 
     const pill = screen.getByRole('button', { name: 'Basketball 4 items' });
     expect(within(pill).getByText('4')).toBeVisible();
-    expect(within(pill).getByText('items').className).toContain('sr-only');
+    expect(within(pill).getByText('items')).toHaveClass('h-px', 'w-px');
   });
 
   it('marks the selected pill pressed, and All when nothing is selected', () => {

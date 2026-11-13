@@ -27,7 +27,7 @@ export function createContentService(client: HttpClient): ContentService {
   return {
     getProductLines: (signal) => client.get<PublicProductLines>('/public/product-lines', { signal }),
     getHome: (signal) => client.get<PublicHome>('/public/home', { signal }),
-    getGallery: () => Promise.resolve({ items: [], pills: [], total: 0 }),
+    getGallery: (signal) => client.get<PublicGallery>('/public/gallery', { signal }),
   };
 }
 
