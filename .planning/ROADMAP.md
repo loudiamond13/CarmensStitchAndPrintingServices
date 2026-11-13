@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 35/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 37/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1251,12 +1251,12 @@ Plans:
 - [x] 11-34-PLAN.md — Link preview picture card in Business Info (PUB-04, CONT-01)
 
 **Wave 15**
-- [ ] 11-35-PLAN.md — Public website card on the New Order and Edit Order forms (GAL-03)
+- [x] 11-35-PLAN.md — Public website card on the New Order and Edit Order forms (GAL-03)
 - [x] 11-36-PLAN.md — LCP: Brotli, unused fonts dropped, measured; LCP stays report-only (D-28, D-29, D-46) (PERF-02, PUB-01)
 
 **Wave 16**
 - [ ] 11-37-PLAN.md — Link-preview, layout, accessibility, CSP and focus sweeps; showcase; audit labels (PUB-01, PUB-04, CONT-05, GAL-02)
-- [ ] 11-38-PLAN.md — Go-live checklist (D-44), dev seed demo content, deploy-gap ruling (PUB-02, CONT-01, CONT-02)
+- [x] 11-38-PLAN.md — Go-live checklist (D-44), dev seed demo content, deploy-gap ruling (PUB-02, CONT-01, CONT-02)
 
 **UI hint**: yes
 
@@ -1538,7 +1538,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 35/38 | In Progress | - |
+| 11. Public Site & Content Management | 37/38 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
