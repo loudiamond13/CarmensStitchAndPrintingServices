@@ -1053,7 +1053,10 @@ describe('galleryUploadSchema: every GalleryUploadRequestValidator rule with the
 
   it('sends the texts trimmed, the pieces as a number (null for none) and the version of an edit', () => {
     expect(
-      toGalleryUploadRequest({ ...good, teamName: '  Riders  ', pieces: ' 12 ', note: ' Mesh ', isShown: false }, 'AAAAAAAAH01='),
+      toGalleryUploadRequest(
+        { ...good, teamName: '  Riders  ', pieces: ' 12 ', note: ' Mesh ', isShown: false },
+        'AAAAAAAAH01=',
+      ),
     ).toEqual({
       teamName: 'Riders',
       productLineId: good.productLineId,

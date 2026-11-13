@@ -176,7 +176,11 @@ function useLineOptions(item: GalleryItem | null): { options: readonly SelectOpt
 }
 
 /** Why a prepared file may not be used, in words the person can use: the server's own line for a refusal, plain words for the rest. */
-function refusalOf(reason: Extract<PrepareResult, { ok: false }>['reason'], fileName: string, rules: ImageRules): string {
+function refusalOf(
+  reason: Extract<PrepareResult, { ok: false }>['reason'],
+  fileName: string,
+  rules: ImageRules,
+): string {
   return pickFailureMessage(reason, fileName, rules);
 }
 

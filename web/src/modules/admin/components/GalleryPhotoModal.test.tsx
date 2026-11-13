@@ -560,4 +560,3 @@ describe('the edit window', () => {
     await expectNoAxeViolations(dialog);
   });
 });
-

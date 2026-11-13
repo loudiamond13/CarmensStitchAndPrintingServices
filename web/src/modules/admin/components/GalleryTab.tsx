@@ -464,7 +464,12 @@ export function GalleryTab() {
         addRef.current?.focus();
       }
     }
-    if (acting !== null && rows !== undefined && focused.current !== acting.token && isDone(acting, rows, query.isPlaceholderData)) {
+    if (
+      acting !== null &&
+      rows !== undefined &&
+      focused.current !== acting.token &&
+      isDone(acting, rows, query.isPlaceholderData)
+    ) {
       focused.current = acting.token;
       if (acting.control === 'toggle') {
         focusRow(controlKey('toggle', acting.id));

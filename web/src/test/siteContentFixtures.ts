@@ -1082,7 +1082,11 @@ export function demoGalleryItems(): GalleryItemFixture[] {
       orderId: GALLERY_ORDER_IDS.spikers,
       orderNumber: 'ORD-2026-0149',
     }),
-    galleryItem(GALLERY_IDS.hoopers, 'upload', { name: 'Sample Old Hoopers', pieces: 9, version: galleryVersionAfter(2) }),
+    galleryItem(GALLERY_IDS.hoopers, 'upload', {
+      name: 'Sample Old Hoopers',
+      pieces: 9,
+      version: galleryVersionAfter(2),
+    }),
     galleryItem(GALLERY_IDS.riders, 'order', {
       name: 'Sample Riders MC',
       lineId: LINE_IDS.moto,
@@ -1219,7 +1223,10 @@ export function galleryItemsBackend(
       });
     }),
     http.post('*/api/v1/gallery-items', async ({ request }) => {
-      backend.posts.push({ key: request.headers.get('Idempotency-Key'), contentType: request.headers.get('Content-Type') });
+      backend.posts.push({
+        key: request.headers.get('Idempotency-Key'),
+        contentType: request.headers.get('Content-Type'),
+      });
       const answer = await options.onPost?.(backend);
       if (answer !== undefined) {
         return answer;

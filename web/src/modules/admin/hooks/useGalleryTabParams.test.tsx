@@ -31,7 +31,10 @@ function renderParams(searchParams = '', lineIds: readonly string[] | 'loading' 
       {children}
     </NuqsTestingAdapter>
   );
-  const view = renderHook(({ ids }) => useGalleryTabParams(ids), { wrapper, initialProps: { ids: lineIds === 'loading' ? undefined : lineIds } });
+  const view = renderHook(({ ids }) => useGalleryTabParams(ids), {
+    wrapper,
+    initialProps: { ids: lineIds === 'loading' ? undefined : lineIds },
+  });
   return { ...view, onUrlUpdate };
 }
 

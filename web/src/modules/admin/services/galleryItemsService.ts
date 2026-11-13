@@ -104,11 +104,10 @@ export function createGalleryItemsService(client: HttpClient): GalleryItemsServi
       });
     },
     move: (id, direction, lineId, idempotencyKey, signal) =>
-      client.post(
-        `${itemPath(id)}/move`,
-        lineId === null ? { direction } : { direction, lineId },
-        { idempotencyKey, signal },
-      ),
+      client.post(`${itemPath(id)}/move`, lineId === null ? { direction } : { direction, lineId }, {
+        idempotencyKey,
+        signal,
+      }),
     hide: (id, idempotencyKey, signal) => client.post(`${itemPath(id)}/hide`, undefined, { idempotencyKey, signal }),
     show: (id, idempotencyKey, signal) => client.post(`${itemPath(id)}/show`, undefined, { idempotencyKey, signal }),
     remove: (id, signal) => client.delete(itemPath(id), { signal }),

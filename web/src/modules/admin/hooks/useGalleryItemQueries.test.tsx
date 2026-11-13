@@ -25,13 +25,7 @@ import {
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import {
-  GALLERY_IDS,
-  galleryItemsBackend,
-  LINE_IDS,
-  problemAnswer,
-  uploadRefused,
-} from '@/test/siteContentFixtures';
+import { GALLERY_IDS, galleryItemsBackend, LINE_IDS, problemAnswer, uploadRefused } from '@/test/siteContentFixtures';
 
 vi.mock('@/lib/public-data/publicResource', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/public-data/publicResource')>()),
@@ -82,7 +76,9 @@ const body: GalleryUploadRequest = {
 describe('useGalleryItemsQuery', () => {
   it('reads one page under the gallery-items key, every item in gallery order, with the page and size asked for', async () => {
     const backend = galleryItemsBackend();
-    const { result } = renderHook(() => useGalleryItemsQuery({ line: LINE_IDS.moto, page: 1, pageSize: 10 }), { wrapper });
+    const { result } = renderHook(() => useGalleryItemsQuery({ line: LINE_IDS.moto, page: 1, pageSize: 10 }), {
+      wrapper,
+    });
 
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
@@ -267,7 +263,8 @@ describe('useMoveGalleryItem, useSetGalleryUploadShown and useDeleteGalleryUploa
 
   it('deletes with DELETE and clears the public data; a 404 clears nothing', async () => {
     const backend = galleryItemsBackend(undefined, {
-      onDelete: (id) => (id === GALLERY_IDS.hoopers ? problemAnswer(404, { code: 'gallery-items.not-found' }) : undefined),
+      onDelete: (id) =>
+        id === GALLERY_IDS.hoopers ? problemAnswer(404, { code: 'gallery-items.not-found' }) : undefined,
     });
     const onFailure = vi.fn();
     const { result } = renderHook(() => useDeleteGalleryUpload({ onFailure }), { wrapper });

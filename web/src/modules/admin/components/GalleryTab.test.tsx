@@ -314,7 +314,11 @@ describe('paging and the page size (WEB-10)', () => {
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
     await openTab('?page=2', onUrlUpdate);
     const rows = screen.getByLabelText('Rows per page');
-    expect(within(rows).getAllByRole('option').map((option) => option.textContent)).toEqual(['10', '20', '50', '100']);
+    expect(
+      within(rows)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['10', '20', '50', '100']);
 
     fireEvent.change(rows, { target: { value: '10' } });
 
@@ -614,7 +618,9 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
   });
 
   it('a hide that finds the upload gone says so and reads the list again', async () => {
-    const backend = galleryItemsBackend(undefined, { onHide: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
+    const backend = galleryItemsBackend(undefined, {
+      onHide: () => problemAnswer(404, { code: 'gallery-items.not-found' }),
+    });
     const user = userEvent.setup();
     await openTab();
     const reads = backend.gets.length;
@@ -680,7 +686,11 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
     const { table } = await openTab();
 
     await user.click(action('Delete Sample Old Hoopers'));
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', { name: 'Delete Photo' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', {
+        name: 'Delete Photo',
+      }),
+    );
 
     expect(await screen.findByText('Photo deleted')).toBeVisible();
     expect(backend.deletes).toEqual([GALLERY_IDS.hoopers]);
@@ -695,13 +705,19 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
   });
 
   it('a delete that finds the upload already gone closes the question, says "Already deleted" and reads the list again', async () => {
-    const backend = galleryItemsBackend(undefined, { onDelete: () => problemAnswer(404, { code: 'gallery-items.not-found' }) });
+    const backend = galleryItemsBackend(undefined, {
+      onDelete: () => problemAnswer(404, { code: 'gallery-items.not-found' }),
+    });
     const user = userEvent.setup();
     await openTab();
     const reads = backend.gets.length;
 
     await user.click(action('Delete Sample Old Hoopers'));
-    await user.click(within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', { name: 'Delete Photo' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Delete this photo?' })).getByRole('button', {
+        name: 'Delete Photo',
+      }),
+    );
 
     expect(await screen.findByText('Already deleted')).toBeVisible();
     await waitFor(() => {
@@ -716,4 +732,3 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
     await expectNoAxeViolations(container);
   });
 });
-
