@@ -1,6 +1,6 @@
 # End-to-end tests: the Playwright host on HTTPS 5199
 
-*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-13T05:20:00-06:00*
+*Created: 2026-10-08T12:05:27-05:00 · Updated: 2026-11-13T11:30:00-06:00*
 
 This page explains how to run the browser tests in `web/e2e/` (requirements QUAL-04 and A11Y-01). They drive the **real** API host, serving the real e2e build, in three browser engines and two phone profiles. Every test fails on console noise, Content-Security-Policy violations, unexpected failed responses and accessibility (axe) findings.
 
@@ -225,7 +225,7 @@ admin Orders list; a spec that counts orders there must count its own.
 The reset (plan 11-28) also puts two shown demo gallery uploads below those orders: "Sample Old Hoopers" (basketball, 14 pieces, note
 "Dri-fit mesh, V-neck") and "Sample Barangay Riders" (moto, no pieces and no note). Their photos are stored like the demo orders' photos. The
 public gallery therefore lists six items after the reset (basketball 3, volleyball 1, moto 2 in the pills), and the Manager's Gallery list shows
-the two uploads and the four shown orders. The reset deletes every upload whose team starts with `E2E-`, so a spec names the uploads it adds
+the two uploads and the four shown orders. The reset also takes every other shown order (the dev seed shows three) off the website and removes its gallery entry, so the gallery and Home hold only the demo set. The reset deletes every upload whose team starts with `E2E-`, so a spec names the uploads it adds
 `E2E-...`, and counts only its own.
 
 ### Cookie attributes and the WebKit jar (plan 04-27)
