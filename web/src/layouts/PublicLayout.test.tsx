@@ -114,12 +114,14 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
     );
   });
 
-  it('adds the 69px pill bar to the top scroll padding on /products only (focus not obscured)', async () => {
-    const products = await renderAt('/products');
-    expect(screen.getByRole('main').className.split(' ')).toContain('[:root:has(&)]:[--bar-top:69px]');
-    products.unmount();
+  it('adds the 69px pill bar to the top scroll padding on /products and /gallery only (focus not obscured)', async () => {
+    for (const path of ['/products', '/gallery']) {
+      const { unmount } = await renderAt(path);
+      expect(screen.getByRole('main').className.split(' ')).toContain('[:root:has(&)]:[--bar-top:69px]');
+      unmount();
+    }
 
-    for (const path of ['/', '/gallery', '/contact']) {
+    for (const path of ['/', '/contact']) {
       const { unmount } = await renderAt(path);
       expect(screen.getByRole('main').className).not.toContain('--bar-top:69px');
       unmount();

@@ -4,11 +4,22 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { demoHome, homeOneLine, makeHomeLine, makeLine, makeTestimonial, photoFor } from '@/test/publicFixtures';
+import {
+  demoHome,
+  demoRecentWork,
+  homeOneLine,
+  makeHomeLine,
+  makeLine,
+  makeRecentWork,
+  makeTestimonial,
+  photoFor,
+} from '@/test/publicFixtures';
 import { CategoryGrid } from './CategoryGrid';
 import { FinalCta } from './FinalCta';
 import { HeroArt } from './HeroArt';
+import { HeroTag } from './HeroTag';
 import { HowOrdering } from './HowOrdering';
+import { RecentWorkSkeletons, RecentWorkStrip } from './RecentWorkStrip';
 import { TestimonialRow } from './TestimonialRow';
 import { WhyCsps } from './WhyCsps';
 
@@ -327,6 +338,157 @@ describe('FinalCta (UI-SPEC H1 item 7, D-19, PUB-06)', () => {
 
   it.each(['https://m.me/cspsdemo', null])('has no axe violations (Messenger %s)', async (url) => {
     const { container } = renderCta(url);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('RecentWorkStrip (UI-SPEC H1 item 5, D-14)', () => {
+  function renderStrip(items = demoRecentWork) {
+    return render(
+      <MemoryRouter>
+        <RecentWorkStrip items={items} />
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows the eyebrow "Fresh off the press", the h2 "Recent work." and the View gallery link', () => {
+    renderStrip();
+
+    expect(screen.getByText('Fresh off the press')).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 2, name: 'Recent work.' });
+    expect(heading.querySelector('em')).toHaveTextContent('work.');
+    expect(screen.getByRole('link', { name: 'View gallery' })).toHaveAttribute('href', '/gallery');
+  });
+
+  it('shows one tile per order in order, each a link to its line in the Gallery named by the caption', () => {
+    const { container } = renderStrip();
+
+    const tiles = container.querySelectorAll('a[href^="/gallery?category="]');
+    expect([...tiles].map((tile) => tile.getAttribute('href'))).toEqual([
+      '/gallery?category=basketball',
+      '/gallery?category=volleyball',
+      '/gallery?category=moto',
+      '/gallery?category=polo',
+      '/gallery?category=custom',
+      '/gallery?category=basketball',
+    ]);
+    expect(screen.getByRole('link', { name: 'Brgy. Sample Ballers Basketball · 17 pcs' })).toHaveAttribute(
+      'href',
+      '/gallery?category=basketball',
+    );
+  });
+
+  it('writes the caption as the name over "{Basketball} · {17} pcs", "1 pc" for one, and no pieces when unknown', () => {
+    renderStrip();
+
+    expect(screen.getByText('Basketball · 17 pcs')).toBeInTheDocument();
+    expect(screen.getByText('Volleyball · 12 pcs')).toBeInTheDocument();
+    expect(screen.getByText('Moto · 1 pc')).toBeInTheDocument();
+    expect(screen.getByText('Custom')).toBeInTheDocument();
+  });
+
+  it('draws the strip photo as a decorative lazy image at 4 / 5 with the server srcset', () => {
+    const { container } = renderStrip();
+
+    const link = screen.getByRole('link', { name: 'Brgy. Sample Ballers Basketball · 17 pcs' });
+    const image = link.querySelector('img');
+    expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(image).toHaveAttribute('srcset', expect.stringContaining('400w'));
+    expect(image).toHaveAttribute('sizes', '(max-width: 767px) calc(72vw - 23px), 240px');
+    const ratio = [...link.querySelectorAll<HTMLElement>('*')].find(
+      (element) => element.style.getPropertyValue('--ratio') !== '',
+    );
+    expect(ratio?.style.getPropertyValue('--ratio')).toBe('4 / 5');
+    expect(container.querySelectorAll('img[alt=""]').length).toBeGreaterThan(0);
+  });
+
+  it('draws the jersey in the line art when an order has no photo', () => {
+    renderStrip();
+
+    const link = screen.getByRole('link', { name: 'Sample Office Polo Polo · 17 pcs' });
+    expect(link.querySelector('svg')).toBeInTheDocument();
+    expect(link.querySelector('img')).toBeNull();
+  });
+
+  it('draws as many tiles as there are orders, and nothing at all with none', () => {
+    const two = renderStrip(demoRecentWork.slice(0, 2));
+    expect(two.container.querySelectorAll('a[href^="/gallery?category="]')).toHaveLength(2);
+    two.unmount();
+
+    const none = renderStrip([]);
+    expect(none.container).toBeEmptyDOMElement();
+  });
+
+  it('sends a tile whose line key is not a safe address to the plain Gallery', () => {
+    renderStrip([makeRecentWork({ team: 'Odd Key FC', lineKey: 'bad key&x=1' })]);
+
+    expect(screen.getByRole('link', { name: /^Odd Key FC/ })).toHaveAttribute('href', '/gallery');
+  });
+
+  it('wraps a long team name inside the caption', () => {
+    renderStrip([
+      makeRecentWork({ team: 'Barangay San Roque Interbarangay Champions of the Province', lineKey: 'moto' }),
+    ]);
+
+    expect(screen.getByText('Barangay San Roque Interbarangay Champions of the Province').className).toContain(
+      'wrap-anywhere',
+    );
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderStrip();
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('RecentWorkSkeletons (UI-SPEC H1 States)', () => {
+  it('draws four 4 / 5 frames under the section head, hidden from assistive technology', async () => {
+    const { container } = render(<RecentWorkSkeletons />);
+
+    const frames = container.querySelectorAll('[data-home-skeleton="recent"]');
+    expect(frames).toHaveLength(4);
+    for (const frame of frames) {
+      expect(frame).toHaveAttribute('aria-hidden', 'true');
+      expect(frame.className).toContain('aspect-4/5');
+    }
+    expect(screen.getByText('Fresh off the press')).toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('HeroTag (UI-SPEC H1 item 1, D-14)', () => {
+  it('shows "Recent order", the public name and "{17}-piece set · mockup to pickup"', () => {
+    render(<HeroTag tag={{ name: 'Brgy. Sample Ballers', pieces: 17 }} />);
+
+    expect(screen.getByText('Recent order')).toBeInTheDocument();
+    expect(screen.getByText('Brgy. Sample Ballers')).toBeInTheDocument();
+    expect(screen.getByText('17-piece set · mockup to pickup')).toBeInTheDocument();
+  });
+
+  it('says "1-piece set" for one piece', () => {
+    render(<HeroTag tag={{ name: 'Solo FC', pieces: 1 }} />);
+
+    expect(screen.getByText('1-piece set · mockup to pickup')).toBeInTheDocument();
+  });
+
+  it('renders nothing without a tag', () => {
+    const { container } = render(<HeroTag tag={null} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('is not a link', () => {
+    render(<HeroTag tag={{ name: 'Brgy. Sample Ballers', pieces: 17 }} />);
+
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = render(<HeroTag tag={{ name: 'Brgy. Sample Ballers', pieces: 17 }} />);
 
     await expectNoAxeViolations(container);
   });

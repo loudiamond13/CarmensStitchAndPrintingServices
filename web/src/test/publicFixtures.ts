@@ -451,3 +451,183 @@ export function homeFailureHandler(status = 500) {
 export function answerHome(home: PublicHomeFixture): void {
   server.use(homeHandler(home));
 }
+
+export type PublicGalleryFixture = components['schemas']['PublicGalleryDto'];
+export type PublicGalleryItemFixture = components['schemas']['PublicGalleryItemDto'];
+export type PublicGalleryPhotoFixture = components['schemas']['PublicGalleryPhotoDto'];
+export type PublicGalleryPillFixture = components['schemas']['PublicGalleryPillDto'];
+export type PublicRecentWorkFixture = components['schemas']['PublicRecentWorkDto'];
+
+/** A made-up delivered gallery photo with its masonry, viewer and thumb addresses. */
+export function galleryPhoto(name: string, width = 800, height = 1000): PublicGalleryPhotoFixture {
+  const base = `https://res.cloudinary.com/sample-cloud/image/upload/${name}`;
+  return {
+    src: `${base}-560.jpg`,
+    srcSet: `${base}-280.jpg 280w, ${base}-560.jpg 560w`,
+    viewerSrc: `${base}-1200.jpg`,
+    viewerSrcSet: `${base}-800.jpg 800w, ${base}-1200.jpg 1200w`,
+    thumbSrc: `${base}-88.jpg`,
+    width,
+    height,
+  };
+}
+
+const LINE_FACTS: Readonly<Record<string, { shortName: string; art: string }>> = {
+  basketball: { shortName: 'Basketball', art: 'basketball' },
+  volleyball: { shortName: 'Volleyball', art: 'volleyball' },
+  moto: { shortName: 'Moto', art: 'moto' },
+  longsleeves: { shortName: 'Long Sleeves', art: 'longSleeves' },
+  polo: { shortName: 'Polo', art: 'polo' },
+  custom: { shortName: 'Custom', art: 'custom' },
+};
+
+function slugOf(text: string): string {
+  return text.replace(/\W+/g, '-').toLowerCase();
+}
+
+/** A gallery item as the API answers it; the line facts come from the key and every part can be overridden. */
+export function makeGalleryItem(
+  overrides: Partial<PublicGalleryItemFixture> & { team: string; lineKey: string },
+): PublicGalleryItemFixture {
+  const facts = LINE_FACTS[overrides.lineKey] ?? { shortName: 'Sample', art: 'custom' };
+  return {
+    id: `00000000-0000-4000-8000-${String(overrides.team.length).padStart(12, '0')}`,
+    lineShortName: facts.shortName,
+    note: null,
+    photos: [galleryPhoto(slugOf(overrides.team))],
+    pieces: 17,
+    placeholderArt: facts.art,
+    ...overrides,
+  };
+}
+
+/** The pills for a list of items: one per line that has an item, in the order the lines first appear. */
+export function pillsFor(items: readonly PublicGalleryItemFixture[]): PublicGalleryPillFixture[] {
+  const pills: PublicGalleryPillFixture[] = [];
+  for (const item of items) {
+    const pill = pills.find((candidate) => candidate.key === item.lineKey);
+    if (pill === undefined) {
+      pills.push({ key: item.lineKey, shortName: item.lineShortName, count: 1 });
+    } else {
+      pill.count = Number(pill.count) + 1;
+    }
+  }
+  return pills;
+}
+
+/** A gallery answer for the items: the pills and the total follow from them. */
+export function makeGallery(items: readonly PublicGalleryItemFixture[]): PublicGalleryFixture {
+  return { items: [...items], pills: pillsFor(items), total: items.length };
+}
+
+const DEMO_TEAMS: readonly (readonly [string, string])[] = [
+  ['Brgy. Sample Ballers', 'basketball'],
+  ['Sample City Hoops', 'basketball'],
+  ['Poblacion Fastbreak', 'basketball'],
+  ['Riverside Rim Rockers', 'basketball'],
+  ['Sample City Spikers', 'volleyball'],
+  ['Beach Dig Squad', 'volleyball'],
+  ['Net Ninjas', 'volleyball'],
+  ['Sample Riders MC', 'moto'],
+  ['Trail Hawks Riding Club', 'moto'],
+  ['Highway Brothers', 'moto'],
+  ['Morning Run Club', 'longsleeves'],
+  ['Shooting Shirts Co.', 'longsleeves'],
+  ['Sample Office Polo', 'polo'],
+  ['Alumni Reunion 2026', 'polo'],
+  ['Barkada Custom One', 'custom'],
+  ['Barkada Custom Two', 'custom'],
+];
+
+/** Photo sizes in turn: tall, square, wide, very wide, very tall, and no size at all (0 by 0). */
+const DEMO_SIZES: readonly (readonly [number, number])[] = [
+  [800, 1000],
+  [900, 900],
+  [1200, 900],
+  [1000, 400],
+  [300, 1000],
+  [0, 0],
+];
+
+/** Sixteen shown items over the six lines (basketball 4, volleyball 3, moto 3, long sleeves 2, polo 2, custom 2); the first has four photos. */
+export const demoGallery: PublicGalleryFixture = makeGallery(
+  DEMO_TEAMS.map(([team, lineKey], index) => {
+    const [width, height] = DEMO_SIZES[index % DEMO_SIZES.length] ?? [800, 1000];
+    const slug = slugOf(team);
+    return makeGalleryItem({
+      team,
+      lineKey,
+      id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+      pieces: index === 5 ? null : index === 6 ? 1 : 10 + index,
+      photos:
+        index === 0
+          ? [1, 2, 3, 4].map((number) => galleryPhoto(`${slug}-${String(number)}`, width, height))
+          : [galleryPhoto(slug, width, height)],
+    });
+  }),
+);
+
+/** Nothing shown: no items and no pills. */
+export const emptyGallery: PublicGalleryFixture = { items: [], pills: [], total: 0 };
+
+/** Sixty items, 40 basketball then 20 volleyball, for the 24 at a time paging. */
+export const largeGallery: PublicGalleryFixture = makeGallery(
+  Array.from({ length: 60 }, (_, index) =>
+    makeGalleryItem({
+      team: `Team ${String(index + 1)}`,
+      lineKey: index < 40 ? 'basketball' : 'volleyball',
+      id: `00000000-0000-4000-8000-${String(index + 100).padStart(12, '0')}`,
+    }),
+  ),
+);
+
+/** An MSW handler that answers GET /api/v1/public/gallery with `gallery`. */
+export function galleryHandler(gallery: PublicGalleryFixture) {
+  return http.get('*/api/v1/public/gallery', () => HttpResponse.json(gallery));
+}
+
+/** An MSW handler that answers GET /api/v1/public/gallery with a failure. */
+export function galleryFailureHandler(status = 500) {
+  return http.get('*/api/v1/public/gallery', () =>
+    HttpResponse.json(
+      { title: 'Something went wrong.', status },
+      { status, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
+  );
+}
+
+/** Answers the gallery read with `gallery` for the rest of the test. */
+export function answerGallery(gallery: PublicGalleryFixture): void {
+  server.use(galleryHandler(gallery));
+}
+
+/** A Recent work tile as the Home read answers it, with a strip photo unless `photo` is null. */
+export function makeRecentWork(
+  overrides: Partial<PublicRecentWorkFixture> & { team: string; lineKey: string },
+): PublicRecentWorkFixture {
+  const facts = LINE_FACTS[overrides.lineKey] ?? { shortName: 'Sample', art: 'custom' };
+  return {
+    lineShortName: facts.shortName,
+    photo: photoFor(slugOf(overrides.team)),
+    pieces: 17,
+    placeholderArt: facts.art,
+    ...overrides,
+  };
+}
+
+/** Six recent orders, newest first. */
+export const demoRecentWork: readonly PublicRecentWorkFixture[] = [
+  makeRecentWork({ team: 'Brgy. Sample Ballers', lineKey: 'basketball' }),
+  makeRecentWork({ team: 'Sample City Spikers', lineKey: 'volleyball', pieces: 12 }),
+  makeRecentWork({ team: 'Sample Riders MC', lineKey: 'moto', pieces: 1 }),
+  makeRecentWork({ team: 'Sample Office Polo', lineKey: 'polo', photo: null }),
+  makeRecentWork({ team: 'Barkada Custom One', lineKey: 'custom', pieces: null }),
+  makeRecentWork({ team: 'Sample City Hoops', lineKey: 'basketball', pieces: 20 }),
+];
+
+/** The demo Home with six recent orders and the newest as the hero tag. */
+export const homeWithWork: PublicHomeFixture = {
+  ...demoHome,
+  recentWork: [...demoRecentWork],
+  heroTag: { name: 'Brgy. Sample Ballers', pieces: 17 },
+};

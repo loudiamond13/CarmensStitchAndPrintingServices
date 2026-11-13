@@ -133,7 +133,8 @@ export const PUBLIC_COPY = {
       eyebrow: 'Fresh off the press',
       headline: { plain: 'Recent', accent: 'work.' },
       viewGallery: 'View gallery',
-      caption: (line: string, pieces: number) => `${line} · ${piecesText(pieces)}`,
+      // The pieces are left out when unknown.
+      caption: (line: string, pieces: number | null) => (pieces === null ? line : `${line} · ${piecesText(pieces)}`),
     },
     testimonials: {
       eyebrow: 'From the court and the road',
@@ -186,10 +187,13 @@ export const PUBLIC_COPY = {
     lead: 'Real orders from barangay leagues, school teams, riding clubs and offices. Tap any piece to see it up close.',
     filterBar: 'Filter by category',
     all: 'All',
-    itemsHidden: ' items',
+    // The visually hidden word after a pill's number; the space before it is its own text node.
+    itemsHidden: 'items',
     // SPEC-GAP: the polite announcement after a filter change.
     showing: (count: number) => `Showing ${String(count)} ${count === 1 ? 'item' : 'items'}`,
     tileName: (team: string, line: string) => `Open ${team}, ${line}`,
+    // "{Basketball} · {17} pcs"; the pieces are left out when unknown (an upload with none).
+    caption: (line: string, pieces: number | null) => (pieces === null ? line : `${line} · ${piecesText(pieces)}`),
     showMore: 'Show More Photos',
     wantOne: 'Want one like these? Get a Quote',
     empty: { title: 'No photos yet', message: 'Photos of our latest team orders show here soon.' },
@@ -277,7 +281,7 @@ export const PUBLIC_COPY = {
       contact: 'Loading our contact details…',
     },
     // SPEC-GAP: what a loading region says when it is done.
-    loaded: { products: 'The product lines loaded.', page: 'The page loaded.' },
+    loaded: { products: 'The product lines loaded.', page: 'The page loaded.', gallery: 'The gallery loaded.' },
     errors: {
       products: "Couldn't load the product lines.",
       gallery: "Couldn't load the gallery.",

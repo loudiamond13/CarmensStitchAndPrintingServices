@@ -1,7 +1,7 @@
 // HeroArt (UI-SPEC H1 item 1, App. E.1): the hero's drawing, copied from the approved design. Stacked back to front: the
 // outlined "23", the sand slab, the orange slab and the maroon jersey with its drop shadow. It is decorative, so the whole
 // drawing is hidden from assistive technology. The colors are SVG attributes, never a style attribute (strict CSP). The
-// floating "Recent order" tag joins in plan 11-29, once shown orders are served.
+// floating "Recent order" tag (HeroTag) is a sibling over it, so the hidden drawing never holds readable text.
 import { heroArtClasses, heroJerseyClasses, heroNumClasses, heroSlabBackClasses, heroSlabClasses } from './home.recipe';
 
 const BODY =
