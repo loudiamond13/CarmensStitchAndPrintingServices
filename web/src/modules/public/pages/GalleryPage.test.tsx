@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -362,3 +362,133 @@ describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
     });
   });
 });
+
+describe(
+  'GalleryPage lightbox focus, history and filter (GAL-02, UI-SPEC G2 Focus and History)',
+  { timeout: 30_000 },
+  () => {
+    it('puts focus back on the tile of the item last shown when the lightbox closes', async () => {
+      await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{ArrowRight}');
+      await userEvent.click(screen.getByRole('button', { name: 'Close viewer' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(screen.getByRole('button', { name: 'Open Riverside Rim Rockers, Basketball' })).toHaveFocus();
+    });
+
+    it('shows more tiles first when the last item shown was beyond the first 24, then focuses its tile', async () => {
+      answerGallery(largeGallery);
+      await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(24);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Team 1, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{ArrowRight}'.repeat(29));
+      expect(screen.getByText('30 / 60')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(tiles()).toHaveLength(48);
+      expect(tiles()[29]).toHaveFocus();
+      expect(tiles()[29]).toHaveAccessibleName('Open Team 30, Basketball');
+    });
+
+    it('adds one history entry with the same URL when it opens, and Back closes it and stays on the same category', async () => {
+      const { router } = await renderGallery('/gallery?category=basketball');
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(4);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Sample City Hoops, Basketball' }));
+      await loadedViewer();
+      expect(router.state.location.key).not.toBe(before);
+      expect(window.location.search).toBe('?category=basketball');
+
+      await act(async () => {
+        await router.navigate(-1);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(router.state.location.key).toBe(before);
+      expect(window.location.pathname).toBe('/gallery');
+      expect(window.location.search).toBe('?category=basketball');
+      expect(tiles()).toHaveLength(4);
+    });
+
+    it('removes the entry when it closes by Esc, so the page is on the entry it started from', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(router.state.location.key).toBe(before);
+    });
+
+    it('closes when the category changes while it is open', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await act(async () => {
+        await router.navigate('/gallery?category=volleyball');
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(3);
+      });
+    });
+
+    it('closes the lightbox and goes to /contact with "Get a quote for something like this", and Back lands on the Gallery with it closed', async () => {
+      const { router } = await renderGallery();
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      const before = router.state.location.key;
+      await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+      await loadedViewer();
+
+      await userEvent.click(screen.getByRole('link', { name: 'Get a quote for something like this' }));
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/contact');
+      });
+      expect(screen.queryByRole('dialog', { name: 'Gallery image viewer' })).toBeNull();
+      await act(async () => {
+        await router.navigate(-1);
+      });
+      await waitFor(() => {
+        expect(tiles()).toHaveLength(16);
+      });
+      expect(router.state.location.key).toBe(before);
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  },
+);
