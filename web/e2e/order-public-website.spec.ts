@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
-import { drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
+import { deleteOrderThroughApi, drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, type StaffRole } from './testing-api.ts';
 
@@ -40,18 +40,18 @@ function card(page: Page) {
   return page.getByRole('region', { name: 'Public website' });
 }
 
-/** The teams the public gallery lists now, or null while the public gallery read does not exist yet (plan 11-26). */
-async function publicGalleryTeams(request: APIRequestContext): Promise<string[] | null> {
+/** The teams the public gallery lists now. */
+async function publicGalleryTeams(request: APIRequestContext): Promise<string[]> {
   const response = await request.get('/api/v1/public/gallery');
-  if (response.status() === 404 || !(response.headers()['content-type'] ?? '').includes('json')) {
-    return null;
-  }
   expect(response.status(), 'GET /api/v1/public/gallery').toBe(200);
   const body = (await response.json()) as { items: { team: string }[] };
   return body.items.map((item) => item.team);
 }
 
-/** Opens the window, ticks the OK and Show, chooses a line when the items gave none, and saves. */
+/**
+ * Opens the window, ticks the OK and Show, chooses a line when the items gave none, and saves. Showing an order puts it at the top of the
+ * gallery, which is one set for all projects, so a test calls this under the site content lock and deletes the order before it lets go.
+ */
 async function showFromWindow(page: Page): Promise<void> {
   await press(page, card(page).getByRole('button', { name: 'Edit public website settings' }));
   const dialog = page.getByRole('dialog', { name: 'Public Website' });
@@ -94,24 +94,21 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
   await expect(dialog).toBeHidden();
   await expect(region.getByRole('button', { name: 'Edit public website settings' })).toBeFocused();
 
-  await showFromWindow(page);
-  await expect(page.getByText('Order shown on the website')).toBeVisible();
-  await expect(region.getByRole('button', { name: 'Edit public website settings' })).toBeFocused();
-  await expect(region).toContainText(/Yes, recorded .+ by .+/);
-  await expect(region.getByText('Shown', { exact: true })).toBeVisible();
-  await expect(region).toContainText(order.team);
-  await expectNoAxeViolations(page);
-
-  // The public gallery lists the order: one set for all projects, so it is read under the lock.
+  // The gallery is one set for all projects: the order is shown, read and deleted again under the lock.
   await withSiteContentLock(async () => {
-    const teams = await publicGalleryTeams(request);
-    if (teams === null) {
-      test
-        .info()
-        .annotations.push({ type: 'pending', description: 'GET /api/v1/public/gallery arrives with plan 11-26' });
-      return;
+    try {
+      await showFromWindow(page);
+      await expect(page.getByText('Order shown on the website')).toBeVisible();
+      await expect(region.getByRole('button', { name: 'Edit public website settings' })).toBeFocused();
+      await expect(region).toContainText(/Yes, recorded .+ by .+/);
+      await expect(region.getByText('Shown', { exact: true })).toBeVisible();
+      await expect(region).toContainText(order.team);
+      await expectNoAxeViolations(page);
+
+      expect(await publicGalleryTeams(request)).toContain(order.team);
+    } finally {
+      await deleteOrderThroughApi(page, order.id);
     }
-    expect(teams).toContain(order.team);
   });
 });
 
@@ -139,27 +136,24 @@ test('@order-public-website a Manager takes a shown order off the website: the g
   test.setTimeout(240_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const order = await openOrderWithPhoto(page, request, 'Manager', 'Take Off');
-  await showFromWindow(page);
-  await expect(page.getByText('Order shown on the website')).toBeVisible();
-  await expect(valueOf(page, 'On the website')).toContainText('Shown');
-
-  await takeOffFromWindow(page);
-  await expect(page.getByText('Order taken off the website')).toBeVisible();
-  await expect(page.getByText('Its photos stay on the order.')).toBeVisible();
-  await expect(valueOf(page, 'Customer OK')).toHaveText('No');
-  await expect(valueOf(page, 'On the website')).toContainText('Not shown');
-  await expect(tiles(page)).toHaveCount(1);
-
-  // The public gallery no longer lists the order on its next read.
   await withSiteContentLock(async () => {
-    const teams = await publicGalleryTeams(request);
-    if (teams === null) {
-      test
-        .info()
-        .annotations.push({ type: 'pending', description: 'GET /api/v1/public/gallery arrives with plan 11-26' });
-      return;
+    try {
+      await showFromWindow(page);
+      await expect(page.getByText('Order shown on the website')).toBeVisible();
+      await expect(valueOf(page, 'On the website')).toContainText('Shown');
+
+      await takeOffFromWindow(page);
+      await expect(page.getByText('Order taken off the website')).toBeVisible();
+      await expect(page.getByText('Its photos stay on the order.')).toBeVisible();
+      await expect(valueOf(page, 'Customer OK')).toHaveText('No');
+      await expect(valueOf(page, 'On the website')).toContainText('Not shown');
+      await expect(tiles(page)).toHaveCount(1);
+
+      // The public gallery no longer lists the order on its next read.
+      expect(await publicGalleryTeams(request)).not.toContain(order.team);
+    } finally {
+      await deleteOrderThroughApi(page, order.id);
     }
-    expect(teams).not.toContain(order.team);
   });
 });
 
@@ -321,14 +315,21 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
   await region.getByRole('checkbox', { name: 'Show on the website' }).check();
   await region.getByRole('combobox', { name: /^Show under/ }).selectOption({ index: 1 });
   await expectNoAxeViolations(page);
-  await page.getByRole('button', { name: 'Save Order' }).click();
-
-  await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
-  const saved = formCard(page);
-  await expect(saved).toBeVisible();
-  await expect(saved).toContainText(/Yes, recorded .+ by .+/);
-  await expect(saved.getByText('Shown', { exact: true })).toBeVisible();
-  await expect(saved).toContainText('E2E Form Public Team');
+  // The saved order is shown at the top of the gallery, which is one set for all projects: it is saved, read and deleted under the lock.
+  await withSiteContentLock(async () => {
+    await page.getByRole('button', { name: 'Save Order' }).click();
+    await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
+    const id = /\/admin\/orders\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? '';
+    try {
+      const saved = formCard(page);
+      await expect(saved).toBeVisible();
+      await expect(saved).toContainText(/Yes, recorded .+ by .+/);
+      await expect(saved.getByText('Shown', { exact: true })).toBeVisible();
+      await expect(saved).toContainText('E2E Form Public Team');
+    } finally {
+      await deleteOrderThroughApi(page, id);
+    }
+  });
 });
 
 test('@order-form-public a Manager edits a shown order, changes Name shown, saves, and the public gallery shows the new name', async ({
@@ -339,6 +340,17 @@ test('@order-form-public a Manager edits a shown order, changes Name shown, save
   test.setTimeout(240_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const order = await openOrderWithPhoto(page, request, 'Manager', 'Form Edit');
+  await withSiteContentLock(async () => {
+    try {
+      await editShownOrder(page, request, order);
+    } finally {
+      await deleteOrderThroughApi(page, order.id);
+    }
+  });
+});
+
+/** Shows the order, renames it on the edit form and reads the new name on the order page and in the public gallery (under the lock). */
+async function editShownOrder(page: Page, request: APIRequestContext, order: SeededOrder): Promise<void> {
   await showFromWindow(page);
   await expect(page.getByText('Order shown on the website')).toBeVisible();
 
@@ -362,13 +374,8 @@ test('@order-form-public a Manager edits a shown order, changes Name shown, save
   await expect(valueOf(page, 'Name shown')).toContainText(shownName);
   await expect(valueOf(page, 'On the website')).toContainText('Shown');
 
-  // The public gallery is one set for all projects, so it is read under the lock.
-  await withSiteContentLock(async () => {
-    const teams = await publicGalleryTeams(request);
-    expect(teams, 'GET /api/v1/public/gallery answers').not.toBeNull();
-    expect(teams).toContain(shownName);
-  });
-});
+  expect(await publicGalleryTeams(request)).toContain(shownName);
+}
 
 /** Every label, box and line of the card sits inside the screen, and the page has no sideways scroll. */
 async function expectCardInsideScreen(page: Page, width: number): Promise<void> {
