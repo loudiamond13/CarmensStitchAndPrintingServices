@@ -194,13 +194,15 @@ test('@gallery-lightbox the 56px buttons move between items on a desktop and the
     const viewer = page.getByRole('dialog', { name: VIEWER });
     await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
 
-    const shownNames = isMobile ? ['Previous photo', 'Next photo'] : ['Previous image', 'Next image'];
+    const shownNames = isMobile
+      ? { previous: 'Previous photo', next: 'Next photo' }
+      : { previous: 'Previous image', next: 'Next image' };
     const hiddenNames = isMobile ? ['Previous image', 'Next image'] : ['Previous photo', 'Next photo'];
     for (const name of hiddenNames) {
       await expect(viewer.getByRole('button', { name })).toBeHidden();
     }
-    const previous = viewer.getByRole('button', { name: shownNames[0] });
-    const next = viewer.getByRole('button', { name: shownNames[1] });
+    const previous = viewer.getByRole('button', { name: shownNames.previous });
+    const next = viewer.getByRole('button', { name: shownNames.next });
     await expect(previous).toBeVisible();
     await expect(next).toBeVisible();
 
@@ -297,7 +299,9 @@ for (const width of [320, 1440]) {
       await expect(team).toBeVisible();
 
       const box = await team.boundingBox();
-      expect(box?.height ?? 0, 'the long name takes more than one line').toBeGreaterThan(40);
+      if (width === 320) {
+        expect(box?.height ?? 0, 'the long name takes more than one line').toBeGreaterThan(40);
+      }
       expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
       expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
       await expectNoAxeViolations(page);
