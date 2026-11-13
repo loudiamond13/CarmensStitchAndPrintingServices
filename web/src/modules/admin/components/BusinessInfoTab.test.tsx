@@ -226,7 +226,7 @@ describe('saving the tagline (CONT-01, PUB-03)', () => {
 });
 
 describe('the cards (S1)', () => {
-  it('shows the six cards in order, each with its hint', async () => {
+  it('shows the seven cards in order, each with its hint', async () => {
     siteSettingsBackend();
     await openTab();
 
@@ -237,6 +237,7 @@ describe('the cards (S1)', () => {
       'Phone numbers',
       'Messenger and social links',
       'Email',
+      'Link preview picture',
       'Time zone and money',
     ]);
     for (const hint of [
@@ -244,6 +245,7 @@ describe('the cards (S1)', () => {
       'The main number is the one the Call buttons dial.',
       'Leave a link empty to hide it on the website.',
       "For staff use only. It's not shown on the website.",
+      'Shown when someone shares a page on Facebook or Messenger.',
       'These stay fixed so every date, status and total lines up.',
     ]) {
       expect(screen.getAllByText(hint).length).toBeGreaterThan(0);

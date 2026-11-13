@@ -26,6 +26,7 @@ import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { PhoneNumbersField } from '@/modules/admin/components/PhoneNumbersField';
+import { SharePictureCard } from '@/modules/admin/components/SharePictureCard';
 import {
   recordMetaClasses,
   recordMetaRowClasses,
@@ -199,6 +200,8 @@ interface BusinessInfoFormProps {
 function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormProps) {
   const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
+  // The form element holds the cards up to Email; Save Business Info sits after the link preview picture card, so it names the form it submits.
+  const formId = useId();
   // The settings version this form was opened with: changed only by a save of this form.
   const [version, setVersion] = useState(settings.version);
   // What Undo Changes goes back to: the values the form opened with, then those of the last save or of Load Latest.
@@ -303,6 +306,17 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
     formRef.current?.querySelector<HTMLElement>('input')?.focus();
   };
 
+  /**
+   * The link preview picture moved the settings row's version (11-30 OI-1): the form sends the new one, so its next save is not refused as stale.
+   * Only when the fields on the server are still the ones this form was opened with: a change made by someone else in the meantime must still
+   * end in the stale banner, never be written over.
+   */
+  const takePictureVersion = (fresh: SiteSettings | null): void => {
+    if (fresh !== null && JSON.stringify(businessInfoValuesOf(fresh)) === JSON.stringify(baseline)) {
+      setVersion(fresh.version);
+    }
+  };
+
   const onValid = async (values: BusinessInfoInput): Promise<void> => {
     await submit(toSiteSettingsRequest(values, version));
   };
@@ -315,14 +329,7 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
 
   return (
     <FormProvider {...form}>
-      <form
-        ref={formRef}
-        noValidate
-        className={siteContentStackClasses}
-        onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
-          void handleSubmit(onValid, onInvalid)(event);
-        }}
-      >
+      <div className={siteContentStackClasses}>
         {conflicts > 0 && (
           <ConflictBanner
             key={conflicts}
@@ -332,125 +339,137 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
             }}
           />
         )}
-        <Card title={COPY.cards.business.title} hint={COPY.cards.business.hint}>
-          <div className={profileFormGridClasses}>
+        <form
+          id={formId}
+          ref={formRef}
+          noValidate
+          className={siteContentStackClasses}
+          onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
+            void handleSubmit(onValid, onInvalid)(event);
+          }}
+        >
+          <Card title={COPY.cards.business.title} hint={COPY.cards.business.hint}>
+            <div className={profileFormGridClasses}>
+              <TextField
+                control={control}
+                name="businessName"
+                label={COPY.fields.businessName.label}
+                hint={COPY.fields.businessName.hint}
+                className={expensesFullRowClasses}
+                required
+              />
+              <TextField
+                control={control}
+                name="tagline"
+                label={COPY.fields.tagline.label}
+                hint={COPY.fields.tagline.hint}
+                className={expensesFullRowClasses}
+                rows={2}
+                required
+              />
+              <TextField
+                control={control}
+                name="aboutText"
+                label={COPY.fields.aboutText.label}
+                hint={COPY.fields.aboutText.hint}
+                className={expensesFullRowClasses}
+                rows={4}
+              />
+              <TextField
+                control={control}
+                name="turnaroundLine"
+                label={COPY.fields.turnaroundLine.label}
+                hint={COPY.fields.turnaroundLine.hint}
+                placeholder={COPY.fields.turnaroundLine.placeholder}
+                className={expensesFullRowClasses}
+                rows={2}
+              />
+            </div>
+          </Card>
+          <Card title={COPY.cards.address.title} hint={COPY.cards.address.hint}>
+            <div className={profileFormGridClasses}>
+              <TextField
+                control={control}
+                name="street"
+                label={COPY.fields.street.label}
+                placeholder={COPY.fields.street.placeholder}
+                className={expensesFullRowClasses}
+                required
+              />
+              <TextField control={control} name="townOrCity" label={COPY.fields.townOrCity.label} required />
+              <TextField control={control} name="province" label={COPY.fields.province.label} required />
+              <TextField control={control} name="postalCode" label={COPY.fields.postalCode.label} inputMode="numeric" />
+              <TextField
+                control={control}
+                name="directionsUrl"
+                label={COPY.fields.directionsUrl.label}
+                hint={COPY.fields.directionsUrl.hint}
+                className={expensesFullRowClasses}
+                type="url"
+                inputMode="url"
+              />
+              <TextField
+                control={control}
+                name="mapEmbedUrl"
+                label={COPY.fields.mapEmbedUrl.label}
+                hint={COPY.fields.mapEmbedUrl.hint}
+                className={expensesFullRowClasses}
+                onLeave={reduceEmbedCode}
+              />
+            </div>
+          </Card>
+          <Card title={COPY.cards.phones.title} hint={COPY.cards.phones.hint}>
+            <PhoneNumbersField />
+          </Card>
+          <Card title={COPY.cards.links.title} hint={COPY.cards.links.hint}>
+            <div className={profileFormGridClasses}>
+              <TextField
+                control={control}
+                name="messengerUrl"
+                label={COPY.fields.messengerUrl.label}
+                hint={COPY.fields.messengerUrl.hint}
+                className={expensesFullRowClasses}
+                type="url"
+                inputMode="url"
+              />
+              <TextField
+                control={control}
+                name="facebookUrl"
+                label={COPY.fields.facebookUrl.label}
+                className={expensesFullRowClasses}
+                type="url"
+                inputMode="url"
+              />
+              <TextField
+                control={control}
+                name="instagramUrl"
+                label={COPY.fields.instagramUrl.label}
+                className={expensesFullRowClasses}
+                type="url"
+                inputMode="url"
+              />
+              <TextField
+                control={control}
+                name="tiktokUrl"
+                label={COPY.fields.tiktokUrl.label}
+                className={expensesFullRowClasses}
+                type="url"
+                inputMode="url"
+              />
+            </div>
+          </Card>
+          <Card title={COPY.cards.email.title} hint={COPY.cards.email.hint}>
             <TextField
               control={control}
-              name="businessName"
-              label={COPY.fields.businessName.label}
-              hint={COPY.fields.businessName.hint}
-              className={expensesFullRowClasses}
-              required
+              name="contactEmail"
+              label={COPY.fields.contactEmail.label}
+              type="email"
+              inputMode="email"
             />
-            <TextField
-              control={control}
-              name="tagline"
-              label={COPY.fields.tagline.label}
-              hint={COPY.fields.tagline.hint}
-              className={expensesFullRowClasses}
-              rows={2}
-              required
-            />
-            <TextField
-              control={control}
-              name="aboutText"
-              label={COPY.fields.aboutText.label}
-              hint={COPY.fields.aboutText.hint}
-              className={expensesFullRowClasses}
-              rows={4}
-            />
-            <TextField
-              control={control}
-              name="turnaroundLine"
-              label={COPY.fields.turnaroundLine.label}
-              hint={COPY.fields.turnaroundLine.hint}
-              placeholder={COPY.fields.turnaroundLine.placeholder}
-              className={expensesFullRowClasses}
-              rows={2}
-            />
-          </div>
-        </Card>
-        <Card title={COPY.cards.address.title} hint={COPY.cards.address.hint}>
-          <div className={profileFormGridClasses}>
-            <TextField
-              control={control}
-              name="street"
-              label={COPY.fields.street.label}
-              placeholder={COPY.fields.street.placeholder}
-              className={expensesFullRowClasses}
-              required
-            />
-            <TextField control={control} name="townOrCity" label={COPY.fields.townOrCity.label} required />
-            <TextField control={control} name="province" label={COPY.fields.province.label} required />
-            <TextField control={control} name="postalCode" label={COPY.fields.postalCode.label} inputMode="numeric" />
-            <TextField
-              control={control}
-              name="directionsUrl"
-              label={COPY.fields.directionsUrl.label}
-              hint={COPY.fields.directionsUrl.hint}
-              className={expensesFullRowClasses}
-              type="url"
-              inputMode="url"
-            />
-            <TextField
-              control={control}
-              name="mapEmbedUrl"
-              label={COPY.fields.mapEmbedUrl.label}
-              hint={COPY.fields.mapEmbedUrl.hint}
-              className={expensesFullRowClasses}
-              onLeave={reduceEmbedCode}
-            />
-          </div>
-        </Card>
-        <Card title={COPY.cards.phones.title} hint={COPY.cards.phones.hint}>
-          <PhoneNumbersField />
-        </Card>
-        <Card title={COPY.cards.links.title} hint={COPY.cards.links.hint}>
-          <div className={profileFormGridClasses}>
-            <TextField
-              control={control}
-              name="messengerUrl"
-              label={COPY.fields.messengerUrl.label}
-              hint={COPY.fields.messengerUrl.hint}
-              className={expensesFullRowClasses}
-              type="url"
-              inputMode="url"
-            />
-            <TextField
-              control={control}
-              name="facebookUrl"
-              label={COPY.fields.facebookUrl.label}
-              className={expensesFullRowClasses}
-              type="url"
-              inputMode="url"
-            />
-            <TextField
-              control={control}
-              name="instagramUrl"
-              label={COPY.fields.instagramUrl.label}
-              className={expensesFullRowClasses}
-              type="url"
-              inputMode="url"
-            />
-            <TextField
-              control={control}
-              name="tiktokUrl"
-              label={COPY.fields.tiktokUrl.label}
-              className={expensesFullRowClasses}
-              type="url"
-              inputMode="url"
-            />
-          </div>
-        </Card>
-        <Card title={COPY.cards.email.title} hint={COPY.cards.email.hint}>
-          <TextField
-            control={control}
-            name="contactEmail"
-            label={COPY.fields.contactEmail.label}
-            type="email"
-            inputMode="email"
-          />
-        </Card>
+          </Card>
+        </form>
+        {/* SPEC-GAP: business info. Card 6 sits outside the form element: the picture saves on its own (D-26). */}
+        <SharePictureCard picture={settings.sharePicture} onSettingsChange={takePictureVersion} />
         {/* SPEC-GAP: business info. The fixed time zone and money format, read only (OQ-6 A, D-35). */}
         <Card title={COPY.cards.zone.title} hint={COPY.cards.zone.hint}>
           <dl className={recordMetaClasses}>
@@ -482,11 +501,11 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
           >
             {COPY.actions.undo}
           </Button>
-          <Button type="submit" variant="primary" icon="check" pending={pending}>
+          <Button type="submit" form={formId} variant="primary" icon="check" pending={pending}>
             {pending ? COPY.actions.saving : COPY.actions.save}
           </Button>
         </div>
-      </form>
+      </div>
       <div role="status" aria-live="polite" className={srOnlyClasses}>
         {status}
       </div>

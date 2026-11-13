@@ -12,7 +12,8 @@ import {
   useUpdateSiteSettings,
   useUploadSharePicture,
 } from '@/modules/admin/hooks/useSiteSettingsQuery';
-import type { UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
+import { HttpError } from '@/core/api/errors';
+import { siteSettingsService, type UpdateSiteSettingsRequest } from '@/modules/admin/services/siteSettingsService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { server } from '@/test/msw';
 import { createDeferred } from '@/test/fakeFetch';
@@ -46,6 +47,7 @@ afterEach(() => {
   queryClient.clear();
   clearSession();
   vi.mocked(invalidatePublicContent).mockClear();
+  vi.restoreAllMocks();
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -184,7 +186,23 @@ describe('useUploadSharePicture (PUB-04, D-26; plan 11-34)', () => {
 
   it('a refused picture reads nothing again, clears nothing and hands the failure on', async () => {
     const settings = siteSettingsBackend();
-    sharePictureBackend(settings, { onUpload: () => problemAnswer(400, { code: 'images.type' }) });
+    // The refusal is raised by the service: a refusal sent before the browser's form body is out ends as a transport error in this test run.
+    vi.spyOn(siteSettingsService, 'uploadSharePicture').mockRejectedValue(
+      new HttpError({
+        kind: 'http',
+        status: 400,
+        problem: {
+          type: undefined,
+          title: 'x',
+          status: 400,
+          detail: undefined,
+          instance: undefined,
+          traceId: undefined,
+          code: 'images.type',
+          errors: {},
+        },
+      }),
+    );
     queryClient.setQueryData(siteSettingsKey, demoSiteSettings);
     const onFailure = vi.fn();
     const { result } = renderHook(() => useUploadSharePicture({ onFailure }), { wrapper });

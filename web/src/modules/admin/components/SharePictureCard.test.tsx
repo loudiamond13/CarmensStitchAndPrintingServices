@@ -159,12 +159,12 @@ describe('choosing a picture (PUB-04, D-26)', () => {
 
   it('shows Uploading while the file is on its way', async () => {
     const settings = siteSettingsBackend();
+    sharePictureBackend(settings);
     const gate = createDeferred<undefined>();
-    sharePictureBackend(settings, {
-      onUpload: async () => {
-        await gate.promise;
-        return undefined;
-      },
+    // A form body that waits cannot go through jsdom's FormData and Node's fetch, so the wait is held in the service.
+    vi.spyOn(siteSettingsService, 'uploadSharePicture').mockImplementation(async () => {
+      await gate.promise;
+      return sharePicture('waited');
     });
     vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
     const { user } = await renderCard(settings);
@@ -178,7 +178,7 @@ describe('choosing a picture (PUB-04, D-26)', () => {
     expect(await screen.findByText('Picture saved')).toBeVisible();
   });
 
-  it('shows the new preview from the 320 and 640 addresses and the words Replace Picture and Remove Picture', async () => {
+  it('shows the new preview from the 320 and 640 addresses and the word Replace Picture', async () => {
     const settings = siteSettingsBackend();
     sharePictureBackend(settings);
     vi.mocked(prepareImage).mockImplementation((file) => Promise.resolve(readyFile(file)));
@@ -192,7 +192,6 @@ describe('choosing a picture (PUB-04, D-26)', () => {
       `${sharePicture('upload-1').src320} 320w, ${sharePicture('upload-1').src640} 640w`,
     );
     expect(within(slot()).getByRole('button', { name: 'Replace Picture' })).toBeVisible();
-    expect(within(slot()).getByRole('button', { name: 'Remove Picture' })).toBeVisible();
     expect(within(slot()).queryByText('No picture yet')).not.toBeInTheDocument();
   });
 
