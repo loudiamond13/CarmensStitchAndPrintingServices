@@ -10,6 +10,11 @@ const HOME_API = '/api/v1/public/home';
 // Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
 test.describe.configure({ timeout: 480_000 });
 
+// The demo shown orders have no stored photo file, so the Recent work photos answer 404 and the tiles show their placeholder.
+test.beforeEach(({ guard }) => {
+  guard.expectStatus('/api/testing/images/', 404);
+});
+
 test('@home / shows six category cards with the seeded card texts, with no home request on the first load', async ({
   page,
   request,
@@ -34,6 +39,35 @@ test('@home / shows six category cards with the seeded card texts, with no home 
     );
     await expect(cards.first()).toHaveAttribute('href', '/products#basketball');
     expect(homeRequests).toEqual([]);
+  });
+});
+
+test('@home / shows Recent work newest first with the hero tag, and a tile opens the Gallery on its line', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/');
+
+    await expect(page.getByRole('heading', { level: 2, name: 'Recent work.' })).toBeVisible();
+    const tiles = page.getByRole('main').locator('a[href^="/gallery?category="]');
+    await expect(tiles).toHaveCount(4);
+    await expect(tiles.nth(0)).toContainText('Brgy. Sample Ballers');
+    await expect(tiles.nth(0)).toContainText('Basketball · 17 pcs');
+    await expect(tiles.nth(0)).toHaveAttribute('href', '/gallery?category=basketball');
+    await expect(tiles.nth(1)).toContainText('Sample City Spikers');
+    await expect(tiles.nth(2)).toContainText('Sample Riders MC');
+    await expect(tiles.nth(3)).toContainText('Tondo Sample Hoopers');
+    await expect(page.getByText('Recent order')).toBeVisible();
+    await expect(page.getByText('17-piece set · mockup to pickup')).toBeVisible();
+
+    await tiles.nth(1).click();
+
+    await expect(page).toHaveURL(/\/gallery\?category=volleyball$/);
+    await expect(
+      page.getByRole('toolbar', { name: 'Filter by category' }).getByRole('button', { name: /^Volleyball/ }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });
 

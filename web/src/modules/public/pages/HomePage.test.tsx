@@ -15,6 +15,7 @@ import {
   homeHandler,
   homeNoLines,
   homeNoTestimonials,
+  homeWithWork,
   putBootBlock,
   siteHandler,
   siteWithoutOptionals,
@@ -301,5 +302,98 @@ describe('HomePage states (PUB-01, UI-SPEC H1 States, CLS)', { timeout: 20_000 }
     await cardsShown();
     expect(await screen.findAllByRole('figure')).toHaveLength(3);
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('HomePage Recent work and the hero tag (D-14, PUB-01)', { timeout: 20_000 }, () => {
+  async function renderWithWork() {
+    answerHome(homeWithWork);
+    const view = await renderHome();
+    await cardsShown();
+    await screen.findByRole('heading', { level: 2, name: 'Recent work.' }, { timeout: 15_000 });
+    return view;
+  }
+
+  it('shows the six newest orders as tiles to their line in the Gallery, between the steps and the testimonials', async () => {
+    const { container } = await renderWithWork();
+
+    expect(container.querySelectorAll('a[href^="/gallery?category="]')).toHaveLength(6);
+    const headings = within(screen.getByRole('main'))
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings.slice(2, 5)).toEqual([
+      'Idea to jersey in four steps.',
+      'Recent work.',
+      'Teams that suit up with us.',
+    ]);
+  });
+
+  it('shows the hero tag with the newest order, outside the hidden drawing and not as a link', async () => {
+    await renderWithWork();
+
+    const tag = screen.getByText('Recent order').parentElement;
+    expect(tag).toHaveTextContent('Brgy. Sample Ballers');
+    expect(tag).toHaveTextContent('17-piece set · mockup to pickup');
+    expect(tag?.closest('[aria-hidden="true"]')).toBeNull();
+    expect(tag?.closest('a')).toBeNull();
+  });
+
+  it('with no shown order leaves out both the strip and the tag, and keeps the rest of the page', async () => {
+    await renderHome();
+    await cardsShown();
+    await screen.findAllByRole('figure', undefined, { timeout: 15_000 });
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Recent work.' })).toBeNull();
+    expect(screen.queryByText('Recent order')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Teams that suit up with us.' })).toBeInTheDocument();
+  });
+
+  it('a failed home read shows neither the strip nor the tag', async () => {
+    server.use(homeFailureHandler(500));
+    await renderHome();
+    await screen.findByRole('alert', undefined, { timeout: 15_000 });
+    await screen.findByRole('heading', { level: 2, name: "Got a team? Let's suit them up." });
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Recent work.' })).toBeNull();
+    expect(screen.queryByText('Recent order')).toBeNull();
+  });
+
+  it('while the home data loads, holds the strip in four frames', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get('*/api/v1/public/home', async () => {
+        await gate;
+        return HttpResponse.json(homeWithWork);
+      }),
+    );
+
+    const { container } = await renderHome();
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('[data-home-skeleton="recent"]')).toHaveLength(4);
+    });
+    release();
+    await screen.findByRole('heading', { level: 2, name: 'Recent work.' }, { timeout: 15_000 });
+    expect(container.querySelectorAll('[data-home-skeleton]')).toHaveLength(0);
+  });
+
+  it("opens the Gallery filtered to a tile's line", async () => {
+    const { router } = await renderWithWork();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Sample City Spikers Volleyball · 12 pcs' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/gallery');
+    });
+    expect(router.state.location.search).toBe('?category=volleyball');
+  });
+
+  it('has no axe violations with the strip and the tag showing', async () => {
+    const { container } = await renderWithWork();
+
+    await expectNoAxeViolations(container);
   });
 });
