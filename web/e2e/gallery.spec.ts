@@ -139,3 +139,38 @@ for (const width of [390, 1440]) {
     });
   });
 }
+
+// The lightbox (GAL-02, C-35, D-30). The viewer's own photos answer 404 for the demo ids, so each shows its placeholder.
+const VIEWER = 'Gallery image viewer';
+
+test('@gallery-lightbox pressing the third tile opens the viewer on it, Next wraps from the last item to the first and Esc closes', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+
+    await tiles.nth(2).click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer).toBeVisible();
+    await expect(viewer.getByText(`3 / ${String(total)}`)).toBeVisible();
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+
+    // The arrow key works on every project: the phone projects hide the 56px buttons.
+    for (let step = 3; step < total; step += 1) {
+      await page.keyboard.press('ArrowRight');
+    }
+    await expect(viewer.getByText(`${String(total)} / ${String(total)}`)).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(viewer.getByText(`1 / ${String(total)}`)).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+  });
+});

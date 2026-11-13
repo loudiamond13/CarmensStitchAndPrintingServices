@@ -631,3 +631,32 @@ export const homeWithWork: PublicHomeFixture = {
   recentWork: [...demoRecentWork],
   heroTag: { name: 'Brgy. Sample Ballers', pieces: 17 },
 };
+
+/** A gallery item with four photos, the cover first. */
+export const itemWithFourPhotos: PublicGalleryItemFixture = makeGalleryItem({
+  team: 'Brgy. Sample Ballers',
+  lineKey: 'basketball',
+  id: '00000000-0000-4000-8000-0000000000a1',
+  photos: [1, 2, 3, 4].map((number) => galleryPhoto(`sample-ballers-${String(number)}`, 1200, 900)),
+});
+
+/** A gallery item with no photo at all: the lightbox draws the line's jersey. */
+export const itemWithNoPhoto: PublicGalleryItemFixture = makeGalleryItem({
+  team: 'Sample Office Polo',
+  lineKey: 'polo',
+  id: '00000000-0000-4000-8000-0000000000a2',
+  photos: [],
+});
+
+/** An upload: one photo and a note. */
+export const itemUpload: PublicGalleryItemFixture = makeGalleryItem({
+  team: 'Sample Riders MC',
+  lineKey: 'moto',
+  id: '00000000-0000-4000-8000-0000000000a3',
+  note: 'Dri-fit mesh, V-neck',
+});
+
+/** A filter with one item: the lightbox has no Previous, Next, tap zones or swipe. */
+export const singleItemFilter: readonly PublicGalleryItemFixture[] = [
+  makeGalleryItem({ team: 'Lone Rangers', lineKey: 'basketball', id: '00000000-0000-4000-8000-0000000000a4' }),
+];

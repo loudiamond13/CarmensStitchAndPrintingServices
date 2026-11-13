@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
@@ -16,6 +16,13 @@ import {
   largeGallery,
   resetPublicData,
 } from '@/test/publicFixtures';
+
+// The factory runs when the lightbox module is first requested, so the count says whether the chunk was fetched.
+const lightboxModule = vi.hoisted(() => ({ requests: 0 }));
+vi.mock('../components/GalleryLightbox', async (importOriginal) => {
+  lightboxModule.requests += 1;
+  return await importOriginal();
+});
 
 /** The real route tree at /gallery (under the URL-state layout), settled once the h1 is on screen. */
 async function renderGallery(path = '/gallery') {
@@ -299,5 +306,55 @@ describe('GalleryPage Show More, states and the quote link (GAL-01, D-32)', { ti
       expect(tiles()).toHaveLength(24);
     });
     await expectNoAxeViolations(populated.container);
+  });
+});
+
+describe('GalleryPage lightbox (GAL-02, PERF-01)', { timeout: 30_000 }, () => {
+  it('asks for the lightbox chunk only when a tile is first pressed, then shows the viewer on that item', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    expect(lightboxModule.requests).toBe(0);
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open Poblacion Fastbreak, Basketball' }));
+
+    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
+    expect(lightboxModule.requests).toBe(1);
+    expect(await within(viewer).findByText('3 / 16')).toBeInTheDocument();
+    expect(
+      await within(viewer).findByRole('img', { name: 'Poblacion Fastbreak, Basketball work' }),
+    ).toBeInTheDocument();
+  });
+
+  it('opens inside the page root, not in a portal on the body', async () => {
+    const { container } = await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+
+    await userEvent.click(tiles()[0] as HTMLElement);
+
+    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
+    expect(container.contains(viewer)).toBe(true);
+  });
+
+  it('wraps from the last item to the first with Next, and closes on Esc', async () => {
+    await renderGallery();
+    await waitFor(() => {
+      expect(tiles()).toHaveLength(16);
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Open Barkada Custom Two, Custom' }));
+    const viewer = await screen.findByRole('dialog', { name: 'Gallery image viewer' });
+    expect(await within(viewer).findByText('16 / 16')).toBeInTheDocument();
+
+    await userEvent.click(within(viewer).getByRole('button', { name: 'Next image' }));
+    expect(within(viewer).getByText('1 / 16')).toBeInTheDocument();
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 });
