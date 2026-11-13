@@ -6,6 +6,12 @@
 // response (the guard) or axe findings.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 
+// Once any spec has put the demo shop content in place (the Testing seeder), the demo shown orders appear on Home (Recent work)
+// and in the Gallery. Their photo ids have no stored file, so those photos answer 404 and the tiles show their placeholder.
+test.beforeEach(({ guard }) => {
+  guard.expectStatus('/api/testing/images/', 404);
+});
+
 interface PublicPage {
   readonly path: string;
   readonly status: number;

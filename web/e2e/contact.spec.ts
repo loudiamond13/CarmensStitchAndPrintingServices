@@ -5,6 +5,11 @@ import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
 
+// The demo shown orders (the Testing seeder) show on Home as Recent work. Their photos have no stored file, so they answer 404.
+test.beforeEach(({ guard }) => {
+  guard.expectStatus('/api/testing/images/', 404);
+});
+
 const SITE_API = '/api/v1/public/site';
 const DEMO_TAGLINE = 'Custom tailoring and full-sublimation printing for teams, leagues and riding groups.';
 
