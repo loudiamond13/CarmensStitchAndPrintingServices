@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T09:25:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T12:05:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -534,6 +534,64 @@ The tool you use to review screens (D-23) has no Products, Gallery, Contact or S
 
 Full options are in `11-REVIEW-FIX.md` under "Owner items".
 
+## P11-BL-55 · Firefox cancelled font downloads fail browser tests (e2e pass)
+
+**Status:** open · **Blocks:** nothing.
+
+On a busy machine Firefox cancels a font download and logs it as a console error. It caused 15 failures in the full run; all passed alone.
+
+- **A (recommended):** ignore exactly that message, for Firefox only, with the same limits as the WebKit rule D-111.
+- **B:** re-run the failures each time.
+- **C:** preload the fonts (changes the pages).
+
+Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+## P11-BL-56 · WebKit test page wait is too short on a busy machine (e2e pass)
+
+**Status:** open · **Blocks:** nothing.
+
+About 60 of the 115 full-run failures were WebKit and iPhone waiting 5 s for the test component page heading. They pass with 1 or 2 workers.
+
+- **A (recommended):** raise that wait to 15 s in the shared helper. No app change.
+- **B:** run WebKit with fewer workers.
+- **C:** split the component showcase page.
+
+Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+## P11-BL-57 · The full browser suite takes 3.8 hours (e2e pass)
+
+**Status:** open · **Blocks:** nothing.
+
+About 25 test files share one site content lock, so they run one at a time.
+
+- **A (recommended):** leave it for now and run the full suite on a quiet machine.
+- **B:** hold the lock for less time in the sweep tests.
+- **C:** lock only the tests that change site content.
+
+Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+## P11-BL-58 · Firefox Home tile click sometimes does not open the Gallery (e2e pass)
+
+**Status:** open · **Blocks:** nothing.
+
+Failed in 2 of 3 mixed runs and 1 of 6 alone, but passed in the full run. Cause not found.
+
+- **A (recommended):** look at a recorded trace in the next pass.
+- **B:** accept it as a known flake.
+
+Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+## P11-BL-59 · Long unbroken words now wrap in every form hint and error (e2e pass, built)
+
+**Status:** open · **Blocks:** nothing.
+
+A real bug: a team name with no spaces widened the Edit Order page on 320 to 414 px phones. The fix changed the shared form field, so any hint or error with a very long word now wraps instead of widening the page.
+
+- **A (built, recommended):** keep the shared fix. It only shows when a word is wider than the box.
+- **B:** narrow it to the "Name shown" hint only.
+
+Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
 | Wave | Test | Full run | Alone |
@@ -550,3 +608,4 @@ Full options are in `11-REVIEW-FIX.md` under "Owner items".
 
 **Root cause of the last-Manager race failures (fixed after wave 3, no owner decision needed):** plan 11-01 made a deadlock on the Manager roster lock answer the busy 409 "Something changed at the same time. Try again." (approved in D-120). Under full-suite load the two Managers' requests can deadlock, so the losing request gets that 409 instead of the 422 last-Manager refusal. The four race tests pinned only the 422. They now accept either answer for the loser and still check that exactly one Manager stays active.
 - Review fixes (2026-11-13): `OrderListTimingTests` customer-name search p95 412.8 ms against 300 ms under a saturated machine, still failing on a quieter rerun. No fix touched that code. Re-check alone on a quiet machine in the post-merge gate.
+- Phase-end e2e (2026-11-13): full suite 2264 passed, 115 failed, 59 skipped in 3.8 h with other sessions loading the CPU. Nearly all passed on re-run alone (see `11-E2E-PHASE-END.md`). `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` answered a 500 on the Testing site-content reset once in a full .NET run; passed alone twice.
