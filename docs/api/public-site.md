@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T20:07:28-06:00
-updated: 2026-11-12T17:05:00-06:00
+updated: 2026-11-12T21:20:00-06:00
 ---
 
 # The public site
@@ -50,10 +50,16 @@ the client tests in `tests/fixtures/public-paths.json`.
 
 Every attribute value is HTML-encoded.
 
-The Products and Gallery pages also carry a link preview picture (`og:image`, `og:image:width` 1200, `og:image:height` 630,
-`og:image:alt` the business name, and `twitter:card` `summary_large_image`). The Products picture is the first shown line's main photo.
-The Gallery picture is the cover photo of the item at the top of the gallery, at the 1200 x 630 share size. With no such photo the
-picture tags are left out and `twitter:card` is `summary`. Every other page has no picture tag.
+Every public page and the 404 page can carry a link preview picture (`og:image`, `og:image:width` 1200, `og:image:height` 630,
+`og:image:alt` the business name, and `twitter:card` `summary_large_image`), always at the 1200 x 630 share size:
+
+- Home, Contact and the 404 page carry the default share picture a Manager set (see [site-content.md](site-content.md)).
+- Products carries the first shown line's main photo, and Gallery the cover photo of the item at the top of the gallery. A page with
+  no such photo falls back to the default share picture.
+- With no picture at all, the picture tags are left out and `twitter:card` is `summary`.
+
+The picture address is built by the image delivery from the stored file, never from the request. The 404 page has no canonical address,
+so it carries the picture tags and `twitter:card` and nothing else of the Open Graph block.
 
 If the public site facts cannot be read, the page is still sent with the same status. It carries the template's own head (and the
 noindex tag where it applies) and no data blocks, and the failure is logged once until a read works again. It is never a 500.
@@ -71,6 +77,7 @@ Every public page (not the 404 page) carries one `<script type="application/ld+j
 | `name` | The business name |
 | `description` | The about text; the tagline when there is no about text |
 | `url` | `App:PublicBaseUrl` |
+| `image` | The default share picture's 1200 x 630 address; left out when no picture is set |
 | `telephone` | The main number in E.164 form, such as `+639171234567` |
 | `address` | A `PostalAddress` with `streetAddress`, `addressLocality`, `addressRegion`, `postalCode` (only the parts that are set) and `addressCountry` `PH`; left out when no part is set |
 | `openingHoursSpecification` | One `OpeningHoursSpecification` for each open weekday, with `dayOfWeek` (`Monday` to `Sunday`), `opens` and `closes` as `"HH:mm"`; left out when no day is open |

@@ -6873,6 +6873,17 @@
               "string"
             ]
           },
+          "sharePicture": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharePictureDto",
+                "description": "The default link preview picture with its two preview addresses; null when there is none."
+              }
+            ]
+          },
           "street": {
             "description": "Street and barangay.",
             "type": [
@@ -6951,7 +6962,8 @@
           "locale",
           "version",
           "updatedByName",
-          "updatedAtUtc"
+          "updatedAtUtc",
+          "sharePicture"
         ],
         "type": "object"
       },

@@ -33,6 +33,7 @@ const settings: SiteSettings = {
   version: 'AAAAAAAAB9E=',
   updatedByName: null,
   updatedAtUtc: null,
+  sharePicture: null,
 };
 
 const notFound: Plan = {

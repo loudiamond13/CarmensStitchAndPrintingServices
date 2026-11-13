@@ -5535,6 +5535,7 @@ export interface components {
             postalCode: null | string;
             /** @description Province. */
             province: null | string;
+            sharePicture: null | components["schemas"]["SharePictureDto"];
             /** @description Street and barangay. */
             street: null | string;
             /** @description The tagline. */

@@ -17,7 +17,8 @@ namespace Csps.Infrastructure.Content;
 /// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". It puts the five demo gallery orders in place: four
 /// shown (made-up teams on the basketball, volleyball and moto lines, one with four photos) and one with the customer's OK that is not
 /// shown. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
-/// whose team starts with "E2E-". The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
+/// whose team starts with "E2E-". It leaves a demo default link preview picture in place (1200 x 630, an id that points at no stored file,
+/// like the demo orders' photos), so a spec can check the page heads. The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
 /// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
 /// own tables, deleting rows whose name starts with "E2E-". Demo testimonials exist only here: the migration and the production seed
 /// never create one.
@@ -38,6 +39,10 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     public const string PrivateMarker = "PRIVATE-DEMO";
 
     private const string DemoOrderPrefix = "DEMO-GALLERY-";
+
+    private const int DemoShareWidth = 1200;
+
+    private const int DemoShareHeight = 630;
 
     private static readonly DemoOrder[] DemoOrders =
     [
@@ -105,6 +110,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         {
             var settings = await context.SiteSettings.SingleAsync(cancellationToken).ConfigureAwait(false);
             var changes = settings.UpdateBusinessInfo(Demo, time.GetUtcNow()).Value;
+            settings.SetSharePicture(new LinePhotoFile($"csps-test/demo/{Guid.NewGuid():N}", DemoShareWidth, DemoShareHeight, 120_000, "jpg"));
 
             // The old rows go first, so the unique number and main indexes never see two rows at once.
             context.SitePhoneNumbers.RemoveRange(await context.SitePhoneNumbers.ToListAsync(cancellationToken).ConfigureAwait(false));

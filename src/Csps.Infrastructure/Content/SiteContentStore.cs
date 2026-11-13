@@ -87,7 +87,10 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
             settingsRow.Locale,
             settingsRow.RowVersion,
             row.ChangerFirst is null ? null : $"{row.ChangerFirst} {row.ChangerLast}",
-            settingsRow.UpdatedAtUtc);
+            settingsRow.UpdatedAtUtc,
+            settingsRow.SharePicturePublicId is { } shareId
+                ? new SharePictureView(shareId, settingsRow.SharePictureWidth.GetValueOrDefault(), settingsRow.SharePictureHeight.GetValueOrDefault())
+                : null);
     }
 
     public async Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken)
