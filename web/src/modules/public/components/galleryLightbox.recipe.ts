@@ -58,9 +58,7 @@ export const lightboxThumbOnClasses = clsx(thumbBase, 'ring-2 ring-ink');
 export const lightboxCaptionClasses = tw('flex w-full max-w-[1100px] flex-col items-center gap-2 text-center');
 
 /** The team: display 30, upper case; a long name wraps. */
-export const lightboxTeamClasses = tw(
-  'font-heavy m-0 font-display text-[30px] leading-[1.05] wrap-anywhere uppercase',
-);
+export const lightboxTeamClasses = tw('m-0 font-display text-[30px] leading-[1.05] font-heavy wrap-anywhere uppercase');
 
 /** "{Basketball} · {17} pcs · {note}": Small, in the chrome meta color. */
 export const lightboxMetaClasses = tw('m-0 text-[14px] leading-5 wrap-anywhere text-ink-muted');

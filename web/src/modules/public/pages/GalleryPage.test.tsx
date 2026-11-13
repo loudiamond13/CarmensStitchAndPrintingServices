@@ -480,7 +480,9 @@ describe(
       await waitFor(() => {
         expect(router.state.location.pathname).toBe('/contact');
       });
-      expect(screen.queryByRole('dialog', { name: 'Gallery image viewer' })).toBeNull();
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: 'Gallery image viewer' })).toBeNull();
+      });
       await act(async () => {
         await router.navigate(-1);
       });

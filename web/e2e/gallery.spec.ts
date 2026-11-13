@@ -308,3 +308,61 @@ for (const width of [320, 1440]) {
     });
   });
 }
+
+test('@gallery-lightbox the browser Back button closes the viewer, stays on the Gallery with the same category and focuses the last tile shown', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/gallery?category=basketball');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    const total = await tiles.count();
+    await tiles.first().click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(viewer.getByText(`${String((1 % total) + 1)} / ${String(total)}`)).toBeVisible();
+
+    await page.evaluate('document.fonts.ready.then(() => true)');
+    await page.goBack();
+
+    await expect(viewer).toBeHidden();
+    await expect(page).toHaveURL(/\/gallery\?category=basketball$/);
+    await expect(tiles.nth(1 % total)).toBeFocused();
+  });
+});
+
+test('@gallery-lightbox Esc leaves no extra history entry: Back from the Gallery goes to the page before it', async ({
+  page,
+  request,
+  guard,
+}) => {
+  guard.expectStatus(TEST_IMAGES, 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/');
+    await page.goto('/gallery');
+    const tiles = page.getByRole('main').getByRole('button', { name: /^Open / });
+    await expect(tiles.first()).toBeVisible();
+    await tiles.nth(2).click();
+    const viewer = page.getByRole('dialog', { name: VIEWER });
+    // The viewer is ready once its chunk has loaded and Close has the focus; Esc before that has nothing to answer it.
+    await expect(viewer.getByRole('button', { name: 'Close viewer' })).toBeFocused();
+
+    await page.keyboard.press('Escape');
+    await expect(viewer).toBeHidden();
+    await expect(tiles.nth(2)).toBeFocused();
+
+    // The viewer's display font loads when it first opens; leaving before it is in would abort that download (Firefox logs it).
+    await page.evaluate('document.fonts.ready.then(() => true)');
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    // The page before it is still loading its own fonts; ending the test now would abort them (Firefox logs it).
+    await page.waitForLoadState('load');
+    await page.evaluate('document.fonts.ready.then(() => true)');
+  });
+});

@@ -3,18 +3,19 @@
 // keeps the chosen category in ?category= through the loaded pill keys, and draws the filter bar and the masonry of that
 // category: the first 24 tiles, Show More Photos for 24 more (no request, the focus goes to the first new tile) and, under
 // them, Get a Quote. Loading shows the pill and tile skeletons; a failed read the error with Try Again and no pills; nothing
-// shown the empty state. The lightbox opens from the tiles in plan 11-31.
+// shown the empty state. A tile opens the lightbox (its own lazy chunk) with one history entry, so Back closes it; closing puts the
+// focus on the tile of the item last shown, and a change of category (the results are keyed by it) closes it.
 import clsx from 'clsx';
 import { Suspense, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
 import { UiLink } from '@/components/actions/UiLink';
 import { PUBLIC_COPY } from '../copy';
 import { useGalleryCategory } from '../hooks/useGalleryCategory';
 import { useGalleryQuery } from '../hooks/useGalleryQuery';
+import { useLightboxHistory } from '../hooks/useLightboxHistory';
 import { isLineKey } from '../lineKey';
 import type { PublicGalleryItem } from '../services/contentService';
 import { GalleryFilterBar } from './GalleryFilterBar';
-import { GalleryMasonry } from './GalleryMasonry';
+import { GalleryMasonry, type TileFocusRequest } from './GalleryMasonry';
 import { GalleryEmpty, GalleryLightboxFrame, GallerySkeletons } from './GalleryStates';
 import { PublicLoadingRegion, ProductsError, type LoadingMessages } from './ProductStates';
 import { galleryActionRowClasses, galleryBodyClasses, galleryStateClasses, showMoreClasses } from './gallery.recipe';
@@ -35,24 +36,30 @@ interface GalleryResultsProps {
 /** The tiles of one category with their paging. The page keys it by category, so a new category starts at 24 again. */
 function GalleryResults({ items }: GalleryResultsProps) {
   const [shown, setShown] = useState(PAGE_SIZE);
-  const [focusIndex, setFocusIndex] = useState<number | null>(null);
+  const [focusRequest, setFocusRequest] = useState<TileFocusRequest | null>(null);
   // The position of the item the lightbox shows, or null while it is closed.
   const [viewing, setViewing] = useState<number | null>(null);
-  const navigate = useNavigate();
+  // Closing puts the focus on the tile of the item last shown, drawing more tiles first when it was beyond the shown ones.
+  const closeViewer = () => {
+    if (viewing !== null) {
+      setShown((count) => Math.max(count, Math.ceil((viewing + 1) / PAGE_SIZE) * PAGE_SIZE));
+      setFocusRequest({ index: viewing });
+    }
+    setViewing(null);
+  };
+  const history = useLightboxHistory(viewing !== null, closeViewer);
   return (
     <div className={galleryBodyClasses}>
-      <GalleryMasonry items={items} shown={shown} focusIndex={focusIndex} onOpen={setViewing} />
+      <GalleryMasonry items={items} shown={shown} focusRequest={focusRequest} onOpen={setViewing} />
       {viewing !== null && (
         <Suspense fallback={<GalleryLightboxFrame />}>
           <LazyGalleryLightbox
             items={items}
             index={viewing}
             onIndexChange={setViewing}
-            onClose={() => {
-              setViewing(null);
-            }}
+            onClose={history.close}
             onQuote={() => {
-              void navigate('/contact');
+              history.leaveTo('/contact');
             }}
           />
         </Suspense>
@@ -63,7 +70,7 @@ function GalleryResults({ items }: GalleryResultsProps) {
             type="button"
             className={clsx(aBtnSecondaryClasses, showMoreClasses)}
             onClick={() => {
-              setFocusIndex(shown);
+              setFocusRequest({ index: shown });
               setShown(shown + PAGE_SIZE);
             }}
           >
