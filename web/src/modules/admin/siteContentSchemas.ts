@@ -330,7 +330,11 @@ export const businessInfoSchema = z.object({
   province: requiredText(ERRORS.provinceRequired, PROVINCE_MAX, ERRORS.tooLong(PROVINCE_MAX)),
   postalCode: postalCodeField,
   directionsUrl: optionalLink(isDirectionsLink, ERRORS.directionsUrl, DIRECTIONS_URL_MAX),
-  mapEmbedUrl: optionalLink(isMapEmbedLink, ERRORS.mapEmbedUrl, MAP_EMBED_URL_MAX),
+  // Pasted embed code is cut down to its src link before the rule, so a send with no blur still works.
+  mapEmbedUrl: z
+    .string()
+    .transform(reduceEmbedCode)
+    .pipe(optionalLink(isMapEmbedLink, ERRORS.mapEmbedUrl, MAP_EMBED_URL_MAX)),
   messengerUrl: optionalLink(isMessengerLink, ERRORS.messengerUrl, MESSENGER_URL_MAX),
   facebookUrl: optionalLink(isFacebookLink, ERRORS.facebookUrl, FACEBOOK_URL_MAX),
   instagramUrl: optionalLink(isInstagramLink, ERRORS.instagramUrl, INSTAGRAM_URL_MAX),

@@ -448,6 +448,33 @@ describe('every rule runs in the browser first (OR-3)', () => {
     expect(backend.puts[0]?.mapEmbedUrl).toBe('https://www.google.com/maps/embed?pb=newmap');
   });
 
+  it('keeps only the src link when the form is sent with the pasted code still in the field (Enter, no blur)', async () => {
+    const backend = siteSettingsBackend();
+    const { user } = await openTab();
+    const field = screen.getByLabelText(/^Map embed link/);
+    await user.clear(field);
+
+    fireEvent.change(field, {
+      target: {
+        value:
+          '<iframe src="https://www.google.com/maps/embed?pb=newmap" width="600" height="450" loading="lazy"></iframe>',
+      },
+    });
+    const form = field.closest('form');
+    if (form === null) throw new Error('No form');
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(1);
+    });
+    expect(backend.puts[0]?.mapEmbedUrl).toBe('https://www.google.com/maps/embed?pb=newmap');
+    expect(
+      screen.queryByText(
+        'Paste the embed code or link from Google Maps. It starts with https://www.google.com/maps/embed.',
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it('refuses pasted code whose src is not a Google embed link, and leaves the text as pasted', async () => {
     siteSettingsBackend();
     const { user } = await openTab();
