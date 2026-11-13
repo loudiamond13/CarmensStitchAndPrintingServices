@@ -736,6 +736,49 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         document.RootElement.GetProperty("site").GetProperty("tagline").GetString().ShouldBe(FailingTagline);
     }
 
+    [Theory]
+    [InlineData("/products", true)]
+    [InlineData("/", true)]
+    [InlineData("/gallery", false)]
+    public async Task ScriptBreakoutInTheLineTestimonialAndGalleryTextStaysInertInTheBootBlock(string path, bool bootCarriesTheText)
+    {
+        var reader = new StubPublicContentReader(Site(tagline: "Sample tagline"))
+        {
+            ProductLines = new PublicProductLinesDto([HostileLine()]),
+            Home = new PublicHomeDto(
+                [new PublicHomeLineDto("basketball", "23", FailingTagline, FailingTagline, "basketball", null)],
+                1,
+                [new PublicTestimonialDto(FailingTagline, FailingTagline, FailingTagline, 5)],
+                [new PublicRecentWorkDto(FailingTagline, "basketball", FailingTagline, 12, "basketball", null)],
+                new PublicHeroTagDto(FailingTagline, 12)),
+            Gallery = new PublicGalleryDto(
+                [new PublicGalleryItemDto(Guid.NewGuid(), FailingTagline, "basketball", FailingTagline, 12, FailingTagline, "basketball", [])],
+                [new PublicGalleryPillDto("basketball", FailingTagline, 1)],
+                1),
+        };
+        await using var factory = new ShellTestFactory(reader);
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        body.ShouldNotContain("<script>alert(1)", Case.Insensitive, path);
+        body.ShouldNotContain("</script><script", Case.Insensitive, path);
+        body.Split("</script>").Length.ShouldBe(3, $"{path}: one closing tag for the JSON-LD block and one for the boot block, nothing else");
+        LdJson(body).ShouldHaveSingleItem().ShouldNotContain("<");
+        var boot = Boot(body).ShouldHaveSingleItem();
+        boot.ShouldNotContain("<");
+        boot.ShouldNotContain("alert(1)</", Case.Insensitive);
+        if (bootCarriesTheText)
+        {
+            boot.ShouldContain("u003C/script", Case.Sensitive, path);
+            using var document = JsonDocument.Parse(boot);
+            var text = path == "/products"
+                ? document.RootElement.GetProperty("productLines").GetProperty("lines")[0].GetProperty("title").GetString()
+                : document.RootElement.GetProperty("home").GetProperty("testimonials")[0].GetProperty("name").GetString();
+            text.ShouldBe(FailingTagline);
+        }
+    }
+
     [Fact]
     public async Task WhenTheSnapshotReadThrowsThePagesAreStillSentWithoutBootDataOrJsonLd()
     {
@@ -819,6 +862,20 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         using var boot = JsonDocument.Parse(Boot(body).ShouldHaveSingleItem());
         boot.RootElement.GetProperty("site").GetProperty("phones").GetArrayLength().ShouldBe(0);
     }
+
+    private static PublicProductLineDto HostileLine() => new(
+        "basketball",
+        "23",
+        FailingTagline,
+        FailingTagline,
+        FailingTagline,
+        FailingTagline,
+        new PublicCustomizeDto(FailingTagline, FailingTagline, FailingTagline, FailingTagline, FailingTagline),
+        650m,
+        12,
+        "basketball",
+        new PublicLinePhotosDto(null, null, null),
+        true);
 
     private static ShellTestFactory FactoryFor(PublicSiteDto site) => new(new StubPublicContentReader(site));
 
