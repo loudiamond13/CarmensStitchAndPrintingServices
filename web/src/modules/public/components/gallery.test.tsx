@@ -170,6 +170,8 @@ describe('GalleryFilterBar (GAL-01, D-03, D-32)', () => {
 
     for (const pill of within(screen.getByRole('toolbar')).getAllByRole('button')) {
       expect(pill).toHaveClass('min-h-11');
+      // The hidden " items" is absolutely placed: the pill holds it, so it never widens the scrolling bar or the page.
+      expect(pill).toHaveClass('relative');
     }
     expect(screen.getByRole('button', { name: 'Moto 3 items' })).toHaveClass('bg-primary');
     expect(screen.getByRole('button', { name: 'Polo 2 items' })).not.toHaveClass('bg-primary');

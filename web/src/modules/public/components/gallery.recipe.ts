@@ -6,7 +6,7 @@ import { tw } from '@/ui/tw';
 
 /** `.s-pill`: a 44px pill button (OQ-3 A) that never wraps its words. */
 export const galleryPillClasses = tw(
-  'inline-flex min-h-11 flex-none cursor-pointer items-center gap-[6px] rounded-sm border px-4 text-[14px] whitespace-nowrap no-underline',
+  'relative inline-flex min-h-11 flex-none cursor-pointer items-center gap-[6px] rounded-sm border px-4 text-[14px] whitespace-nowrap no-underline',
 );
 
 /** An unselected pill. */
