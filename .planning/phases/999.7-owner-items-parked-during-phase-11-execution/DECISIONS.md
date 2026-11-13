@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T01:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T02:30:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -414,6 +414,16 @@ Layout shift (CLS) is 0.041 on /products and 0.043 on /contact against the 0.05 
 
 - **A (recommended):** a small quick task to find and stop the shift.
 - **B:** leave it while it stays under the limit.
+
+## P11-BL-45 · The Public website card on the New Order and Edit Order forms (plan 11-35, owner items O-1 and O-2)
+
+**Status:** open · **Blocks:** nothing. Built as option A for each.
+
+1. **Line not required in the browser on a new order.** When Show on the website is ticked, the form lets staff save without picking a line, because the server works the line out from the order items. If it cannot, the server's message shows under "Show under" with the cursor there. Option B: require a line in the browser (a one-line change).
+2. **Edits send the whole card.** Changing any one value on Edit Order sends all four values, including the line the server picked. This matches the Public website window on the order page. Option B: send only the changed value.
+
+- **A (built, recommended):** keep both as built.
+- **B:** change either as above.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
