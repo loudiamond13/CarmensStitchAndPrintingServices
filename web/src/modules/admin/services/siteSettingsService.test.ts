@@ -178,6 +178,70 @@ describe('siteSettingsService.update (CONT-01, SEC-07)', () => {
   });
 });
 
+const picture = { src320: '/a?size=csps_share_320', src640: '/a?size=csps_share_640', width: 1200, height: 630 };
+
+describe('siteSettingsService.uploadSharePicture (PUB-04, D-26)', () => {
+  it('posts a multipart form with the file part to /site-settings/share-picture under the given key and resolves the picture', async () => {
+    const fake = createFakeFetch([{ body: picture }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+    const file = new Blob(['jpeg bytes'], { type: 'image/jpeg' });
+
+    await expect(createSiteSettingsService(client).uploadSharePicture(file, 'shop.jpg', 'key-7')).resolves.toEqual(
+      picture,
+    );
+
+    const call = fake.calls[0];
+    expect(call?.method).toBe('POST');
+    expect(call?.url).toBe('/api/v1/site-settings/share-picture');
+    expect(call?.headers.get('Idempotency-Key')).toBe('key-7');
+    expect(call?.body).toBeInstanceOf(FormData);
+    const part = (call?.body as FormData).get('file');
+    expect(part).toBeInstanceOf(Blob);
+    expect((part as File).name).toBe('shop.jpg');
+  });
+
+  it('a refused picture rejects with the 400 HttpError and its code', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 400, code: 'images.type' },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const error = await rejection(
+      createSiteSettingsService(client).uploadSharePicture(new Blob(['x']), 'a.svg', 'key-1'),
+    );
+
+    expect(error).toMatchObject({ kind: 'http', status: 400, code: 'images.type' });
+  });
+});
+
+describe('siteSettingsService.removeSharePicture (PUB-04, D-26)', () => {
+  it('calls DELETE /site-settings/share-picture with no body and no Idempotency-Key', async () => {
+    const fake = createFakeFetch([{ status: 204 }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    await createSiteSettingsService(client).removeSharePicture();
+
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    expect(fake.calls[0]?.url).toBe('/api/v1/site-settings/share-picture');
+    expect(fake.calls[0]?.body).toBeNull();
+    expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
+  });
+
+  it('no picture to remove rejects with a 404 HttpError', async () => {
+    const fake = createFakeFetch([notFound]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    expect(await rejection(createSiteSettingsService(client).removeSharePicture())).toMatchObject({
+      kind: 'http',
+      status: 404,
+    });
+  });
+});
+
 describe('one shared client (WEB-04 concurrency edge)', () => {
   it('three concurrent 401s through one client cause one refresh and three retries', async () => {
     const gate = createDeferred<undefined>();

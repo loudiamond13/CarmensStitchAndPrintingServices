@@ -92,6 +92,24 @@ export const SITE_CONTENT_COPY = {
     /** The polite line after Load Latest (the banner itself is the shared ConflictBanner, 05 D-20). */
     latestLoaded: 'Latest version loaded. Make your changes again.',
     toast: { title: 'Business info saved', message: 'The website shows the new details now.' },
+    /** The Link preview picture card (D-26; plan 11-34). SPEC-GAP: the alt text and the "Remove Picture" confirm are the plan's; the rest is the UI-SPEC's. */
+    sharePicture: {
+      card: { title: 'Link preview picture', hint: 'Shown when someone shares a page on Facebook or Messenger.' },
+      empty: 'No picture yet',
+      hint: 'JPG, PNG, WEBP or HEIC · up to 10 MB · 1200 × 630 pixels works best',
+      note: 'Products and Gallery use their own newest photo when they have one.',
+      /** The name of the preview of a saved picture, for a screen reader. */
+      alt: 'The link preview picture',
+      remove: {
+        title: 'Remove the link preview picture?',
+        message: 'Shared links show no picture until you add one.',
+        action: 'Remove Picture',
+      },
+      toast: {
+        saved: { title: 'Picture saved', message: 'Shared links use it now.' },
+        removed: { title: 'Picture removed', message: 'Shared links show no picture.' },
+      },
+    },
   },
   /** S2 Hours & Closures, card A: the weekly hours (plan 11-16). */
   hours: {
