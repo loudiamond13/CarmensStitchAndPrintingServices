@@ -1,6 +1,6 @@
 # Developer guide: from a fresh clone to a running API
 
-*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-10-28T20:55:00-05:00*
+*Created: 2026-10-07T13:02:24-05:00 · Updated: 2026-11-12T23:56:00-06:00*
 
 This page takes a new developer from `git clone` to a running, tested CSPS API on a Windows machine. Follow the steps in order. Every command runs from the repository root in a normal terminal (Windows PowerShell 5.1 or PowerShell 7).
 
@@ -270,7 +270,7 @@ Each check is defined in a workflow file in `.github/workflows/`. The file says 
   2. **Build:** the .NET solution with zero warnings, plus a formatting check.
   3. **Tests:** unit tests, integration tests (full mode only, against a throwaway SQL Server 2025 container) and architecture tests.
   4. **Web checks:** type check, lint, Prettier and the Vitest tests with coverage, plus the OpenAPI checks.
-  5. **Browser stage (full mode only):** the web build with its size budgets, Playwright end-to-end tests and Lighthouse. Until Phase 11 Lighthouse reports the LCP value without failing on it (`docs/web/release-gates.md`); every other limit still fails.
+  5. **Browser stage (full mode only):** the web build with its size budgets, Playwright end-to-end tests and Lighthouse. Lighthouse scores the four public pages and reports the LCP value of each without failing on it (owner waiver, kept by D-29; `docs/web/release-gates.md`); every other limit on every page still fails.
   6. **Final gates (full mode only):** the coverage thresholds and the license and `THIRD-PARTY-NOTICES` checks.
   7. **Package (full and package mode):** builds the deploy package, checks that it holds no logs, development settings, keys or secret files, scans it with gitleaks and writes the idempotent database script. This runs on a ready pull request too, so a packaging failure shows before the merge. Only a push to `main` stores the package, for 14 days as `csps-package-<commit sha>`.
 

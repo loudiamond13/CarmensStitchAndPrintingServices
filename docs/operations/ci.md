@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-06T06:56:04-06:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-12T23:56:00-06:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -18,7 +18,7 @@ The `gate` job runs these stages one after another and stops at the first failur
 | 6 | Coverage gates, web license check, web notices check, NuGet license and notices drift check (full mode only) |
 | 7 | Deploy package: web build, publish, idempotent database script, package check, gitleaks scan (full and package mode, so also on a ready pull request). Only a push to `main` then uploads the package as `csps-package-<commit sha>` |
 
-In stage 5, Lighthouse reports LCP on every run but a miss does not fail the step until Phase 11 (owner decision 2026-10-16, `.planning/WINDOWS.md` entry 1); every other Lighthouse limit still fails it. See `docs/web/release-gates.md`.
+In stage 5, Lighthouse scores the four public pages (`/`, `/products`, `/gallery`, `/contact`) and reports LCP for each on every run, but an LCP miss does not fail the step (owner decision 2026-10-16, kept after Phase 11 by D-29, `.planning/WINDOWS.md` entry 1); every other Lighthouse limit on every page still fails it. See `docs/web/release-gates.md`.
 
 Stages 5 and 6 and the integration tests need a database and a lot of time, so they run only in `full` mode. Stages 1 to 4 (without the integration tests) are the "fast part".
 

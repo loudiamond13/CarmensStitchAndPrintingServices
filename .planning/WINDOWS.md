@@ -4,7 +4,7 @@ open_count: 4
 waived_count: 1
 fixed_count: 3
 total_count: 8
-last_updated: 2026-11-03T13:11:22.204Z
+last_updated: 2026-11-13T06:26:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -15,7 +15,7 @@ last_updated: 2026-11-03T13:11:22.204Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | 03 | unmet-truth | web/scripts/lighthouse.mjs |  | Lighthouse LCP 2187 ms median on the public route (limit 2000 ms) after quick task 261016 moved TanStack Query out of the public entry (was 2189 ms); fonts, not JavaScript, are the main cost; see .planning/phases/03-ci-cd-staging-deploy/deferred-items.md | waived | Owner, 2026-10-16: keep the current fonts and look for now and move on; the public LCP of about 2.19 s (limit 2.0 s) is accepted until the Phase 11 public pages revisit fonts (options in 03 deferred-items.md). The limit itself is unchanged. | 2026-10-16T12:57:26.932Z | 2026-10-16T15:45:12.233Z |
+| 1 | 03 | unmet-truth | web/scripts/lighthouse.mjs |  | Lighthouse LCP 2187 ms median on the public route (limit 2000 ms) after quick task 261016 moved TanStack Query out of the public entry (was 2189 ms); fonts, not JavaScript, are the main cost; see .planning/phases/03-ci-cd-staging-deploy/deferred-items.md | waived | Owner, 2026-10-16: keep the current fonts and look for now and move on; the public LCP of about 2.19 s (limit 2.0 s) is accepted until the Phase 11 public pages revisit fonts (options in 03 deferred-items.md). The limit itself is unchanged. D-29 (2026-11-11) keeps this waiver after Phase 11 (REPORT_ONLY_METRICS keeps LCP, the 2000 ms target is unchanged). Plan 11-36 measured the four public pages on 2026-11-13 (mobile profile, this machine, LCP ms): / 2348 to 2367, /products 2134 to 2530, /gallery 2298 to 2337, /contact 2119 to 2563; precompressed Brotli files are served and the useless Barlow latin-ext peso downloads are gone, but the font requests of the four pages did not change, so LCP is still over 2000 ms. Font subsetting is the next step (D-124: a follow-up /gsd-quick, with a package check and the owner's yes before any tool is added). | 2026-10-16T12:57:26.932Z | 2026-10-16T15:45:12.233Z |
 | 2 | 03 | unmet-truth | .planning/HOSTING-RECORD.md |  | __Secure-csps_2fa cookie on the live HTTPS host not observed by the owner (exists only during the code step); attributes pinned by AuthRegistrationTests and SignInEndpointTests; Unverified until the owner signs off or checks it in dev tools during a code step | fixed |  | 2026-10-17T14:30:35.495Z | 2026-10-17T14:42:20.134Z |
 | 3 | 05 | deviation | web/scripts/owner-review.mjs |  | Still lists /admin/profile as an unsigned dev preview; plan 05-13 made it a real guarded page. Deferred to 05-37. | fixed |  | 2026-10-18T04:59:55.135Z | 2026-10-18T21:39:08.059Z |
 | 4 | 08 | stub | web/src/modules/admin/pages/OrderPage.tsx |  | Payments, Discounts and Expenses tab panels draw nothing yet; plan 08-12 fills them | fixed |  | 2026-10-30T04:23:49.842Z | 2026-10-30T05:31:15.926Z |
@@ -34,7 +34,7 @@ last_updated: 2026-11-03T13:11:22.204Z
     "line": null,
     "description": "Lighthouse LCP 2187 ms median on the public route (limit 2000 ms) after quick task 261016 moved TanStack Query out of the public entry (was 2189 ms); fonts, not JavaScript, are the main cost; see .planning/phases/03-ci-cd-staging-deploy/deferred-items.md",
     "status": "waived",
-    "reason": "Owner, 2026-10-16: keep the current fonts and look for now and move on; the public LCP of about 2.19 s (limit 2.0 s) is accepted until the Phase 11 public pages revisit fonts (options in 03 deferred-items.md). The limit itself is unchanged.",
+    "reason": "Owner, 2026-10-16: keep the current fonts and look for now and move on; the public LCP of about 2.19 s (limit 2.0 s) is accepted until the Phase 11 public pages revisit fonts (options in 03 deferred-items.md). The limit itself is unchanged. D-29 (2026-11-11) keeps this waiver after Phase 11 (REPORT_ONLY_METRICS keeps LCP, the 2000 ms target is unchanged). Plan 11-36 measured the four public pages on 2026-11-13 (mobile profile, this machine, LCP ms): / 2348 to 2367, /products 2134 to 2530, /gallery 2298 to 2337, /contact 2119 to 2563; precompressed Brotli files are served and the useless Barlow latin-ext peso downloads are gone, but the font requests of the four pages did not change, so LCP is still over 2000 ms. Font subsetting is the next step (D-124: a follow-up /gsd-quick, with a package check and the owner's yes before any tool is added).",
     "recorded_at": "2026-10-16T12:57:26.932Z",
     "resolved_at": "2026-10-16T15:45:12.233Z",
     "milestone": null
