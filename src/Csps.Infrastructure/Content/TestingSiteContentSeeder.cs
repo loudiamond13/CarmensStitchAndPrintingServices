@@ -16,7 +16,8 @@ namespace Csps.Infrastructure.Content;
 /// name starts with "E2E-" with their photos and links. It puts the four demo testimonials in place (three shown in order and one
 /// hidden, made-up names) and deletes the testimonials whose name starts with "E2E-". It puts the five demo gallery orders in place: four
 /// shown (made-up teams on the basketball, volleyball and moto lines, one with four photos) and one with the customer's OK that is not
-/// shown. Their customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
+/// shown. It puts two demo gallery uploads below them (shown, one with pieces and a note and one with neither) and deletes the uploads
+/// whose team starts with "E2E-". The demo orders' customer values all contain <see cref="PrivateMarker"/>, so a spec can search a page for it. Every value is clearly fake. It saves through the
 /// context's interceptors, so the public cache is cleared like after any real change. Debug builds only. Later plans extend it for their
 /// own tables, deleting rows whose name starts with "E2E-". Demo testimonials exist only here: the migration and the production seed
 /// never create one.
@@ -62,6 +63,14 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
     ];
 
     private sealed record DemoOrder(string Team, string LineKey, int Pieces, (int Width, int Height)[] Photos, bool Shown);
+
+    private static readonly DemoUpload[] DemoUploads =
+    [
+        new("Sample Old Hoopers", "basketball", 14, "Dri-fit mesh, V-neck", (1200, 1600)),
+        new("Sample Barangay Riders", "moto", null, null, (1600, 1200)),
+    ];
+
+    private sealed record DemoUpload(string Team, string LineKey, int? Pieces, string? Note, (int Width, int Height) Photo);
 
     private static readonly TimeOnly DemoOpens = new(9, 0);
 
@@ -120,6 +129,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             await ResetDemoOrdersAsync(cancellationToken).ConfigureAwait(false);
+            await ResetDemoUploadsAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -184,6 +194,37 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
             {
                 context.GalleryEntries.Add(GalleryEntry.ForOrder(order.Id, index + 1, shownAt));
             }
+        }
+
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    // The two demo uploads are made new below the demo orders, shown, one with pieces and a note and one with neither. An upload a test
+    // added with an "E2E-" team goes too. Their photo ids point at no stored file, like the demo orders' photos.
+    private async Task ResetDemoUploadsAsync(CancellationToken cancellationToken)
+    {
+        var demoTeams = DemoUploads.Select(demo => demo.Team).ToList();
+        var stale = await context.GalleryEntries
+            .Where(entry => entry.Kind == GalleryEntryKind.Upload && entry.TeamName != null && (entry.TeamName.StartsWith(E2EPrefix) || demoTeams.Contains(entry.TeamName)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.GalleryEntries.RemoveRange(stale);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        var now = time.GetUtcNow();
+        for (var index = 0; index < DemoUploads.Length; index++)
+        {
+            var demo = DemoUploads[index];
+            var id = GalleryEntry.NewId(now);
+            var file = new LinePhotoFile($"csps-test/demo/{id:D}/{Guid.NewGuid():N}", demo.Photo.Width, demo.Photo.Height, 120_000, "jpg");
+            var values = new GalleryUploadValues(demo.Team, ProductLineSeed.All.Single(entry => entry.Key == demo.LineKey).Id, demo.Pieces, demo.Note, IsShown: true);
+            var created = GalleryEntry.CreateUpload(id, values, file, DemoOrders.Length + 1 + index, now);
+            if (created.IsFailure)
+            {
+                throw new InvalidOperationException("The demo upload was refused.");
+            }
+
+            context.GalleryEntries.Add(created.Value);
         }
 
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

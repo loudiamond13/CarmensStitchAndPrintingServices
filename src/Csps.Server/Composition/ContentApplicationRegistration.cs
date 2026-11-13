@@ -48,6 +48,16 @@ public static class ContentApplicationRegistration
         services.AddScoped<DeleteTestimonialHandler>();
         services.AddSingleton<IValidator<TestimonialRequest>, TestimonialRequestValidator>();
         services.AddSingleton<IValidator<MoveTestimonialRequest>, MoveTestimonialRequestValidator>();
+        services.AddScoped<ListGalleryItemsHandler>();
+        services.AddScoped<CreateGalleryUploadHandler>();
+        services.AddScoped<UpdateGalleryUploadHandler>();
+        services.AddScoped<ReplaceGalleryPhotoHandler>();
+        services.AddScoped<MoveGalleryItemHandler>();
+        services.AddScoped<SetGalleryUploadShownHandler>();
+        services.AddScoped<DeleteGalleryUploadHandler>();
+        services.AddSingleton<IValidator<ListGalleryItemsRequest>, ListGalleryItemsRequestValidator>();
+        services.AddSingleton<IValidator<GalleryUploadRequest>, GalleryUploadRequestValidator>();
+        services.AddSingleton<IValidator<MoveGalleryItemRequest>, MoveGalleryItemRequestValidator>();
         return services;
     }
 }

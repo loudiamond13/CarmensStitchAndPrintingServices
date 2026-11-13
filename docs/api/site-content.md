@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T15:25:00-06:00
+updated: 2026-11-12T19:40:00-06:00
 ---
 
 # The site content API
@@ -47,6 +47,7 @@ line photos, testimonials and gallery routes join this page in later plans.
 | `POST /api/v1/testimonials/{id}/move` | Manager | `204`; `400` for a direction that is not `up` or `down`; `401`; `403`; `404`; `409` when the shop is busy. Needs an `Idempotency-Key`. |
 | `POST /api/v1/testimonials/{id}/hide` and `/show` | Manager | `204`; `401`; `403`; `404`; `409` when the shop is busy. Need an `Idempotency-Key`. |
 | `DELETE /api/v1/testimonials/{id}` | Manager | `204`; `401`; `403`; `404` when it is already gone. |
+| `GET /api/v1/gallery-items` and the other `/api/v1/gallery-items` routes | Manager | The Gallery list, upload, edit, photo, move, hide, show and delete. See "Gallery" below. |
 
 **Staff** means a valid access token (`Authorization: Bearer <token>`) of an `Admin` or `Manager`. An `Admin` can read the settings
 but cannot save them. No token is `401`.
@@ -531,6 +532,124 @@ The audit log never holds the customer's words: a quote is named, not copied, an
 | `testimonial.deleted` | `name=Juan Dela Cruz` |
 
 A flip of `isShown` in an edit writes `testimonial.shown` or `testimonial.hidden`.
+
+## Gallery
+
+The public Gallery shows two kinds of item in one manual order: orders that staff put on the website (see `PUT /api/v1/orders/{id}/public`
+in [orders.md](orders.md)) and photos a Manager uploads for older work that has no order in the system. Only a Manager can read or
+change the Gallery here. An Admin gets `403` and no token gets `401`.
+
+| Method and path | Who | Answers |
+|---|---|---|
+| `GET /api/v1/gallery-items` | Manager | `200` one page of items; `400` for a bad line, page or size; `401`; `403`. |
+| `POST /api/v1/gallery-items` | Manager | `201` the new item; `400` field errors or a file that is not a photo we can use; `401`; `403`; `409` when two saves lost a race; `413`; `429`; `503` when photo storage is not set up. Needs an `Idempotency-Key`. |
+| `PUT /api/v1/gallery-items/{id}` | Manager | `200` the item as saved; `400`; `401`; `403`; `404` for an item that does not exist or came from an order; `409 edit.stale`. |
+| `POST /api/v1/gallery-items/{id}/photo` | Manager | `200` the item with its new photo and version; `400` no file or not a photo we can use; `401`; `403`; `404`; `409`; `413`; `429`; `503`. Needs an `Idempotency-Key`. |
+| `POST /api/v1/gallery-items/{id}/move` | Manager | `204`; `400` for a direction that is not `up` or `down`; `401`; `403`; `404` for an item that is not in the list (or not in the filtered line); `409` when the shop is busy. Needs an `Idempotency-Key`. |
+| `POST /api/v1/gallery-items/{id}/hide` and `/show` | Manager | `204`; `401`; `403`; `404` for an item that does not exist or came from an order; `409`. Need an `Idempotency-Key`. |
+| `DELETE /api/v1/gallery-items/{id}` | Manager | `204`; `401`; `403`; `404` when it is already gone or came from an order. |
+
+### Reading the list
+
+`GET /api/v1/gallery-items?line={lineId}&page=1&pageSize=20` lists the items in gallery order. `line` is optional (no line means every
+line). `page` is at least 1; a page past the last answers no rows and the real total. `pageSize` is 1 to 100 and is 20 when it is left
+out; the screen offers 10, 20, 50 and 100. The list is read from the database, never from the public cache, and is never cached.
+
+```json
+{
+  "rows": [
+    {
+      "id": "0e5b0f5e-6a3c-7c0e-9d46-5b1a2c3d4e5f",
+      "kind": "upload",
+      "name": "Tondo Sample Riders",
+      "lineId": "9b7c...",
+      "lineShortName": "Moto",
+      "lineHidden": false,
+      "pieces": 12,
+      "isShown": true,
+      "orderId": null,
+      "orderNumber": null,
+      "note": "Dri-fit mesh, V-neck",
+      "thumb": "https://res.cloudinary.com/example/image/private/t_csps_sq_88/...",
+      "version": "AAAAAAAAH6Q="
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 20
+}
+```
+
+- `kind` is `order` or `upload`. An order item is listed while its order is shown on the website, with the order's number, its name
+  shown (the public name or the team) and its cover photo. A deleted order is not listed. An upload is listed whether it is shown or
+  hidden.
+- `lineId` is the line the item is filed under: the line staff chose for an order, else its auto line. `lineHidden` is `true` when that
+  line is hidden. The item is then off the public site (a hidden line takes everything filed under it off) and the screen says so.
+- `version` is what an edit of an upload must send back; it is `null` on an order item. `note` is only ever set on an upload.
+- `thumb` is a small square address made by the server; it is `null` when the item has no photo.
+
+### Adding an upload
+
+`POST /api/v1/gallery-items` takes a multipart form with the file in the `file` part and these text parts:
+
+| Field | Rule | Message |
+|---|---|---|
+| `file` | required; JPG, PNG, WEBP or HEIC, at most 10 MB and 25 megapixels | "Choose a photo." and the order photo messages |
+| `teamName` | required, at most 80 characters | "Enter the team or name." / "Keep this to 80 characters or fewer." |
+| `productLineId` | required, a line that exists (a hidden line is fine) | "Choose the product line." |
+| `pieces` | optional, a whole number from 1 to 9,999 | "Enter a whole number from 1 to 9,999." |
+| `note` | optional, at most 120 characters | "Keep the note to 120 characters or fewer." |
+| `isShown` | `true` to show it on the website | A new upload is hidden when this is left out. |
+
+- The type is read from the first bytes of the file, never from its name or content type. The location and camera data are removed
+  before the file is stored. The photo is stored under a random id in this environment's content folder,
+  `{root}/content/gallery/{entryId}/`, never in the orders folder, and the client never chooses the id.
+- A new upload joins at the top of the gallery. Who added it and when come from the token and the clock; any such part is ignored.
+- A retry with the same `Idempotency-Key` and body answers with the stored `201` and adds nothing more.
+- An upload for a hidden line is saved, stays off the public site and is flagged `lineHidden` in the list. A line with an upload in it
+  cannot be deleted (`422 product-lines.in-use`); hide it instead.
+
+### Editing, replacing the photo, hiding, showing and deleting
+
+- **Edit.** `PUT` takes `teamName`, `productLineId`, `pieces`, `note`, `isShown` and `version` as JSON, with the same rules and
+  messages as adding. A `version` that is not the stored one answers `409 edit.stale` and changes nothing. A form with no change stores
+  nothing, writes no audit entry and keeps the version. A missing `isShown` keeps the item as it is.
+- **Replace the photo.** `POST .../photo` takes a multipart form with the new file in `file`. The new file is stored under a new
+  random id in the same folder and the old file is queued for removal in the same save. The answer carries the new `version`.
+- **Hide and show.** Hiding takes an upload off the public site and nothing is lost. Doing either twice is `204` and records once.
+- **Delete.** `DELETE` removes an upload for good and queues its photo for removal. A second delete is `404`.
+- An order item has none of these: each answers `404 gallery-items.not-found`. An order item is changed on its order (its Public
+  website card), and taken off the website there.
+
+### Moving
+
+`POST /api/v1/gallery-items/{id}/move` with `{ "direction": "up" }` or `{ "direction": "down" }`, and `"lineId"` when the list is
+filtered to a line. The item trades places with its visible neighbour: the next item in the list, or, with a line filter, the next item
+of that line. A move across a page edge simply swaps with the item on the next or previous page. The top item up and the last item down
+are `204` and change and record nothing. The move runs under the `site-content` lock, so two Managers moving at once end with every
+place used once. The same request sent twice with one `Idempotency-Key` moves once. A newly shown order and a new upload join at the
+top. Home's Recent work is the newest shown orders by shown date and does not follow this order.
+
+### What visitors see
+
+Every add, edit, photo replace, hide, show, delete and move clears the public cache after the save commits, so the next read of
+`GET /api/v1/public/gallery` shows the change with a new `ETag`. A hidden upload, and an upload on a hidden line, is never sent to
+visitors. The note of an upload is public; nothing else about how the item was made is.
+
+### The gallery audit entries
+
+Each change writes entries in the same save. The target type is `GalleryEntry` and the target id is the entry id. The audit log never
+holds the note or a photo address: a note change is named, not copied.
+
+| Action | Detail |
+|---|---|
+| `gallery-photo.added` | `team=Tondo Sample Riders;line=Moto Riding Jerseys` |
+| `gallery-photo.changed` | `fields=` naming every changed field in form order (`team`, `line`, `pieces`, `note`), then `team=old>new` and `line=old>new` for the ones that changed. A change to the note alone is `fields=note`, which the Audit Log screen reads as "Note changed". A replaced photo is `fields=photo`. |
+| `gallery-photo.hidden`, `gallery-photo.shown` | `team=Tondo Sample Riders;line=Moto Riding Jerseys` |
+| `gallery-photo.deleted` | `team=Tondo Sample Riders;line=Moto Riding Jerseys` |
+| `gallery-item.moved` | `kind=upload;name=Charlie Sample;position=3>2`. `kind` is `order` or `upload`. The places count from 1 in the whole list, with or without a line filter. |
+
+A flip of `isShown` in an edit writes `gallery-photo.shown` or `gallery-photo.hidden`.
 
 ## The audit entry
 

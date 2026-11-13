@@ -551,6 +551,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gallery-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the gallery in gallery order, one page at a time: every upload (shown or hidden) and every order that is shown. Each row
+         *     has its kind (`order` or `upload`), the name shown, the line and the short name of the line, whether the line is
+         *     hidden (the item is then off the public site), the pieces, whether it is shown, the order id and number of an order item, the
+         *     note and the version of an upload, and a small photo address. A page past the last answers no rows and the real total.
+         */
+        get: operations["ListGalleryItems"];
+        put?: never;
+        /**
+         * Adds a photo of older work to the Gallery as a multipart form with the file in the `file` part and the fields
+         *     `teamName`, `productLineId`, `pieces` (optional), `note` (optional) and `isShown` as form parts. The type is read from
+         *     the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can
+         *     use, is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The
+         *     photo is stored under a random id the client never chooses, in the entry's own content folder. The upload joins at the top of
+         *     the gallery. It is hidden unless `isShown` is `true`, and a line that is hidden keeps it off the public site. When photo
+         *     storage is not set up the answer is 503 `images.not-configured`. A retry with the same `Idempotency-Key` and body
+         *     answers with the stored answer and adds nothing more. Who added it and when come from the token and the clock. The change is
+         *     recorded in the audit log without the address, and the public pages show it at once.
+         */
+        post: operations["CreateGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits an upload with the version the form was opened with, as JSON: `teamName`, `productLineId`, `pieces`,
+         *     `note`, `isShown` and `version`. The values follow the same rules as when adding. A `version` that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change stores nothing
+         *     and keeps the version. The photo is replaced through its own route. An item that came from an order answers 404: it is changed on
+         *     its order. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateGalleryUpload"];
+        post?: never;
+        /**
+         * Deletes an upload for good. Its photo is queued for removal in the same save and leaves the storage on the next cleanup run;
+         *     nothing calls the storage during the request. It takes no version. Deleting an upload that is already gone is a 404, and so is an
+         *     item that came from an order: it is taken off the website from its order.
+         */
+        delete: operations["DeleteGalleryUpload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides an upload: it leaves the public site and stays in this list, and nothing is lost. Hiding a hidden upload is a 204 that
+         *     changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         *     An item that came from an order answers 404: it is taken off the website from its order.
+         */
+        post: operations["HideGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;
+         *     send `lineId` when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge
+         *     swaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It
+         *     takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. The public gallery shows the new
+         *     order at once; Home's Recent work does not follow it.
+         */
+        post: operations["MoveGalleryItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts a new photo in the place of an upload's photo, as a multipart form with the file in the `file` part. The file is held
+         *     to the same rules as when adding (type read from the first bytes, 10 MB, 25 megapixels, location and camera data removed) and is
+         *     stored under a new random id in the upload's own folder. The old file is queued for removal in the same save. It takes no
+         *     version; the answer carries the new one. An item that came from an order answers 404: its photos come from the order. A retry
+         *     with the same `Idempotency-Key` and body answers with the stored answer. The change is recorded in the audit log as a photo
+         *     change, never with the address, and the public pages show it at once.
+         */
+        post: operations["ReplaceGalleryPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden upload on the public site again (a hidden line still keeps it off). Showing a shown upload is a 204 that changes
+         *     and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. An item
+         *     that came from an order answers 404.
+         */
+        post: operations["ShowGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/money-transfers": {
         parameters: {
             query?: never;
@@ -3477,6 +3627,91 @@ export interface components {
             /** @description The email address. */
             email: null | string;
         };
+        /** @description One page of the Manager's gallery list. */
+        GalleryItemListDto: {
+            /**
+             * Format: int32
+             * @description The page number, from 1.
+             */
+            page: number | string;
+            /** @description The rows of the page, in gallery order. */
+            rows: components["schemas"]["GalleryItemRowDto"][];
+            /**
+             * Format: int32
+             * @description The page size.
+             */
+            size: number | string;
+            /**
+             * Format: int32
+             * @description How many items match the filter over every page.
+             */
+            total: number | string;
+        };
+        /** @description One gallery item as the Manager's Gallery tab reads it (GAL-03, D-10). */
+        GalleryItemRowDto: {
+            /**
+             * Format: uuid
+             * @description The gallery entry id.
+             */
+            id: string;
+            /** @description True while the item can show on the website; always true for an order item, which is listed while it is shown. */
+            isShown: boolean;
+            /** @description `order` or `upload`. */
+            kind: string;
+            /** @description True when the line is hidden, so the item is off the public site. */
+            lineHidden: boolean;
+            /**
+             * Format: uuid
+             * @description The line the item is filed under; null when an order has none.
+             */
+            lineId: null | string;
+            /** @description The line's short name; null when there is no line. */
+            lineShortName: null | string;
+            /** @description The name shown. */
+            name: string;
+            /** @description The note of an upload; null when none. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The order of an order item; null on an upload.
+             */
+            orderId: null | string;
+            /** @description The number of an order item; null on an upload. */
+            orderNumber: null | string;
+            /**
+             * Format: int32
+             * @description The pieces; null for an upload that gives none.
+             */
+            pieces: null | number | string;
+            /** @description The address of the small square photo; null when there is none. */
+            thumb: null | string;
+            /** @description The text an edit of an upload must send back; null on an order item. */
+            version: null | string;
+        };
+        /**
+         * @description The fields of the gallery upload form (GAL-03, SEC-07), for adding (sent as form parts next to the photo) and for editing (sent as JSON).
+         *     Any other member is ignored: who added the upload and when come from the server (SEC-08).
+         */
+        GalleryUploadRequest: {
+            /** @description True to show the upload on the website. A new upload is hidden when this is missing; an edit keeps it as it is when this is missing. */
+            isShown: null | boolean;
+            /** @description The note, at most 120 characters; empty for none. */
+            note: null | string;
+            /**
+             * Format: double
+             * @description The pieces, a whole number from 1 to 9,999; null for none.
+             */
+            pieces: null | number | string;
+            /**
+             * Format: uuid
+             * @description The line the upload is filed under, required.
+             */
+            productLineId: null | string;
+            /** @description The team or name shown, required, at most 80 characters. */
+            teamName: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
+        };
         /** Format: binary */
         IFormFile: string;
         /** @description The photo rules the server enforces, for the browser to check before it sends a file (OR-3, IMG-02). */
@@ -3717,6 +3952,16 @@ export interface components {
              * @description The sum of the month's expenses by expense date; 0.00 when none.
              */
             total: number | string;
+        };
+        /** @description The gallery move form: which way an item goes in the one gallery order, and the line the Manager's list is filtered to. */
+        MoveGalleryItemRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+            /**
+             * Format: uuid
+             * @description The line the list is filtered to; the neighbour is then the next item of that line. Null when the list shows every line.
+             */
+            lineId?: null | string;
         };
         /**
          * @description Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so "Make Cover" is the same request with
@@ -7426,6 +7671,589 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListGalleryItems: {
+        parameters: {
+            query?: {
+                /** @description A product line id; none means every line. */
+                line?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemListDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                } & {
+                    teamName?: string;
+                } & {
+                    productLineId?: string;
+                } & {
+                    pieces?: string;
+                } & {
+                    note?: string;
+                } & {
+                    isShown?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    UpdateGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["GalleryUploadRequest"];
+                "application/json": null | components["schemas"]["GalleryUploadRequest"];
+                "text/json": null | components["schemas"]["GalleryUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveGalleryItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "application/json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "text/json": null | components["schemas"]["MoveGalleryItemRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReplaceGalleryPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    ShowGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
