@@ -33,13 +33,21 @@ export const WWWROOT = fileURLToPath(new URL('../../src/Csps.Server/wwwroot', im
 export const ORIGIN = `https://localhost:${String(E2E_PORT)}`;
 export const HEALTH_URL = `${ORIGIN}/health`;
 /**
- * The exit status of one Lighthouse run. Stub for the RED step: returns the status unchanged.
- * @param {number} status
- * @param {unknown} _report
+ * The exit status of one Lighthouse run. Lighthouse saves the report first and closes Chrome after; on Windows,
+ * chrome-launcher can then fail to delete Chrome's temp profile (EPERM) and exit 1 with a complete report on disk. That
+ * saved report is the real result, so a failing exit with a finished report (audits scored, no runtime error) counts as 0.
+ * A missing report, or one with a runtime error such as NO_NAVSTART, keeps the failing status.
+ * @param {number} status the exit status of the Lighthouse process.
+ * @param {unknown} report the parsed report file, or null when there is none.
  * @returns {number}
  */
-export function lighthouseExitStatus(status, _report) {
-  return status;
+export function lighthouseExitStatus(status, report) {
+  if (status === 0) {
+    return 0;
+  }
+  const root = typeof report === 'object' && report !== null ? /** @type {Record<string, unknown>} */ (report) : {};
+  const audits = typeof root.audits === 'object' && root.audits !== null ? Object.keys(root.audits) : [];
+  return audits.length > 0 && root.runtimeError === undefined ? 0 : status;
 }
 
 /**
@@ -392,6 +400,18 @@ export async function startHost(step) {
 }
 
 /**
+ * @param {string} file
+ * @returns {unknown} the parsed report, or null when the file is missing or not JSON.
+ */
+function readSavedReport(file) {
+  try {
+    return existsSync(file) ? /** @type {unknown} */ (JSON.parse(readFileSync(file, 'utf8'))) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * @param {RunStep} step
  * @returns {number}
  */
@@ -407,7 +427,18 @@ function runStep(step) {
     env: { ...process.env, ...step.env },
     stdio: 'inherit',
   });
-  return result.status ?? 1;
+  const status = result.status ?? 1;
+  if (step.name !== 'lighthouse' || status === 0) {
+    return status;
+  }
+  const file = reportPathFor(step.page ?? '/');
+  const effective = lighthouseExitStatus(status, readSavedReport(file));
+  if (effective === 0) {
+    process.stdout.write(
+      `lighthouse ${step.page ?? '/'}: exit ${String(status)} after the report was saved (Chrome's temp folder could not be deleted); the saved report is used.\n`,
+    );
+  }
+  return effective;
 }
 
 /**
