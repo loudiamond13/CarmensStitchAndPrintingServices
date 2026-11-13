@@ -15,7 +15,9 @@
 //     only web fonts, Archivo among them.
 import type { Page, Response } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
-import { openPage, PAGES } from './sweep.ts';
+import { openPage, PAGES, settle } from './sweep.ts';
+import { withSiteContentLock } from './site-content-lock.ts';
+import { seedDemoSiteContent } from './testing-api.ts';
 
 const PUBLIC = PAGES.find((pageCase) => pageCase.path === '/');
 const SHOWCASE = PAGES.find((pageCase) => pageCase.path === '/dev/components' && pageCase.theme === 'light');
@@ -85,6 +87,76 @@ for (const pageCase of [PUBLIC, SHOWCASE]) {
     expect(await fontProblems(fonts, new URL(baseURL ?? 'https://localhost:5199').origin)).toEqual([]);
   });
 }
+
+// D-28, D-46 (plan 11-36): the network log of the four real public pages at a phone and a desktop width. It lists the font
+// files each page requests (the lists go to the test annotations, for the record in docs/web/budgets.md), and proves two
+// things: the one preloaded font is a file the page uses, and a peso in display text no longer downloads the Barlow
+// latin-ext files, which have no peso sign (barlowNoPesoPlugin).
+const PUBLIC_PATHS = ['/', '/products', '/gallery', '/contact'] as const;
+const WIDTHS = [390, 1440] as const;
+
+// Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
+test.describe.configure({ timeout: 480_000 });
+
+/** `archivo-latin-wght-normal-AbC12345.woff2` becomes `archivo-latin-wght-normal`: the file name without its content hash. */
+function fontName(url: string): string {
+  const file = new URL(url).pathname.split('/').pop() ?? url;
+  return file.replace(/-[\w-]{8}\.woff2$/, '');
+}
+
+for (const publicPath of PUBLIC_PATHS) {
+  for (const width of WIDTHS) {
+    test(`@fonts ${publicPath} at ${String(width)} px requests only the font files its text needs`, async ({
+      page,
+      request,
+      baseURL,
+      guard,
+    }) => {
+      // The demo shown orders have no stored photo file, so their photos answer 404 (see home.spec.ts).
+      guard.expectStatus('/api/testing/images/', 404);
+      await page.setViewportSize({ width, height: width < 800 ? 844 : 900 });
+      await withSiteContentLock(async () => {
+        await seedDemoSiteContent(request);
+        const fonts = watchFonts(page);
+        await page.goto(publicPath);
+        await expect(page.locator('h1').first()).toBeVisible();
+        await page.evaluate('document.fonts.ready.then(() => true)');
+        await settle(page);
+
+        const names = [...new Set(fonts.map((response) => fontName(response.url())))].sort();
+        test.info().annotations.push({
+          type: 'font-files',
+          description: `${publicPath} at ${String(width)} px: ${names.join(', ')}`,
+        });
+
+        expect(await fontProblems(fonts, new URL(baseURL ?? 'https://localhost:5199').origin)).toEqual([]);
+        const preloads = await page.evaluate<Preload[]>(READ_PRELOADS);
+        expect(preloads).toHaveLength(1);
+        // The one preloaded file is a file this page really requests (it draws the body text).
+        expect(names).toContain('archivo-latin-wght-normal');
+        // No Barlow latin-ext file: the peso in display text falls through to Archivo, so those files are never needed.
+        expect(names.filter((name) => name.startsWith('barlow-condensed-latin-ext-'))).toEqual([]);
+      });
+    });
+  }
+}
+
+// The seeded public pages show no peso in display text, so this is the page that proves the peso rule: the showcase draws
+// ₱ in the display Money. The peso comes from Archivo's latin-ext file; Barlow Condensed's latin-ext files have no peso
+// sign and are never fetched for it (barlowNoPesoPlugin).
+test('@fonts a peso in display text downloads Archivo latin-ext and no Barlow latin-ext file', async ({ page }) => {
+  if (SHOWCASE === undefined) {
+    throw new Error('sweep.ts no longer lists /dev/components');
+  }
+  const fonts = watchFonts(page);
+  await openPage(page, SHOWCASE);
+  expect(await page.evaluate<boolean>(`document.fonts.check('16px "Archivo Variable"', '₱')`)).toBe(true);
+
+  const names = [...new Set(fonts.map((response) => fontName(response.url())))].sort();
+  test.info().annotations.push({ type: 'font-files', description: `/dev/components: ${names.join(', ')}` });
+  expect(names).toContain('archivo-latin-ext-wght-normal');
+  expect(names.filter((name) => name.startsWith('barlow-condensed-latin-ext-'))).toEqual([]);
+});
 
 /** One measured ₱: its font stack, a run of ten ₱ in that stack, in "Archivo Variable" and in Arial, and one in place. */
 interface PesoGlyph {
