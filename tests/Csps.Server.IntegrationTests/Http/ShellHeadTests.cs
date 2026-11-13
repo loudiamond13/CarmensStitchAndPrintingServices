@@ -853,8 +853,11 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        // The only "@" a public body may hold is in the JSON-LD keywords "@context" and "@type".
-        var withoutKeywords = body.Replace("\"@context\"", string.Empty, StringComparison.Ordinal).Replace("\"@type\"", string.Empty, StringComparison.Ordinal);
+        // The only "@" a public body may hold is in the JSON-LD keywords "@context" and "@type" and in the TikTok profile link.
+        var withoutKeywords = body
+            .Replace("\"@context\"", string.Empty, StringComparison.Ordinal)
+            .Replace("\"@type\"", string.Empty, StringComparison.Ordinal)
+            .Replace("tiktok.com/@", "tiktok.com/", StringComparison.Ordinal);
         body.ShouldNotContain("shop-private@example.test", Case.Insensitive, path);
         body.ShouldNotContain("mailto:", Case.Insensitive, path);
         withoutKeywords.ShouldNotContain("@", Case.Sensitive, path);

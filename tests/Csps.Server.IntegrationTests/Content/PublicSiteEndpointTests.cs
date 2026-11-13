@@ -57,9 +57,9 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
         phones[1].GetProperty("display").GetString().ShouldBe("02 8123 4567");
         phones[1].GetProperty("isMain").GetBoolean().ShouldBeFalse();
         site.GetProperty("messengerUrl").GetString().ShouldBe("https://m.me/cspsdemo");
-        site.GetProperty("facebookUrl").GetString().ShouldBe("https://facebook.example.test/cspsdemo");
-        site.GetProperty("directionsUrl").GetString().ShouldBe("https://maps.example.test/directions");
-        site.GetProperty("mapEmbedUrl").GetString().ShouldBe("https://maps.example.test/embed");
+        site.GetProperty("facebookUrl").GetString().ShouldBe("https://www.facebook.com/cspsdemo");
+        site.GetProperty("directionsUrl").GetString().ShouldBe("https://maps.app.goo.gl/abc123");
+        site.GetProperty("mapEmbedUrl").GetString().ShouldBe("https://www.google.com/maps/embed?pb=sample");
         site.GetProperty("year").GetInt32().ShouldBeGreaterThanOrEqualTo(2026);
     }
 
@@ -115,7 +115,7 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
             .Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         body.ShouldNotContain("shop-private@example.test", Case.Insensitive);
-        body.ShouldNotContain("@");
+        body.Replace("tiktok.com/@", "tiktok.com/", StringComparison.Ordinal).ShouldNotContain("@");
         StringValues(body).ShouldNotContain(value => value.Contains('[', StringComparison.Ordinal));
     }
 

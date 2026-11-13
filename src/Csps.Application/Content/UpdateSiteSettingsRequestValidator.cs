@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Domain.Content;
 using FluentValidation;
@@ -30,7 +29,7 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
     public const string BusinessNameTooLong = "Keep the business name to 100 characters or fewer.";
 
     /// <summary>The message for a postal code that is not four digits.</summary>
-    public const string PostalCodeInvalid = "Use the 4-digit postal code, like 8600.";
+    public const string PostalCodeInvalid = SiteLinks.PostalCodeInvalidMessage;
 
     /// <summary>The message for a form with no phone number.</summary>
     public const string PhonesRequired = "Add at least one phone number.";
@@ -43,8 +42,6 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
 
     /// <summary>The message for a list of more than four numbers.</summary>
     public const string PhonesTooMany = "You can list up to 4 numbers.";
-
-    private const int PostalCodeLength = 4;
 
     private const string PhonesKey = "Phones";
 
@@ -63,7 +60,7 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
         Required(request => request.Province, SiteSettings.ProvinceMaxLength, ProvinceRequired, LengthMessage(SiteSettings.ProvinceMaxLength));
 
         RuleFor(request => request.PostalCode)
-            .Must(static code => IsNotSet(code) || IsPostalCode(code!.Trim())).WithMessage(PostalCodeInvalid);
+            .Must(static code => IsNotSet(code) || SiteLinks.IsPostalCode(code!.Trim())).WithMessage(PostalCodeInvalid);
 
         Link(request => request.DirectionsUrl, SiteLinks.IsDirectionsLink, SiteLinks.DirectionsInvalidMessage);
         Link(request => request.MapEmbedUrl, SiteLinks.IsMapEmbedLink, SiteLinks.MapEmbedInvalidMessage);
@@ -73,7 +70,7 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
         Link(request => request.TiktokUrl, SiteLinks.IsTikTokLink, SiteLinks.TikTokInvalidMessage);
 
         RuleFor(request => request.ContactEmail)
-            .Must(static email => IsNotSet(email) || IsEmail(email!.Trim())).WithMessage(SignInRequestValidator.EmailInvalid);
+            .Must(static email => IsNotSet(email) || SiteLinks.IsContactEmail(email!.Trim())).WithMessage(SiteLinks.ContactEmailInvalidMessage);
 
         RuleFor(request => request).Custom(static (request, context) => CheckPhones(request.Phones, context));
     }
@@ -81,12 +78,6 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
     private static string LengthMessage(int max) => $"Keep this to {max} characters or fewer.";
 
     private static bool IsNotSet(string? value) => string.IsNullOrWhiteSpace(value);
-
-    private static bool IsPostalCode(string code) => code.Length == PostalCodeLength && code.All(char.IsAsciiDigit);
-
-    // The same shape check as every other email field, within the 254-character column, and never a bracket placeholder.
-    private static bool IsEmail(string email) =>
-        email.Length <= SiteSettings.ContactEmailMaxLength && SignInRequestValidator.IsEmailShaped(email) && !SiteLinks.HasBracketPlaceholder(email);
 
     private void Required(Expression<Func<UpdateSiteSettingsRequest, string?>> property, int max, string requiredMessage, string tooLongMessage) =>
         RuleFor(property).Custom((value, context) =>

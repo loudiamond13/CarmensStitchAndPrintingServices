@@ -102,6 +102,54 @@ public sealed class SiteLinksTests
         SiteLinks.MapEmbedInvalidMessage.ShouldBe("Paste the embed code or link from Google Maps. It starts with https://www.google.com/maps/embed.");
     }
 
+    [Theory]
+    [InlineData("8600", true)]
+    [InlineData("0000", true)]
+    [InlineData("860", false)]
+    [InlineData("86000", false)]
+    [InlineData("86a0", false)]
+    [InlineData("8 600", false)]
+    [InlineData(" 8600", false)]
+    [InlineData("٨٦٠٠", false)]
+    [InlineData("", false)]
+    public void APostalCodeIsExactlyFourAsciiDigits(string code, bool expected) =>
+        SiteLinks.IsPostalCode(code).ShouldBe(expected, code);
+
+    [Fact]
+    public void ANullPostalCodeIsRefused() => SiteLinks.IsPostalCode(null).ShouldBeFalse();
+
+    [Theory]
+    [InlineData("shop@example.test", true)]
+    [InlineData("a@b", true)]
+    [InlineData("name", false)]
+    [InlineData("a@b@c.test", false)]
+    [InlineData("@example.test", false)]
+    [InlineData("name@", false)]
+    [InlineData("[hello@yourdomain.ph]", false)]
+    [InlineData("[shop]@example.test", false)]
+    [InlineData("", false)]
+    public void AContactEmailHasOneAtSignWithTextOnBothSidesAndNoPlaceholder(string email, bool expected) =>
+        SiteLinks.IsContactEmail(email).ShouldBe(expected, email);
+
+    [Fact]
+    public void AContactEmailFitsAt254CharactersAndIsRefusedAt255()
+    {
+        var local = new string('a', SiteSettings.ContactEmailMaxLength - "@example.test".Length);
+
+        SiteLinks.IsContactEmail($"{local}@example.test").ShouldBeTrue();
+        SiteLinks.IsContactEmail($"{local}a@example.test").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ANullContactEmailIsRefused() => SiteLinks.IsContactEmail(null).ShouldBeFalse();
+
+    [Fact]
+    public void ThePostalCodeAndEmailMessagesAreTheApprovedWording()
+    {
+        SiteLinks.PostalCodeInvalidMessage.ShouldBe("Use the 4-digit postal code, like 8600.");
+        SiteLinks.ContactEmailInvalidMessage.ShouldBe("Enter a valid email, like name@gmail.com");
+    }
+
     private static TheoryData<string, string> Flatten(Func<RuleCases, List<string>> pick)
     {
         var data = new TheoryData<string, string>();

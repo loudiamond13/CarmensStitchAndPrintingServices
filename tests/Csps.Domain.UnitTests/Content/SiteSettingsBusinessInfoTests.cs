@@ -33,12 +33,12 @@ public sealed class SiteSettingsBusinessInfoTests
         settings.TownOrCity.ShouldBe("Sample City");
         settings.Province.ShouldBe("Sample Province");
         settings.PostalCode.ShouldBe("1000");
-        settings.DirectionsUrl.ShouldBe("https://maps.example.test/directions");
-        settings.MapEmbedUrl.ShouldBe("https://maps.example.test/embed");
+        settings.DirectionsUrl.ShouldBe("https://maps.app.goo.gl/abc123");
+        settings.MapEmbedUrl.ShouldBe("https://www.google.com/maps/embed?pb=sample");
         settings.MessengerUrl.ShouldBe("https://m.me/cspsdemo");
-        settings.FacebookUrl.ShouldBe("https://facebook.example.test/cspsdemo");
-        settings.InstagramUrl.ShouldBe("https://instagram.example.test/cspsdemo");
-        settings.TikTokUrl.ShouldBe("https://tiktok.example.test/@cspsdemo");
+        settings.FacebookUrl.ShouldBe("https://www.facebook.com/cspsdemo");
+        settings.InstagramUrl.ShouldBe("https://www.instagram.com/cspsdemo");
+        settings.TikTokUrl.ShouldBe("https://www.tiktok.com/@cspsdemo");
         settings.ContactEmail.ShouldBe("shop@example.test");
         changes.ChangedFields.ShouldBe(
         [
@@ -143,12 +143,103 @@ public sealed class SiteSettingsBusinessInfoTests
     {
         var settings = SiteSettings.CreateDefault(CreatedAt);
 
-        var atLimit = settings.UpdateBusinessInfo(With(field, new string('x', max)), Now);
+        var atLimit = settings.UpdateBusinessInfo(With(field, AtLimit(field, max)), Now);
         var over = settings.UpdateBusinessInfo(With(field, new string('x', max + 1)), Now);
 
         atLimit.IsSuccess.ShouldBeTrue(field);
         over.IsFailure.ShouldBeTrue(field);
         over.Error.FieldErrors.ShouldNotBeNull()[field].ShouldBe([message], field);
+    }
+
+    [Theory]
+    [InlineData("directionsUrl", "javascript:alert(1)", "Paste a Google Maps link, like https://maps.app.goo.gl/abc123.")]
+    [InlineData("directionsUrl", "http://maps.app.goo.gl/abc123", "Paste a Google Maps link, like https://maps.app.goo.gl/abc123.")]
+    [InlineData("directionsUrl", "https://evil.example.test/maps", "Paste a Google Maps link, like https://maps.app.goo.gl/abc123.")]
+    [InlineData("mapEmbedUrl", "https://evil.example.test/embed", "Paste the embed code or link from Google Maps. It starts with https://www.google.com/maps/embed.")]
+    [InlineData("mapEmbedUrl", "<iframe src=\"https://www.google.com/maps/embed?pb=1\"></iframe>", "Paste the embed code or link from Google Maps. It starts with https://www.google.com/maps/embed.")]
+    [InlineData("messengerUrl", "https://facebook.com/yourpage", "Paste your Messenger link, like https://m.me/yourpage.")]
+    [InlineData("facebookUrl", "https://facebook.example.test/cspsdemo", "Paste your Facebook page link, like https://www.facebook.com/yourpage.")]
+    [InlineData("facebookUrl", "https://user:secret@www.facebook.com/cspsdemo", "Paste your Facebook page link, like https://www.facebook.com/yourpage.")]
+    [InlineData("instagramUrl", "https://www.instagram.com.evil.example.test/cspsdemo", "Paste your Instagram link, like https://www.instagram.com/yourpage.")]
+    [InlineData("instagramUrl", "https://www.instagram.com/[yourpage]", "Paste your Instagram link, like https://www.instagram.com/yourpage.")]
+    [InlineData("tiktokUrl", "https://tiktok.example.test/@cspsdemo", "Paste your TikTok link, like https://www.tiktok.com/@yourpage.")]
+    [InlineData("tiktokUrl", "www.tiktok.com/@cspsdemo", "Paste your TikTok link, like https://www.tiktok.com/@yourpage.")]
+    public void ALinkOutsideItsAllowListIsRefusedWithTheValidatorsWords(string field, string link, string message)
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(With(field, link), Now);
+
+        result.IsFailure.ShouldBeTrue(field);
+        result.Error.FieldErrors.ShouldNotBeNull()[field].ShouldBe([message], field);
+        settings.UpdatedAtUtc.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("860")]
+    [InlineData("86a0")]
+    [InlineData("8 60")]
+    [InlineData("٨٦٠٠")]
+    public void APostalCodeThatIsNotFourDigitsIsRefusedWithTheValidatorsWords(string code)
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { PostalCode = code }, Now);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["postalCode"].ShouldBe(["Use the 4-digit postal code, like 8600."]);
+    }
+
+    [Theory]
+    [InlineData("name")]
+    [InlineData("a@b@c.test")]
+    [InlineData("@example.test")]
+    [InlineData("name@")]
+    [InlineData("[hello@yourdomain.ph]")]
+    public void AContactEmailOfTheWrongShapeIsRefusedWithTheValidatorsWords(string email)
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { ContactEmail = email }, Now);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["contactEmail"].ShouldBe(["Enter a valid email, like name@gmail.com"]);
+    }
+
+    [Fact]
+    public void EveryBrokenLinkIsReportedTogetherAndNothingIsChanged()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+        var values = Valid() with
+        {
+            BusinessName = "Changed",
+            DirectionsUrl = "https://evil.example.test/maps",
+            MapEmbedUrl = "https://evil.example.test/embed",
+            MessengerUrl = "https://evil.example.test/page",
+            FacebookUrl = "https://evil.example.test/page",
+            InstagramUrl = "https://evil.example.test/page",
+            TikTokUrl = "https://evil.example.test/page",
+            PostalCode = "12",
+            ContactEmail = "nope",
+        };
+
+        var result = settings.UpdateBusinessInfo(values, Now);
+
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(
+            ["directionsUrl", "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "postalCode", "contactEmail"],
+            ignoreOrder: true);
+        settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
+        settings.UpdatedAtUtc.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ALinkWithPaddingIsCheckedAfterTrimmingAndStoredTrimmed()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { FacebookUrl = "  https://www.facebook.com/cspsdemo  ", ContactEmail = " shop@example.test " }, Now);
+
+        result.IsSuccess.ShouldBeTrue();
+        settings.FacebookUrl.ShouldBe("https://www.facebook.com/cspsdemo");
+        settings.ContactEmail.ShouldBe("shop@example.test");
     }
 
     [Fact]
@@ -282,14 +373,30 @@ public sealed class SiteSettingsBusinessInfoTests
         "Sample City",
         "Sample Province",
         "1000",
-        "https://maps.example.test/directions",
-        "https://maps.example.test/embed",
+        "https://maps.app.goo.gl/abc123",
+        "https://www.google.com/maps/embed?pb=sample",
         "https://m.me/cspsdemo",
-        "https://facebook.example.test/cspsdemo",
-        "https://instagram.example.test/cspsdemo",
-        "https://tiktok.example.test/@cspsdemo",
+        "https://www.facebook.com/cspsdemo",
+        "https://www.instagram.com/cspsdemo",
+        "https://www.tiktok.com/@cspsdemo",
         "shop@example.test",
         [Globe]);
+
+    // The longest value of the field that still passes its shape rule.
+    private static string AtLimit(string field, int max) => field switch
+    {
+        "postalCode" => new string('1', max),
+        "directionsUrl" => Pad("https://maps.app.goo.gl/", max),
+        "mapEmbedUrl" => Pad("https://www.google.com/maps/embed?", max),
+        "messengerUrl" => Pad("https://m.me/", Math.Min(max, "https://m.me/".Length + 100)),
+        "facebookUrl" => Pad("https://www.facebook.com/", max),
+        "instagramUrl" => Pad("https://www.instagram.com/", max),
+        "tiktokUrl" => Pad("https://www.tiktok.com/@", max),
+        "contactEmail" => new string('x', max - "@example.test".Length) + "@example.test",
+        _ => new string('x', max),
+    };
+
+    private static string Pad(string prefix, int length) => prefix + new string('x', length - prefix.Length);
 
     private static BusinessInfo With(string field, string value) => field switch
     {

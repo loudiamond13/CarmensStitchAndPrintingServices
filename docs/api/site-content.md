@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T21:20:00-06:00
+updated: 2026-11-13T13:00:00-06:00
 ---
 
 # The site content API
@@ -134,6 +134,9 @@ keyed `phones`.
 A link must be https on its exact host, with no sign-in part, no odd port, no space and no square bracket. A `javascript:` or
 `http:` link is refused, and so is text that still holds a bracket placeholder such as `[Shop address]`. The accept and refuse cases
 for the links are in `tests/fixtures/site-link-cases.json`, which both the .NET tests and the web tests read.
+
+The link, postal code and email rules live in the domain (`SiteLinks`), and the request check calls the same code. So a value
+that comes from any other writer, such as a tool or an import, is refused with the same words and never reaches the public page.
 
 ### A stale save
 

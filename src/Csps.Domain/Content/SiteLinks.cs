@@ -33,7 +33,14 @@ public static class SiteLinks
     /// </summary>
     public const string PlaceholderTextMessage = "Replace the text in square brackets with the real words.";
 
+    /// <summary>The message for a postal code that is not four digits.</summary>
+    public const string PostalCodeInvalidMessage = "Use the 4-digit postal code, like 8600.";
+
+    /// <summary>The message for a shop email that is not shaped like an address.</summary>
+    public const string ContactEmailInvalidMessage = "Enter a valid email, like name@gmail.com";
+
     private const string HttpsPrefix = "https://";
+    private const int PostalCodeLength = 4;
     private const string MessengerPrefix = "https://m.me/";
     private const string MapEmbedPrefix = "https://www.google.com/maps/embed?";
     private const int MessengerNameMaxLength = 100;
@@ -108,6 +115,28 @@ public static class SiteLinks
     /// <returns>True when the link is allowed.</returns>
     public static bool IsMapEmbedLink(string? value) =>
         value is not null && value.StartsWith(MapEmbedPrefix, StringComparison.Ordinal) && IsPlainLinkText(value);
+
+    /// <summary>Tells whether the text is exactly four ASCII digits.</summary>
+    /// <param name="value">The postal code, exactly as typed.</param>
+    /// <returns>True when the code is allowed.</returns>
+    public static bool IsPostalCode(string? value) => value is { Length: PostalCodeLength } && value.All(char.IsAsciiDigit);
+
+    /// <summary>
+    /// Tells whether the text is one <c>@</c> with text on both sides, within the 254-character column, and not a bracket placeholder.
+    /// No regular expression is used (CWE-1333).
+    /// </summary>
+    /// <param name="value">The email, exactly as typed.</param>
+    /// <returns>True when the email is allowed.</returns>
+    public static bool IsContactEmail(string? value)
+    {
+        if (value is null || value.Length > SiteSettings.ContactEmailMaxLength || HasBracketPlaceholder(value))
+        {
+            return false;
+        }
+
+        var at = value.IndexOf('@', StringComparison.Ordinal);
+        return at > 0 && at < value.Length - 1 && value.IndexOf('@', at + 1) < 0;
+    }
 
     /// <summary>Tells whether the text holds a square-bracket placeholder such as <c>[Shop address]</c>.</summary>
     /// <param name="value">The text.</param>
