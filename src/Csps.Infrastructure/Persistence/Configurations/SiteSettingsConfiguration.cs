@@ -42,6 +42,13 @@ internal sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteS
         builder.Property(settings => settings.InstagramUrl).IsUnicode().HasMaxLength(SiteSettings.InstagramUrlMaxLength);
         builder.Property(settings => settings.TikTokUrl).IsUnicode().HasMaxLength(SiteSettings.TikTokUrlMaxLength);
 
+        // The default link preview picture (D-26). All five are null until a Manager uploads one.
+        builder.Property(settings => settings.SharePicturePublicId).IsUnicode().HasMaxLength(200);
+        builder.Property(settings => settings.SharePictureWidth);
+        builder.Property(settings => settings.SharePictureHeight);
+        builder.Property(settings => settings.SharePictureBytes);
+        builder.Property(settings => settings.SharePictureFormat).IsUnicode(false).HasMaxLength(8);
+
         builder.Property(settings => settings.CreatedAtUtc).IsRequired();
 
         // SEC-08: the attribution members use the column names the table already had, so nothing is renamed (D-39).

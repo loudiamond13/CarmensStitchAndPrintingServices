@@ -595,6 +595,25 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<int?>("SharePictureBytes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SharePictureFormat")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int?>("SharePictureHeight")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SharePicturePublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("SharePictureWidth")
+                        .HasColumnType("int");
+
                     b.Property<string>("Street")
                         .HasMaxLength(120)
                         .IsUnicode(true)

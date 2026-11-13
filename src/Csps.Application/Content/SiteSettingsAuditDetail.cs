@@ -26,6 +26,23 @@ public static class SiteSettingsAuditDetail
         BusinessInfoFields.TiktokUrl,
     };
 
+    /// <summary>The audit target type of the settings row.</summary>
+    public const string TargetType = "SiteSettings";
+
+    /// <summary>The change when a picture was set for the first time.</summary>
+    public const string SharePictureAdded = "added";
+
+    /// <summary>The change when a picture was put in the place of another.</summary>
+    public const string SharePictureReplaced = "replaced";
+
+    /// <summary>The change when the picture was taken away.</summary>
+    public const string SharePictureRemoved = "removed";
+
+    /// <summary>Writes the detail of a link preview picture change: the change only, never the address (D-26).</summary>
+    /// <param name="change">One of <see cref="SharePictureAdded"/>, <see cref="SharePictureReplaced"/> or <see cref="SharePictureRemoved"/>.</param>
+    /// <returns>The detail text.</returns>
+    public static string SharePictureChanged(string change) => AuditDetailFormat.Pair("change", change);
+
     /// <summary>Writes the detail of a save.</summary>
     /// <param name="changedFields">The API names of the changed fields, in form order.</param>
     /// <param name="before">The values before the save, by field name.</param>

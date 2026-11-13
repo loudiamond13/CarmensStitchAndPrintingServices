@@ -19,7 +19,7 @@ public sealed class SiteSettingsEndpointTests(CspsDatabase database) : IClassFix
     [
         "businessName", "tagline", "aboutText", "turnaroundLine", "street", "townOrCity", "province", "postalCode", "directionsUrl",
         "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "contactEmail", "phones", "timeZoneId", "currencyCode",
-        "locale", "version", "updatedByName", "updatedAtUtc",
+        "locale", "version", "updatedByName", "updatedAtUtc", "sharePicture",
     ];
 
     [Fact]

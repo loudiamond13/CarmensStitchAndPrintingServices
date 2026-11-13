@@ -82,7 +82,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
                     row.DirectionsUrl,
                     row.MapEmbedUrl,
                     row.TimeZoneId,
-                    row.UpdatedAtUtc ?? row.CreatedAtUtc))
+                    row.UpdatedAtUtc ?? row.CreatedAtUtc,
+                    row.SharePicturePublicId))
                 .SingleOrDefaultAsync(cancellationToken)
                 .ConfigureAwait(false)
                 ?? throw new InvalidOperationException(MissingRowMessage);
@@ -339,7 +340,19 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
     // "LongSleeves" is sent as "longSleeves", like every other JSON name.
     private static string ArtName(PlaceholderArt art) => PublicGalleryProjection.ArtName(art);
 
-    private static PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, BusinessClock clock)
+    // The default share picture as the 1200 x 630 link preview address; none when no picture is set or the delivery has no address.
+    private string? DefaultShareImageOf(SettingsRow settings)
+    {
+        if (settings.SharePicturePublicId is not { } publicId)
+        {
+            return null;
+        }
+
+        var address = delivery.ForShare(publicId);
+        return address.Length == 0 ? null : address;
+    }
+
+    private PublicSiteSnapshot Build(SettingsRow settings, List<PhoneRow> phones, List<HoursRow> hours, List<ClosureRow> closures, BusinessClock clock)
     {
         var site = new PublicSiteDto(
             settings.BusinessName,
@@ -370,7 +383,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         return new PublicSiteSnapshot(
             site,
             new PublicJsonSnapshot(json, etag, lastChanged),
-            [.. closures.Select(closure => new ClosureSpan(closure.FirstDay, closure.LastDay, closure.Note))]);
+            [.. closures.Select(closure => new ClosureSpan(closure.FirstDay, closure.LastDay, closure.Note))],
+            DefaultShareImageOf(settings));
     }
 
     private static string DisplayOf(string number) => PhilippinePhone.TryParse(number, out var phone) ? phone.Display : number;
@@ -394,7 +408,8 @@ internal sealed class PublicContentReader(HybridCache cache, IDbContextFactory<C
         string? DirectionsUrl,
         string? MapEmbedUrl,
         string TimeZoneId,
-        DateTimeOffset ChangedAtUtc);
+        DateTimeOffset ChangedAtUtc,
+        string? SharePicturePublicId);
 
     private sealed record LineRow(
         Guid Id,

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-12T19:40:00-06:00
+updated: 2026-11-12T21:20:00-06:00
 ---
 
 # The site content API
@@ -27,6 +27,8 @@ line photos, testimonials and gallery routes join this page in later plans.
 |---|---|---|
 | `GET /api/v1/site-settings` | Staff (Admin or Manager) | `200` the settings below; `401`. |
 | `PUT /api/v1/site-settings` | Manager | `200` the settings as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
+| `POST /api/v1/site-settings/share-picture` | Manager | `200` the picture below; `400` no file or a file that is not a photo we can use; `401`; `403` for an Admin; `409` when two saves lost a race; `413` for a body over the limit; `429`; `503` when photo storage is not set up. Needs an `Idempotency-Key`. |
+| `DELETE /api/v1/site-settings/share-picture` | Manager | `204`; `401`; `403` for an Admin; `404` when no picture is set; `409` when two saves lost a race. |
 | `GET /api/v1/opening-hours` | Manager | `200` the seven days below; `401`; `403` for an Admin. |
 | `PUT /api/v1/opening-hours` | Manager | `200` the hours as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `GET /api/v1/shop-closures` | Manager | `200` the upcoming closures below; `401`; `403` for an Admin. |
@@ -65,6 +67,7 @@ settings. A value that is not set is `null`.
 | `messengerUrl`, `facebookUrl`, `instagramUrl`, `tiktokUrl` | The contact and social links. |
 | `contactEmail` | The shop email, for staff only. It is never sent to a public page. |
 | `phones` | `[{ number, label, isMain }]`, the main number first. `number` is written as people read it, such as `0917 123 4567`. |
+| `sharePicture` | The default link preview picture as `{ src320, src640, width, height }`, or `null` when none is set. See "The link preview picture" below. |
 | `timeZoneId`, `currencyCode`, `locale` | Fixed and read-only: `Asia/Manila`, `PHP`, `en-PH`. They are not part of the save. |
 | `version` | The base64 of the eight-byte row version a save must send back. |
 | `updatedByName`, `updatedAtUtc` | Who last changed the settings and when; `null` until a person does. |
@@ -147,6 +150,55 @@ A form with the same values as the stored ones stores nothing, writes no audit e
 After a save that changes something, the next `GET /api/v1/public/site` answers the new values with a new `ETag`, and the next page
 head carries the new name and tagline. A save that only changes the phone list also moves the settings row, so the version and the
 sitemap date follow it.
+
+## The link preview picture
+
+The shop has one default link preview picture. It is the picture Facebook and Messenger show when someone shares a link to a page that
+has no picture of its own. Only a Manager can set it or take it away. An Admin gets `403` and no token gets `401`. It is saved on its
+own, apart from the Business Info form, and it never needs the form's `version`.
+
+`POST /api/v1/site-settings/share-picture` takes a multipart form with the file in the `file` part. The same rules as the order photos
+apply, with the same messages: the type is read from the first bytes (JPG, PNG, WEBP or HEIC, never SVG), the file is at most 10 MB and
+25 megapixels, and the location and camera data are removed before the file is stored. The picture is stored under a **new random id
+every time**, in this environment's share folder, `{root}/content/share/00000000-0000-0000-0000-000000000001/`, never in the orders
+folder, and the client never chooses the id. Facebook keeps a picture by its address, so a reused address would keep showing the old
+picture. The file the settings named before is queued for removal in the same save and leaves the storage on the next monthly cleanup
+run. Nothing calls the storage to delete during the request. The save is serialized with the other site content writes by the
+`site-content` lock. A save changes the settings row, so its `version` moves: the Business Info screen reads the settings again after
+a picture change.
+
+```json
+{
+  "src320": "https://res.cloudinary.com/example/image/private/t_csps_share_320/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
+  "src640": "https://res.cloudinary.com/example/image/private/t_csps_share_640/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
+  "width": 1600,
+  "height": 840
+}
+```
+
+`src320` (320 x 168) and `src640` (640 x 336) are previews for the Business Info card at the 1.91:1 shape the shared card uses.
+`width` and `height` are the stored upright size. `GET /api/v1/site-settings` returns the same object as `sharePicture`, and `null`
+when there is none. Every address comes from the server; a screen never builds one.
+
+`DELETE /api/v1/site-settings/share-picture` clears the picture and queues its file. A second `DELETE`, with no picture set, is `404`
+with the code `site-settings.share-picture-not-found`.
+
+### Where the picture shows
+
+- **Home, Contact and the 404 page** carry it in their head: `og:image` at the 1200 x 630 size (`csps_share_1200`), `og:image:width`
+  `1200`, `og:image:height` `630`, `og:image:alt` the business name, and `twitter:card` `summary_large_image`.
+- **Products and Gallery** use their own photo when they have one (the first shown line's main photo, the cover of the top gallery
+  item) and the default picture when they have not.
+- The `LocalBusiness` JSON-LD `image` is the default picture's 1200 x 630 address. It is left out when no picture is set.
+- With no picture at all, the `og:image` tags are left out and `twitter:card` is `summary`.
+
+The 1200 x 630 and the two preview sizes are Cloudinary named sizes, created by the existing setup command (see
+`docs/operations/cloudinary-setup.md`). The stray sweep keeps the file the settings row names.
+
+### The share picture audit entry
+
+Each set, replace or removal writes `site-settings.share-picture-changed` in the same save. The target type is `SiteSettings` and the
+target id is `1`. The detail is `change=added`, `change=replaced` or `change=removed`. It never holds an address or a file id.
 
 ## The opening hours
 

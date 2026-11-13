@@ -9,7 +9,8 @@ namespace Csps.Application.Content;
 /// failure (for example a missing row) is a programming or infrastructure error and is not turned into a result.
 /// </summary>
 /// <param name="store">The business info store.</param>
-public sealed class GetSiteSettingsHandler(ISiteContentStore store)
+/// <param name="delivery">Makes the preview addresses of the share picture.</param>
+public sealed class GetSiteSettingsHandler(ISiteContentStore store, IImageDelivery delivery)
 {
     /// <summary>Returns the current site settings.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
@@ -17,6 +18,6 @@ public sealed class GetSiteSettingsHandler(ISiteContentStore store)
     public async Task<Result<SiteSettingsDto>> HandleAsync(CancellationToken cancellationToken)
     {
         var view = await store.GetViewAsync(cancellationToken).ConfigureAwait(false);
-        return Result.Success(SiteSettingsDto.From(view));
+        return Result.Success(SiteSettingsDto.From(view, delivery));
     }
 }

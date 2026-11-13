@@ -47,4 +47,9 @@ public interface IImageDelivery
     /// <param name="publicId">The stored public id.</param>
     /// <returns>The address, or an empty text when the account has no cloud name set. In the Testing environment it is a path on this site.</returns>
     string ForShare(string publicId);
+
+    /// <summary>Builds the two admin preview addresses of the default link preview picture.</summary>
+    /// <param name="publicId">The stored public id.</param>
+    /// <returns>The 320 x 168 and 640 x 336 addresses; both are empty when the account has no cloud name set.</returns>
+    SharePreviewUrls ForSharePreview(string publicId);
 }

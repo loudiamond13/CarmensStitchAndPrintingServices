@@ -37,6 +37,7 @@ public sealed record SitePhoneDto(string Number, string? Label, bool IsMain);
 /// <param name="Version">The base64 of the eight-byte row version a save must send back (409 on a stale one).</param>
 /// <param name="UpdatedByName">The name of the person who last changed the settings; null when no person did.</param>
 /// <param name="UpdatedAtUtc">When the settings were last changed; null until a change.</param>
+/// <param name="SharePicture">The default link preview picture with its two preview addresses; null when there is none.</param>
 public sealed record SiteSettingsDto(
     string BusinessName,
     string Tagline,
@@ -59,14 +60,17 @@ public sealed record SiteSettingsDto(
     string Locale,
     string Version,
     string? UpdatedByName,
-    DateTimeOffset? UpdatedAtUtc)
+    DateTimeOffset? UpdatedAtUtc,
+    SharePictureDto? SharePicture)
 {
     /// <summary>Maps a settings view to the DTO (manual mapping, PRD section 3.3).</summary>
     /// <param name="view">The view.</param>
+    /// <param name="delivery">Makes the preview addresses of the share picture.</param>
     /// <returns>The DTO.</returns>
-    public static SiteSettingsDto From(SiteSettingsView view)
+    public static SiteSettingsDto From(SiteSettingsView view, IImageDelivery delivery)
     {
         ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(delivery);
 
         return new SiteSettingsDto(
             view.BusinessName,
@@ -90,7 +94,8 @@ public sealed record SiteSettingsDto(
             view.Locale,
             RowVersions.ToText(view.RowVersion),
             view.UpdatedByName,
-            view.UpdatedAtUtc);
+            view.UpdatedAtUtc,
+            view.SharePicture is { } share ? SharePictureDto.From(share.PublicId, share.Width, share.Height, delivery) : null);
     }
 
     // The Facebook and email columns are required, so "not set" is stored as an empty string.

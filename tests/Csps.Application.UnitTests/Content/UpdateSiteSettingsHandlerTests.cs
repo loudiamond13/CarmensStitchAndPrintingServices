@@ -358,7 +358,8 @@ public sealed class UpdateSiteSettingsHandlerTests
                 Audit,
                 Unit,
                 validator ?? new UpdateSiteSettingsRequestValidator(),
-                new FakeTimeProvider(now ?? Later));
+                new FakeTimeProvider(now ?? Later),
+                Substitute.For<IImageDelivery>());
         }
 
         public SiteSettings Settings { get; }

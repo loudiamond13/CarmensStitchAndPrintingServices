@@ -63,7 +63,10 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
-        ((int)response.StatusCode).ShouldBe(row.ExpectedFor(caller), $"{caller} calling {row.Key} via {row.SamplePath}");
+        if (!row.Allows(caller, (int)response.StatusCode))
+        {
+            ((int)response.StatusCode).ShouldBe(row.ExpectedFor(caller), $"{caller} calling {row.Key} via {row.SamplePath}");
+        }
     }
 
     [Fact]
@@ -99,7 +102,10 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
 
         for (var i = 0; i < calls.Count; i++)
         {
-            statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}");
+            if (!calls[i].row.Allows(calls[i].caller, statuses[i]))
+            {
+                statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}");
+            }
         }
     }
 

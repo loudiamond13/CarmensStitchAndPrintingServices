@@ -21,14 +21,16 @@ namespace Csps.Application.Content;
 /// <param name="unitOfWork">The unit of work that saves the change.</param>
 /// <param name="validator">The form rules.</param>
 /// <param name="time">The clock.</param>
+/// <param name="delivery">Makes the preview addresses of the share picture.</param>
 public sealed class UpdateSiteSettingsHandler(
     ISiteContentStore store,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IValidator<UpdateSiteSettingsRequest> validator,
-    TimeProvider time)
+    TimeProvider time,
+    IImageDelivery delivery)
 {
-    private const string TargetType = "SiteSettings";
+    private const string TargetType = SiteSettingsAuditDetail.TargetType;
 
     /// <summary>Saves the form.</summary>
     /// <param name="request">The form.</param>
@@ -59,7 +61,7 @@ public sealed class UpdateSiteSettingsHandler(
         }
 
         var view = await store.GetViewAsync(cancellationToken).ConfigureAwait(false);
-        return Result.Success(SiteSettingsDto.From(view));
+        return Result.Success(SiteSettingsDto.From(view, delivery));
     }
 
     private async Task<Result<bool>> AttemptAsync(UpdateSiteSettingsRequest request, byte[] version, CancellationToken cancellationToken)

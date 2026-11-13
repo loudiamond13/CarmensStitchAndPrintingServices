@@ -113,6 +113,7 @@ public sealed record SitePhoneView(string E164, string? Label, bool IsMain);
 /// <param name="RowVersion">The eight-byte row version a save must send back.</param>
 /// <param name="UpdatedByName">The name of the person who last changed the settings; null when no person did.</param>
 /// <param name="UpdatedAtUtc">When the settings were last changed; null until a change.</param>
+/// <param name="SharePicture">The default link preview picture; null when there is none.</param>
 public sealed record SiteSettingsView(
     string BusinessName,
     string Tagline,
@@ -135,4 +136,11 @@ public sealed record SiteSettingsView(
     string Locale,
     byte[] RowVersion,
     string? UpdatedByName,
-    DateTimeOffset? UpdatedAtUtc);
+    DateTimeOffset? UpdatedAtUtc,
+    SharePictureView? SharePicture = null);
+
+/// <summary>The stored facts of the default link preview picture as the read port returns them.</summary>
+/// <param name="PublicId">The public id the file is stored under.</param>
+/// <param name="Width">The upright width in pixels.</param>
+/// <param name="Height">The upright height in pixels.</param>
+public sealed record SharePictureView(string PublicId, int Width, int Height);

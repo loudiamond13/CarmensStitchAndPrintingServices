@@ -38,6 +38,7 @@ export const demoSiteSettings: SiteSettingsFixture = {
   version: 'AAAAAAAAB9E=',
   updatedByName: 'Carmen Reyes',
   updatedAtUtc: '2026-10-06T02:30:00Z',
+  sharePicture: null,
 };
 
 /** The version the fake API gives the settings after save number `n`. */

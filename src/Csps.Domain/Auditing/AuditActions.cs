@@ -219,6 +219,9 @@ public static class AuditActions
     /// <summary>A Manager moved an item (an order or an upload) in the gallery order (GAL-03).</summary>
     public const string GalleryItemMoved = "gallery-item.moved";
 
+    /// <summary>A Manager added, replaced or removed the default link preview picture; the detail holds the change and never the address (D-26).</summary>
+    public const string SharePictureChanged = "site-settings.share-picture-changed";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -646,5 +649,6 @@ public static class AuditActions
         GalleryPhotoShown,
         GalleryPhotoDeleted,
         GalleryItemMoved,
+        SharePictureChanged,
     ];
 }

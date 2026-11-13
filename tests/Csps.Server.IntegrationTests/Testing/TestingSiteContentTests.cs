@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Csps.Domain.Content;
 using Csps.Server.Composition;
+using Csps.Server.IntegrationTests.Content;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,6 +38,34 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         phones[0].GetProperty("display").GetString().ShouldBe("0917 123 4567");
         phones[0].GetProperty("isMain").GetBoolean().ShouldBeTrue();
         phones[1].GetProperty("display").GetString().ShouldBe("02 8123 4567");
+    }
+
+    [Fact]
+    public async Task APostLeavesADemoSharePictureInPlaceAndTheHomeHeadCarriesIt()
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        await SharePictureRig.ClearAsync(database);
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        try
+        {
+            using var first = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+            using var second = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+
+            first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+            await using var context = database.CreateContext();
+            var row = await context.SiteSettings.AsNoTracking().SingleAsync(TestContext.Current.CancellationToken);
+            row.SharePicturePublicId.ShouldNotBeNull().ShouldStartWith("csps-test/demo/");
+            (row.SharePictureWidth, row.SharePictureHeight, row.SharePictureFormat).ShouldBe((1200, 630, "jpg"));
+            var home = await client.GetStringAsync(new Uri("/", UriKind.Relative), TestContext.Current.CancellationToken);
+            home.ShouldContain("size=csps_share_1200");
+            home.ShouldContain("content=\"summary_large_image\"");
+        }
+        finally
+        {
+            await SharePictureRig.ClearAsync(database);
+        }
     }
 
     [Fact]

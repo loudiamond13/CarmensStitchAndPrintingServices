@@ -6618,6 +6618,44 @@
         ],
         "type": "object"
       },
+      "SharePictureDto": {
+        "description": "The default link preview picture as the Business Info card shows it (D-26): a small and a larger preview at the 1.91:1 shape, and\nthe size of the stored file. A site with no picture has none of this: the settings carry null.",
+        "properties": {
+          "height": {
+            "description": "The upright height of the stored picture in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src320": {
+            "description": "The address of the 320 x 168 preview.",
+            "type": "string"
+          },
+          "src640": {
+            "description": "The address of the 640 x 336 preview, for the full-width view on a phone.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width of the stored picture in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src320",
+          "src640",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "ShopClosureDto": {
         "description": "One closure as a Manager sees it (CONT-04): the days as \"yyyy-MM-dd\", the public note and the version a save must send back.",
         "properties": {
@@ -6835,6 +6873,17 @@
               "string"
             ]
           },
+          "sharePicture": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharePictureDto",
+                "description": "The default link preview picture with its two preview addresses; null when there is none."
+              }
+            ]
+          },
           "street": {
             "description": "Street and barangay.",
             "type": [
@@ -6913,7 +6962,8 @@
           "locale",
           "version",
           "updatedByName",
-          "updatedAtUtc"
+          "updatedAtUtc",
+          "sharePicture"
         ],
         "type": "object"
       },
@@ -19071,6 +19121,164 @@
         ]
       }
     },
+    "/api/v1/site-settings/share-picture": {
+      "delete": {
+        "operationId": "RemoveSharePicture",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages\ncarry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;\nnothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.",
+        "tags": [
+          "SharePicture"
+        ]
+      },
+      "post": {
+        "operationId": "UploadSharePicture",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePictureDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Sets the default link preview picture as a multipart form with the file in the `file` part. The type is read from the first\nbytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use, is over\n10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The picture is stored\nunder a new random id every time, so a link shared before the change is not stuck with the old picture, and the file it replaces is\nqueued for removal in the same save. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with\nthe same `Idempotency-Key` and body answers with the stored answer and adds nothing more. The public pages carry the new\npicture at once.",
+        "tags": [
+          "SharePicture"
+        ]
+      }
+    },
     "/api/v1/staff": {
       "get": {
         "operationId": "ListStaff",
@@ -21253,6 +21461,9 @@
     },
     {
       "name": "Sessions"
+    },
+    {
+      "name": "SharePicture"
     },
     {
       "name": "ShopClosures"

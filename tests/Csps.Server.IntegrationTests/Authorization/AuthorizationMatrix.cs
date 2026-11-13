@@ -23,13 +23,23 @@ public enum Caller
 /// <param name="Anonymous">The status for an anonymous caller.</param>
 /// <param name="Admin">The status for an Admin.</param>
 /// <param name="Manager">The status for a Manager.</param>
-public sealed record MatrixRow(string Method, string RoutePattern, string SamplePath, int Anonymous, int Admin, int Manager)
+/// <param name="ManagerAlso">
+/// A second status a Manager may get, for a row whose answer depends on data another matrix row can change in the same run (the Testing
+/// seed that puts a demo share picture in place); null for every row whose answer is one status.
+/// </param>
+public sealed record MatrixRow(string Method, string RoutePattern, string SamplePath, int Anonymous, int Admin, int Manager, int? ManagerAlso = null)
 {
     /// <summary>The endpoint key, <c>"{METHOD|*} {RoutePattern}"</c>, that matches <see cref="AuthorizationCoverage.KeysOf"/>.</summary>
     public string Key => $"{Method} {RoutePattern}";
 
     /// <summary>The method to send: GET for a <c>*</c> row.</summary>
     public HttpMethod RequestMethod => Method == AuthorizationCoverage.AnyMethod ? HttpMethod.Get : new HttpMethod(Method);
+
+    /// <summary>Tells whether <paramref name="status"/> is one the caller may get.</summary>
+    /// <param name="caller">The caller.</param>
+    /// <param name="status">The HTTP status code the call answered.</param>
+    /// <returns>True when the status is the expected one, or the Manager's second one.</returns>
+    public bool Allows(Caller caller, int status) => status == ExpectedFor(caller) || (caller == Caller.Manager && status == ManagerAlso);
 
     /// <summary>Returns the status <paramref name="caller"/> must get.</summary>
     /// <param name="caller">The caller.</param>
@@ -81,6 +91,10 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
         // Saving the business info (CONT-01): Managers only. With no body a Manager meets the 400 field errors.
         new("PUT", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 403, Manager: 400),
+        // The default link preview picture (D-26): Manager only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 images.file-missing.
+        new("POST", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 400),
+        // Removing it: a Manager meets 404 when no picture is set. The Testing seed row in the same run can put a demo picture in place, and then the first removal answers 204.
+        new("DELETE", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 404, ManagerAlso: 204),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),

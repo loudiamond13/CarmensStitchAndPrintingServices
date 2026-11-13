@@ -28,3 +28,8 @@ public sealed record LinePhotoUrls(ImageSource Card, ImageSource Large, ImageSou
 /// <param name="Viewer">The lightbox, the whole photo, with width candidates.</param>
 /// <param name="Thumb">The address of the square lightbox thumb.</param>
 public sealed record GalleryPhotoUrls(ImageSource Masonry, ImageSource Viewer, string Thumb);
+
+/// <summary>The two preview addresses of the default link preview picture on the admin screen (Phase 11).</summary>
+/// <param name="Src320">The address of the 320 x 168 preview.</param>
+/// <param name="Src640">The address of the 640 x 336 preview, for the full-width view on a phone.</param>
+public sealed record SharePreviewUrls(string Src320, string Src640);

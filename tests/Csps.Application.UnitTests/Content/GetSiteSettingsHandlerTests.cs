@@ -1,4 +1,5 @@
 using Csps.Application.Content;
+using Csps.Application.Images;
 using Csps.Application.Ports;
 using NSubstitute;
 
@@ -36,7 +37,7 @@ public sealed class GetSiteSettingsHandlerTests
     [Fact]
     public async Task MapsTheViewToTheDtoWithEveryField()
     {
-        var handler = new GetSiteSettingsHandler(Store(View));
+        var handler = new GetSiteSettingsHandler(Store(View), Delivery);
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
@@ -67,7 +68,7 @@ public sealed class GetSiteSettingsHandlerTests
     [Fact]
     public async Task AValueStoredAsAnEmptyStringReadsAsNotSet()
     {
-        var handler = new GetSiteSettingsHandler(Store(View with { FacebookUrl = string.Empty, ContactEmail = string.Empty }));
+        var handler = new GetSiteSettingsHandler(Store(View with { FacebookUrl = string.Empty, ContactEmail = string.Empty }), Delivery);
 
         var dto = (await handler.HandleAsync(TestContext.Current.CancellationToken)).Value;
 
@@ -78,7 +79,7 @@ public sealed class GetSiteSettingsHandlerTests
     [Fact]
     public async Task PhonesShowAsTheNumberPeopleReadWithTheMainOneKept()
     {
-        var handler = new GetSiteSettingsHandler(Store(View));
+        var handler = new GetSiteSettingsHandler(Store(View), Delivery);
 
         var dto = (await handler.HandleAsync(TestContext.Current.CancellationToken)).Value;
 
@@ -88,7 +89,7 @@ public sealed class GetSiteSettingsHandlerTests
     [Fact]
     public async Task ANumberThatIsNotParsableIsShownAsStored()
     {
-        var handler = new GetSiteSettingsHandler(Store(View with { Phones = [new SitePhoneView("12345", null, IsMain: true)] }));
+        var handler = new GetSiteSettingsHandler(Store(View with { Phones = [new SitePhoneView("12345", null, IsMain: true)] }), Delivery);
 
         var dto = (await handler.HandleAsync(TestContext.Current.CancellationToken)).Value;
 
@@ -99,7 +100,7 @@ public sealed class GetSiteSettingsHandlerTests
     public async Task PassesTheCancellationTokenToTheStore()
     {
         var store = Store(View);
-        var handler = new GetSiteSettingsHandler(store);
+        var handler = new GetSiteSettingsHandler(store, Delivery);
         using var cancellation = new CancellationTokenSource();
 
         await handler.HandleAsync(cancellation.Token);
@@ -112,7 +113,7 @@ public sealed class GetSiteSettingsHandlerTests
     {
         var store = Substitute.For<ISiteContentStore>();
         store.GetViewAsync(Arg.Any<CancellationToken>()).Returns<Task<SiteSettingsView>>(_ => throw new InvalidOperationException("store failed"));
-        var handler = new GetSiteSettingsHandler(store);
+        var handler = new GetSiteSettingsHandler(store, Delivery);
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(() => handler.HandleAsync(TestContext.Current.CancellationToken));
 
@@ -120,8 +121,48 @@ public sealed class GetSiteSettingsHandlerTests
     }
 
     [Fact]
-    public void DtoFromRejectsNull() =>
-        Should.Throw<ArgumentNullException>(() => SiteSettingsDto.From(null!));
+    public async Task ASharePictureBecomesThePreviewAddressesAndTheStoredSize()
+    {
+        var handler = new GetSiteSettingsHandler(Store(View with { SharePicture = new SharePictureView("csps-test/content/share/a/pic", 1600, 840) }), Delivery);
+
+        var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.SharePicture.ShouldBe(new SharePictureDto("https://images.example.test/320", "https://images.example.test/640", 1600, 840));
+        Delivery.Received(1).ForSharePreview("csps-test/content/share/a/pic");
+    }
+
+    [Fact]
+    public async Task WithNoSharePictureTheDtoHasNull()
+    {
+        var handler = new GetSiteSettingsHandler(Store(View), Delivery);
+
+        var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.SharePicture.ShouldBeNull();
+    }
+
+    [Fact]
+    public void DtoFromRejectsNull()
+    {
+        Should.Throw<ArgumentNullException>(() => SiteSettingsDto.From(null!, Delivery));
+        Should.Throw<ArgumentNullException>(() => SiteSettingsDto.From(View, null!));
+    }
+
+    [Fact]
+    public void SharePictureDtoFromRejectsNull()
+    {
+        Should.Throw<ArgumentNullException>(() => SharePictureDto.From(null!, 1, 1, Delivery));
+        Should.Throw<ArgumentNullException>(() => SharePictureDto.From("csps-test/content/share/a/pic", 1, 1, null!));
+    }
+
+    private static IImageDelivery Delivery { get; } = MakeDelivery();
+
+    private static IImageDelivery MakeDelivery()
+    {
+        var delivery = Substitute.For<IImageDelivery>();
+        delivery.ForSharePreview(Arg.Any<string>()).Returns(new SharePreviewUrls("https://images.example.test/320", "https://images.example.test/640"));
+        return delivery;
+    }
 
     private static ISiteContentStore Store(SiteSettingsView view)
     {
