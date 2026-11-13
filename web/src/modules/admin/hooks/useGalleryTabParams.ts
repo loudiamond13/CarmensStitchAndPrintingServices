@@ -1,5 +1,5 @@
 // The Gallery tab's URL state (WEB-10, GAL-03, T-11-81; plan 11-32): the line, the page and the rows per page through the one shared list-state
-// factory. Defaults stay out of the URL; an invalid value falls back and is removed with one replace; a line or size change replaces the entry
+// factory (createListParams, which is nuqs useQueryStates with the allow-list parsers). Defaults stay out of the URL; an invalid value falls back and is removed with one replace; a line or size change replaces the entry
 // and resets the page; a page change pushes.
 //   - The line must be a GUID (guidParser) and, once the product lines have loaded, one of them: a stale or shared link to a deleted line
 //     reads as every line at once and one replace removes it. While the lines are still loading the value is kept.
