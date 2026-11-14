@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:50:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T19:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -264,7 +264,9 @@ If someone else already removed the photo, the screen treats Remove as done and 
 
 ## P11-BL-29 · What restoring a deleted order does to the website (plan 11-23, Task 3) · IMPORTANT
 
-**Status:** open · **Blocks:** nothing now, but it must be answered before Phase 11 ships. Nothing was decided for you.
+**Status:** decided: A (owner, 2026-11-13) · **Blocks:** nothing. Built in a quick task.
+
+**Ruling D-P11-BL-29 (owner, 2026-11-13):** deleting an order also turns "Show on the website" off; the customer's OK is kept. A restore never puts the order back on the website by itself. Staff must turn it on again on purpose, the same as after cancelling (D-41). Do not raise this again.
 
 Deleting an order takes it off the website at once (D-15). Nothing says what happens when a Manager restores it. Today's code restores the order exactly as it was, so an order that was shown on the website would come back on the website by itself. The run leaves restore as it is and finishes everything else.
 
