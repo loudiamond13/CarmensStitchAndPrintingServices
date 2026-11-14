@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T21:50:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T22:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -393,7 +393,9 @@ The staff gallery list accepts any page size from 1 to 100 (the shared list rule
 
 ## P11-BL-42 · The page speed check now fails some runs (plan 11-36) · IMPORTANT
 
-**Status:** open · **Blocks:** a green CI run may need a re-run until decided. Built as option A.
+**Status:** decided: A (owner, 2026-11-13) · **Blocks:** nothing. Already built; no code change.
+
+**Ruling D-P11-BL-42 (owner, 2026-11-13):** keep the 0.95 performance limit on all four public pages. A CI run that fails on a 0.94 score is re-run. No limit is loosened. The font follow-up (P11-BL-43) is the real fix. Do not raise this again.
 
 The speed check (Lighthouse) now scores four public pages, not one. Its performance score must be at least 0.95. That score includes page load time (LCP), which is about 2.1 to 2.6 s on every page on this machine against the 2.0 s target. /contact and /products scored 0.94 in some runs, so the check failed. No limit was loosened.
 
