@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T22:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T22:25:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -320,7 +320,9 @@ For an order that has never been on the website, the card already prints the lin
 
 ## P11-BL-35 · Uploads to different orders at the same time can answer 500 (found while fixing the photo race) · IMPORTANT
 
-**Status:** open · **Blocks:** nothing in Phase 11. Not changed.
+**Status:** decided: B (owner, 2026-11-13) · **Blocks:** nothing in Phase 11. Waiting on the owner's read-only check of the live database before it is built.
+
+**Ruling D-P11-BL-35 (owner, 2026-11-13):** turn on READ_COMMITTED_SNAPSHOT for the CSPS database so readers and writers stop blocking each other. Before building, the owner runs a read-only query on the live database to see the current value (HOSTING-RECORD shows the hosting login is db_owner with ALTER, so the host should allow it). Then a quick task adds it through a reviewed migration, test-first, with the test databases set the same way. Do not raise this again.
 
 A stress test with several hosts on one database showed database deadlocks (SQL error 1205) when staff upload photos to different orders at the same moment. The read before storage and the photo list read after the save can be picked as the deadlock victim. One case then fails its rollback (error 3903). The user sees "Something went wrong". Order creation showed the same under that load (likely the parked P10-BL-22). The app allows two uploads at once, so two staff could hit this in production. It is rare at the shop size.
 
