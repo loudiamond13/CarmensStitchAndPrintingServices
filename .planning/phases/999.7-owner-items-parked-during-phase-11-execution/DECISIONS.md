@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T22:25:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T23:10:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -320,9 +320,13 @@ For an order that has never been on the website, the card already prints the lin
 
 ## P11-BL-35 · Uploads to different orders at the same time can answer 500 (found while fixing the photo race) · IMPORTANT
 
-**Status:** decided: B (owner, 2026-11-13) · **Blocks:** nothing in Phase 11. Waiting on the owner's read-only check of the live database before it is built.
+**Status:** decided: B (owner, 2026-11-13) · built in quick 261113-uj0 · **Blocks:** nothing. It takes effect when you apply the production script of the next deploy (see deploy.md).
 
 **Ruling D-P11-BL-35 (owner, 2026-11-13):** turn on READ_COMMITTED_SNAPSHOT for the CSPS database so readers and writers stop blocking each other. Before building, the owner runs a read-only query on the live database to see the current value (HOSTING-RECORD shows the hosting login is db_owner with ALTER, so the host should allow it). Then a quick task adds it through a reviewed migration, test-first, with the test databases set the same way. Do not raise this again.
+
+**Owner check (2026-11-13):** the live database read is_read_committed_snapshot_on 0 (off). Recorded in HOSTING-RECORD.
+
+**Built in quick 261113-uj0** (commits b0c8a4e4 and 88f01be1): one migration turns the setting on for the CSPS database only, in a step outside the script's transactions, and it is safe to run again. Test databases and CI get it through the same migrations. A test that made a reader and a writer deadlock on purpose used to fail with the 1205 error and now passes. Two uploads to two different orders at the same moment answered 500 on the first round before the change, and both save in every one of 10 rounds after it, in 3 runs. The audit of the code that decides after a read found one spot that relied on a read waiting: the one-time first-Manager command (P11-BL-64, below). Apply the script while the shop is quiet and check that the value is 1. P10-BL-22 itself was fixed in plan 11-01.
 
 A stress test with several hosts on one database showed database deadlocks (SQL error 1205) when staff upload photos to different orders at the same moment. The read before storage and the photo list read after the save can be picked as the deadlock victim. One case then fails its rollback (error 3903). The user sees "Something went wrong". Order creation showed the same under that load (likely the parked P10-BL-22). The app allows two uploads at once, so two staff could hit this in production. It is rare at the shop size.
 
@@ -649,6 +653,15 @@ Today the delete question reads "It counts nowhere until it's restored." and the
 
 - **A (recommended, built):** add no new words. The order card already shows "Not shown", the same as after a cancel.
 - **B:** you give the words for the restore message and, if you want, the delete question, and a small task adds them.
+
+## P11-BL-64 · The first-Manager command could create two Managers if two copies ran at the very same moment (quick 261113-uj0)
+
+**Status:** open · **Blocks:** applying the next production script.
+
+The command-line tool that creates the first Manager checks "is there already an active Manager?" and then creates the account (`BootstrapManagerHandler`). It takes no lock before that check. Before read committed snapshot, the second copy's check waited for the first copy's unfinished save, so it saw the new Manager and refused. After the change, the second check does not wait and could see "no Manager yet". A unique email stops two accounts with the same address, but two different addresses could both be created. This needs two copies of a one-time command run by you at the same instant, so it is very unlikely. Nothing else in the audit relied on a read waiting: every other spot takes a lock first, matches a row version, or is stopped by a database key.
+
+- **A:** a small quick task makes the command take the Manager roster lock first, test first, so a second copy waits as before.
+- **B (recommended):** keep the code and accept the race. The command is run once, by you, by hand, so two copies at the same moment will not happen. One word closes this item and unblocks the script.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
