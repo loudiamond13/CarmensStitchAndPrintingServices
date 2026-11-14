@@ -1,7 +1,7 @@
 ---
 phase: 11-public-site-content-management
 created: 2026-11-13T04:58:00-06:00
-updated: 2026-11-13T04:58:00-06:00
+updated: 2026-11-13T21:50:00-06:00
 verified: 2026-11-13T10:58:00Z
 status: human_needed
 score: 5/5 must-haves verified
@@ -136,7 +136,7 @@ human_verification:
     why_human: "Needs the live site and Meta's tool. The server-side tags are proven by ShellHeadTests and the JavaScript-off e2e spec, but Facebook's own scraper cannot be run here."
   - test: "Rule on P11-BL-29: what restoring a deleted order does to the website."
     expected: "An owner ruling (A: a delete also turns off 'Show on the website' so a restore never brings it back by itself; or B: keep today's behaviour) recorded as a D-number."
-    why_human: "Marked 'must be answered before Phase 11 ships'. Today a restore puts a previously shown order back on the public site with no deliberate step (the gallery projection relies only on the soft-delete filter). This is the consent rule behind success criterion 5 and D-11/D-15."
+    why_human: "Answered: ruled A as D-P11-BL-29 (owner, 2026-11-13) and built in quick 261113-tiq. A delete turns 'Show on the website' off and keeps the customer's OK, and a restore never puts the order back by itself (it also takes off one deleted while still shown), so nothing is left for the owner on this item."
   - test: "Rule on P11-BL-42 (performance score at 0.94 on some runs) and P11-BL-43 (font subsetting follow-up, needs a package check and your yes)."
     expected: "A ruling on how the four-page Lighthouse gate stays reliably green, and whether to run the subsetting quick task."
     why_human: "PERF-02 is not met on the public pages: LCP is 2.1 to 2.6 s against 2.0 s (waived, report-only by D-29) and the performance score fell to 0.94 on /contact or /products in two of three runs (not waived). CI may need re-runs until this is ruled. Only the owner can decide."
@@ -325,7 +325,8 @@ All 43 are `verification: judgment`; none is test tier. Each is flagged **unveri
 
 **Test:** Choose A or B in `999.7-.../DECISIONS.md`.
 **Expected:** A recorded D-number.
-**Why human:** Marked "must be answered before Phase 11 ships". Today a restore puts a shown order back on the website by itself.
+**Why human:** Marked "must be answered before Phase 11 ships". Before the ruling, a restore put a shown order back on the website by itself.
+**Result:** ruled A as D-P11-BL-29 (owner, 2026-11-13); built in quick 261113-tiq.
 
 ### 6. Ruling on PERF-02 items P11-BL-42 and P11-BL-43
 

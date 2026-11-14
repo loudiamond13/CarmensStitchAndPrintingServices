@@ -369,29 +369,91 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
     }
 
     [Fact]
-    public async Task DeletingAShownOrderChangesNoStoredSettingAndARestoreKeepsTheWebsiteSettingsAsTheyWereP11BL29()
+    public async Task DeletingAShownOrderTakesItOffTheWebsiteRemovesItsEntryKeepsTheOkAndARestoreDoesNotPutItBack()
     {
         await using var factory = await StartAsync();
         using var client = factory.CreateClient();
         var manager = await TestSessions.StartAsync(factory, Roles.Manager);
         var order = await CreatePendingOrderAsync(factory, client, manager);
         var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
         _ = await SaveAsync(client, manager, id, PublicBody(order, consent: true, show: true));
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
 
         using var deleted = await OrderFixtures.DeleteAsync(client, manager.AccessToken, id);
 
         deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         var stored = await StoredSettingsAsync(id);
-        stored.ShownSince.ShouldNotBeNull();
+        stored.ShownSince.ShouldBeNull();
         stored.ConsentAt.ShouldNotBeNull();
-        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var afterDelete = await OrderAuditActionsAsync(id, manager.UserId);
+        afterDelete.ShouldContain("order.deleted");
+        afterDelete.Count(action => action == "order.taken-off-website").ShouldBe(1);
+        (await OrderAuditDetailAsync(id, "order.taken-off-website")).ShouldContain($"number={number}");
 
         using var restored = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
 
         restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         var detail = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
-        detail.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+        detail.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
         detail.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        (await OrderAuditActionsAsync(id, manager.UserId)).Count(action => action == "order.taken-off-website").ShouldBe(1);
+
+        var shownAgain = await SaveAsync(client, manager, id, PublicBody(detail, consent: true, show: true));
+
+        shownAgain.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DeletingAnOrderThatWasNotShownWritesNoTakenOffEntry()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await CreatePendingOrderAsync(factory, client, manager);
+        var id = order.GetProperty("id").GetGuid();
+
+        using var deleted = await OrderFixtures.DeleteAsync(client, manager.AccessToken, id);
+
+        deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var actions = await OrderAuditActionsAsync(id, manager.UserId);
+        actions.ShouldContain("order.deleted");
+        actions.ShouldNotContain("order.taken-off-website");
+    }
+
+    [Fact]
+    public async Task RestoringAnOrderDeletedWhileStillShownTakesItOffRemovesTheLeftOverEntryAndKeepsTheOk()
+    {
+        await using var factory = await StartAsync();
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var order = await CreatePendingOrderAsync(factory, client, manager);
+        var id = order.GetProperty("id").GetGuid();
+        var number = order.GetProperty("number").GetString()!;
+        _ = await SaveAsync(client, manager, id, PublicBody(order, consent: true, show: true));
+        (await GalleryEntryCountAsync(id)).ShouldBe(1);
+        await MarkDeletedInPlaceAsync(id, manager.UserId);
+        (await StoredSettingsAsync(id)).ShownSince.ShouldNotBeNull();
+
+        using var restored = await OrderFixtures.RestoreAsync(client, manager.AccessToken, id);
+
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var detail = await OrderFixtures.ReadDetailAsync(client, manager.AccessToken, id);
+        detail.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeFalse();
+        detail.GetProperty("publicWebsite").GetProperty("customerConsent").GetBoolean().ShouldBeTrue();
+        (await StoredSettingsAsync(id)).ShownSince.ShouldBeNull();
+        (await GalleryEntryCountAsync(id)).ShouldBe(0);
+        var actions = await OrderAuditActionsAsync(id, manager.UserId);
+        actions.ShouldContain("order.restored");
+        actions.Count(action => action == "order.taken-off-website").ShouldBe(1);
+        (await OrderAuditDetailAsync(id, "order.taken-off-website")).ShouldContain($"number={number}");
+
+        var shownAgain = await SaveAsync(client, manager, id, PublicBody(detail, consent: true, show: true));
+
+        shownAgain.GetProperty("publicWebsite").GetProperty("shownOnWebsite").GetBoolean().ShouldBeTrue();
         (await GalleryEntryCountAsync(id)).ShouldBe(1);
     }
 
@@ -495,6 +557,22 @@ public sealed class OrderPublicSettingsEndpointTests(CspsDatabase database) : IC
                 .Where(row => row.TargetId == orderId.ToString("D") && row.TargetType == "Order" && row.Action == action)
                 .Select(row => row.Detail!)
                 .SingleAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    // Marks the row deleted without the handler, which leaves the shown date and the gallery entry as an older delete did.
+    private async Task MarkDeletedInPlaceAsync(Guid orderId, Guid deletedBy)
+    {
+        var context = database.CreateContext();
+        await using (context.ConfigureAwait(false))
+        {
+            var deletedAt = TimeProvider.System.GetUtcNow();
+            var changed = await context.Orders
+                .Where(order => order.Id == orderId)
+                .ExecuteUpdateAsync(
+                    set => set.SetProperty(order => order.DeletedAtUtc, deletedAt).SetProperty(order => order.DeletedById, deletedBy),
+                    TestContext.Current.CancellationToken);
+            changed.ShouldBe(1);
         }
     }
 

@@ -11,10 +11,12 @@ namespace Csps.Application.Orders;
 /// database but leave every default read. Who deleted it and when are set from the token and the clock. No version is sent: the delete
 /// applies to the latest state, so a lost race is read again and decided again, and an order that is gone or already deleted is a 404
 /// that writes nothing. The order's row is locked before it is changed, so a delete and a child write never leave a deleted order
-/// with a new child.
+/// with a new child. An order shown on the website is also taken off: its gallery entry goes in the same save and one
+/// <c>order.taken-off-website</c> entry follows <c>order.deleted</c>; the customer's OK stays (D-P11-BL-29).
 /// </summary>
 public sealed class DeleteOrderHandler(
     IOrders orders,
+    IGalleryEntries gallery,
     IAuditTrail audit,
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
@@ -42,13 +44,25 @@ public sealed class DeleteOrderHandler(
     private async Task<Result<bool>> AttemptAsync(Guid id, Guid callerId, CancellationToken cancellationToken)
     {
         var order = await orders.FindAsync(id, includeDeleted: false, cancellationToken).ConfigureAwait(false);
+        var wasShown = order?.IsShownOnWebsite ?? false;
         if (order is null || !order.SoftDelete(callerId, time.GetUtcNow()))
         {
             return Result.Failure<bool>(OrderErrors.NotFound);
         }
 
+        var takenOff = wasShown && !order.IsShownOnWebsite;
+        if (takenOff && await gallery.FindForOrderAsync(order.Id, cancellationToken).ConfigureAwait(false) is { } entry)
+        {
+            gallery.Remove(entry);
+        }
+
         await orders.LockAsync(order, cancellationToken).ConfigureAwait(false);
         audit.Record(AuditActions.OrderDeleted, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Deleted(order));
+        if (takenOff)
+        {
+            audit.Record(AuditActions.OrderTakenOffWebsite, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.PublicSetting(order));
+        }
+
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(true);
     }

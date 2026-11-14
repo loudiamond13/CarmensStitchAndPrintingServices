@@ -1,3 +1,4 @@
+using System.Reflection;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
 
@@ -362,22 +363,87 @@ public sealed class OrderPublicSettingsTests
     }
 
     [Fact]
-    public void DeletingAShownOrderChangesNoWebsiteSettingAndARestoreKeepsThemAsTheyWereP11BL29()
+    public void DeletingAShownOrderTurnsShowingOffKeepsTheOkAndARestoreDoesNotPutItBack()
     {
         var order = NewOrder();
         order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
 
         order.SoftDelete(Manager, Latest).ShouldBeTrue();
 
-        order.IsShownOnWebsite.ShouldBeTrue();
-        order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
         order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
 
         order.Restore().ShouldBeTrue();
 
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
+    }
+
+    [Fact]
+    public void DeletingAnOrderThatWasNeverShownKeepsItsOkAndStaysOff()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(new OrderPublicSettings(true, false, null, null), Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        order.SoftDelete(Manager, Latest).ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
+    }
+
+    [Fact]
+    public void RestoringAnOrderDeletedWhileStillShownTurnsShowingOffAndKeepsTheOk()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+        order.SoftDelete(Manager, Latest).ShouldBeTrue();
+        typeof(Order).GetProperty(nameof(Order.ShownOnWebsiteSinceUtc), BindingFlags.Instance | BindingFlags.Public)!.SetValue(order, Later);
+
+        order.Restore().ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
+    }
+
+    [Fact]
+    public void RestoringALiveShownOrderChangesNothing()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        order.Restore().ShouldBeFalse();
+
         order.IsShownOnWebsite.ShouldBeTrue();
         order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
-        order.HasCustomerConsent.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AShownOrderIsWithoutANameOnlyWhenBothThePublicNameAndTheTeamNameAreBlank()
+    {
+        var notShown = NewOrder();
+        var withTeam = NewOrder();
+        withTeam.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+        var withName = NewOrder(teamName: null);
+        withName.SetPublicSettings(new OrderPublicSettings(true, true, null, "Tondo Riders MC"), Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+        var teamRemoved = NewOrder();
+        teamRemoved.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+        teamRemoved.UpdateDetails(ValidDetails(teamName: null), Latest).IsSuccess.ShouldBeTrue();
+
+        notShown.IsShownWithoutName.ShouldBeFalse();
+        withTeam.IsShownWithoutName.ShouldBeFalse();
+        withName.IsShownWithoutName.ShouldBeFalse();
+        teamRemoved.IsShownWithoutName.ShouldBeTrue();
     }
 
     [Fact]

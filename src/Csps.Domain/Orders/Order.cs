@@ -1368,7 +1368,8 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
     /// <summary>
     /// Soft-deletes the order so it and everything inside it stop counting anywhere (D-26). Any status may be deleted, so the end-state
-    /// lock does not apply. A second call changes nothing.
+    /// lock does not apply. A second call changes nothing. The delete also takes the order off the website and keeps the customer's OK,
+    /// so a restore never puts it back by itself (D-P11-BL-29, as a cancel does, D-41).
     /// </summary>
     /// <param name="by">The staff member who deleted it.</param>
     /// <param name="now">The current instant.</param>
@@ -1382,10 +1383,14 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
         DeletedAtUtc = now;
         DeletedById = by;
+        ShownOnWebsiteSinceUtc = null;
         return true;
     }
 
-    /// <summary>Clears the delete marker so the order and everything inside it count again (D-28).</summary>
+    /// <summary>
+    /// Clears the delete marker so the order and everything inside it count again (D-28). A restore never puts the order back on the
+    /// website and keeps the customer's OK; it also clears a shown date left by a delete saved before D-P11-BL-29.
+    /// </summary>
     /// <returns>True when it was restored now; false when it was not deleted.</returns>
     public bool Restore()
     {
@@ -1396,6 +1401,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
         DeletedAtUtc = null;
         DeletedById = null;
+        ShownOnWebsiteSinceUtc = null;
         return true;
     }
 

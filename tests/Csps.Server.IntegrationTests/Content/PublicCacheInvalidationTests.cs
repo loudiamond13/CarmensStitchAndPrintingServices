@@ -377,7 +377,9 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
         var clears = await RunOrderWritesAsync(shown: true);
 
         clears.Select(step => step.Write).ShouldBe(OrderWriteNames);
-        clears.Where(step => step.Clears == 0).Select(step => step.Write).ShouldBeEmpty("each of these writes on a shown order must clear the public cache");
+        clears.Where(step => step.Clears == 0).Select(step => step.Write).ShouldBe(
+            ["restore"],
+            "every write to a shown order clears the public cache except a restore: the delete already took the order off the website (D-P11-BL-29), so a restore is not a public change");
     }
 
     [Fact]
@@ -482,6 +484,11 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
             using var response = await OrderFixtures.RestoreAsync(client, token, orderId);
             response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         });
+        if (shown)
+        {
+            _ = await SavePublicAsync(client, token, await LatestAsync(), consent: true, show: true, name: "Display Name");
+        }
+
         await StepAsync("permanent delete", async () =>
         {
             using var response = await OrderFixtures.PermanentlyDeleteAsync(client, token, orderId, number);
