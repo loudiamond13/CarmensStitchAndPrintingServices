@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T19:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T21:50:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -264,11 +264,13 @@ If someone else already removed the photo, the screen treats Remove as done and 
 
 ## P11-BL-29 · What restoring a deleted order does to the website (plan 11-23, Task 3) · IMPORTANT
 
-**Status:** decided: A (owner, 2026-11-13) · **Blocks:** nothing. Built in a quick task.
+**Status:** decided: A (owner, 2026-11-13) · built in quick 261113-tiq · **Blocks:** nothing.
 
 **Ruling D-P11-BL-29 (owner, 2026-11-13):** deleting an order also turns "Show on the website" off; the customer's OK is kept. A restore never puts the order back on the website by itself. Staff must turn it on again on purpose, the same as after cancelling (D-41). Do not raise this again.
 
-Deleting an order takes it off the website at once (D-15). Nothing says what happens when a Manager restores it. Today's code restores the order exactly as it was, so an order that was shown on the website would come back on the website by itself. The run leaves restore as it is and finishes everything else.
+Deleting an order takes it off the website at once (D-15). Nothing says what happens when a Manager restores it. Today's code restores the order exactly as it was, so an order that was shown on the website would come back on the website by itself.
+
+Built in quick 261113-tiq: a delete now turns "Show on the website" off and keeps the customer's OK. The order leaves the gallery, and the audit log gets an "Order taken off the website" entry next to the delete entry. A restore never puts it back. A restore also takes off an order that was deleted before this change while it was still shown, with no data migration. Staff turn it on again from the order page, and it joins the gallery at the top, the same as after a cancel. Commits: 2c7298aa (delete) and 7cd52e75 (restore).
 
 - **A (recommended):** deleting also turns "Show on the website" off (the customer's OK stays). A restore never puts the order back on the website by itself, the same as cancelling (D-41). Nothing goes public without a deliberate step. This is a small, separate change.
 - **B:** a restore brings the order back on the website exactly as it was (today's behaviour, no change).
@@ -634,6 +636,15 @@ The public site now uses 23 named font sizes (`text-14` is 14 px, and so on) and
 The names follow the size (`text-14`) so each one reads as its value. If you prefer role names such as `text-body` or `text-caption`, say so, and the task will map each size to a role you choose instead.
 
 Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-01) and quick 261113-nqv.
+
+## P11-BL-63 · Words about the website when an order is deleted or restored (quick 261113-tiq)
+
+**Status:** open · **Blocks:** nothing. Built as option A.
+
+Today the delete question reads "It counts nowhere until it's restored." and the restore message reads "{number} counts in lists and totals again." Neither says the order is also off the website. A cancel has no such message either, and after a restore the order page's Public website card reads "Not shown". No new words were added, and none are proposed here.
+
+- **A (recommended, built):** add no new words. The order card already shows "Not shown", the same as after a cancel.
+- **B:** you give the words for the restore message and, if you want, the delete question, and a small task adds them.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 
