@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T17:55:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:20:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -594,7 +594,9 @@ Detail is in `11-E2E-PHASE-END.md` under "Owner items".
 
 ## P11-BL-60 · Lightbox arrows on phones (UI review R-04)
 
-**Status:** open · **Blocks:** nothing.
+**Status:** decided: A, keep the approved tap zones (owner, 2026-11-13) · **Blocks:** nothing.
+
+**Ruling D-P11-BL-60 (owner, 2026-11-13):** keep the C-35 tap zones on phones. No arrow buttons are added below 768 px. Do not raise this again.
 
 On phones (768 px and narrower) the gallery viewer hides the round previous and next buttons and uses two large tap zones instead, as approved in C-35. Each zone is a real button with a name, a focus ring, arrow keys and swipe. A reviewer asked whether a visible arrow should also show on phones. Nothing was changed.
 
