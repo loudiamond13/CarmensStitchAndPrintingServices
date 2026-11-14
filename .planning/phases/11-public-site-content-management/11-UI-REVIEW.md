@@ -1,6 +1,6 @@
 ---
 created: 2026-11-13T10:00:00-06:00
-updated: 2026-11-13T18:20:00-06:00
+updated: 2026-11-13T18:45:00-06:00
 ---
 
 # Phase 11: UI Review
@@ -78,7 +78,7 @@ Every finding has one outcome, under the owner's instruction for quick 261113-nq
 | R-03 | Gallery tile inline `--ratio` (fix 3) | Fixed. The drawn tile gets its height from a hidden SVG sizer's viewBox, so the module sets no style. The review's CSP risk was weaker than stated (React sets custom properties through the CSSOM); the real gap was 11-UI-SPEC lines 48 and 51. | The gate fails on any `style=` in the module. `gallery.test.tsx` covers the sizer for no photo, a blank address and both clamps. |
 | R-04 | Lightbox prev and next on narrow screens (Pillar 2) | Closed, already met. Below 768px the C-35 tap zones replace the buttons: 96 by 216 px at 320, in the tab order, with a focus ring, arrow keys and swipe. GAL-02 asks for a "button alternative". A visible arrow on phones is an owner question. | `galleryLightbox.recipe.ts` lines 7 to 36, `GalleryLightbox.tsx` zone buttons, `GalleryLightbox.test.tsx` lines 167 to 243. Owner ruling D-P11-BL-60 (2026-11-13): keep the tap zones. |
 | R-05 | ProductLinesTab and TestimonialsTab empty state (Pillar 6) | Closed, not a defect. Both tabs pass `emptyIcon`, `emptyTitle` and `emptyMessage` to ResponsiveTable, which renders the shared EmptyState. | `ProductLinesTab.tsx` lines 466 to 469, `TestimonialsTab.tsx` lines 467 to 470, `ResponsiveTable.tsx` lines 21, 227, 244, copy in `siteContentCopy.ts` lines 241 to 244 and 442 to 445, tests `ProductLinesTab.test.tsx:236` and `TestimonialsTab.test.tsx:246`. |
-| R-06 | Sticky bar safe area (Pillar 5) | Fixed. The bar pads its bottom 16px plus `env(safe-area-inset-bottom)`, and the Contact scroll padding adds the same inset. The inset is 0 until `viewport-fit=cover` is set; that is an owner question. | `public-look.node.test.ts` compiles the bar padding; `PublicLayout.test.tsx` pins the exact scroll-padding class. Parked as P11-BL-61. |
+| R-06 | Sticky bar safe area (Pillar 5) | Fixed. The bar pads its bottom 16px plus `env(safe-area-inset-bottom)`, and the Contact scroll padding adds the same inset. The inset is 0 until `viewport-fit=cover` is set; that is an owner question. | `public-look.node.test.ts` compiles the bar padding; `PublicLayout.test.tsx` pins the exact scroll-padding class. Owner ruling D-P11-BL-61 (2026-11-13): keep today's viewport setting. |
 | R-07 | SharePictureCard and PublicWebsiteCard states (Pillar 6) | Closed, verified. PhotoSlot owns the status line, the pick-error box and the ConfirmDialog, and the settings come from BusinessInfoTab. PublicWebsiteCard gets `order` from OrderPage, which owns loading and error, and edits go through PublicWebsiteModal. | Code read in quick 261113-nqv. |
 | R-08 | Arbitrary spacing values (Pillar 5) | Closed as allowed. They are 11-UI-SPEC Spacing declared exceptions or recipe box sizes. | 11-UI-SPEC lines 145 to 153. |
 | R-09 | Checks that need screenshots (Pillars 2 and 3; Further Notes: focal point, 60/30/10, 320px overflow, contrast, Espresso) | Deferred. No dev servers on the shared machine, so these go to the owner screenshot pass. | 11-UI-SPEC Visual Review, P11-BL-54. |

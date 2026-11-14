@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:20:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:45:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -607,7 +607,9 @@ Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-04) and quick 261113-nqv.
 
 ## P11-BL-61 · Edge to edge on notched phones (UI review R-06)
 
-**Status:** open · **Blocks:** nothing.
+**Status:** decided: A, keep today's viewport setting (owner, 2026-11-13) · **Blocks:** nothing.
+
+**Ruling D-P11-BL-61 (owner, 2026-11-13):** do not add `viewport-fit=cover`. The phone browser keeps pages clear of the notch and home bar; the safe-area padding on the Contact bar stays in place. Do not raise this again.
 
 The pages do not ask the phone to draw under the notch and the home bar (`viewport-fit=cover` is not set in `web/index.html`), so the safe area is 0 today. The Contact bottom bar and its scroll padding now add the safe area, so they are ready if this is ever turned on. Nothing visible changed.
 
