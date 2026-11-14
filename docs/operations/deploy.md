@@ -1,6 +1,6 @@
 # Runbook: deploy the site to production
 
-*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-11-13T01:46:00-06:00*
+*Created: 2026-10-16T01:38:00-05:00 · Updated: 2026-11-13T22:50:00-06:00*
 
 CSPS goes live only when you press Run on the **Deploy** workflow (OPS-04, D-11). Pressing Run is the approval. A merge to `main` never deploys by itself, and the workflow refuses to run from any other branch.
 
@@ -123,6 +123,18 @@ The site never changes its own database when it starts. A build that adds a migr
 3. Then run the deploy.
 
 Going the other way, an older version running over a newer database works only when the migration that was added is backward compatible (for example, a new nullable column). If it is not, a rollback of the app alone will fail its smoke test. Plan such a rollback with the developer before pressing Run.
+
+### The read committed snapshot step (D-P11-BL-35)
+
+The migration `TurnOnReadCommittedSnapshot` changes one database setting. After it, reading a page of data no longer waits for someone else's unfinished save. Before it, two staff saving at the same moment (for example photos on two orders) could block each other, and one of them saw "Something went wrong". The script turns the setting on once.
+
+- **Where it sits in the script.** It is its own step between two `GO` lines, outside the script's transaction blocks, because SQL Server does not allow this change inside a transaction. The step checks the current value first, so running the script again changes nothing. The line after it, in the next piece, records the migration as done.
+- **Apply it while the shop is quiet.** The step ends other connections' open work on the database one time. Anyone saving at that moment may see "Something went wrong" once and can simply try again. The site reconnects by itself.
+- **In the control panel's query tool,** run this step as its own piece, like every other piece between two `GO` lines.
+- **If that piece shows an error, stop and send the error to Claude.** The next piece would still record the migration as done while the setting stays off. Running that one piece again later turns it on.
+- **Check the result.** Run `SELECT name, is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME();` and expect `1` in the second column. Paste only the value, never the database name.
+- **Space.** SQL Server keeps earlier copies of changed rows for a short time, in tempdb (shared on the host) or inside the database when Accelerated Database Recovery is on. Each row changed after the switch grows by 14 bytes. At the shop's size that is small against the 1000 MB quota.
+- **Undo.** The migration's undo turns the setting off, but production never runs an undo.
 
 The go-live list for the public site pages (Phase 11) is in [go-live-public-site.md](go-live-public-site.md): what to fill in right after the deploy, the Cloudinary setup step and the checks on the live site.
 
