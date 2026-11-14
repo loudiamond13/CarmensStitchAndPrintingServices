@@ -424,6 +424,39 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
         rows.Select(row => row.Slot).Order().ShouldBe([0, 1, 2, 3, 4]);
     }
 
+    // D-P11-BL-35: reads no longer wait for another request's unfinished save, so two uploads to two orders do not deadlock.
+    [Fact]
+    public async Task UploadsToTwoDifferentOrdersSentTogetherBothSaveEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var orderIds = new List<Guid>();
+        for (var round = 1; round <= 10; round++)
+        {
+            var firstId = (await CreateOrderAsync(factory, client, manager.AccessToken)).GetProperty("id").GetGuid();
+            var secondId = (await CreateOrderAsync(factory, client, manager.AccessToken)).GetProperty("id").GetGuid();
+            orderIds.AddRange([firstId, secondId]);
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => UploadAsync(client, manager.AccessToken, firstId, Photo),
+                () => UploadAsync(client, manager.AccessToken, secondId, Photo));
+            using (first)
+            using (second)
+            {
+                var firstText = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                var secondText = await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                first.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}, first upload: {firstText}");
+                second.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}, second upload: {secondText}");
+            }
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(image => orderIds.Contains(image.OrderId)).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Count.ShouldBe(20);
+        rows.GroupBy(row => row.OrderId).ShouldAllBe(group => group.Count() == 1 && group.Single().Slot == 0);
+    }
+
     [Fact]
     public async Task AnotherUploadThatTakesTheLastSlotWhileTheOrderIsCheckedAnswersThePhotoLimitAndSendsNothingToStorage()
     {
