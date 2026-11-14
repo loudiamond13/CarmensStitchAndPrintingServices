@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T23:10:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T23:40:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -656,7 +656,9 @@ Today the delete question reads "It counts nowhere until it's restored." and the
 
 ## P11-BL-64 · The first-Manager command could create two Managers if two copies ran at the very same moment (quick 261113-uj0)
 
-**Status:** open · **Blocks:** applying the next production script.
+**Status:** decided: B (owner, 2026-11-13) · **Blocks:** nothing. The next production script is unblocked.
+
+**Ruling D-P11-BL-64 (owner, 2026-11-13):** keep the first-Manager command as it is and accept the race. The owner runs it once, by hand. Do not raise this again.
 
 The command-line tool that creates the first Manager checks "is there already an active Manager?" and then creates the account (`BootstrapManagerHandler`). It takes no lock before that check. Before read committed snapshot, the second copy's check waited for the first copy's unfinished save, so it saw the new Manager and refused. After the change, the second check does not wait and could see "no Manager yet". A unique email stops two accounts with the same address, but two different addresses could both be created. This needs two copies of a one-time command run by you at the same instant, so it is very unlikely. Nothing else in the audit relied on a read waiting: every other spot takes a lock first, matches a row version, or is stopped by a database key.
 

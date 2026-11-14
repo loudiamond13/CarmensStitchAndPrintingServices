@@ -4,10 +4,10 @@ current_phase: 11
 current_phase_name: Public Site & Content Management
 status: executing
 stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-11-14T03:49:59.608Z"
+last_updated: "2026-11-14T05:11:41.532Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 11 execution started
-state_head: 8aad608e5813d2c06581f74cfbe8cf0f2ccfc4ad
+state_head: 8e02c1c09740c5c938173e1a4a82c8e1f57f02d5
 progress:
   total_phases: 18
   completed_phases: 8
@@ -15,7 +15,7 @@ progress:
   completed_plans: 302
   percent: 44
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-13T22:00:00-06:00"
+updated: "2026-11-13T23:40:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 11 (Public Site & Content Management) — EXECUTING
 Plan: 1 of 38
 Status: Executing Phase 11
-Last activity: 2026-11-13 - Completed quick task 261113-tiq: Deleting an order turns Show on the website off
+Last activity: 2026-11-13 - Completed quick task 261113-uj0: Turn on read committed snapshot for the CSPS database
 
 Progress: [████░░░░░░] 44%
 
@@ -1070,6 +1070,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 | 261109-vj6 | Fix the D-111 rulings: P10-BL-02, 04, 05, 08, 13, 17 | 2026-11-10 | 647e2aa5 | [261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08](./quick/261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08/) |
 | 261113-nqv | Fix phase 11 UI review findings | 2026-11-13 | 4304af7c | [261113-nqv-fix-phase-11-ui-review-findings](./quick/261113-nqv-fix-phase-11-ui-review-findings/) |
 | 261113-tiq | Deleting an order turns Show on the website off (D-P11-BL-29) | 2026-11-13 | 8aad608e | [261113-tiq-deleting-an-order-turns-show-on-the-webs](./quick/261113-tiq-deleting-an-order-turns-show-on-the-webs/) |
+| 261113-uj0 | Turn on read committed snapshot for the CSPS database (D-P11-BL-35) | 2026-11-13 | 8e02c1c0 | [261113-uj0-turn-on-read-committed-snapshot-for-the-](./quick/261113-uj0-turn-on-read-committed-snapshot-for-the-/) |
 
 ## Deferred Items
 
