@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:45:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T18:50:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -620,7 +620,9 @@ Detail is in `11-UI-REVIEW.md` under "Outcomes" (R-06) and quick 261113-nqv.
 
 ## P11-BL-62 · Named font sizes for the admin and shared parts (UI review R-01)
 
-**Status:** open · **Blocks:** nothing.
+**Status:** decided: A, a later quick task (owner, 2026-11-13) · **Blocks:** nothing.
+
+**Ruling D-P11-BL-62 (owner, 2026-11-13):** a later quick task maps the admin and shared hand-typed font sizes to the same size-named `text-N` tokens (adding missing sizes with their current values, no look change) and widens the type-scale test to all of `web/src`. Size names stay; no role names were asked for. Do not raise this again.
 
 The public site now uses 23 named font sizes (`text-14` is 14 px, and so on) and a test fails on any hand-typed size there. The admin and shared parts still hand-type 221 sizes in 33 files. Nothing was changed there.
 
