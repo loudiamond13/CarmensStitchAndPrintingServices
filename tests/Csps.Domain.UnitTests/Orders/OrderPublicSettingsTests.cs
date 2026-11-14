@@ -362,22 +362,40 @@ public sealed class OrderPublicSettingsTests
     }
 
     [Fact]
-    public void DeletingAShownOrderChangesNoWebsiteSettingAndARestoreKeepsThemAsTheyWereP11BL29()
+    public void DeletingAShownOrderTurnsShowingOffKeepsTheOkAndARestoreDoesNotPutItBack()
     {
         var order = NewOrder();
         order.SetPublicSettings(Shown, Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
 
         order.SoftDelete(Manager, Latest).ShouldBeTrue();
 
-        order.IsShownOnWebsite.ShouldBeTrue();
-        order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
         order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
 
         order.Restore().ShouldBeTrue();
 
-        order.IsShownOnWebsite.ShouldBeTrue();
-        order.ShownOnWebsiteSinceUtc.ShouldBe(Later);
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.ShownOnWebsiteSinceUtc.ShouldBeNull();
         order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
+    }
+
+    [Fact]
+    public void DeletingAnOrderThatWasNeverShownKeepsItsOkAndStaysOff()
+    {
+        var order = NewOrder();
+        order.SetPublicSettings(new OrderPublicSettings(true, false, null, null), Admin, Basketball, Later).IsSuccess.ShouldBeTrue();
+
+        order.SoftDelete(Manager, Latest).ShouldBeTrue();
+
+        order.IsShownOnWebsite.ShouldBeFalse();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentAtUtc.ShouldBe(Later);
+        order.PublicConsentById.ShouldBe(Admin);
     }
 
     [Fact]

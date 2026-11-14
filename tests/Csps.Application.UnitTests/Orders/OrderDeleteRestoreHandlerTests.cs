@@ -6,6 +6,7 @@ using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
+using Csps.Domain.Content;
 using Csps.Domain.Orders;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -22,6 +23,7 @@ public sealed class OrderDeleteRestoreHandlerTests
     private static readonly DateOnly Today = new(2026, 10, 28);
     private static readonly Guid CallerId = Guid.Parse("7c1e0b52-3d94-4a8e-b6f0-9a2d5e8c1f43");
     private static readonly Guid Receiver = Guid.Parse("2f9a6d10-58b3-4c7e-8a41-d03e7b95c628");
+    private static readonly Guid Line = Guid.Parse("a5e3b9c1-0d74-4e28-8f16-3c2a7d5b9e40");
 
     [Fact]
     public async Task DeleteWithNoCallerTheSessionHasEnded()
@@ -85,6 +87,37 @@ public sealed class OrderDeleteRestoreHandlerTests
         entry.SavesBefore.ShouldBe(0);
         harness.Unit.Saves.ShouldBe(1);
         harness.Unit.Commits.ShouldBe(1);
+        harness.Gallery.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteAShownOrderTakesItOffRemovesItsGalleryEntryAndRecordsTheTakenOffEntryAfterTheDeleteEntryInOneSave()
+    {
+        var harness = new Harness(shown: true);
+
+        var result = await harness.Delete.HandleAsync(harness.Order.Id, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Order.IsShownOnWebsite.ShouldBeFalse();
+        harness.Order.HasCustomerConsent.ShouldBeTrue();
+        harness.Gallery.Received(1).Remove(Arg.Is<GalleryEntry>(entry => entry.OrderId == harness.Order.Id));
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderDeleted, AuditActions.OrderTakenOffWebsite]);
+        harness.Audit.Entries[1].Call.Detail.ShouldBe("number=ORD-2026-0148");
+        harness.Audit.Entries.ShouldAllBe(entry => entry.LockedBefore && entry.SavesBefore == 0);
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DeleteAShownOrderWhoseEntryIsAlreadyGoneRemovesNothingAndStillRecordsTheTakenOffEntry()
+    {
+        var harness = new Harness(shown: true, entryExists: false);
+
+        var result = await harness.Delete.HandleAsync(harness.Order.Id, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Gallery.DidNotReceive().Remove(Arg.Any<GalleryEntry>());
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderDeleted, AuditActions.OrderTakenOffWebsite]);
     }
 
     [Fact]
@@ -272,13 +305,21 @@ public sealed class OrderDeleteRestoreHandlerTests
         private bool _startDeleted;
         private int _rollbacksSeen;
 
-        public Harness(bool noCaller = false)
+        public Harness(bool noCaller = false, bool shown = false, bool entryExists = true)
         {
             var items = new[] { new NewOrderItem(Guid.NewGuid(), "Jersey top", "S-XL", 15, 650.00m) };
             var payments = new[] { new NewOrderPayment(Today, 4000.00m, Guid.NewGuid(), null, null, Receiver) };
             var details = new OrderDetails("Juan Dela Cruz", "Brgy. San Roque Ballers", "0917 123 4567", "juan.dc@example.com", "Brgy. San Roque", Today, Today.AddDays(14), "rush job");
             Order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments }, CallerId, Now, Today).Value;
             Order.AssignNumber("ORD-2026-0148");
+            if (shown)
+            {
+                Order.SetPublicSettings(new OrderPublicSettings(true, true, null, null), CallerId, Line, Now).IsSuccess.ShouldBeTrue();
+            }
+
+            Gallery = Substitute.For<IGalleryEntries>();
+            Gallery.FindForOrderAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+                .Returns(call => Task.FromResult<GalleryEntry?>(entryExists ? GalleryEntry.ForOrder(call.Arg<Guid>(), 0, Now) : null));
             Orders = Substitute.For<IOrders>();
             Orders.FindAsync(Order.Id, false, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Load(includeDeleted: false)));
             Orders.FindAsync(Order.Id, true, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(Load(includeDeleted: true)));
@@ -288,7 +329,7 @@ public sealed class OrderDeleteRestoreHandlerTests
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
             var time = new FakeTimeProvider(Now);
-            Delete = new DeleteOrderHandler(Orders, Audit, Unit, request, time);
+            Delete = new DeleteOrderHandler(Orders, Gallery, Audit, Unit, request, time);
             Restore = new RestoreOrderHandler(Orders, Audit, Unit, request);
             List = new ListDeletedOrdersHandler(Reader, request, new ListDeletedOrdersRequestValidator());
         }
@@ -296,6 +337,8 @@ public sealed class OrderDeleteRestoreHandlerTests
         public Order Order { get; }
 
         public IOrders Orders { get; }
+
+        public IGalleryEntries Gallery { get; }
 
         public IOrderReader Reader { get; }
 
