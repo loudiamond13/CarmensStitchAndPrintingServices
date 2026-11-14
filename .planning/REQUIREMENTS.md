@@ -161,25 +161,25 @@ Initial release: everything needed to replace the production system at cutover.
 
 ### Admin Dashboard (DASH)
 
-- [ ] **DASH-01**: Staff land on a dashboard with a greeting ("Good morning/afternoon/evening, {firstName}") and the date in business time, plus View Orders / New Order actions
-- [ ] **DASH-02**: The dashboard shows KPIs: active orders (+ due this week), total receivables (Σ max(balance, 0) of active orders), collected this month (+ delta vs same day last month), company expenses this month (+ count, top category) ⚑ C-40
-- [ ] **DASH-03**: The dashboard shows an income vs expenses chart for the last 6 or 12 months. Income is payments by payment date; expenses are company + order expenses. The 6- or 12-month choice lives in the URL (WEB-10)
-- [ ] **DASH-04**: The dashboard shows orders by status, with the active total ⚑ C-40
-- [ ] **DASH-05**: The dashboard shows the 6 most recent orders with links to detail
-- [ ] **DASH-06**: Every dashboard card has loading (skeleton), empty and error states
+- [x] **DASH-01**: Staff land on a dashboard with a greeting ("Good morning/afternoon/evening, {firstName}") and the date in business time, plus View Orders / New Order actions
+- [x] **DASH-02**: The dashboard shows KPIs: active orders (+ due this week), total receivables (Σ max(balance, 0) of active orders), collected this month (+ delta vs same day last month), company expenses this month (+ count, top category) ⚑ C-40
+- [x] **DASH-03**: The dashboard shows an income vs expenses chart for the last 6 or 12 months. Income is payments by payment date; expenses are company + order expenses. The 6- or 12-month choice lives in the URL (WEB-10)
+- [x] **DASH-04**: The dashboard shows orders by status, with the active total ⚑ C-40
+- [x] **DASH-05**: The dashboard shows the 6 most recent orders with links to detail
+- [x] **DASH-06**: Every dashboard card has loading (skeleton), empty and error states
 
 ### Staff Money (MONEY)
 
 Added by the owner on 2026-10-07: "Every user can have money tied to them and users can transfer their money to basically other user which they are coworker." The owner then ruled the same day that only Managers delete transfers, and that an Admin sees only their own money while a Manager sees everyone's (OD-19, resolved). Later that day the owner added that every expense records who paid it, and that the amount comes off the payer's money on hand (CEXP-05, ORD-23). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` don't cover this yet.
 
-- [ ] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23) − Σ refunds they handed back (ORD-18) (owner rulings, 2026-10-07 and, for refunds, D-08 of 2026-10-27). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), and so do refunds (ORD-18 in Phase 7), so Phase 10 depends on all three and no phase moves. An integration test gives one staff member payments received, transfers in and out, company and order expenses paid, and refunds handed back, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16 (owner, 2026-10-28, D-08)
-- [ ] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out, and expenses they paid with their category, plus the order number for order expenses), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server. The ledger's page lives in the URL (WEB-10)
-- [ ] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
-- [ ] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
-- [ ] **MONEY-05**: By default, a transfer larger than the sender's current money on hand is refused with a plain-English error. The balance check and the insert run in one transaction that locks the sender's ledger (e.g. `UPDLOCK, HOLDLOCK`, or SERIALIZABLE; SEC-07), so two concurrent transfers from the same sender can never together overdraw it. The lock covers every ledger source, including the expenses the sender paid (CEXP-05, ORD-23), so an expense saved at the same moment can't slip past the check. If OD-16 rules that paying an expense may not take the payer below zero, expense create, edit and payer change run the same locked check. An integration test sends two concurrent transfers that together exceed the balance and asserts that exactly one succeeds, the other is refused, and both balances stay exact ⚑ OD-16
-- [ ] **MONEY-06**: Only the **Manager** role can delete a transfer record; an Admin gets 403 and an anonymous caller 401 (owner ruling OD-19, 2026-10-07). Delete asks for confirmation and needs the current `rowversion` (a stale one gets 409, SEC-07). Every delete writes an append-only audit entry through `IAuditTrail` (FND-10): who deleted it, when, and what the record said (from, to, amount, date, note, recorded by). Soft delete is recommended, so the record stays visible and past balances stay explainable; a hard delete silently changes past balances, and its audit copy is purged after 8 months (D-32) ⚑ OD-18
-- [ ] **MONEY-07**: Transfers can't be edited. There is no update endpoint, and a wrong transfer is corrected by deleting it (MONEY-06) and recording a new one ⚑ OD-17
-- [ ] **MONEY-08**: Every staff-money endpoint has authorization-matrix rows for {anonymous, Admin, Manager} with exact statuses (SEC-02). Anonymous gets 401 everywhere. Own balance, own ledger, transfer create and transfer list succeed for both roles, and an Admin's list holds only their own transfers. Another user's balance or ledger, and the all-balances list, get 403 for an Admin and succeed for a Manager. Transfer delete gets 403 for an Admin and succeeds for a Manager. The transfer-deleted event joins the AUDIT-01 catalog
+- [x] **MONEY-01**: Each staff user (Admin or Manager) has a **money on hand** balance that the server computes from the ledger: Σ payments they received (ORD-22) + Σ transfers to them − Σ transfers from them − Σ company and order expenses they paid (CEXP-05, ORD-23) − Σ refunds they handed back (ORD-18) (owner rulings, 2026-10-07 and, for refunds, D-08 of 2026-10-27). Deleted transfers and deleted expenses never count. It is `decimal(18,2)` PHP, never stored as an editable number, and no endpoint accepts a balance value (Core Value: money is computed server-side). The expense payers ship before this phase (CEXP-05 in Phase 6, ORD-23 in Phase 7), and so do refunds (ORD-18 in Phase 7), so Phase 10 depends on all three and no phase moves. An integration test gives one staff member payments received, transfers in and out, company and order expenses paid, and refunds handed back, and asserts the exact balance; changing an expense's Paid by moves its amount from one balance to the other exactly ⚑ OD-15, OD-16 (owner, 2026-10-28, D-08)
+- [x] **MONEY-02**: A staff user can see their own money on hand and its ledger (payments received with their order numbers, transfers in and out, and expenses they paid with their category, plus the order number for order expenses), newest first with server-side pagination, on a SPEC-GAP "My money" screen composed from the existing card and `.s-rt` table patterns. The dashboard shows their money on hand as one card. Every figure comes from the server. The ledger's page lives in the URL (WEB-10)
+- [x] **MONEY-03**: Who sees which balances (owner ruling OD-19, 2026-10-07): an Admin sees only their own money on hand, ledger and transfers. A Manager sees every staff member's money on hand in one list, can open any member's ledger, and sees their own. The transfer list holds only the transfers an Admin sent or received, and every transfer for a Manager. An Admin asking for any other user's balance, ledger or transfers gets 403 whether or not that user exists, so the response reveals nothing (CWE-639, CWE-204). Deactivated or deleted users who still hold money stay visible to Managers
+- [x] **MONEY-04**: A staff user can transfer part of their money on hand to a coworker, meaning another **active** Admin or Manager. The server validates every field with plain-English errors: amount `decimal(18,2)` PHP above zero with at most 2 decimals, recipient different from the sender, transfer date not in the future in business time (`IBusinessCalendar`), optional note of at most 200 characters. The sender is always the signed-in user, taken from the token and never from the request body (CWE-639). Creating a transfer needs an `Idempotency-Key` (SEC-06), so a double-click records one transfer. Each transfer stores from, to, amount, date, note, recorded by, recorded at (UTC) and a `rowversion`
+- [x] **MONEY-05**: By default, a transfer larger than the sender's current money on hand is refused with a plain-English error. The balance check and the insert run in one transaction that locks the sender's ledger (e.g. `UPDLOCK, HOLDLOCK`, or SERIALIZABLE; SEC-07), so two concurrent transfers from the same sender can never together overdraw it. The lock covers every ledger source, including the expenses the sender paid (CEXP-05, ORD-23), so an expense saved at the same moment can't slip past the check. If OD-16 rules that paying an expense may not take the payer below zero, expense create, edit and payer change run the same locked check. An integration test sends two concurrent transfers that together exceed the balance and asserts that exactly one succeeds, the other is refused, and both balances stay exact ⚑ OD-16
+- [x] **MONEY-06**: Only the **Manager** role can delete a transfer record; an Admin gets 403 and an anonymous caller 401 (owner ruling OD-19, 2026-10-07). Delete asks for confirmation and needs the current `rowversion` (a stale one gets 409, SEC-07). Every delete writes an append-only audit entry through `IAuditTrail` (FND-10): who deleted it, when, and what the record said (from, to, amount, date, note, recorded by). Soft delete is recommended, so the record stays visible and past balances stay explainable; a hard delete silently changes past balances, and its audit copy is purged after 8 months (D-32) ⚑ OD-18
+- [x] **MONEY-07**: Transfers can't be edited. There is no update endpoint, and a wrong transfer is corrected by deleting it (MONEY-06) and recording a new one ⚑ OD-17
+- [x] **MONEY-08**: Every staff-money endpoint has authorization-matrix rows for {anonymous, Admin, Manager} with exact statuses (SEC-02). Anonymous gets 401 everywhere. Own balance, own ledger, transfer create and transfer list succeed for both roles, and an Admin's list holds only their own transfers. Another user's balance or ledger, and the all-balances list, get 403 for an Admin and succeed for a Manager. Transfer delete gets 403 for an Admin and succeeds for a Manager. The transfer-deleted event joins the AUDIT-01 catalog
 
 ### Public Site (PUB)
 
@@ -434,20 +434,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMG-03 | Phase 9 | Complete |
 | IMG-04 | Phase 9 | Complete |
 | IMG-05 | Phase 9 | Complete |
-| DASH-01 | Phase 10 | Pending |
-| DASH-02 | Phase 10 | Pending |
-| DASH-03 | Phase 10 | Pending |
-| DASH-04 | Phase 10 | Pending |
-| DASH-05 | Phase 10 | Pending |
-| DASH-06 | Phase 10 | Pending |
-| MONEY-01 | Phase 10 | Pending |
-| MONEY-02 | Phase 10 | Pending |
-| MONEY-03 | Phase 10 | Pending |
-| MONEY-04 | Phase 10 | Pending |
-| MONEY-05 | Phase 10 | Pending |
-| MONEY-06 | Phase 10 | Pending |
-| MONEY-07 | Phase 10 | Pending |
-| MONEY-08 | Phase 10 | Pending |
+| DASH-01 | Phase 10 | Complete |
+| DASH-02 | Phase 10 | Complete |
+| DASH-03 | Phase 10 | Complete |
+| DASH-04 | Phase 10 | Complete |
+| DASH-05 | Phase 10 | Complete |
+| DASH-06 | Phase 10 | Complete |
+| MONEY-01 | Phase 10 | Complete |
+| MONEY-02 | Phase 10 | Complete |
+| MONEY-03 | Phase 10 | Complete |
+| MONEY-04 | Phase 10 | Complete |
+| MONEY-05 | Phase 10 | Complete |
+| MONEY-06 | Phase 10 | Complete |
+| MONEY-07 | Phase 10 | Complete |
+| MONEY-08 | Phase 10 | Complete |
 | PUB-01 | Phase 11 | Complete |
 | PUB-02 | Phase 11 | Complete |
 | PUB-03 | Phase 11 | Complete |
