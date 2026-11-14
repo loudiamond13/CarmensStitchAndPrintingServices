@@ -190,6 +190,25 @@ public sealed class OrderDeleteRestoreHandlerTests
             Independent: false));
         entry.SavesBefore.ShouldBe(0);
         harness.Unit.Saves.ShouldBe(1);
+        harness.Gallery.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task RestoreOfAnOrderDeletedWhileStillShownRemovesTheLeftOverEntryAndRecordsTheTakenOffEntryAfterTheRestoreEntry()
+    {
+        var harness = new Harness();
+        harness.StartDeleted();
+        typeof(Order).GetProperty(nameof(Order.ShownOnWebsiteSinceUtc), BindingFlags.Instance | BindingFlags.Public)!.SetValue(harness.Order, Now);
+
+        var result = await harness.Restore.HandleAsync(harness.Order.Id, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Order.IsShownOnWebsite.ShouldBeFalse();
+        harness.Gallery.Received(1).Remove(Arg.Is<GalleryEntry>(entry => entry.OrderId == harness.Order.Id));
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderRestored, AuditActions.OrderTakenOffWebsite]);
+        harness.Audit.Entries[1].Call.Detail.ShouldBe("number=ORD-2026-0148");
+        harness.Audit.Entries.ShouldAllBe(entry => entry.SavesBefore == 0);
+        harness.Unit.Saves.ShouldBe(1);
     }
 
     [Fact]
@@ -330,7 +349,7 @@ public sealed class OrderDeleteRestoreHandlerTests
             request.UserId.Returns(noCaller ? null : CallerId);
             var time = new FakeTimeProvider(Now);
             Delete = new DeleteOrderHandler(Orders, Gallery, Audit, Unit, request, time);
-            Restore = new RestoreOrderHandler(Orders, Audit, Unit, request);
+            Restore = new RestoreOrderHandler(Orders, Gallery, Audit, Unit, request);
             List = new ListDeletedOrdersHandler(Reader, request, new ListDeletedOrdersRequestValidator());
         }
 

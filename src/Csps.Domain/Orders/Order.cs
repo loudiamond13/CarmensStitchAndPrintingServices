@@ -1387,7 +1387,10 @@ public sealed class Order : IAttributedRecord, IEditVersioned
         return true;
     }
 
-    /// <summary>Clears the delete marker so the order and everything inside it count again (D-28).</summary>
+    /// <summary>
+    /// Clears the delete marker so the order and everything inside it count again (D-28). A restore never puts the order back on the
+    /// website and keeps the customer's OK; it also clears a shown date left by a delete saved before D-P11-BL-29.
+    /// </summary>
     /// <returns>True when it was restored now; false when it was not deleted.</returns>
     public bool Restore()
     {
@@ -1398,6 +1401,7 @@ public sealed class Order : IAttributedRecord, IEditVersioned
 
         DeletedAtUtc = null;
         DeletedById = null;
+        ShownOnWebsiteSinceUtc = null;
         return true;
     }
 
