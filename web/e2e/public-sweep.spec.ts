@@ -273,9 +273,14 @@ for (const sweepPage of WALKED_PAGES) {
             break;
           }
           const where = `${focus.label} (step ${String(steps + 1)}, top ${String(Math.round(focus.top))}, bottom ${String(Math.round(focus.bottom))}, left ${String(Math.round(focus.left))}, right ${String(Math.round(focus.right))}, window ${String(focus.innerWidth)} x ${String(focus.innerHeight)})`;
-          const outside = focus.height > 0 && focus.height < focus.innerHeight && (focus.top < -1 || focus.bottom > focus.innerHeight + 1);
+          const outside =
+            focus.height > 0 &&
+            focus.height < focus.innerHeight &&
+            (focus.top < -1 || focus.bottom > focus.innerHeight + 1);
           if (focus.probes > 0 && focus.visibleProbes === 0) {
-            problems.push(`${where} is entirely hidden${focus.obscuredBy.length > 0 ? ` under the ${focus.obscuredBy.join(' and the ')}` : ''}`);
+            problems.push(
+              `${where} is entirely hidden${focus.obscuredBy.length > 0 ? ` under the ${focus.obscuredBy.join(' and the ')}` : ''}`,
+            );
           } else if (focus.obscuredBy.length > 0 || outside) {
             const line = `${where} is ${focus.obscuredBy.length > 0 ? `partly under the ${focus.obscuredBy.join(' and the ')}` : 'partly outside the window'}`;
             (wholeBox ? problems : recorded).push(line);

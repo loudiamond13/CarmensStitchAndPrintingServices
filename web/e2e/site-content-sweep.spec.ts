@@ -116,7 +116,12 @@ interface WindowCase {
 }
 
 const WINDOWS: readonly WindowCase[] = [
-  { name: 'Add Closure', tab: 'hours', trigger: (page) => page.getByRole('button', { name: 'Add Closure' }), dialog: 'Add Closure' },
+  {
+    name: 'Add Closure',
+    tab: 'hours',
+    trigger: (page) => page.getByRole('button', { name: 'Add Closure' }),
+    dialog: 'Add Closure',
+  },
   {
     name: 'Add Testimonial',
     tab: 'testimonials',
@@ -129,7 +134,12 @@ const WINDOWS: readonly WindowCase[] = [
     trigger: (page) => page.getByRole('button', { name: 'Edit testimonial from Juan Dela Cruz' }),
     dialog: 'Edit Testimonial',
   },
-  { name: 'Add Photo', tab: 'gallery', trigger: (page) => page.getByRole('button', { name: 'Add Photo' }), dialog: 'Add Photo' },
+  {
+    name: 'Add Photo',
+    tab: 'gallery',
+    trigger: (page) => page.getByRole('button', { name: 'Add Photo' }),
+    dialog: 'Add Photo',
+  },
 ];
 
 for (const theme of THEMES) {
@@ -205,7 +215,9 @@ for (const theme of THEMES) {
 
         await openIn(page, theme, '/admin/site-content?tab=products');
         await page.getByRole('link', { name: 'Edit Polo Shirts' }).click();
-        await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible({ timeout: SAVE_WAIT_MS });
+        await expect(page.getByRole('heading', { level: 1, name: 'Polo Shirts' })).toBeVisible({
+          timeout: SAVE_WAIT_MS,
+        });
         lineId = lineIdOf(page.url());
         await withPhotoHost(async () => {
           for (const [index, label] of SLOT_LABELS.entries()) {
@@ -256,7 +268,11 @@ for (const theme of THEMES) {
     request,
   }) => {
     const manager = await createStaff(request, 'Manager');
-    const plain = await seedOrder(request, { prefix: 'ORD-2087', label: 'Sweep Plain', itemDescription: 'E2E sweep jersey' });
+    const plain = await seedOrder(request, {
+      prefix: 'ORD-2087',
+      label: 'Sweep Plain',
+      itemDescription: 'E2E sweep jersey',
+    });
     const cancelled = await seedOrder(request, {
       prefix: 'ORD-2087',
       label: 'Sweep Cancelled',
@@ -292,7 +308,9 @@ for (const theme of THEMES) {
         failures.push(...(await sweepWindow(page, `Public website window, shown (${theme})`)));
 
         await openIn(page, theme, `/admin/orders/${cancelled.id}`);
-        await expect(card(page)).toContainText("Cancelled orders can't be shown on the website.", { timeout: SAVE_WAIT_MS });
+        await expect(card(page)).toContainText("Cancelled orders can't be shown on the website.", {
+          timeout: SAVE_WAIT_MS,
+        });
         failures.push(...(await sweepOpenPage(page, `Public website card, Cancelled (${theme})`)));
 
         expect(failures).toEqual([]);

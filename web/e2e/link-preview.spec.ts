@@ -31,7 +31,11 @@ const SHARE_HEIGHT = '630';
 
 /** A new context that never runs a script, on the same host and certificate rules as the project's own. */
 async function scriptFreeContext(browser: Browser, baseURL: string | undefined): Promise<BrowserContext> {
-  return browser.newContext({ javaScriptEnabled: false, ignoreHTTPSErrors: true, baseURL: baseURL ?? 'https://localhost:5199' });
+  return browser.newContext({
+    javaScriptEnabled: false,
+    ignoreHTTPSErrors: true,
+    baseURL: baseURL ?? 'https://localhost:5199',
+  });
 }
 
 async function metaContent(page: Page, selector: string): Promise<string | null> {
@@ -86,8 +90,12 @@ test('@link-preview every public page has its own preview tags and one LocalBusi
         const image = await metaContent(page, 'meta[property="og:image"]');
         expect(image, `${path} og:image`).toMatch(/^https:\/\/\S+$/);
         expect(await metaContent(page, 'meta[property="og:image:width"]'), `${path} og:image:width`).toBe(SHARE_WIDTH);
-        expect(await metaContent(page, 'meta[property="og:image:height"]'), `${path} og:image:height`).toBe(SHARE_HEIGHT);
-        expect(await metaContent(page, 'meta[name="twitter:card"]'), `${path} twitter:card`).toBe('summary_large_image');
+        expect(await metaContent(page, 'meta[property="og:image:height"]'), `${path} og:image:height`).toBe(
+          SHARE_HEIGHT,
+        );
+        expect(await metaContent(page, 'meta[name="twitter:card"]'), `${path} twitter:card`).toBe(
+          'summary_large_image',
+        );
         expect(await metaContent(page, 'meta[name="robots"]'), `${path} is not hidden from search`).toBeNull();
 
         // One LocalBusiness block, and nothing in it that is, or holds, an email (D-25).
@@ -147,7 +155,9 @@ test('@link-preview /admin answers with the X-Robots-Tag header and a robots met
     const response = await request.get(path);
     expect(response.status(), `${path} status`).toBe(200);
     expect(response.headers()['x-robots-tag'], `${path} X-Robots-Tag`).toBe('noindex, nofollow');
-    expect(await response.text(), `${path} robots meta tag`).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(await response.text(), `${path} robots meta tag`).toContain(
+      '<meta name="robots" content="noindex, nofollow">',
+    );
   }
 });
 

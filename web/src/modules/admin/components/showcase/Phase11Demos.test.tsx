@@ -213,7 +213,9 @@ describe('Phase11Demos: the Public website card', () => {
     renderDemos();
     const user = userEvent.setup();
 
-    await user.click(within(caseFrame('public-website-card-no-ok')).getByRole('button', { name: 'Edit public website settings' }));
+    await user.click(
+      within(caseFrame('public-website-card-no-ok')).getByRole('button', { name: 'Edit public website settings' }),
+    );
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

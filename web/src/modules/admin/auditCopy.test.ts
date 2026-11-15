@@ -387,43 +387,115 @@ describe('describeAuditDetail (D-40)', () => {
 
 describe('describeAuditDetail for the Phase 11 site content events (AUDIT-01, AUDIT-02)', () => {
   const cases: [string, string, string | null][] = [
-    ['site-settings.changed', 'fields=businessName;businessName=Carmen Stitch>Carmen Stitch Works', 'Business name: Carmen Stitch to Carmen Stitch Works'],
-    ['site-settings.changed', 'fields=businessName;businessName=Fit%3B Tailor%3D1>Fit', 'Business name: Fit; Tailor=1 to Fit'],
-    ['site-settings.changed', 'fields=messengerUrl;messengerUrl=>https://m.me/cspsdemo', 'Messenger link: Not set to https://m.me/cspsdemo'],
-    ['site-settings.changed', 'fields=tiktokUrl;tiktokUrl=>https://www.tiktok.com/@cspsdemo', 'TikTok link: Not set to https://www.tiktok.com/@cspsdemo'],
-    ['site-settings.changed', 'fields=aboutText,contactEmail,phones,tagline;tagline=Old line>New line', 'About text changed. Shop email changed. Phone numbers changed. Tagline changed'],
+    [
+      'site-settings.changed',
+      'fields=businessName;businessName=Carmen Stitch>Carmen Stitch Works',
+      'Business name: Carmen Stitch to Carmen Stitch Works',
+    ],
+    [
+      'site-settings.changed',
+      'fields=businessName;businessName=Fit%3B Tailor%3D1>Fit',
+      'Business name: Fit; Tailor=1 to Fit',
+    ],
+    [
+      'site-settings.changed',
+      'fields=messengerUrl;messengerUrl=>https://m.me/cspsdemo',
+      'Messenger link: Not set to https://m.me/cspsdemo',
+    ],
+    [
+      'site-settings.changed',
+      'fields=tiktokUrl;tiktokUrl=>https://www.tiktok.com/@cspsdemo',
+      'TikTok link: Not set to https://www.tiktok.com/@cspsdemo',
+    ],
+    [
+      'site-settings.changed',
+      'fields=aboutText,contactEmail,phones,tagline;tagline=Old line>New line',
+      'About text changed. Shop email changed. Phone numbers changed. Tagline changed',
+    ],
     ['site-settings.changed', 'fields=businessName;businessName=carmen@example.ph>Carmen', 'Business name changed'],
     ['site-settings.changed', 'fields=shoe-size', 'Other detail changed'],
     ['site-settings.share-picture-changed', 'change=added', 'Picture added'],
     ['site-settings.share-picture-changed', 'change=replaced', 'Picture replaced'],
     ['site-settings.share-picture-changed', 'change=removed', 'Picture removed'],
-    ['opening-hours.changed', 'monday=closed>09:00-18:00;sunday=10:00-15:00>closed', 'Monday: Closed to 9:00 AM - 6:00 PM. Sunday: 10:00 AM - 3:00 PM to Closed'],
+    [
+      'opening-hours.changed',
+      'monday=closed>09:00-18:00;sunday=10:00-15:00>closed',
+      'Monday: Closed to 9:00 AM - 6:00 PM. Sunday: 10:00 AM - 3:00 PM to Closed',
+    ],
     ['opening-hours.changed', 'tuesday=00:30-12:00>12:00-23:45', 'Tuesday: 12:30 AM - 12:00 PM to 12:00 PM - 11:45 PM'],
     ['shop-closure.added', 'first=2026-12-25;last=2026-12-25', 'Closed on Dec 25, 2026'],
-    ['shop-closure.added', 'first=2026-12-24;last=2026-12-26;fields=note', 'Closed Dec 24, 2026 to Dec 26, 2026. Note changed'],
-    ['shop-closure.changed', 'first=2026-12-25>2026-12-24;last=2026-12-25;fields=note', 'Closed Dec 24, 2026 to Dec 25, 2026. First day: Dec 25, 2026 to Dec 24, 2026. Note changed'],
+    [
+      'shop-closure.added',
+      'first=2026-12-24;last=2026-12-26;fields=note',
+      'Closed Dec 24, 2026 to Dec 26, 2026. Note changed',
+    ],
+    [
+      'shop-closure.changed',
+      'first=2026-12-25>2026-12-24;last=2026-12-25;fields=note',
+      'Closed Dec 24, 2026 to Dec 25, 2026. First day: Dec 25, 2026 to Dec 24, 2026. Note changed',
+    ],
     ['shop-closure.changed', 'fields=note', 'Note changed'],
     ['shop-closure.deleted', 'first=2026-12-25;last=2026-12-25', 'Closed on Dec 25, 2026'],
     ['product-line.added', 'key=polo;title=Polo Shirts', 'Product line: Polo Shirts'],
     ['product-line.deleted', 'key=polo;title=Polo Shirts', 'Product line: Polo Shirts'],
-    ['product-line.changed', 'fields=title,startsAtPrice,minimumQuantity,cardText;title=Polo>Polo Shirts;price=450.00>500.00;minimum=10>12', 'Title: Polo to Polo Shirts. Starts-at price: ₱450.00 to ₱500.00. Minimum quantity: 10 to 12. Card text changed'],
-    ['product-line.changed', 'fields=startsAtPrice,shortName;price=>450.00;shortName=Polo>Polos', 'Starts-at price: Not set to ₱450.00. Short name: Polo to Polos'],
-    ['product-line.changed', 'fields=description,fabricText,collarText,cutText,namesText,logosText,number', 'Description changed. Fabric text changed. Collar text changed. Cut text changed. Names text changed. Logos text changed. Number changed'],
+    [
+      'product-line.changed',
+      'fields=title,startsAtPrice,minimumQuantity,cardText;title=Polo>Polo Shirts;price=450.00>500.00;minimum=10>12',
+      'Title: Polo to Polo Shirts. Starts-at price: ₱450.00 to ₱500.00. Minimum quantity: 10 to 12. Card text changed',
+    ],
+    [
+      'product-line.changed',
+      'fields=startsAtPrice,shortName;price=>450.00;shortName=Polo>Polos',
+      'Starts-at price: Not set to ₱450.00. Short name: Polo to Polos',
+    ],
+    [
+      'product-line.changed',
+      'fields=description,fabricText,collarText,cutText,namesText,logosText,number',
+      'Description changed. Fabric text changed. Collar text changed. Cut text changed. Names text changed. Logos text changed. Number changed',
+    ],
     ['product-line.moved', 'title=Polo;position=2>1', 'Product line: Polo. Place: 2 to 1'],
-    ['product-line.photo-changed', 'key=polo;title=Polo;slot=main;change=replaced', 'Product line: Polo. Main photo replaced'],
-    ['product-line.photo-changed', 'key=polo;title=Polo;slot=back;change=added', 'Product line: Polo. Back photo added'],
-    ['product-line.photo-changed', 'key=polo;title=Polo;slot=fabric;change=removed', 'Product line: Polo. Fabric photo removed'],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=main;change=replaced',
+      'Product line: Polo. Main photo replaced',
+    ],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=back;change=added',
+      'Product line: Polo. Back photo added',
+    ],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=fabric;change=removed',
+      'Product line: Polo. Fabric photo removed',
+    ],
     ['product-type.line-linked', 'line=Polo>Basketball Jerseys', 'Product line: Polo to Basketball Jerseys'],
     ['product-type.line-linked', 'line=>Polo', 'Product line: Not set to Polo'],
     ['product-type.line-linked', 'line=Polo>', 'Product line: Polo to Not set'],
     ['testimonial.added', 'name=Ana Reyes', 'Testimonial: Ana Reyes'],
     ['testimonial.moved', 'name=Ana Reyes;position=4>1', 'Testimonial: Ana Reyes. Place: 4 to 1'],
-    ['testimonial.changed', 'fields=quote,name,teamOrRole,stars;name=Ana>Anna;stars=4>5', 'Quote changed. Name: Ana to Anna. Team or role changed. Stars: 4 to 5'],
-    ['gallery-photo.added', 'team=Sample Ballers;line=Basketball Jerseys', 'Team: Sample Ballers. Product line: Basketball Jerseys'],
-    ['gallery-photo.changed', 'fields=team,line,pieces,note,photo;team=A>B;line=Moto>Polo', 'Team: A to B. Product line: Moto to Polo. Pieces changed. Note changed. Photo replaced'],
+    [
+      'testimonial.changed',
+      'fields=quote,name,teamOrRole,stars;name=Ana>Anna;stars=4>5',
+      'Quote changed. Name: Ana to Anna. Team or role changed. Stars: 4 to 5',
+    ],
+    [
+      'gallery-photo.added',
+      'team=Sample Ballers;line=Basketball Jerseys',
+      'Team: Sample Ballers. Product line: Basketball Jerseys',
+    ],
+    [
+      'gallery-photo.changed',
+      'fields=team,line,pieces,note,photo;team=A>B;line=Moto>Polo',
+      'Team: A to B. Product line: Moto to Polo. Pieces changed. Note changed. Photo replaced',
+    ],
     ['gallery-photo.changed', 'fields=photo', 'Photo replaced'],
     ['gallery-item.moved', 'kind=upload;name=Sample Riders;position=2>1', 'Gallery item: Sample Riders. Place: 2 to 1'],
-    ['order.public-details-changed', 'number=ORD-2026-0148;fields=line,name', 'Product line changed. Name shown changed'],
+    [
+      'order.public-details-changed',
+      'number=ORD-2026-0148;fields=line,name',
+      'Product line changed. Name shown changed',
+    ],
     ['order.public-details-changed', 'number=ORD-2026-0148;fields=name', 'Name shown changed'],
     ['order.shown-on-website', 'number=ORD-2026-0148', null],
     ['order.taken-off-website', 'number=ORD-2026-0148', null],
@@ -436,13 +508,20 @@ describe('describeAuditDetail for the Phase 11 site content events (AUDIT-01, AU
   });
 
   it('shows "Quote changed" and "Note changed" and never the text, even if a stored pair held it (06 D-27)', () => {
-    expect(describeAuditDetail('testimonial.changed', 'fields=quote;quote=Best jerseys ever>Worst jerseys ever')).toBe('Quote changed');
+    expect(describeAuditDetail('testimonial.changed', 'fields=quote;quote=Best jerseys ever>Worst jerseys ever')).toBe(
+      'Quote changed',
+    );
     expect(describeAuditDetail('shop-closure.changed', 'fields=note;note=Fiesta>Typhoon')).toBe('Note changed');
     expect(describeAuditDetail('gallery-photo.changed', 'fields=note;note=Dri-fit>Mesh')).toBe('Note changed');
-    expect(describeAuditDetail('product-line.changed', 'fields=cardText;cardText=Secret>Other')).toBe('Card text changed');
-    expect(describeAuditDetail('site-settings.changed', 'fields=aboutText,contactEmail,phones;contactEmail=a@b.ph>c@d.ph;phones=0917>0918')).toBe(
-      'About text changed. Shop email changed. Phone numbers changed',
+    expect(describeAuditDetail('product-line.changed', 'fields=cardText;cardText=Secret>Other')).toBe(
+      'Card text changed',
     );
+    expect(
+      describeAuditDetail(
+        'site-settings.changed',
+        'fields=aboutText,contactEmail,phones;contactEmail=a@b.ph>c@d.ph;phones=0917>0918',
+      ),
+    ).toBe('About text changed. Shop email changed. Phone numbers changed');
   });
 
   it('never says an email address, and never returns an @ from a stored email (D-25)', () => {
@@ -770,7 +849,9 @@ describe('AUDIT_DETAIL_SENTENCES (the list the owner reviews the "What changed" 
   });
 
   it('lists the fixed Phase 11 words too, with Quote changed and Note changed, so the owner reviews them (AUDIT-02)', () => {
-    const phase11 = AUDIT_DETAIL_SENTENCES.filter(({ action }) => auditActionGroup(action) === 'Site content' || action.startsWith('order.public'));
+    const phase11 = AUDIT_DETAIL_SENTENCES.filter(
+      ({ action }) => auditActionGroup(action) === 'Site content' || action.startsWith('order.public'),
+    );
     const sentences = phase11.map((entry) => entry.sentence);
 
     expect(sentences).toEqual(

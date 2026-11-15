@@ -104,10 +104,14 @@ for (const width of [390, 1440]) {
         const barsBottom = Math.max(at.header, at.bar);
         if (browserName === 'firefox') {
           // Firefox scrolls a focused control only until part of it shows (P11-BL-46): part of the tile must still be in view.
-          expect(at.bottom, `${at.label ?? ''} is not entirely under the header and the bar`).toBeGreaterThan(barsBottom);
+          expect(at.bottom, `${at.label ?? ''} is not entirely under the header and the bar`).toBeGreaterThan(
+            barsBottom,
+          );
           expect(at.top, `${at.label ?? ''} is not entirely below the window`).toBeLessThan(at.windowHeight);
         } else {
-          expect(at.top, `${at.label ?? ''} starts below the header and the bar`).toBeGreaterThanOrEqual(barsBottom - 1);
+          expect(at.top, `${at.label ?? ''} starts below the header and the bar`).toBeGreaterThanOrEqual(
+            barsBottom - 1,
+          );
         }
         await page.keyboard.press('Tab');
       }

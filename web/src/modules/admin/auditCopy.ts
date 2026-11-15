@@ -554,7 +554,9 @@ function clockText(hours: string, minutes: string): string {
 const asHours: ValueFormat = (value) => {
   if (value === 'closed') return 'Closed';
   const match = HOURS_TEXT.exec(value);
-  return match === null ? null : `${clockText(match[1] ?? '', match[2] ?? '')} - ${clockText(match[3] ?? '', match[4] ?? '')}`;
+  return match === null
+    ? null
+    : `${clockText(match[1] ?? '', match[2] ?? '')} - ${clockText(match[3] ?? '', match[4] ?? '')}`;
 };
 
 /** "Label: old to new" for a change pair; an empty side reads "Not set". A side that cannot be read gives "<Label> changed". */
@@ -596,7 +598,11 @@ interface FieldRule {
 const named = (label: string): FieldRule => ({ label });
 
 /** A short value the log stores as old and new under the key `pairKey`. */
-const shown = (label: string, pairKey: string, format: ValueFormat = asText): FieldRule => ({ label, pair: pairKey, format });
+const shown = (label: string, pairKey: string, format: ValueFormat = asText): FieldRule => ({
+  label,
+  pair: pairKey,
+  format,
+});
 
 const SITE_SETTINGS_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
   ['businessName', shown('Business name', 'businessName')],
@@ -661,7 +667,8 @@ function fieldSentences(parts: readonly DetailPart[], rules: ReadonlyMap<string,
   const sentences: string[] = [];
   for (const field of list.to.split(',')) {
     const rule = rules.get(field);
-    const change = rule?.pair === undefined ? undefined : parts.find((part) => part.key === rule.pair && part.from !== null);
+    const change =
+      rule?.pair === undefined ? undefined : parts.find((part) => part.key === rule.pair && part.from !== null);
     const sentence =
       rule === undefined
         ? OTHER_DETAIL_CHANGED
@@ -728,10 +735,7 @@ const SITE_CONTENT_DETAIL: ReadonlyMap<string, DetailReader> = new Map<string, D
       return sentence === undefined ? [] : [sentence];
     },
   ],
-  [
-    'opening-hours.changed',
-    (parts) => [...DAY_NAMES].flatMap(([key, label]) => changeOf(parts, key, label, asHours)),
-  ],
+  ['opening-hours.changed', (parts) => [...DAY_NAMES].flatMap(([key, label]) => changeOf(parts, key, label, asHours))],
   ...['shop-closure.added', 'shop-closure.changed', 'shop-closure.deleted'].map((action): [string, DetailReader] => [
     action,
     (parts) => [
@@ -756,7 +760,10 @@ const SITE_CONTENT_DETAIL: ReadonlyMap<string, DetailReader> = new Map<string, D
   ],
   ['product-type.line-linked', (parts) => changeOf(parts, 'line', 'Product line', asText)],
   ...['testimonial.added', 'testimonial.hidden', 'testimonial.shown', 'testimonial.deleted'].map(
-    (action): [string, DetailReader] => [action, (parts) => valueSentence('Testimonial', findPart(parts, 'name'), asText)],
+    (action): [string, DetailReader] => [
+      action,
+      (parts) => valueSentence('Testimonial', findPart(parts, 'name'), asText),
+    ],
   ),
   ['testimonial.changed', (parts) => fieldSentences(parts, TESTIMONIAL_FIELDS)],
   [
@@ -766,11 +773,17 @@ const SITE_CONTENT_DETAIL: ReadonlyMap<string, DetailReader> = new Map<string, D
   ...['gallery-photo.added', 'gallery-photo.hidden', 'gallery-photo.shown', 'gallery-photo.deleted'].map(
     (action): [string, DetailReader] => [
       action,
-      (parts) => [...valueSentence('Team', findPart(parts, 'team'), asText), ...valueSentence('Product line', findPart(parts, 'line'), asText)],
+      (parts) => [
+        ...valueSentence('Team', findPart(parts, 'team'), asText),
+        ...valueSentence('Product line', findPart(parts, 'line'), asText),
+      ],
     ],
   ),
   ['gallery-photo.changed', (parts) => fieldSentences(parts, GALLERY_FIELDS)],
-  ['gallery-item.moved', (parts) => [...valueSentence('Gallery item', findPart(parts, 'name'), asText), ...placeOf(parts)]],
+  [
+    'gallery-item.moved',
+    (parts) => [...valueSentence('Gallery item', findPart(parts, 'name'), asText), ...placeOf(parts)],
+  ],
   ['order.public-details-changed', (parts) => fieldSentences(parts, ORDER_PUBLIC_FIELDS)],
   // The order number is already the Order line of the entry, so these four have no What changed line.
   ['order.public-consent-recorded', () => []],

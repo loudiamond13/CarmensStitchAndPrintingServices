@@ -242,7 +242,13 @@ export function PhotoSlotView({
           </span>
         )}
         {photo !== null && removable && (
-          <Button variant="ghost-danger" size="sm" icon="trash-2" aria-disabled={waiting('remove')} onClick={onAskRemove}>
+          <Button
+            variant="ghost-danger"
+            size="sm"
+            icon="trash-2"
+            aria-disabled={waiting('remove')}
+            onClick={onAskRemove}
+          >
             {COPY.remove(noun)}
           </Button>
         )}

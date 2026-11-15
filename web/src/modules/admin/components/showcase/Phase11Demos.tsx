@@ -232,7 +232,12 @@ export function Phase11Demos() {
         <PhonesDemo phones={[GLOBE, LANDLINE, SMART, SUN]} />
       </DemoCase>
       <DemoCase id="site-content-phone-numbers-main-moved">
-        <PhonesDemo phones={[{ ...GLOBE, isMain: false }, { ...LANDLINE, isMain: true }]} />
+        <PhonesDemo
+          phones={[
+            { ...GLOBE, isMain: false },
+            { ...LANDLINE, isMain: true },
+          ]}
+        />
       </DemoCase>
       <DemoCase id="public-website-card-no-ok">
         <CardDemo order={demoOrder({})} />

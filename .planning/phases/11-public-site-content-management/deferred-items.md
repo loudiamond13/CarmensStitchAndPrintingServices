@@ -1,6 +1,6 @@
 ---
 created: 2026-11-12T20:05:00-06:00
-updated: 2026-11-14T19:55:00-06:00
+updated: 2026-11-15T07:05:00-06:00
 ---
 
 # Phase 11: deferred items found during execution
@@ -46,6 +46,8 @@ Out-of-scope problems found while executing a plan. They were not fixed in that 
 - **Where:** `web/e2e/gallery.spec.ts`, `link-preview.spec.ts`, `public-sweep.spec.ts`, `site-content-sweep.spec.ts`, `web/src/modules/admin/auditCopy.ts`, `auditCopy.test.ts`, `components/PhotoSlot.tsx`, `components/showcase/Phase11Demos.tsx` and `Phase11Demos.test.tsx`.
 - **What happens:** Prettier wants lines over 120 characters wrapped (for example `auditCopy.ts` lines 557, 599 and 664). The two files plan 11-39 changed pass. The same nine files are unchanged from the base commit `3435461b`, so the failure was there before this plan.
 - **Suggested fix:** run `npm --prefix web run format` on those nine files in a small formatting plan, then re-run `verify`.
+- **Fixed (2026-11-15):** Prettier was run on the nine files and `format:check` now passes for all of `web/`. It would have failed CI step "4 web prettier".
+- **Flakes seen in that `verify` run:** 2 of 10710 tests failed under load and passed when their two files were re-run alone (112 of 112): `OrderFormPage.test.tsx` "has no axe violations with the card in each state" (5000 ms timeout) and `GalleryPage.test.tsx` "asks for the lightbox chunk only when a tile is first pressed" ("Close viewer" not found in time).
 
 ### D-39-2: e2e could not run in the plan 11-39 agent worktree
 
