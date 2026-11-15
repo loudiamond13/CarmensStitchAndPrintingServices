@@ -1613,24 +1613,54 @@ blocked: 3
   reason: "User reported: image is not showing after replacing the default (Custom Design line: the main, Back view and Fabric detail slots still show the empty dotted placeholders)"
   severity: major
   test: 4
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "Account setup, not code: the Cloudinary account behind the Development host has only the 13 Phase 9 named sizes. The 21 sizes Phase 11 added (csps_cat_*, csps_strip_*, csps_w_*, csps_sq_200/400/720, csps_share_*) were never created, because the one-time setup command (D-44) has not been run. Cloudinary answers 400 Unknown transformation for every address that uses one, and LazyImage shows the empty placeholder. Stored files load at the old sizes (200)."
+  artifacts:
+    - path: "src/Csps.Infrastructure/Images/ImageNamedSizes.cs"
+      issue: "All lists 34 sizes; the account has only the first 13"
+    - path: "tools/Csps.CloudinarySetup"
+      issue: "not yet run for the 21 Phase 11 sizes (docs/operations/cloudinary-setup.md says after deploy, but dev UAT needs it first)"
+    - path: "web/src/components/states/LazyImage.tsx"
+      issue: "a load error silently becomes the placeholder, so a missing size looks like saved but not shown"
+  missing:
+    - "Owner runs dotnet run --project tools/Csps.CloudinarySetup -- --check, then without --check, on the account the dev host uses (expect 13 exist, 21 missing, then 34 exist)"
+    - "Re-run UAT tests 4, 6 (with its off, delete and restore steps) and 7"
+  debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-6
   truth: "An order shown on the website appears in the public Gallery with its cover photo"
   status: failed
   reason: "User reported: theres no cover photo, is this inteded? the order has photos (the test order shows the empty dotted placeholder)"
   severity: major
   test: 6
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "Account setup, not code: the Cloudinary account behind the Development host has only the 13 Phase 9 named sizes. The 21 sizes Phase 11 added (csps_cat_*, csps_strip_*, csps_w_*, csps_sq_200/400/720, csps_share_*) were never created, because the one-time setup command (D-44) has not been run. Cloudinary answers 400 Unknown transformation for every address that uses one, and LazyImage shows the empty placeholder. Stored files load at the old sizes (200)."
+  artifacts:
+    - path: "src/Csps.Infrastructure/Images/ImageNamedSizes.cs"
+      issue: "All lists 34 sizes; the account has only the first 13"
+    - path: "tools/Csps.CloudinarySetup"
+      issue: "not yet run for the 21 Phase 11 sizes (docs/operations/cloudinary-setup.md says after deploy, but dev UAT needs it first)"
+    - path: "web/src/components/states/LazyImage.tsx"
+      issue: "a load error silently becomes the placeholder, so a missing size looks like saved but not shown"
+  missing:
+    - "Owner runs dotnet run --project tools/Csps.CloudinarySetup -- --check, then without --check, on the account the dev host uses (expect 13 exist, 21 missing, then 34 exist)"
+    - "Re-run UAT tests 4, 6 (with its off, delete and restore steps) and 7"
+  debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-7
   truth: "A gallery photo and the link preview picture upload and show, in Site Content and on the public pages"
   status: failed
   reason: "User reported: the picture uploads but doesnt show either (Link preview picture card says Saved but shows the empty placeholder; gallery item TEST THIS shows the empty placeholder on /gallery)"
   severity: major
   test: 7
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
+  root_cause: "Account setup, not code: the Cloudinary account behind the Development host has only the 13 Phase 9 named sizes. The 21 sizes Phase 11 added (csps_cat_*, csps_strip_*, csps_w_*, csps_sq_200/400/720, csps_share_*) were never created, because the one-time setup command (D-44) has not been run. Cloudinary answers 400 Unknown transformation for every address that uses one, and LazyImage shows the empty placeholder. Stored files load at the old sizes (200)."
+  artifacts:
+    - path: "src/Csps.Infrastructure/Images/ImageNamedSizes.cs"
+      issue: "All lists 34 sizes; the account has only the first 13"
+    - path: "tools/Csps.CloudinarySetup"
+      issue: "not yet run for the 21 Phase 11 sizes (docs/operations/cloudinary-setup.md says after deploy, but dev UAT needs it first)"
+    - path: "web/src/components/states/LazyImage.tsx"
+      issue: "a load error silently becomes the placeholder, so a missing size looks like saved but not shown"
+  missing:
+    - "Owner runs dotnet run --project tools/Csps.CloudinarySetup -- --check, then without --check, on the account the dev host uses (expect 13 exist, 21 missing, then 34 exist)"
+    - "Re-run UAT tests 4, 6 (with its off, delete and restore steps) and 7"
+  debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-19
   truth: "Every upload is redrawn in the browser before it is sent, so a photo's location and other metadata never leave the phone; only a HEIC the browser cannot open goes as it is (D-P11-BL-65)"
   status: failed
