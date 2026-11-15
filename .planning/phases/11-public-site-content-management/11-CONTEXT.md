@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-15T07:30:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-15T07:45:00-06:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -104,6 +104,7 @@ All rulings below: owner, 2026-11-11, in this discussion.
 - **D-125 (third code review, IN-3-03, e2e lock timing):** option 1. The site content lock wait in `web/e2e/site-content-lock.ts` drops from 7 to 6 minutes, so a lock-taking test keeps 2 of its 8 minute budget for setup and fails with the clear lock message, not a generic timeout. The test budgets stay at 8 minutes. `web/scripts/e2e-lock-timeouts.test.ts` checks the 2 minute margin. Applied in `eb986cf7`. (owner, 2026-11-15)
 - **D-126 (validate-phase, G-11-19 test gap):** no automated test is added for removing GPS or location data from uploaded photos. The owner's reason: nobody will upload a photo that holds location data. The redraw rules stay covered by `web/src/utils/images.test.ts`. This ruling covers only the automated test; UAT test 19 in `11-UAT.md` is unchanged. (owner, 2026-11-15)
 - **D-127 (ship gate, go-live steps):** option A. UAT tests 21 to 23 (live Cloudinary setup, real content entry, Facebook Sharing Debugger) and VERIFICATION human items 2 to 4 cannot be done before the deploy. They are deferred to after the deploy and tracked in `docs/operations/go-live-public-site.md`, not shipping blockers. UAT test 19 counts as passed: gap G-11-19 was closed by plan 11-39 (D-P11-BL-65), and the owner accepts that fix in place of the manual phone-photo re-test. (owner, 2026-11-15)
+- **D-128 (PR #25, CodeQL alert 6):** option A. Alert 6 (`js/disabling-certificate-validation`, `web/scripts/lighthouse.mjs` `answersOk`) is dismissed in GitHub as "used in tests". The probe only polls the localhost test host the script starts with the .NET dev certificate, and Chrome already ignores certificate errors in the same run. No code change. The alert predates Phase 11 (2026-10-09). (owner, 2026-11-15)
 
 ### Go-live (plan 11-38)
 - **Deploy gap applied (D-123):** plan 11-38 Task 2 was already answered by D-123 (option A, "fill in right after", owner, 2026-11-11), so no new D-number was needed and the checkpoint was skipped. `docs/operations/go-live-public-site.md` puts Business Info and the opening hours first after the deploy, and no prefill migration was written. The checklist also holds the Cloudinary setup step (D-44, P11-BL-21), the line review and prices (D-06, D-40) and the live checks, including one shared link in the Facebook Sharing Debugger (P11-BL-40 item 4). (applied 2026-11-13)
