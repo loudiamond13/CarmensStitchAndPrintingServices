@@ -4,11 +4,11 @@ phase: 11-public-site-content-management
 source: [11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 11-04-SUMMARY.md, 11-05-SUMMARY.md, 11-06-SUMMARY.md, 11-07-SUMMARY.md, 11-08-SUMMARY.md, 11-09-SUMMARY.md, 11-10-SUMMARY.md, 11-11-SUMMARY.md, 11-12-SUMMARY.md, 11-13-SUMMARY.md, 11-14-SUMMARY.md, 11-15-SUMMARY.md, 11-16-SUMMARY.md, 11-17-SUMMARY.md, 11-18-SUMMARY.md, 11-19-SUMMARY.md, 11-20-SUMMARY.md, 11-21-SUMMARY.md, 11-22-SUMMARY.md, 11-23-SUMMARY.md, 11-24-SUMMARY.md, 11-25-SUMMARY.md, 11-26-SUMMARY.md, 11-27-SUMMARY.md, 11-28-SUMMARY.md, 11-29-SUMMARY.md, 11-30-SUMMARY.md, 11-31-SUMMARY.md, 11-32-SUMMARY.md, 11-33-SUMMARY.md, 11-34-SUMMARY.md, 11-35-SUMMARY.md, 11-36-SUMMARY.md, 11-37-SUMMARY.md, 11-38-SUMMARY.md]
 started: 2026-11-14T00:05:00-06:00
 created: 2026-11-14T00:05:00-06:00
-updated: 2026-11-15T01:02:29.358Z
+updated: 2026-11-14T19:45:00-06:00
 ---
 
 # Phase 11 UAT: Public Site & Content Management
-*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:02:28-06:00*
+*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:45:00-06:00*
 
 All 38 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 13), then look and wording (14 to 16), then gates, rulings and reviews (17 to 20), then live-site steps (21 to 23).
 Tests 24 to 263 are passed by automated tests (coverage blocks); they are not asked.
@@ -39,7 +39,9 @@ result: pass
 ### 4. Edit a product line and its price
 expected: In Site Content > Products open a line, change its name, price and photos, then Save. The Products page shows the new name and the price exactly as entered (no rounding in the browser). The line's web address (its key) does not change after a rename, so an old shared link still works. Delete shows only for a line not in use, asks first with Cancel focused, and an in-use refusal shows the server's message.
 covers: 11-17 D10, 11-18 D8, 11-20 D8
-result: issue
+result: pass
+retest: "pass" (owner, 2026-11-14, after the owner ran the Cloudinary setup command on the dev account: 13 exist, 21 created)
+first_result: issue
 reported: "image is not showing after replacing the default" (screenshot: Products page, line 06/06 Custom Design, the main, Back view and Fabric detail slots still show the empty dotted placeholders)
 severity: major
 
@@ -51,7 +53,9 @@ result: pass
 ### 6. Show an order on the website
 expected: On an order with the customer's OK, turn on Show on the website with a photo and save. It appears in the public Gallery. Turning it off removes it from the Gallery while its photos stay on the order. Deleting the order turns Show on the website off, and restoring it does not put it back. The Gallery tab offers no hide, edit or delete for order items, only a link to the order.
 covers: 11-23 D8 (D-P11-BL-29), 11-27 D8, 11-32 D6
-result: issue
+result: pass
+retest: "pass" (owner, 2026-11-14, after the owner ran the Cloudinary setup command on the dev account: 13 exist, 21 created)
+first_result: issue
 reported: "theres no cover photo, is this inteded? the order has photos" (screenshot: public Gallery, a test order (Basketball, 12 pcs), shows the empty dotted placeholder; the order is listed and the pills count it)
 severity: major
 note: The order does appear in the Gallery. The off, delete and restore steps were not reported on; re-check them after the fix. Likely the same cause as test 4 (photos not drawn on public pages).
@@ -59,7 +63,9 @@ note: The order does appear in the Gallery. The off, delete and restore steps we
 ### 7. Gallery uploads and the share picture
 expected: In Site Content > Gallery add a photo, and set the default link preview (share) picture. Both upload and show. Each new share picture gets a new address (not a reused one).
 covers: 11-28 D9, 11-30 D10, 11-34 D9
-result: issue
+result: pass
+retest: "pass" (owner, 2026-11-14, after the owner ran the Cloudinary setup command on the dev account: 13 exist, 21 created)
+first_result: issue
 reported: "the picture uploads but doesnt show either" (screenshots: the Link preview picture card says Saved with Replace and Remove offered but the preview is the empty dotted placeholder; the public Gallery lists a test gallery upload and the test order, both with empty placeholders)
 severity: major
 note: The upload itself works. The picture is missing even in the admin preview, so this is not only the public pages. Likely the same cause as tests 4 and 6.
@@ -1599,8 +1605,8 @@ coverage_id: 11-38-D3
 ## Summary
 
 total: 263
-passed: 256
-issues: 4
+passed: 259
+issues: 1
 pending: 0
 skipped: 0
 blocked: 3
@@ -1609,7 +1615,8 @@ blocked: 3
 
 - gap_id: G-11-4
   truth: "After a Manager replaces a product line photo in Site Content > Products and saves, the public Products page shows the new photo"
-  status: failed
+  status: resolved
+  resolved_note: "Account setup step, no code change and no gap plan: the owner ran tools/Csps.CloudinarySetup on the dev account (21 sizes created) and re-tested test 4: pass (2026-11-14)."
   reason: "User reported: image is not showing after replacing the default (Custom Design line: the main, Back view and Fabric detail slots still show the empty dotted placeholders)"
   severity: major
   test: 4
@@ -1627,7 +1634,8 @@ blocked: 3
   debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-6
   truth: "An order shown on the website appears in the public Gallery with its cover photo"
-  status: failed
+  status: resolved
+  resolved_note: "Account setup step, no code change and no gap plan: the owner ran tools/Csps.CloudinarySetup on the dev account (21 sizes created) and re-tested test 6: pass (2026-11-14)."
   reason: "User reported: theres no cover photo, is this inteded? the order has photos (the test order shows the empty dotted placeholder)"
   severity: major
   test: 6
@@ -1645,7 +1653,8 @@ blocked: 3
   debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-7
   truth: "A gallery photo and the link preview picture upload and show, in Site Content and on the public pages"
-  status: failed
+  status: resolved
+  resolved_note: "Account setup step, no code change and no gap plan: the owner ran tools/Csps.CloudinarySetup on the dev account (21 sizes created) and re-tested test 7: pass (2026-11-14)."
   reason: "User reported: the picture uploads but doesnt show either (Link preview picture card says Saved but shows the empty placeholder; gallery item TEST THIS shows the empty placeholder on /gallery)"
   severity: major
   test: 7
