@@ -166,8 +166,12 @@ export const barTwoClasses = tw('pg-phone:grid-cols-2');
 /** One column: Call us fills the bar when there is no Messenger link. */
 export const barOneClasses = tw('pg-phone:grid-cols-1');
 
+// Both bar buttons share the 48px button shape; public-look.node.test.ts keeps the two in step.
+
 /** `.s-a-primary` in the bar. */
-export const barPrimaryClasses = tw('border-primary bg-primary text-on-primary hover:bg-primary-hover');
+export const barPrimaryClasses = tw(
+  'inline-flex h-12 items-center justify-center gap-2 rounded-sm border border-primary bg-primary px-3 text-16 font-button whitespace-nowrap text-on-primary no-underline hover:bg-primary-hover',
+);
 
 /** `.s-a-secondary` in the bar. */
 export const barSecondaryClasses = tw(

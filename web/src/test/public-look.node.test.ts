@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildCss } from '../../scripts/class-gate.mjs';
-import { barClasses, barSecondaryClasses } from '../modules/public/components/contact.recipe';
+import { barClasses, barPrimaryClasses, barSecondaryClasses } from '../modules/public/components/contact.recipe';
 
 const srcDir = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = join(srcDir, 'modules', 'public');
@@ -124,6 +124,13 @@ describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
     expect(barClasses.split(/\s+/)).toContain('border-t');
     const sum = 1 + 4 * Number(top?.[1]) + 4 * Number(button?.[1]) + Number(bottom?.[1]);
     expect(Number(token?.[1])).toBe(sum);
+  });
+
+  it('gives both bar buttons the same 48px button shape, so either bar is as tall as the token', () => {
+    const shape = ['inline-flex', 'h-12', 'items-center', 'justify-center', 'gap-2', 'rounded-sm', 'border', 'px-3'];
+    for (const classes of [barPrimaryClasses, barSecondaryClasses]) {
+      expect(classes.split(/\s+/)).toEqual(expect.arrayContaining(shape));
+    }
   });
 
   it('holds no bare px padding or margin in the public module', () => {
