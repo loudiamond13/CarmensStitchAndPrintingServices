@@ -115,6 +115,21 @@ function cellText(row: HTMLElement, label: string): string {
   return row.querySelector(`td[data-label="${label}"]`)?.textContent ?? '';
 }
 
+// A name only the tests use, written to one photo so a list read again shows on screen once the tab has handled it.
+const SENTINEL = 'Hidden Sentinel Team';
+
+/** The items with the hidden upload renamed. */
+function renameHiddenTeam(items: GalleryItemFixture[], name: string): GalleryItemFixture[] {
+  return items.map((item) => (item.id === GALLERY_IDS.hiddenTeam ? { ...item, name } : item));
+}
+
+/** The Photo cells of every row, joined. */
+function photoNames(table: HTMLElement): string {
+  return bodyRows(table)
+    .map((row) => cellText(row, 'Photo'))
+    .join(' | ');
+}
+
 describe('the list', () => {
   it('has the card head, the Add Photo button and the table named "Gallery items"', async () => {
     galleryItemsBackend();
@@ -660,16 +675,21 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
   });
 
   it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = galleryItemsBackend(undefined, { onMove: () => problemAnswer(500) });
+    const backend = galleryItemsBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        // Another photo is renamed meanwhile, so the list read again shows on screen only once the tab has handled it.
+        current.items = renameHiddenTeam(current.items, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Move Sample Barangay Riders down'));
     expect(await screen.findByText("Couldn't move Sample Barangay Riders")).toBeVisible();
     await waitFor(() => {
-      expect(backend.gets.length).toBeGreaterThanOrEqual(2);
+      expect(photoNames(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Move Sample Barangay Riders down'));
 
     await waitFor(() => {
@@ -679,22 +699,63 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
   });
 
   it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = galleryItemsBackend(undefined, { onHide: () => problemAnswer(500) });
+    const backend = galleryItemsBackend(undefined, {
+      onHide: (_id, current) => {
+        current.items = renameHiddenTeam(current.items, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Hide Sample Old Hoopers'));
     expect(await screen.findByText("Couldn't hide Sample Old Hoopers")).toBeVisible();
     await waitFor(() => {
-      expect(backend.gets.length).toBeGreaterThanOrEqual(2);
+      expect(photoNames(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Hide Sample Old Hoopers'));
 
     await waitFor(() => {
       expect(backend.hideKeys).toHaveLength(2);
     });
     expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
+
+  it('sends a new Idempotency-Key for the same Hide once a lost answer and the list read again show the photo already hidden', async () => {
+    let answerLost = true;
+    const backend = galleryItemsBackend(undefined, {
+      onHide: (id, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The hide ran on the server, but its answer never came back.
+        current.items = current.items.map((item) => (item.id === id ? { ...item, isShown: false } : item));
+        return problemAnswer(500);
+      },
+      onMove: () => problemAnswer(500),
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Hide Sample Old Hoopers'));
+    expect(await screen.findByText("Couldn't hide Sample Old Hoopers")).toBeVisible();
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 3), 'Status')).toBe('Hidden');
+    });
+    // The photo is shown again by someone else. A failed move on another photo reads the list again, so the tab sees it.
+    answerLost = false;
+    backend.items = backend.items.map((item) => (item.id === GALLERY_IDS.hoopers ? { ...item, isShown: true } : item));
+    await user.click(action('Move Sample Barangay Riders down'));
+    expect(await screen.findByText("Couldn't move Sample Barangay Riders")).toBeVisible();
+    await waitFor(() => {
+      expect(cellText(rowAt(bodyRows(table), 3), 'Status')).toBe('Shown');
+    });
+    await user.click(action('Hide Sample Old Hoopers'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).not.toBe(backend.hideKeys[0]);
   });
 
   it('a hide that finds the upload gone says so and reads the list again', async () => {

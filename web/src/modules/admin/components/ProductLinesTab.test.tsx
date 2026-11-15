@@ -79,6 +79,26 @@ function cellText(row: HTMLElement, label: string): string {
   return row.querySelector(`td[data-label="${label}"]`)?.textContent ?? '';
 }
 
+// A title only the tests use, written to one line so a list read again shows on screen once the tab has handled it.
+const SENTINEL = 'Volleyball Updated';
+
+/** The lines with one renamed. */
+function renameLine(lines: ReturnType<typeof demoLines>, id: string, title: string): ReturnType<typeof demoLines> {
+  return lines.map((line) => (line.id === id ? { ...line, title } : line));
+}
+
+/** The Product line cells of every row, joined. */
+function lineTitles(table: HTMLElement): string {
+  return bodyRows(table)
+    .map((row) => cellText(row, 'Product line'))
+    .join(' | ');
+}
+
+/** The Status cell of the Polo Shirts row (the fifth). */
+function lineStatus(table: HTMLElement): string {
+  return cellText(bodyRows(table)[4] ?? table, 'Status');
+}
+
 describe('the Product lines card (S3, CONT-02)', () => {
   it('has the card heading and hint and Add Product Line, a link to the new line editor', async () => {
     productLinesBackend();
@@ -439,16 +459,21 @@ describe('Move up and Move down (S3, D-51)', () => {
   });
 
   it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = productLinesBackend(undefined, { onMove: () => problemAnswer(500) });
+    const backend = productLinesBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        // Another line is renamed meanwhile, so the list read again shows on screen only once the tab has handled it.
+        current.lines = renameLine(current.lines, LINE_IDS.volleyball, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Move Moto and Riding Jerseys up'));
     expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
     await waitFor(() => {
-      expect(backend.listGets).toBeGreaterThanOrEqual(2);
+      expect(lineTitles(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Move Moto and Riding Jerseys up'));
 
     await waitFor(() => {
@@ -460,10 +485,13 @@ describe('Move up and Move down (S3, D-51)', () => {
   it('a lost move does not drop the key of a Hide whose answer was lost too', async () => {
     const backend = productLinesBackend(undefined, {
       onHide: () => problemAnswer(500),
-      onMove: () => problemAnswer(500),
+      onMove: (_id, _direction, current) => {
+        current.lines = renameLine(current.lines, LINE_IDS.volleyball, SENTINEL);
+        return problemAnswer(500);
+      },
     });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Hide Polo Shirts'));
     expect(await screen.findByText("Couldn't hide Polo Shirts")).toBeVisible();
@@ -473,9 +501,8 @@ describe('Move up and Move down (S3, D-51)', () => {
     await user.click(action('Move Moto and Riding Jerseys up'));
     expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
     await waitFor(() => {
-      expect(backend.listGets).toBeGreaterThanOrEqual(3);
+      expect(lineTitles(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Hide Polo Shirts'));
 
     await waitFor(() => {
@@ -512,22 +539,63 @@ describe('Hide and Show (S3, D-08, PUB-03)', () => {
   });
 
   it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = productLinesBackend(undefined, { onHide: () => problemAnswer(500) });
+    const backend = productLinesBackend(undefined, {
+      onHide: (_id, current) => {
+        current.lines = renameLine(current.lines, LINE_IDS.volleyball, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Hide Polo Shirts'));
     expect(await screen.findByText("Couldn't hide Polo Shirts")).toBeVisible();
     await waitFor(() => {
-      expect(backend.listGets).toBeGreaterThanOrEqual(2);
+      expect(lineTitles(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Hide Polo Shirts'));
 
     await waitFor(() => {
       expect(backend.hideKeys).toHaveLength(2);
     });
     expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
+
+  it('sends a new Idempotency-Key for the same Hide once a lost answer and the list read again show the line already hidden', async () => {
+    let answerLost = true;
+    const backend = productLinesBackend(undefined, {
+      onHide: (id, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The hide ran on the server, but its answer never came back.
+        current.lines = current.lines.map((line) => (line.id === id ? { ...line, isActive: false } : line));
+        return problemAnswer(500);
+      },
+      onMove: () => problemAnswer(500),
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Hide Polo Shirts'));
+    expect(await screen.findByText("Couldn't hide Polo Shirts")).toBeVisible();
+    await waitFor(() => {
+      expect(lineStatus(table)).toBe('Hidden');
+    });
+    // The line is shown again by someone else. A failed move on another line reads the list again, so the tab sees it.
+    answerLost = false;
+    backend.lines = backend.lines.map((line) => (line.id === LINE_IDS.polo ? { ...line, isActive: true } : line));
+    await user.click(action('Move Moto and Riding Jerseys up'));
+    expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
+    await waitFor(() => {
+      expect(lineStatus(table)).toBe('Shown');
+    });
+    await user.click(action('Hide Polo Shirts'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).not.toBe(backend.hideKeys[0]);
   });
 
   it('shows a hidden line again with its toast and keeps focus on the toggle, now Hide', async () => {

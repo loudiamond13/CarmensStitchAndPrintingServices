@@ -95,6 +95,26 @@ function fiveShown(): TestimonialFixture[] {
   ];
 }
 
+// A name only the tests use, written to one testimonial so a list read again shows on screen once the tab has handled it.
+const SENTINEL = 'Carlo Updated';
+
+/** The testimonials with Carlo Mendoza renamed. */
+function renameTestimonial(items: TestimonialFixture[], name: string): TestimonialFixture[] {
+  return items.map((item) => (item.id === TESTIMONIAL_IDS.carlo ? { ...item, name } : item));
+}
+
+/** The Name cells of every row, joined. */
+function names(table: HTMLElement): string {
+  return bodyRows(table)
+    .map((row) => cellText(row, 'Name'))
+    .join(' | ');
+}
+
+/** The Status cell of the Ana Reyes row (the second). */
+function statusOfAna(table: HTMLElement): string {
+  return cellText(bodyRows(table)[1] ?? table, 'Status');
+}
+
 describe('the Testimonials card (S5, CONT-03)', () => {
   it('has the card heading and hint and the Add Testimonial button', async () => {
     testimonialsBackend();
@@ -469,16 +489,21 @@ describe('Move up and Move down (S5, D-51)', () => {
   });
 
   it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = testimonialsBackend(undefined, { onMove: () => problemAnswer(500) });
+    const backend = testimonialsBackend(undefined, {
+      onMove: (_id, _direction, current) => {
+        // Another testimonial is renamed meanwhile, so the list read again shows on screen only once the tab has handled it.
+        current.items = renameTestimonial(current.items, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Move testimonial from Ben Santos up'));
     expect(await screen.findByText("Couldn't move the testimonial from Ben Santos")).toBeVisible();
     await waitFor(() => {
-      expect(backend.gets).toBeGreaterThanOrEqual(2);
+      expect(names(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Move testimonial from Ben Santos up'));
 
     await waitFor(() => {
@@ -490,22 +515,63 @@ describe('Move up and Move down (S5, D-51)', () => {
 
 describe('Hide and Show (S5, PUB-03)', () => {
   it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
-    const backend = testimonialsBackend(undefined, { onHide: () => problemAnswer(500) });
+    const backend = testimonialsBackend(undefined, {
+      onHide: (_id, current) => {
+        current.items = renameTestimonial(current.items, SENTINEL);
+        return problemAnswer(500);
+      },
+    });
     const user = userEvent.setup();
-    await openTab();
+    const { table } = await openTab();
 
     await user.click(action('Hide testimonial from Ana Reyes'));
     expect(await screen.findByText("Couldn't hide the testimonial from Ana Reyes")).toBeVisible();
     await waitFor(() => {
-      expect(backend.gets).toBeGreaterThanOrEqual(2);
+      expect(names(table)).toContain(SENTINEL);
     });
-    await new Promise((resolve) => setTimeout(resolve, 50));
     await user.click(action('Hide testimonial from Ana Reyes'));
 
     await waitFor(() => {
       expect(backend.hideKeys).toHaveLength(2);
     });
     expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
+
+  it('sends a new Idempotency-Key for the same Hide once a lost answer and the list read again show the testimonial already hidden', async () => {
+    let answerLost = true;
+    const backend = testimonialsBackend(undefined, {
+      onHide: (id, current) => {
+        if (!answerLost) {
+          return undefined;
+        }
+        // The hide ran on the server, but its answer never came back.
+        current.items = current.items.map((item) => (item.id === id ? { ...item, isShown: false } : item));
+        return problemAnswer(500);
+      },
+      onMove: () => problemAnswer(500),
+    });
+    const user = userEvent.setup();
+    const { table } = await openTab();
+
+    await user.click(action('Hide testimonial from Ana Reyes'));
+    expect(await screen.findByText("Couldn't hide the testimonial from Ana Reyes")).toBeVisible();
+    await waitFor(() => {
+      expect(statusOfAna(table)).toContain('Hidden');
+    });
+    // The testimonial is shown again by someone else. A failed move on another one reads the list again, so the tab sees it.
+    answerLost = false;
+    backend.items = backend.items.map((item) => (item.id === TESTIMONIAL_IDS.ana ? { ...item, isShown: true } : item));
+    await user.click(action('Move testimonial from Ben Santos up'));
+    expect(await screen.findByText("Couldn't move the testimonial from Ben Santos")).toBeVisible();
+    await waitFor(() => {
+      expect(statusOfAna(table)).toContain('Shown');
+    });
+    await user.click(action('Hide testimonial from Ana Reyes'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).not.toBe(backend.hideKeys[0]);
   });
 
   it('hides a testimonial at once: the toast, the public data cleared, the badge Hidden and focus staying on the toggle, now Show', async () => {
