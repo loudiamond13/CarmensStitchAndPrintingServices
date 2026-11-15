@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-11T18:30:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-14T19:25:00-06:00*
 
 ## Overview
 
@@ -1186,7 +1186,7 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: 38/38 plans executed in 16 waves (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+**Plans**: 38/38 plans executed in 16 waves, plus gap-closure plan 11-39 (UAT G-11-19, planned 2026-11-14) (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
 
 **Wave 1**
 - [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
@@ -1257,6 +1257,9 @@ Plans:
 **Wave 16**
 - [x] 11-37-PLAN.md — Link-preview, layout, accessibility, CSP and focus sweeps; showcase; audit labels (PUB-01, PUB-04, CONT-05, GAL-02)
 - [x] 11-38-PLAN.md — Go-live checklist (D-44), dev seed demo content, deploy-gap ruling (PUB-02, CONT-01, CONT-02)
+
+**Gap closure** *(UAT G-11-19, planned 2026-11-14; run with `/gsd-execute-phase 11 --gaps-only`)*
+- [ ] 11-39-PLAN.md — Every photo the browser can open is redrawn before upload, also when it needs no shrink, so its location never leaves the phone; only a HEIC the browser cannot open goes as it is (D-P11-BL-65) (GAL-03, CONT-02, PUB-04)
 
 **UI hint**: yes
 
