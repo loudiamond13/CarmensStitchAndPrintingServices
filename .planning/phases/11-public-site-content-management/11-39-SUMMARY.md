@@ -21,7 +21,7 @@ decisions:
   - "Size limit counts the redrawn file (planner's choice, owner question below)"
 status: complete-with-gaps
 gaps_closed: []
-gaps_pending: [G-11-19 (stays failed until /gsd-verify-work re-tests test 19; e2e still to run, see below)]
+gaps_pending: [G-11-19 (stays failed until /gsd-verify-work re-tests test 19; e2e passed, see Gate results)]
 requirements: [GAL-03, CONT-02, PUB-04]
 commits: 4
 plan_head_before: 3435461b86aadae495f02c3e8962662ed7b2f608
@@ -31,12 +31,12 @@ actuals:
   tasks: 2
   commits: 4
 created: "2026-11-14T20:06:00-06:00"
-updated: "2026-11-14T20:06:00-06:00"
+updated: "2026-11-14T20:19:16-06:00"
 ---
 
 # Phase 11 Plan 39: Redraw every photo before upload Summary
 
-*Created: 2026-11-14T20:06:00-06:00 · Updated: 2026-11-14T20:06:00-06:00*
+*Created: 2026-11-14T20:06:00-06:00 · Updated: 2026-11-14T20:19:16-06:00*
 
 **Every photo the browser can open is now redrawn on a canvas before it is sent, at its own size when it needs no shrink, so its location and camera data never leave the phone. Only a HEIC the browser cannot open still goes as it is.**
 
@@ -86,12 +86,15 @@ GREEN (same command): `Test Files 1 passed (1)`, `Tests 64 passed (64)`.
 | `npm --prefix web run typecheck` | exit 0, no errors |
 | `npm run build`, `build:budget`, `notices:check` | each `step-exit=0` |
 | `npm --prefix web run verify` | **exit 1** at `format:check` (see below); typecheck and lint passed before it |
-| `@site-content-share` e2e (five projects) | **not run** (see below) |
-| `@order-photos-upload\|@site-content-gallery\|@site-content-photos` e2e (chromium) | **not run** (see below) |
+| `@site-content-share` e2e (five projects) | run by the orchestrator from the main checkout: `15 passed (1.9m)` (pixel, chromium, firefox, webkit, iphone) |
+| `@order-photos-upload\|@site-content-gallery\|@site-content-photos` e2e (chromium) | run by the orchestrator from the main checkout: `9 passed (48.3s)` |
+| `license:check` and `scripts/license-policy.test.ts` (main checkout) | `License gate passed.`; `Tests 64 passed (64)` |
 
 Acceptance greps: `plan.scaled` outside comments 0; "as the same File object" 0; "not the picked File" 1; `D-P11-BL-65` in images.test.ts 4 and in images.ts 2; `scaled: true|false|boolean` 0; `MIME_OF_KIND` 0; "sent as it is (D-18)" in the UI spec 0 and `D-P11-BL-65` there 1; `fix_plan: "11-39-PLAN.md"` 1. `git diff --name-only START..HEAD -- web/src/modules web/src/components web/package.json web/package-lock.json src` prints nothing.
 
 ## What did not pass, and why (needs the owner or the orchestrator)
+
+**Orchestrator follow-up (2026-11-14):** the owner stopped LocalDB in their own terminal and the session started it in-app. From the main checkout both e2e commands then passed with no failed or flaky count (quoted in the table above), so the "Real browser refuses the redraw" checkpoint did not fire and item 1 below is closed. In the main checkout the license gate and its test also pass, so that part of item 2 was only the worktree. The nine `format:check` files remain (D-39-1), unchanged from before this plan.
 
 **1. e2e could not run (blocks the plan's real-browser criteria).** The preflight showed the owner's dev site on 5180, 5115 and 7028 (left alone) and 5199 free. `npm --prefix web run e2e -- --grep @site-content-share` stopped at the seed step: `Failed: ... Local Database Runtime error occurred. Error occurred during LocalDB instance startup: SQL Server process failed to start.` and `e2e: seed failed with exit code 1.` `sqllocaldb info MSSQLLocalDB` shows Stopped here, and `sqllocaldb start` fails the same way. The owner's instance is running outside the agent shell (the known in-app visibility problem), so it cannot be reached or restarted from here. I did not touch that process, did not use the retired CSPS instance, and did not try another database. The GREEN commit was made on the unit result alone, so the plan's "commit after e2e" order was not followed. **Next step:** run, from the main checkout where LocalDB is reachable, `npm --prefix web run e2e -- --grep @site-content-share` (all five projects) and `npm --prefix web run e2e -- --grep "@order-photos-upload|@site-content-gallery|@site-content-photos" --project chromium`. The unit tests prove the redraw call; only a real browser proves the 1200 x 630 JPEG is accepted by the server after the redraw.
 
