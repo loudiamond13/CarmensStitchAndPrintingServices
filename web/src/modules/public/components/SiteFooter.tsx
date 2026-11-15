@@ -149,7 +149,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           <div>
             <Logo size="md" context="footer" />
             {site !== undefined && (
-              <p className="mt-4 max-w-[320px] text-14 leading-5 text-ink-muted">{site.tagline}</p>
+              <p className="mt-4 max-w-tagline text-14 leading-5 text-ink-muted">{site.tagline}</p>
             )}
             {socials.length > 0 && (
               <div className="mt-5 flex gap-2">

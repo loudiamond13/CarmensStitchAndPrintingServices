@@ -108,6 +108,7 @@ describe('public sticky bar (11-UI-REVIEW fix 6)', () => {
 
 const CLEARANCE = 'pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]';
 const footerSource = publicSources.find(({ name }) => name.endsWith('/SiteFooter.tsx'))?.source ?? '';
+const layoutSource = readFileSync(join(srcDir, 'layouts', 'PublicLayout.tsx'), 'utf8');
 const compact = (css: string) => css.replaceAll(/\s+/g, '');
 
 describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
@@ -137,5 +138,20 @@ describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
     );
     expect(css).toContain('--spacing-contact-bar:77px');
     expect(baseCss).toMatch(/--space-24:\s*96px/);
+  });
+
+  it('holds no hand-typed bar height in an arbitrary value', () => {
+    const typed = /\[[^\]\s]*\b77px/;
+    expect(hitsOf(typed)).toEqual([]);
+    expect(typed.test(layoutSource)).toBe(false);
+  });
+
+  it('names the footer tagline width as --spacing-tagline, 320px', async () => {
+    expect(appCss).toMatch(/--spacing-tagline:\s*320px;/);
+    expect(footerSource).not.toMatch(/(?<![\w-])max-w-\[[\d.]+px\]/);
+    expect(footerSource).toContain('max-w-tagline');
+    const css = compact(await buildCss(['max-w-tagline']));
+    expect(css).toContain('max-width:var(--spacing-tagline)');
+    expect(css).toContain('--spacing-tagline:320px');
   });
 });

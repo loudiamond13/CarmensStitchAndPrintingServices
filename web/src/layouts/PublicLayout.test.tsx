@@ -183,7 +183,7 @@ describe('PublicLayout Contact sticky bar (PUB-06)', () => {
   it('keeps a bottom scroll padding for the bar at 767px and below on /contact only', async () => {
     const contact = await renderAt('/contact');
     expect(screen.getByRole('main').className).toContain(
-      'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(77px+var(--space-6)+env(safe-area-inset-bottom))]',
+      'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(var(--spacing-contact-bar)+var(--space-6)+env(safe-area-inset-bottom))]',
     );
     contact.unmount();
 

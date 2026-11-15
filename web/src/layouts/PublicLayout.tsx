@@ -29,9 +29,9 @@ import { tw } from '@/ui/tw';
 // The sticky bar loads as its own chunk, only on /contact, so the other pages never carry it (public bundle budget, PERF-01).
 const ContactBarSlot = lazy(() => import('@/modules/public/components/ContactBarSlot'));
 
-/** The bottom scroll padding for the bar at 767px and below: the bar's 77px, the safe area and 24px, so focus never hides under it. */
+/** The bottom scroll padding for the bar at 767px and below: the bar's height (--spacing-contact-bar), the safe area and 24px, so focus never hides under it. */
 const contactScrollPaddingClasses = tw(
-  'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(77px+var(--space-6)+env(safe-area-inset-bottom))]',
+  'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(var(--spacing-contact-bar)+var(--space-6)+env(safe-area-inset-bottom))]',
 );
 
 // The page's top scroll padding: the sticky header, 1px and 24px, plus --bar-top: 0 here and the 69px pill bar (44px pill,
