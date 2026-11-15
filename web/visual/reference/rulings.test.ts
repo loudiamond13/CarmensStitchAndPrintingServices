@@ -44,6 +44,7 @@ const RULING_IDS = [
   'D-60',
   'D-63',
   'D-107',
+  'D-131',
 ] as const;
 
 interface Group {
@@ -450,6 +451,21 @@ describe('rulings.css: each ruling restyles what the owner ruled on', () => {
       'gap: 8px;',
       'position: relative;',
       'content: ""; position: absolute; top: 50%; left: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%);',
+    ]);
+  });
+
+  it('D-131: the public phone menu slides in, its items rise in and the burger icon turns, nothing else', () => {
+    const groupsOfD131 = byRuling('D-131');
+
+    expect(groupsOfD131.map((group) => group.prelude)).toEqual([
+      '.csp-site-drawer',
+      '.csp-site-drawer > *',
+      '.csp-site-header.is-open .csp-site-burger svg',
+    ]);
+    expect(groupsOfD131.map((group) => normalize(group.body))).toEqual([
+      'animation: csp-site-drawer-in 0.45s ease-out;',
+      'animation: csp-site-link-in 0.3s ease-out both;',
+      'animation: csp-burger-turn 0.2s ease-out;',
     ]);
   });
 

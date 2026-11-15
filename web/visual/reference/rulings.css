@@ -199,6 +199,23 @@ button.csp-nav {
   transition-timing-function: ease;
 }
 
+/* D-131 (owner, 2026-11-15) the public phone menu slides down and fades in over 0.45s ease-out. The reference never closes
+   it and the proof runs without reduced motion, so the exit and the reduced-motion none are not stated. */
+.csp-site-drawer {
+  animation: csp-site-drawer-in 0.45s ease-out;
+}
+
+/* D-131 each menu link and the drawer button rise in over 0.3s ease-out. The stagger delays are not compared, so they are
+   not stated. */
+.csp-site-drawer > * {
+  animation: csp-site-link-in 0.3s ease-out both;
+}
+
+/* D-131 the burger icon turns in over 0.2s ease-out while the menu is open. */
+.csp-site-header.is-open .csp-site-burger svg {
+  animation: csp-burger-turn 0.2s ease-out;
+}
+
 /* P5 long-text (plan 05-37, UI-SPEC UI Considerations "long-text": the sidebar chip and the top bar truncate) a long name keeps
    one line and is cut short with an ellipsis in the sidebar user chip and in the top bar's user button; the whole name stays
    in the text and in the title. A normal name is shorter than both columns, so nothing changes for it. First, the chip's
