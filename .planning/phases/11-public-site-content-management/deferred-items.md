@@ -1,6 +1,6 @@
 ---
 created: 2026-11-12T20:05:00-06:00
-updated: 2026-11-13T00:08:00-06:00
+updated: 2026-11-14T19:55:00-06:00
 ---
 
 # Phase 11: deferred items found during execution
@@ -38,3 +38,16 @@ Out-of-scope problems found while executing a plan. They were not fixed in that 
 - **What happens:** in Chromium, Firefox, Pixel and iPhone the line `expect(await page.getByRole('tablist').evaluate(holdsItsContent)).toBe(true)` fails (the strip is wider than its box now that Site Content has five tabs). The line before it (no sideways scroll for the page) passes, so the new link preview picture card does not widen the page at 320px. In WebKit the test ran for 8 minutes and timed out in `openSiteContent`: after `setViewportSize` it looked for the sidebar link, not the drawer menu (the check for the menu button runs before the layout settles).
 - **Evidence:** plan 11-34 changed nothing in the tab strip (`SiteContentPage.tsx` is untouched). The other three tests of the spec pass in all five projects. The 320px page-level axe check in that test is never reached, so plan 11-34's own layout test (`@site-content-share the preview ...`) checks the page at 320px for sideways scroll and axe.
 - **Suggested fix:** let the tab strip scroll inside its own box (or wrap) and test that, or drop the `holdsItsContent` line; wait for the menu or the sidebar link (`menu.or(sidebarLink)`) before choosing in `openSiteContent`, as `site-content-products.spec.ts` already does.
+
+## Found in plan 11-39
+
+### D-39-1: `npm run verify` stops at `format:check` on nine files this plan did not touch
+
+- **Where:** `web/e2e/gallery.spec.ts`, `link-preview.spec.ts`, `public-sweep.spec.ts`, `site-content-sweep.spec.ts`, `web/src/modules/admin/auditCopy.ts`, `auditCopy.test.ts`, `components/PhotoSlot.tsx`, `components/showcase/Phase11Demos.tsx` and `Phase11Demos.test.tsx`.
+- **What happens:** Prettier wants lines over 120 characters wrapped (for example `auditCopy.ts` lines 557, 599 and 664). The two files plan 11-39 changed pass. The same nine files are unchanged from the base commit `3435461b`, so the failure was there before this plan.
+- **Suggested fix:** run `npm --prefix web run format` on those nine files in a small formatting plan, then re-run `verify`.
+
+### D-39-2: e2e could not run in the plan 11-39 agent worktree
+
+- **What happens:** `npm --prefix web run e2e` stops at the seed step. LocalDB `(localdb)\MSSQLLocalDB` shows Stopped and will not start from the agent shell ("SQL Server process failed to start"), because the owner's instance is already running outside the agent shell for the dev site. No e2e result exists for plan 11-39.
+- **Needed:** run `@site-content-share` (all five projects) and `@order-photos-upload|@site-content-gallery|@site-content-photos` (chromium) from the main checkout, where LocalDB is reachable.
