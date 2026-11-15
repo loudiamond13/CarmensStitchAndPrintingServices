@@ -22,7 +22,7 @@ public sealed class UploadSlotsCoverageTests
         var uploadActions = typeof(OrderImagesController).Assembly.GetTypes()
             .Where(type => typeof(ControllerBase).IsAssignableFrom(type))
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
-            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(IFormFile) || parameter.ParameterType == typeof(IFormFileCollection)))
+            .Where(method => method.GetParameters().Any(parameter => CarriesFile(parameter.ParameterType, [])))
             .ToList();
 
         uploadActions.Count.ShouldBe(5, "the order photo, the gallery upload and replace, the product line photo and the share picture");
@@ -32,6 +32,66 @@ public sealed class UploadSlotsCoverageTests
         uploadActions.Where(method => !Has<UploadSlotAttribute>(method, _ => true))
             .Select(Name)
             .ShouldBeEmpty("every file upload action takes a slot");
+    }
+
+    // A file can arrive directly, in a list or array, or as a property of a form model (only our own types are walked).
+    private static bool CarriesFile(Type type, HashSet<Type> seen)
+    {
+        if (type == typeof(IFormFile) || type == typeof(IFormFileCollection))
+        {
+            return true;
+        }
+
+        if (type.IsPrimitive || type == typeof(string) || !seen.Add(type))
+        {
+            return false;
+        }
+
+        if (type.HasElementType && CarriesFile(type.GetElementType()!, seen))
+        {
+            return true;
+        }
+
+        if (type.IsGenericType && type.GetGenericArguments().Any(argument => CarriesFile(argument, seen)))
+        {
+            return true;
+        }
+
+        return type.Namespace?.StartsWith("Csps", StringComparison.Ordinal) == true
+            && type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(property => CarriesFile(property.PropertyType, seen));
+    }
+
+    [Theory]
+    [InlineData(typeof(IFormFile), true)]
+    [InlineData(typeof(IFormFileCollection), true)]
+    [InlineData(typeof(IFormFile[]), true)]
+    [InlineData(typeof(List<IFormFile>), true)]
+    [InlineData(typeof(IEnumerable<IFormFile>), true)]
+    [InlineData(typeof(SampleUploadModel), true)]
+    [InlineData(typeof(SampleBatchModel), true)]
+    [InlineData(typeof(SampleLoopModel), false)]
+    [InlineData(typeof(string), false)]
+    [InlineData(typeof(int), false)]
+    [InlineData(typeof(CancellationToken), false)]
+    [InlineData(typeof(List<string>), false)]
+    public void TheFileFinderSeesAFileHoweverItIsCarried(Type type, bool expected) =>
+        CarriesFile(type, []).ShouldBe(expected);
+
+    private sealed class SampleUploadModel
+    {
+        public IFormFile? Photo { get; init; }
+    }
+
+    private sealed class SampleBatchModel
+    {
+        public List<IFormFile> Photos { get; init; } = [];
+    }
+
+    private sealed class SampleLoopModel
+    {
+        public SampleLoopModel? Next { get; init; }
+
+        public string? Name { get; init; }
     }
 
     private static string Name(MethodInfo method) => $"{method.DeclaringType!.Name}.{method.Name}";
