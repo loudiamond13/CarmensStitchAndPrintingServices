@@ -219,20 +219,6 @@ export async function prepareImage(
     }
 
     const preview = previewOf(parts, bitmap);
-    if (!plan.scaled) {
-      if (file.size > rules.maxBytes) return { ok: false, reason: 'size' };
-      return {
-        ok: true,
-        file,
-        name: file.name,
-        type: MIME_OF_KIND[kind],
-        width,
-        height,
-        preview,
-        previewUnavailable: preview === null,
-      };
-    }
-
     const encoded = await encodeSameFamily(parts, bitmap, plan, kind);
     if (encoded === null) return { ok: false, reason: 'unreadable' };
     const { blob, extension } = encoded;
