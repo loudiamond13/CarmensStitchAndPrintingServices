@@ -5,7 +5,7 @@ import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
 
-// Every test takes the site content lock, which can take 7 minutes to get, so a test is allowed 8.
+// Every test takes the site content lock, which can take 6 minutes to get, so a test is allowed 8.
 test.describe.configure({ timeout: 480_000 });
 
 const SITE_API = '/api/v1/public/site';

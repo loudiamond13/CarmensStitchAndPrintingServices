@@ -1,5 +1,5 @@
 // @vitest-environment node
-// A spec that takes the site content lock can wait up to 7 minutes for it (site-content-lock.ts), so its test timeout must be 8
+// A spec that takes the site content lock can wait up to 6 minutes for it (site-content-lock.ts), so its test timeout must be 8
 // minutes or more. A shorter timeout fires first with a generic message and leaves the lock request polling in the background.
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -43,8 +43,19 @@ function shortLockTests(source: string): string[] {
     .map((block) => block.slice(0, 90).replaceAll(/\s+/g, ' '));
 }
 
+/** The lock wait in site-content-lock.ts, in milliseconds. */
+function lockWaitMs(): number {
+  const source = readFileSync(path.join(e2eDirectory, 'site-content-lock.ts'), 'utf8');
+  const wait = /waitLimitMs:\s*(\d+)\s*\*\s*60\s*\*\s*1000/.exec(source);
+  return wait?.[1] === undefined ? Number.NaN : Number(wait[1]) * 60 * 1000;
+}
+
 describe('e2e specs that take the site content lock', () => {
-  it('allow each test 8 minutes, longer than the 7 minute lock wait', () => {
+  it('leave at least 2 minutes of the 8 minute budget for setup after the lock wait (D-125)', () => {
+    expect(MIN_TIMEOUT_MS - lockWaitMs()).toBeGreaterThanOrEqual(2 * 60 * 1000);
+  });
+
+  it('allow each test 8 minutes, longer than the 6 minute lock wait', () => {
     const offenders: string[] = [];
     for (const file of readdirSync(e2eDirectory).filter((name) => name.endsWith('.spec.ts'))) {
       for (const block of shortLockTests(readFileSync(path.join(e2eDirectory, file), 'utf8'))) {
