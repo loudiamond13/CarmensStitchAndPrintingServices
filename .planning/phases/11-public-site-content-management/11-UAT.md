@@ -1,14 +1,14 @@
 ---
-status: diagnosed
+status: partial
 phase: 11-public-site-content-management
 source: [11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 11-04-SUMMARY.md, 11-05-SUMMARY.md, 11-06-SUMMARY.md, 11-07-SUMMARY.md, 11-08-SUMMARY.md, 11-09-SUMMARY.md, 11-10-SUMMARY.md, 11-11-SUMMARY.md, 11-12-SUMMARY.md, 11-13-SUMMARY.md, 11-14-SUMMARY.md, 11-15-SUMMARY.md, 11-16-SUMMARY.md, 11-17-SUMMARY.md, 11-18-SUMMARY.md, 11-19-SUMMARY.md, 11-20-SUMMARY.md, 11-21-SUMMARY.md, 11-22-SUMMARY.md, 11-23-SUMMARY.md, 11-24-SUMMARY.md, 11-25-SUMMARY.md, 11-26-SUMMARY.md, 11-27-SUMMARY.md, 11-28-SUMMARY.md, 11-29-SUMMARY.md, 11-30-SUMMARY.md, 11-31-SUMMARY.md, 11-32-SUMMARY.md, 11-33-SUMMARY.md, 11-34-SUMMARY.md, 11-35-SUMMARY.md, 11-36-SUMMARY.md, 11-37-SUMMARY.md, 11-38-SUMMARY.md]
 started: 2026-11-14T00:05:00-06:00
 created: 2026-11-14T00:05:00-06:00
-updated: 2026-11-14T19:50:00-06:00
+updated: 2026-11-15T02:42:51.483Z
 ---
 
 # Phase 11 UAT: Public Site & Content Management
-*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:50:00-06:00*
+*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T20:42:37-06:00*
 
 All 38 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 13), then look and wording (14 to 16), then gates, rulings and reviews (17 to 20), then live-site steps (21 to 23).
 Tests 24 to 263 are passed by automated tests (coverage blocks); they are not asked.
@@ -1672,7 +1672,9 @@ blocked: 3
   debug_session: .planning/debug/phase11-photos-saved-but-not-shown.md
 - gap_id: G-11-19
   truth: "Every upload is redrawn in the browser before it is sent, so a photo's location and other metadata never leave the phone; only a HEIC the browser cannot open goes as it is (D-P11-BL-65)"
-  status: failed
+  status: resolved
+  resolved_by: 11-39-PLAN.md
+  resolved_at: 2026-11-14
   reason: "User reported: F1 A, F2 B (review F1: prepareImage sends the original file when no shrink is needed or a HEIC cannot be decoded; the server strip keeps stored photos clean)"
   severity: minor
   test: 19
