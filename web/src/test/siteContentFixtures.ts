@@ -140,8 +140,8 @@ export type SharePictureFixture = Schemas['SharePictureDto'];
 export function sharePicture(id = 'demo', overrides: Partial<SharePictureFixture> = {}): SharePictureFixture {
   const address = (size: string): string => `/api/testing/images/csps/content/share/${id}?size=${size}`;
   return {
-    src320: address('csps_share_320'),
-    src640: address('csps_share_640'),
+    src320: address('csps_sharec_320'),
+    src640: address('csps_sharec_640'),
     width: 1200,
     height: 630,
     ...overrides,
@@ -789,8 +789,8 @@ export function linePhoto(
   const address = (size: string): string => `/api/testing/images/csps/content/lines/${lineId}/${slot}?size=${size}`;
   return {
     slot,
-    src: address('csps_sq_400'),
-    srcSet: `${address('csps_sq_200')} 200w, ${address('csps_sq_400')} 400w`,
+    src: address('csps_psqc_400'),
+    srcSet: `${address('csps_psqc_200')} 200w, ${address('csps_psqc_400')} 400w`,
     width: 1600,
     height: 2000,
     ...overrides,

@@ -178,7 +178,7 @@ describe('siteSettingsService.update (CONT-01, SEC-07)', () => {
   });
 });
 
-const picture = { src320: '/a?size=csps_share_320', src640: '/a?size=csps_share_640', width: 1200, height: 630 };
+const picture = { src320: '/a?size=csps_sharec_320', src640: '/a?size=csps_sharec_640', width: 1200, height: 630 };
 
 describe('siteSettingsService.uploadSharePicture (PUB-04, D-26)', () => {
   it('posts a multipart form with the file part to /site-settings/share-picture under the given key and resolves the picture', async () => {
