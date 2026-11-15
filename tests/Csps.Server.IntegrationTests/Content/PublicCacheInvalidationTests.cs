@@ -167,6 +167,8 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
     public async Task ChangingAProductLineTitleShowsOnTheNextLinesReadWithANewETagAndTheOldETagGetsNo304()
     {
         const string LinesRoute = "/api/v1/public/product-lines";
+        await database.ResetAsync();
+        await ProductLineSeeding.RestoreSixAsync(database);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         using var first = await client.GetAsync(new Uri(LinesRoute, UriKind.Relative), TestContext.Current.CancellationToken);
