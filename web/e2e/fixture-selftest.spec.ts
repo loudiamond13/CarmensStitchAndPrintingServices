@@ -6,11 +6,12 @@
 // Nothing here uses test.fail(), which could hide a real failure.
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
 import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe, test } from './fixtures.ts';
-import { ensureDemoSiteContent } from './site-content-lock.ts';
+import { ensureDemoSiteContent, isDemoSeeded } from './site-content-lock.ts';
 
 // Home lists the demo shown orders, so the demo content is put in place first (once per worker, under the site content lock).
-test.describe.configure({ timeout: 480_000 });
-test.beforeEach(async ({ request }) => {
+// Only the first test of a worker waits for the lock, so only it gets the long budget.
+test.beforeEach(async ({ request }, testInfo) => {
+  if (!isDemoSeeded()) testInfo.setTimeout(testInfo.timeout + 480_000);
   await ensureDemoSiteContent(request);
 });
 

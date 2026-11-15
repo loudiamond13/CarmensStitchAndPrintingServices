@@ -25,10 +25,15 @@ export function withSiteContentLock<T>(work: () => Promise<T>): Promise<T> {
 
 let demoSeeded = false;
 
+/** True once this worker has put the demo content in place, so a test can tell whether it still has the lock wait ahead of it. */
+export function isDemoSeeded(): boolean {
+  return demoSeeded;
+}
+
 /**
  * Puts the demo site content in place, under the lock, the first time a worker calls it. A spec that only loads public pages calls it
  * from `beforeEach`: the host keeps demo photo files in memory, so shown orders a run left in the database answer 404 for their photos
- * until a reset stores new files. The spec needs 8 minutes per test, because the lock can take 7 to get.
+ * until a reset stores new files. The first test of a worker needs 8 more minutes, because the lock can take 7 to get.
  */
 export async function ensureDemoSiteContent(request: APIRequestContext): Promise<void> {
   if (demoSeeded) {

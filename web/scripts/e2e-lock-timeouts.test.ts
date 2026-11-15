@@ -11,15 +11,27 @@ const e2eDirectory = path.join(fileURLToPath(new URL('..', import.meta.url)), 'e
 
 const number = (text: string): number => Number(text.replaceAll('_', ''));
 
+/** True when a hook adds 8 minutes to the test timeout only while the demo seed is still to run. */
+function extendsTimeoutBeforeSeed(source: string): boolean {
+  const extension =
+    /if\s*\(\s*!isDemoSeeded\(\)\s*\)\s*\{?\s*testInfo\.setTimeout\(\s*testInfo\.timeout\s*\+\s*([\d_]+)\s*\)/.exec(
+      source,
+    );
+  return extension?.[1] !== undefined && number(extension[1]) >= MIN_TIMEOUT_MS;
+}
+
 /** The test blocks of a spec file that take the site content lock and have a test timeout under 8 minutes. */
 function shortLockTests(source: string): string[] {
   const fileTimeout = /test\.describe\.configure\(\{\s*timeout:\s*([\d_]+)/.exec(source);
   if (fileTimeout?.[1] !== undefined && number(fileTimeout[1]) >= MIN_TIMEOUT_MS) {
     return [];
   }
-  // The shared seed in a hook takes the lock for every test of the file, so only a file-wide timeout covers it.
-  if (source.includes('ensureDemoSiteContent(')) {
-    return ['(a hook calls ensureDemoSiteContent and the file has no file-wide timeout of 8 minutes)'];
+  // The shared seed in a hook takes the lock for the first test of a worker, so that test must get 8 minutes more: from a file-wide
+  // timeout, or from the hook itself when `isDemoSeeded()` says the seed is still to come.
+  if (source.includes('ensureDemoSiteContent(') && !extendsTimeoutBeforeSeed(source)) {
+    return [
+      '(a hook calls ensureDemoSiteContent and neither a file-wide timeout nor a timeout extension before the seed gives 8 minutes)',
+    ];
   }
   const blocks = source.split(/^\s*test(?:\.describe(?:\.serial|\.parallel)?)?\(/m).slice(1);
   return blocks
@@ -57,5 +69,18 @@ describe('e2e specs that take the site content lock', () => {
         'test.describe.configure({ timeout: 480_000 }); test.beforeEach(async () => { await ensureDemoSiteContent(request); });',
       ),
     ).toEqual([]);
+  });
+
+  it('passes a seed hook that extends the timeout only before the seed, and fails one that extends it by less', () => {
+    const hook = (extra: string): string =>
+      `test.beforeEach(async ({ request }, testInfo) => {
+  if (!isDemoSeeded()) testInfo.setTimeout(testInfo.timeout + ${extra});
+  await ensureDemoSiteContent(request);
+});`;
+    expect(shortLockTests(hook('480_000'))).toEqual([]);
+    expect(shortLockTests(hook('60_000'))).toHaveLength(1);
+    expect(
+      shortLockTests('test.beforeEach(async ({ request }) => { await ensureDemoSiteContent(request); });'),
+    ).toHaveLength(1);
   });
 });

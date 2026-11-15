@@ -5,11 +5,12 @@
 // order moving focus to main without a hash in the URL, no sideways scroll from 320 to 1920 px, and no console, page, CSP,
 // response (the guard) or axe findings.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { ensureDemoSiteContent } from './site-content-lock.ts';
+import { ensureDemoSiteContent, isDemoSeeded } from './site-content-lock.ts';
 
 // Home and the Gallery list the demo shown orders, so the demo content is put in place first (once per worker, under the site content lock).
-test.describe.configure({ timeout: 480_000 });
-test.beforeEach(async ({ request }) => {
+// Only the first test of a worker waits for the lock, so only it gets the long budget.
+test.beforeEach(async ({ request }, testInfo) => {
+  if (!isDemoSeeded()) testInfo.setTimeout(testInfo.timeout + 480_000);
   await ensureDemoSiteContent(request);
 });
 
