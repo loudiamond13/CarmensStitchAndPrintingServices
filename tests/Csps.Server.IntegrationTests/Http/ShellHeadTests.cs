@@ -769,6 +769,8 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
                 [new PublicGalleryItemDto(Guid.NewGuid(), FailingTagline, "basketball", FailingTagline, 12, FailingTagline, "basketball", [])],
                 [new PublicGalleryPillDto("basketball", FailingTagline, 1)],
                 1),
+            // The one field the Gallery page reads from the gallery is the share picture address, so that is the hostile one.
+            GalleryShareImageUrl = $"/{FailingTagline}",
         };
         await using var factory = new ShellTestFactory(reader);
         using var client = factory.CreateClient();
@@ -790,6 +792,14 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
                 ? document.RootElement.GetProperty("productLines").GetProperty("lines")[0].GetProperty("title").GetString()
                 : document.RootElement.GetProperty("home").GetProperty("testimonials")[0].GetProperty("name").GetString();
             text.ShouldBe(FailingTagline);
+        }
+
+        if (path == "/gallery")
+        {
+            const string encodedAddress = "/&lt;/script&gt;&lt;script&gt;alert(1)&lt;/script&gt;";
+            body.ShouldContain($"property=\"og:image\" content=\"{Origin}{encodedAddress}\"", Case.Sensitive);
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/{FailingTagline}");
+            Meta(body, "name", "twitter:card").ShouldBe("summary_large_image");
         }
     }
 
