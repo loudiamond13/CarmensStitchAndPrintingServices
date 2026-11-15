@@ -1,6 +1,6 @@
 ---
 created: 2026-11-13T10:00:00-06:00
-updated: 2026-11-14T09:00:00-06:00
+updated: 2026-11-14T21:20:00-06:00
 ---
 
 # Phase 11: UI Review (re-audit)
@@ -27,9 +27,9 @@ Scope: this pass read the full public copy files (`copy.ts`, `hoursCopy.ts`) aga
 
 ## Top 3 Priority Fixes
 
-1. **Hand-typed pixel spacing in public TSX is outside the gate (WARNING)** - `modules/public/components/SiteFooter.tsx:144` uses `pg-phone:pb-[96px]`, a number that silently depends on the sticky Contact bar height, and `SiteFooter.tsx:150` uses `max-w-[320px]`. If the bar changes height the footer text hides behind it on phones. Fix: name the bar height as a theme token (for example `--space-bar`) and use it in both the bar and the footer; extend `public-look.node.test.ts` to flag `[Npx]` padding and margin in `modules/public`.
+1. **Hand-typed pixel spacing in public TSX is outside the gate (WARNING)** - `modules/public/components/SiteFooter.tsx:144` uses `pg-phone:pb-[96px]`, a number that silently depends on the sticky Contact bar height, and `SiteFooter.tsx:150` uses `max-w-[320px]`. If the bar changes height the footer text hides behind it on phones. Fix: name the bar height as a theme token (for example `--space-bar`) and use it in both the bar and the footer; extend `public-look.node.test.ts` to flag `[Npx]` padding and margin in `modules/public`. Fixed in quick 261114-t04 (see Outcomes).
 2. **Admin font sizes are still hand-typed (WARNING, owner ruling carried)** - `siteContent.recipe.ts` and the other admin recipes hold `text-[11px]` to `text-[34px]` (45 uses of `[14px]` alone). The owner chose to name these in a later quick task. Keep it queued; until then the public gate does not protect the admin side.
-3. **Hard-coded aria-label outside the copy module (WARNING, minor)** - `modules/public/components/PageHead.tsx:40` has `aria-label="Breadcrumb"`. The spec says public strings live in `copy.ts`. Fix: add `crumbs.label: 'Breadcrumb'` to `PUBLIC_COPY` and read it there.
+3. **Hard-coded aria-label outside the copy module (WARNING, minor)** - `modules/public/components/PageHead.tsx:40` has `aria-label="Breadcrumb"`. The spec says public strings live in `copy.ts`. Fix: add `crumbs.label: 'Breadcrumb'` to `PUBLIC_COPY` and read it there. Fixed in quick 261114-t04 (see Outcomes).
 
 ## Detailed Findings
 
@@ -102,6 +102,13 @@ Scope: this pass read the full public copy files (`copy.ts`, `hoursCopy.ts`) aga
 |---|---|---|---|---|
 | N-01 | WARNING (minor) | "Breadcrumb" label hard-coded in JSX, outside `copy.ts` | `modules/public/components/PageHead.tsx:40` | Move to `PUBLIC_COPY.crumbs` |
 | N-02 | WARNING | Footer bottom padding `96px` is a hand-typed copy of the sticky bar height; `max-w-[320px]` is also hand-typed. The look gate does not cover spacing | `modules/public/components/SiteFooter.tsx:144,150` | Name the bar height as a token, use it in both places, extend the gate to spacing |
+
+## Outcomes (quick 261114-t04)
+
+| ID | Outcome | Commits | Evidence |
+|---|---|---|---|
+| N-01 | Fixed | 83594c4c | `PUBLIC_COPY.crumbs.label` is `'Breadcrumb'`, `PageHead` reads it, so the spoken name is unchanged. `public-look.node.test.ts` fails on any string-literal `aria-label` in public TSX. |
+| N-02 | Fixed | a5a6cb5e, 1c0bdba6 | Theme tokens `--spacing-contact-bar` (77px) and `--spacing-tagline` (320px). Footer phone padding is 96px, or the bar plus the safe area when taller. The Contact scroll padding reads the token. The look gates fail on bare px padding or margin in the public module, on a px max width in the footer, and on a hand-typed bar height, and they pin the token to the bar's parts. No visible change while the inset is 0 (D-P11-BL-61). |
 
 Informational only: `PublicLayoutCheckPage.tsx:19` English literals (dev-only route, D-20).
 
