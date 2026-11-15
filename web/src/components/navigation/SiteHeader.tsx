@@ -5,16 +5,22 @@
 // rulings applied:
 //   - D-03 the current link is bold (700) as its second cue, besides the ink colour and the orange underline;
 //   - D-31 O-3 the current drawer link carries `aria-current="page"` too, and turns italic as its second cue.
+//   - D-131 on phones the drawer slides down and fades in, and on close stays mounted (inert) until its exit ends;
+//     nothing moves under reduced motion. D-132 SiteHeader does the close itself (not usePresence), so the public
+//     pages load no extra file.
 // The SiteHeader renders its own Logo, so it passes it the header context (the App. C phone tagline, UI-SPEC rule 7a).
-import { useState } from 'react';
+import clsx from 'clsx';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, UiLink } from '@/components/actions';
 import { Icon, Logo } from '@/components/brand';
 import {
   siteBurgerClasses,
+  siteBurgerIconClasses,
   siteCtaClasses,
   siteDrawerClasses,
   siteDrawerCtaClasses,
+  siteDrawerItemClasses,
   siteDrawerLinkClasses,
   siteHeaderClasses,
   siteHeaderInnerClasses,
@@ -40,6 +46,9 @@ export const SITE_LINKS: readonly NavLinkItem[] = [
 /** Where "Get a Quote" takes the visitor (UI-SPEC Layout Contract, Interaction Contract "Primary CTA"). */
 const QUOTE_PATH = '/contact';
 
+/** Longer than the 0.3s drawer exit, so a missing animationend never leaves the closed drawer in the page (D-132). */
+const CLOSE_FALLBACK_MS = 400;
+
 export interface SiteHeaderProps {
   links?: readonly NavLinkItem[] | undefined;
   /** The label of the current link (`aria-current="page"`); a label no link has marks none current. */
@@ -50,6 +59,37 @@ export interface SiteHeaderProps {
 
 export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
+  if (open && !shown) {
+    setShown(true);
+  }
+  const mounted = open || shown;
+  const state = open ? 'open' : 'closed';
+
+  // On close the drawer stays until its own exit animation ends; with no animation (reduced motion) it goes at once.
+  useLayoutEffect(() => {
+    const node = drawerRef.current;
+    if (open) {
+      return undefined;
+    }
+    if (node === null || ['', 'none'].includes(getComputedStyle(node).animationName)) {
+      setShown(false);
+      return undefined;
+    }
+    // Only the drawer's own animationend counts; one bubbling up from a link does not.
+    const done = (event?: Event) => {
+      if (event === undefined || event.target === node) {
+        setShown(false);
+      }
+    };
+    node.addEventListener('animationend', done);
+    const fallback = window.setTimeout(done, CLOSE_FALLBACK_MS);
+    return () => {
+      node.removeEventListener('animationend', done);
+      window.clearTimeout(fallback);
+    };
+  }, [open]);
   const navigate = useNavigate();
   // SPEC-DEVIATION: UI-SPEC Layout Contract "Get a Quote navigates to /contact". App. D.3 leaves the action to an
   // optional onQuote; without one the button now goes to /contact. It stays App. D.3's <button> (no element change, D-08),
@@ -92,11 +132,17 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
             setOpen(!open);
           }}
         >
-          <Icon name={open ? 'x' : 'menu'} size={22} />
+          <Icon name={open ? 'x' : 'menu'} size={22} className={mounted ? siteBurgerIconClasses : ''} />
         </button>
       </div>
-      {open && (
-        <nav className={siteDrawerClasses} aria-label="Mobile">
+      {mounted && (
+        <nav
+          ref={drawerRef}
+          className={siteDrawerClasses}
+          aria-label="Mobile"
+          data-state={state}
+          inert={open ? undefined : true}
+        >
           {links.map((link) => (
             // SPEC-DEVIATION: D-31 O-3 the current drawer link gets aria-current="page" (App. D.3 marks it by class
             // only), which also drives its italic second cue.
@@ -106,14 +152,20 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
               onClick={() => {
                 setOpen(false);
               }}
-              className={siteDrawerLinkClasses}
+              className={clsx(siteDrawerLinkClasses, siteDrawerItemClasses)}
               aria-current={link.label === active ? 'page' : undefined}
             >
               {link.label}
               <Icon name="arrow-right" size={20} />
             </UiLink>
           ))}
-          <Button variant="primary" block iconRight="arrow-right" className={siteDrawerCtaClasses} onClick={quote}>
+          <Button
+            variant="primary"
+            block
+            iconRight="arrow-right"
+            className={clsx(siteDrawerCtaClasses, siteDrawerItemClasses)}
+            onClick={quote}
+          >
             Get a Quote
           </Button>
         </nav>

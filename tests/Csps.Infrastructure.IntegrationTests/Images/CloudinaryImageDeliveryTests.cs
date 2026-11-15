@@ -282,9 +282,32 @@ public sealed partial class CloudinaryImageDeliveryTests
         var wide = delivery.ForStrip(Id, 4000, 3000);
         var narrow = delivery.ForStrip(Id, 200, 300);
 
-        wide.SrcSet.ShouldBe(Widths(("csps_strip_240", 240), ("csps_strip_480", 480), ("csps_strip_720", 720), ("csps_strip_1060", 1060)));
-        wide.Src.ShouldBe(Address("csps_strip_480"));
-        narrow.SrcSet.ShouldBe(Widths(("csps_strip_240", 200)));
+        wide.SrcSet.ShouldBe(Widths(("csps_stripc_240", 240), ("csps_stripc_480", 480), ("csps_stripc_720", 720), ("csps_stripc_1060", 1060)));
+        wide.Src.ShouldBe(Address("csps_stripc_480"));
+        narrow.SrcSet.ShouldBe(Widths(("csps_stripc_240", 200)));
+    }
+
+    [Fact]
+    public void AProductLinePhotoGetsCentreCutCardAndSmallCandidatesAndKeepsTheLargeAndThumbSizes()
+    {
+        var line = Delivery().ForLinePhoto(Id, 4000, 3000);
+
+        line.Card.SrcSet.ShouldBe(Widths(("csps_catc_320", 320), ("csps_catc_480", 480), ("csps_catc_640", 640), ("csps_catc_800", 800), ("csps_catc_960", 960)));
+        line.Card.Src.ShouldBe(Address("csps_catc_640"));
+        line.Small.SrcSet.ShouldBe(Widths(("csps_psqc_200", 200), ("csps_psqc_400", 400), ("csps_psqc_720", 720)));
+        line.Small.Src.ShouldBe(Address("csps_psqc_400"));
+        line.Large.SrcSet.ShouldBe(Widths(("csps_w_400", 400), ("csps_w_640", 640), ("csps_w_800", 800), ("csps_w_1280", 1280)));
+        line.Large.Src.ShouldBe(Address("csps_w_800"));
+        line.Thumb.ShouldBe(Address("csps_sq_44"));
+    }
+
+    [Fact]
+    public void TheLinkPreviewPictureAndItsAdminPreviewsUseTheCentreCutSizes()
+    {
+        var delivery = Delivery();
+
+        delivery.ForShare(Id).ShouldBe(Address("csps_sharec_1200"));
+        delivery.ForSharePreview(Id).ShouldBe(new SharePreviewUrls(Address("csps_sharec_320"), Address("csps_sharec_640")));
     }
 
     [Fact]

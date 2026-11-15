@@ -118,8 +118,13 @@ export const siteBurgerClasses = tw(
   'ml-auto inline-grid size-11 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink hover:bg-surface-2 pg-md-up:hidden',
 );
 
-/** `.csp-site-drawer`: the phone drawer under the header. */
-export const siteDrawerClasses = tw('flex flex-col gap-2 border-t border-line px-4 pt-2 pb-6 pg-md-up:hidden');
+/**
+ * `.csp-site-drawer`: the phone drawer under the header. D-131: it slides down and fades in, and back up on close (theme
+ * keyframes, `data-state` from SiteHeader; none under reduced motion).
+ */
+export const siteDrawerClasses = tw(
+  'flex animate-csp-site-drawer-in flex-col gap-2 border-t border-line px-4 pt-2 pb-6 data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-site-drawer-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none pg-md-up:hidden',
+);
 
 /**
  * `.csp-site-dlink` and `.is-on` (`--accent-ink`), read from `aria-current="page"`; D-31 O-3 adds the italic as the
@@ -131,6 +136,17 @@ export const siteDrawerLinkClasses = tw(
 
 /** `.csp-site-drawer .csp-btn { margin-top }` (layout glue passed to the block Button it renders). */
 export const siteDrawerCtaClasses = tw('mt-4');
+
+/**
+ * D-131: each drawer item rises in one after another: child n starts n x 60 ms after the panel, child 5 and later at
+ * 300 ms; none under reduced motion.
+ */
+export const siteDrawerItemClasses = tw(
+  'animate-csp-site-link-in nth-1:[animation-delay:60ms] nth-2:[animation-delay:120ms] nth-3:[animation-delay:180ms] nth-4:[animation-delay:240ms] nth-[n+5]:[animation-delay:300ms] motion-reduce:animate-none',
+);
+
+/** D-131: the burger icon turns in while the menu is open or closing; none under reduced motion. */
+export const siteBurgerIconClasses = tw('animate-csp-burger-turn motion-reduce:animate-none');
 
 // ── Topbar (admin) ──
 // The phone rules are App. C's frame-keyed `@container pg (max-width: 767px)` copies of App. B's `@media` block (same

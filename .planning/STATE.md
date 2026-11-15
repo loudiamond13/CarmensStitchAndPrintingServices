@@ -1073,6 +1073,8 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 | 261113-tiq | Deleting an order turns Show on the website off (D-P11-BL-29) | 2026-11-13 | 8aad608e | [261113-tiq-deleting-an-order-turns-show-on-the-webs](./quick/261113-tiq-deleting-an-order-turns-show-on-the-webs/) |
 | 261113-uj0 | Turn on read committed snapshot for the CSPS database (D-P11-BL-35) | 2026-11-13 | 8e02c1c0 | [261113-uj0-turn-on-read-committed-snapshot-for-the-](./quick/261113-uj0-turn-on-read-committed-snapshot-for-the-/) |
 | 261114-t04 | Fix Phase 11 UI review warnings N-01 (breadcrumb label in copy) and N-02 (named Contact bar and tagline tokens) | 2026-11-14 | 9eb417e1 | [261114-t04-fix-phase-11-ui-review-warnings-n-01-and](./quick/261114-t04-fix-phase-11-ui-review-warnings-n-01-and/) |
+| 261115-eo5 | Cut public website photos from the centre with 15 new g_center sizes (D-130); setup run then redeploy | 2026-11-15 | 824c7339 | [261115-eo5-public-image-crops-cut-from-the-centre-d](./quick/261115-eo5-public-image-crops-cut-from-the-centre-d/) |
+| 261115-fjr | Slow slide for the public phone menu: 0.45 s open, 0.3 s close, staggered links, burger to X, none under reduced motion (D-131); close logic inside SiteHeader to keep the 150 KB budget (D-132) | 2026-11-15 | f1fd421d | [261115-fjr-public-phone-menu-slow-slide-d-131](./quick/261115-fjr-public-phone-menu-slow-slide-d-131/) |
 | 43 | Give the Contact bar Messenger button the 48px button shape (D-P11-BL-67) | 2026-11-14 | babb2667 | — |
 | 44 | Format nine web files so the CI Prettier step passes (D-39-1) | 2026-11-15 | da6e311e | — |
 

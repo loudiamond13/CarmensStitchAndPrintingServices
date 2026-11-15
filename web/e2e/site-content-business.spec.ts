@@ -195,7 +195,7 @@ test('@site-content-share a Manager chooses a link preview picture, and the next
       // A crawler's view: the server's own HTML, with no script run.
       const og = await ogImageOf(request, '/');
       expect(og).toContain(key);
-      expect(og).toContain('csps_share_1200');
+      expect(og).toContain('csps_sharec_1200');
     } finally {
       await seedDemoSiteContent(request);
     }

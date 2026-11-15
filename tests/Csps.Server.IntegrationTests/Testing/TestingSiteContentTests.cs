@@ -61,7 +61,7 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
             row.SharePicturePublicId.ShouldNotBeNull().ShouldStartWith("csps-test/demo/");
             (row.SharePictureWidth, row.SharePictureHeight, row.SharePictureFormat).ShouldBe((1200, 630, "jpg"));
             var home = await client.GetStringAsync(new Uri("/", UriKind.Relative), TestContext.Current.CancellationToken);
-            home.ShouldContain("size=csps_share_1200");
+            home.ShouldContain("size=csps_sharec_1200");
             home.ShouldContain("content=\"summary_large_image\"");
         }
         finally
