@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-15T07:45:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-15T08:10:00-06:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -105,6 +105,7 @@ All rulings below: owner, 2026-11-11, in this discussion.
 - **D-126 (validate-phase, G-11-19 test gap):** no automated test is added for removing GPS or location data from uploaded photos. The owner's reason: nobody will upload a photo that holds location data. The redraw rules stay covered by `web/src/utils/images.test.ts`. This ruling covers only the automated test; UAT test 19 in `11-UAT.md` is unchanged. (owner, 2026-11-15)
 - **D-127 (ship gate, go-live steps):** option A. UAT tests 21 to 23 (live Cloudinary setup, real content entry, Facebook Sharing Debugger) and VERIFICATION human items 2 to 4 cannot be done before the deploy. They are deferred to after the deploy and tracked in `docs/operations/go-live-public-site.md`, not shipping blockers. UAT test 19 counts as passed: gap G-11-19 was closed by plan 11-39 (D-P11-BL-65), and the owner accepts that fix in place of the manual phone-photo re-test. (owner, 2026-11-15)
 - **D-128 (PR #25, CodeQL alert 6):** option A. Alert 6 (`js/disabling-certificate-validation`, `web/scripts/lighthouse.mjs` `answersOk`) is dismissed in GitHub as "used in tests". The probe only polls the localhost test host the script starts with the .NET dev certificate, and Chrome already ignores certificate errors in the same run. No code change. The alert predates Phase 11 (2026-10-09). (owner, 2026-11-15)
+- **D-129 (PR #25, Definition of Done):** the owner said to add the Definition of Done to the PR body and tick every item. Three items carry a note in the PR: performance (LCP report-only by D-29, a 0.94 score re-run by D-P11-BL-42, font subsetting parked as P11-BL-43), screenshots (none attached; covered by UAT tests 14 and 15 and the e2e public sweep) and E2E (Phase 11 specs only; the full suite parked as P11-BL-57). PR #25 was merged on the owner's instruction through `Merge-PullRequest.ps1` as `500f0e4e`. (owner, 2026-11-15)
 
 ### Go-live (plan 11-38)
 - **Deploy gap applied (D-123):** plan 11-38 Task 2 was already answered by D-123 (option A, "fill in right after", owner, 2026-11-11), so no new D-number was needed and the checkpoint was skipped. `docs/operations/go-live-public-site.md` puts Business Info and the opening hours first after the deploy, and no prefill migration was written. The checklist also holds the Cloudinary setup step (D-44, P11-BL-21), the line review and prices (D-06, D-40) and the live checks, including one shared link in the Facebook Sharing Debugger (P11-BL-40 item 4). (applied 2026-11-13)
