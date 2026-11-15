@@ -1,14 +1,14 @@
 ---
 phase: 11-public-site-content-management
 created: 2026-11-13T04:58:00-06:00
-updated: 2026-11-13T21:50:00-06:00
-verified: 2026-11-13T10:58:00Z
+updated: 2026-11-14T20:45:00-06:00
+verified: 2026-11-15T02:45:00Z
 status: human_needed
-score: 5/5 must-haves verified
+score: 6/6 must-haves verified
 requirements_score: 14/14 phase requirements satisfied in code; PERF-02 not met on public pages (LCP waived by the owner, performance score parked)
 behavior_unverified: 0
 overrides_applied: 0
-prohibitions_flagged: 43
+prohibitions_flagged: 44
 covered_files:
   - ".planning/phases/11-public-site-content-management/11-01-PLAN.md"
   - ".planning/phases/11-public-site-content-management/11-01-SUMMARY.md"
@@ -86,6 +86,8 @@ covered_files:
   - ".planning/phases/11-public-site-content-management/11-37-SUMMARY.md"
   - ".planning/phases/11-public-site-content-management/11-38-PLAN.md"
   - ".planning/phases/11-public-site-content-management/11-38-SUMMARY.md"
+  - ".planning/phases/11-public-site-content-management/11-39-PLAN.md"
+  - ".planning/phases/11-public-site-content-management/11-39-SUMMARY.md"
   - "src/Csps.Domain/Content/OpenStatus.cs"
   - "src/Csps.Domain/Orders/Order.cs"
   - "src/Csps.Infrastructure/Content/PublicContentInvalidationInterceptor.cs"
@@ -116,15 +118,28 @@ covered_files:
   - "web/src/modules/public/components/MapCard.tsx"
   - "web/src/modules/public/hooks/useGalleryCategory.ts"
   - "web/src/modules/public/siteFacts.ts"
-covered_digest: "v3:sha256:c89c8f32bb9dae58e2fb69698614e726ea8dba844018bb7e3fa316d91183aa78"
+  - "web/src/utils/images.test.ts"
+  - "web/src/utils/images.ts"
+covered_digest: "v4:sha256:6a66f88234ef877e6b92dea0c41fb6c07bff69647f1916f016288bc0205c464c"
 deferred:
   - truth: "PERF-02 on the public pages: Lighthouse 95 or more in every category and LCP under 2.0 s"
     addressed_in: "Phase 14 (re-audit), plus owner items P11-BL-42 and P11-BL-43"
     evidence: "Phase 14 success criterion 5: 'Budgets and Lighthouse scores are re-audited on staging across every public page.' LCP is report-only by owner ruling D-29 (WINDOWS.md entry 1). PERF-02 is not one of the Phase 11 requirements or success criteria."
+re_verification:
+  previous_status: human_needed
+  previous_score: 5/5
+  trigger: "gap-closure plan 11-39 (UAT G-11-19, ruling D-P11-BL-65) was added after the first report"
+  gaps_closed: []
+  gaps_remaining:
+    - "G-11-19 stays failed in 11-UAT.md until /gsd-verify-work re-tests UAT test 19 (a human test); the code fix is verified here"
+  regressions: []
 human_verification:
-  - test: "Read the result of the full Playwright e2e run that another agent is running now on this commit (all five projects)."
-    expected: "Green, in particular @public-sweep (320 to 1920 px, no sideways scroll, zero axe), @link-preview (JavaScript off), contact.spec (phone-only sticky bar), gallery.spec (pills, lightbox keys, swipe on the phone projects) and the site-content-* specs."
-    why_human: "The verifier was told not to start Playwright. Success criteria 1, 3 and 4 rely on these specs for the layout and phone behaviour. The plan 11-37 executor reported 80 passed, but that is a summary claim, not a run seen here."
+  - test: "Re-test UAT test 19 (privacy: only the redrawn image is uploaded) with a real phone photo that carries location data and is 2000 px or smaller, through /gsd-verify-work."
+    expected: "The photo goes up as a fresh redraw (a .jpg for a JPEG), the stored and public copy shows no location or camera data, and G-11-19 is marked resolved. A HEIC the browser cannot open is the only file that still goes as it is."
+    why_human: "The unit tests prove prepareImage returns the encoder blob, never the picked File. No e2e or unit test sends a photo that carries Exif or GPS and reads the uploaded bytes. The strip itself is the browser canvas, which cannot be seen from code. G-11-19 stays failed in 11-UAT.md until this re-test."
+  - test: "Read the result of the full Playwright e2e run (all five projects) recorded in 11-E2E-PHASE-END.md, and the targeted 11-39 runs, and decide whether the recorded flakes are acceptable."
+    expected: "Green apart from the flakes listed there, in particular @public-sweep (320 to 1920 px, no sideways scroll, zero axe), @link-preview (JavaScript off), contact.spec (phone-only sticky bar), gallery.spec (pills, lightbox keys, swipe on the phone projects) and the site-content-* specs."
+    why_human: "The verifier was told not to start Playwright or touch LocalDB, so no e2e run was seen here. Cited, not re-run: the full run in 11-E2E-PHASE-END.md (2264 of 2438 passed, 115 failed and passed on re-run apart from listed flakes) and the 11-39 runs the orchestrator reports (@site-content-share 15 passed in five projects; @order-photos-upload, @site-content-gallery and @site-content-photos 9 passed in chromium). Success criteria 1, 3 and 4 rely on the layout specs."
   - test: "After the deploy, run the Cloudinary setup command once on the live account (P11-BL-21, D-44, go-live checklist)."
     expected: "The 21 new named sizes exist, and a product photo, a gallery photo and the csps_share_1200 link preview picture load on the live site."
     why_human: "Owner step with production keys. Until it is done the og:image and the new photo addresses on the live site point at sizes that do not exist, so success criterion 2 (preview image) and the photo parts of criteria 1 and 4 fail live."
@@ -148,11 +163,11 @@ human_verification:
 # Phase 11: Public Site & Content Management Verification Report
 
 **Phase Goal:** Visitors arriving on a phone from Facebook can browse Home, Products, Gallery and Contact, with real business info and prices from the database, and their link previews look right. Managers keep all that content current without a developer.
-**Verified:** 2026-11-13T10:58:00Z
+**Verified:** 2026-11-15T02:45:00Z (2026-11-14 20:45 Chicago)
 **Status:** human_needed
-**Re-verification:** No. Initial verification.
+**Re-verification:** Yes. The first report was written before gap-closure plan 11-39 (UAT G-11-19, ruling D-P11-BL-65) was added. The five success criteria got a regression pass; plan 11-39 was verified in full.
 
-All five success criteria hold in the code. Every public value comes from the database. The server sends each page's own head and a real 404. Every content write clears the public cache once the change is committed. What is left needs the owner: the live go-live steps, one privacy ruling (P11-BL-29), the page speed ruling (PERF-02), the result of the parallel e2e run, and a review of the plan prohibitions.
+All five success criteria still hold in the code, and the 11-39 privacy fix is in the code: every photo the browser can decode is now redrawn before upload, and only an undecodable HEIC goes as it is. Every public value comes from the database. The server sends each page's own head and a real 404. Every content write clears the public cache once the change is committed. What is left needs the owner: re-testing UAT test 19 (G-11-19 stays failed in 11-UAT.md until then), the three live go-live steps (UAT 21 to 23, blocked until the deploy), one privacy ruling (P11-BL-29), the page speed ruling (PERF-02), the result of the parallel e2e run, and a review of the plan prohibitions.
 
 ## User Flow Coverage
 
@@ -177,8 +192,9 @@ The roadmap marks this phase `mode: mvp`, but the goal is not a user story (`use
 | 3 | **Contact.** "Open now" or "Closed now" from hours and closures in Manila; Messenger (`m.me`) and `tel:` CTAs, including the phone-only sticky bar. | ✓ VERIFIED | `OpenStatus.Compute` takes only the `BusinessClock`, the week and the closures; no device clock in `modules/public` (grep for `new Date(`, `Date.now(`, `getTimezoneOffset` found none). `SiteLinks` accepts only `https://m.me/` links. `telHref` builds from the E.164 form of the main number. `ContactBar` is `hidden ... pg-phone:grid`. Tests run here: `OpenStatusTests` + `PhilippinePhoneTests` 90 passed; `hours.test.tsx` and `contact.test.tsx` passed, including "open: the Open now pill", "closed on a Sunday", "on a closure day", "shows only the phone-width classes". |
 | 4 | **Gallery.** Category pills with correct counts; lightbox with position, prev/next that wraps, Esc, ← and →, swipe plus visible buttons on phones. | ✓ VERIFIED | Pill counts come from the same item list the client filters (`PublicContentReader.cs` line 288), so a pill count always equals its tiles. `useGalleryCategory` keeps `?category=` and drops an unknown key with one replace. `GalleryLightbox` wraps with `(index + delta + count) % count`, handles ArrowLeft, ArrowRight and Esc, uses `useSwipe` (48 px), and has the "Previous photo" / "Next photo" tap-zone buttons (C-35). Tests run here: `GalleryLightbox.test.tsx`, `useGalleryCategory.test.tsx`, `useSwipe.test.tsx`, `GalleryPage.test.tsx` passed (132 tests in 6 files with the two above), including "wrap", "ArrowRight and ArrowLeft", "closes on Esc", "tap zones ... with wrap", "swipe left ... with wrap". |
 | 5 | **Content management.** A Manager edits site settings, product lines and prices, testimonials and Recent work, closures, and gallery items (upload, publish/unpublish, reorder); each change shows publicly at once (`ETag`/`Cache-Control`). | ✓ VERIFIED | `SiteContentPage` mounts Business info, Hours & closures, Products, Testimonials and Gallery tabs, Manager only (`requireManager` loader; sidebar item for Managers). Server writes are `[Authorize(Policy = Policies.Manager)]` on every content controller; the order public settings are `Policies.Staff` by D-16. Gallery uploads take team, line, pieces, note and shown; move, hide, show and delete exist. Recent work is the six newest shown orders (D-14). `PublicContentInvalidationInterceptor` clears the public tags after commit for every `IPublicContentRecord` and for any write to an order that is or was shown. Public reads send a strong ETag and `Cache-Control: no-cache`, 304 on a match. This is a state transition, so a test was run: `TheFirstReadAfterACommittedChangeShowsTheNewTaglineAndANewETag`, `ShowingAPhotoAddOnAShownOrderTakingItOffAndALineHideEachGiveANewGalleryETagOnTheNextRead` and `AfterAProductLineTitleChangeTheNextProductsShellShowsItBecauseTheShellCacheWasCleared` passed (3 of 3, LocalDB, own `CSPS_Test_` databases). |
+| 6 | **Upload privacy (gap-closure 11-39, G-11-19, D-P11-BL-65).** Every photo the browser can decode is redrawn before upload, also when it needs no shrink; the result is the encoder's new Blob, never the picked File. A PNG stays a PNG, a WebP stays WebP or becomes JPEG, a JPEG stays a JPEG, a decodable HEIC becomes a JPEG. Only a HEIC the browser cannot decode goes as it is. All size, pixel and type checks stay. | ✓ VERIFIED | `web/src/utils/images.ts` lines 179 to 237 read here: the old `if (!plan.scaled)` return of the picked File is gone (`grep` for `scaled` and `MIME_OF_KIND` finds nothing). Every decoded photo goes through `encodeSameFamily(parts, bitmap, plan, kind)` and returns `file: blob`, `withExtension(file.name, extension)` and `blob.type`. The only picked-File return is the undecodable HEIC branch (lines 189 to 205). The check order is unchanged: sniff, decode, 0-size, 100 MP, maxPixels and maxSide on the planned size before any encode, preview, encode, maxBytes on the blob, bitmap closed in `finally`. This is a behavior-dependent truth, so a test was run here: `npx vitest run src/utils/images.test.ts` gave 64 passed (plan SUMMARY: RED 7 failed and 57 passed, GREEN 64 passed). Pinned cases in the test file: "redraws a 1800 x 1200 JPEG at its own size into a new file, not the picked File", small PNG, small WebP, small HEIC named photo.png, picked file over the size but redrawn within it, redrawn file over the size, encoder gives nothing, and the undecodable HEIC asserting `toBe(file)` with `encode` not called. Wiring: PhotoSlot, GalleryPhotoModal, OrderPhotoPicker and OrderPhotosCard all send `prepared.file` under `prepared.name` and `prepared.type`. `git diff --name-only 3435461b..HEAD -- web/src src web/package.json web/package-lock.json` lists only `images.ts` and `images.test.ts`: no caller, server or package change. Real browsers, cited from the orchestrator and not re-run: @site-content-share 15 passed (1.9m, five projects); @order-photos-upload, @site-content-gallery and @site-content-photos in chromium 9 passed (48.3s). That a redrawn photo carries no Exif or location is browser canvas behavior; no test inspects the uploaded bytes (see human item 8). |
 
-**Score:** 5/5 truths verified (0 present but behavior-unverified)
+**Score:** 6/6 truths verified (0 present but behavior-unverified). G-11-19 is still open as a UAT record: it stays failed in 11-UAT.md until /gsd-verify-work re-tests test 19.
 
 ### Deferred Items
 
@@ -230,10 +246,15 @@ The roadmap marks this phase `mode: mvp`, but the goal is not a user story (`use
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Lightbox, gallery filter, swipe, contact bar, hours card | `npx vitest run` on 6 public test files | 6 files, 132 tests passed | ✓ PASS |
-| Open status and phone rules | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class *OpenStatusTests* --filter-class *PhilippinePhoneTests*` | 90 passed, 0 failed | ✓ PASS |
-| Cache cleared on commit (site, gallery, Products shell) | `dotnet test --project tests/Csps.Server.IntegrationTests` with three `--filter-method` names, `CSPS_TEST_SQL=localdb` for that process only | 3 passed, 0 failed | ✓ PASS |
-| Full gate on this commit's code | Provided by the caller, not re-run | .NET 9446 passed, 0 failed; web 10656 passed; lint and types clean | ✓ PASS (cited) |
+| Lightbox, gallery filter, swipe, contact bar, hours card | `npx vitest run` on 6 public test files | 6 files, 132 tests passed (first report; now inside the 30 files, 518 tests row below) | ✓ PASS |
+| Open status and phone rules | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class *OpenStatusTests* --filter-class *PhilippinePhoneTests*` | 91 passed, 0 failed (re-run now; was 90) | ✓ PASS |
+| Cache cleared on commit (site, gallery, Products shell) | `dotnet test --project tests/Csps.Server.IntegrationTests` with three `--filter-method` names, `CSPS_TEST_SQL=localdb` for that process only | 3 passed, 0 failed (first report; not re-run now because LocalDB was off limits; content code changed since for the review fixes and the D-P11-BL-29 delete and restore change, which the orchestrator full gate covers) | ✓ PASS (earlier run) |
+| Upload redraw rules (11-39) | `npx vitest run src/utils/images.test.ts` | 1 file, 64 tests passed | ✓ PASS |
+| Public pages and layout (regression) | `npx vitest run src/modules/public src/layouts` | 30 files, 518 tests passed | ✓ PASS |
+| Full web unit suite on this commit | Provided by the orchestrator, not re-run | Test Files 391 passed (391), Tests 10685 passed (10685) | ✓ PASS (cited) |
+| Lint, typecheck, build, license gate (11-39) | Provided by the orchestrator, not re-run | all pass | ✓ PASS (cited) |
+| `npm --prefix web run verify` | Provided by the orchestrator, not re-run | Stops at `format:check` on nine files 11-39 did not touch (deferred D-39-1 in `deferred-items.md`: gallery.spec.ts, link-preview.spec.ts, public-sweep.spec.ts, site-content-sweep.spec.ts, auditCopy.ts, auditCopy.test.ts, PhotoSlot.tsx, Phase11Demos.tsx, Phase11Demos.test.tsx). Not clean, recorded honestly. The plan 11-39 must_have "verify exits 0" is therefore NOT met | ⚠️ NOT MET (pre-existing formatting only) |
+| Earlier .NET gate | Cited from the first report, not re-run | .NET 9446 passed, 0 failed | ✓ PASS (cited, older) |
 | Full e2e, Lighthouse | Not run (another agent owns Playwright and port 5199) | | ? SKIP (human item 1; Lighthouse figures from plan 11-36) |
 
 ### Probe Execution
@@ -247,14 +268,14 @@ No probes are declared in the plans, and `scripts/*/tests/probe-*.sh` does not e
 | PUB-01 | 11-02, 11-08, 11-10, 11-18, 11-25, 11-29, 11-36, 11-37 | Home, Products, Gallery, Contact and 404 | ✓ SATISFIED | Truth 1. Legal pages are Phase 12 by the phase boundary. |
 | PUB-02 | 11-07 and 10 more | Business info and prices from the database | ✓ SATISFIED | Truth 1, data-flow table. |
 | PUB-03 | 11-09 and 8 more | Manager edits all content, shows at once | ✓ SATISFIED | Truth 5. |
-| PUB-04 | 11-02, 11-07, 11-11, 11-13, 11-19, 11-26, 11-30, 11-34, 11-37 | Head, OG, JSON-LD, robots, sitemap, noindex, real 404 | ✓ SATISFIED | Truth 2. |
+| PUB-04 | 11-02, 11-07, 11-11, 11-13, 11-19, 11-26, 11-30, 11-34, 11-37, 11-39 | Head, OG, JSON-LD, robots, sitemap, noindex, real 404 | ✓ SATISFIED | Truth 2. |
 | PUB-05 | 11-03, 11-05, 11-11, 11-13, 11-14, 11-16 | Open now or Closed now in Manila | ✓ SATISFIED | Truth 3. REQUIREMENTS.md still shows it unchecked and "Pending". |
 | PUB-06 | 11-04, 11-10 | Messenger and tel: CTAs, phone-only bar | ✓ SATISFIED | Truth 3. REQUIREMENTS.md still "Pending". |
 | GAL-01 | 11-26, 11-29 | Masonry, pills with counts, category in the URL | ✓ SATISFIED | Truth 4. |
 | GAL-02 | 11-31, 11-37 | Lightbox | ✓ SATISFIED | Truth 4. |
-| GAL-03 | 11-22, 11-23, 11-27, 11-28, 11-32, 11-33, 11-35 | Manager manages gallery items | ✓ SATISFIED | Truth 5. |
+| GAL-03 | 11-22, 11-23, 11-27, 11-28, 11-32, 11-33, 11-35, 11-39 | Manager manages gallery items | ✓ SATISFIED | Truth 5; uploads are now redrawn before they are sent (truth 6). |
 | CONT-01 | 11-07 and 8 more | Site settings | ✓ SATISFIED | Business Info tab, `SiteSettingsController` PUT is Manager only. Time zone and money format read-only by D-35. |
-| CONT-02 | 11-15, 11-17, 11-19, 11-20 and more | Product lines and price list | ✓ SATISFIED | `ProductLinesController` create, edit, move, hide, show, delete when unused. |
+| CONT-02 | 11-15, 11-17, 11-19, 11-20, 11-39 and more | Product lines and price list | ✓ SATISFIED | `ProductLinesController` create, edit, move, hide, show, delete when unused. |
 | CONT-03 | 11-21, 11-24, 11-26 and more | Testimonials and Recent work | ✓ SATISFIED | Testimonials tab; Recent work automatic from shown orders (D-14). |
 | CONT-04 | 11-03, 11-05, 11-13, 11-16 | Closures feed Open now and JSON-LD | ✓ SATISFIED | `OpenStatus.Compute` closures; `ShellHeadTests` special hours cases. REQUIREMENTS.md still "Pending". |
 | CONT-05 | 11-07, 11-37 | HybridCache, ETag, Cache-Control, invalidation | ✓ SATISFIED | Truth 5. REQUIREMENTS.md still "Pending". |
@@ -262,7 +283,7 @@ No probes are declared in the plans, and `scripts/*/tests/probe-*.sh` does not e
 
 Carry-overs: P10-BL-22 (order-number deadlock answers 409) has tests in `CreateOrderHandlerTests` and `ImportOrderHandlerTests`; D-45 audit exceptions hold exactly the two ruled entries with `reviewBy` 2026-12-14; D-120 and D-121 are recorded in 11-CONTEXT.md.
 
-No orphaned requirements: all 14 IDs the roadmap maps to Phase 11 are claimed by at least one plan.
+No orphaned requirements: all 14 IDs the roadmap maps to Phase 11 (PUB-01 to PUB-06, GAL-01 to GAL-03, CONT-01 to CONT-05) are claimed by at least one plan, and all 14 are found in `.planning/REQUIREMENTS.md`, checked and "Complete" for Phase 11. Plan 11-39 claims GAL-03, CONT-02 and PUB-04, all in that list. The other IDs in plan frontmatter (DASH-06, OPS-03, ORD-14, PERF-02, PERF-04, SEC-07, USER-02) are carry-overs, not Phase 11 mappings.
 
 ### Anti-Patterns Found
 
@@ -270,13 +291,15 @@ No orphaned requirements: all 14 IDs the roadmap maps to Phase 11 are claimed by
 | ---- | ---- | ------- | -------- | ------ |
 | 648 files changed since `main` (25bd3431) | | `TBD`, `FIXME`, `XXX` | none found | No debt-marker blocker. |
 | Same files | | `TODO`, `HACK`, "not yet implemented" | none in code | "coming soon" appears only in tests that assert it is gone. |
-| `.planning/REQUIREMENTS.md` | 190, 191, 204, 205, 250 | Stale tracking | ⚠️ Warning | PUB-05, PUB-06, CONT-04, CONT-05 are built but still unchecked and "Pending"; PERF-02 is checked although the public pages miss it. |
+| `.planning/REQUIREMENTS.md` | 190, 191, 204, 205, 250 | Tracking | ⚠️ Warning (PERF-02 only) | PUB-05, PUB-06, CONT-04 and CONT-05 are now checked and "Complete" (fixed since the first report). PERF-02 is still checked under Phase 2 although the public pages miss it on LCP and one performance run. |
+| `web/src/utils/images.ts`, `images.test.ts` (11-39) | | `TBD`, `FIXME`, `XXX`, `TODO`, stubs | none found | No debt marker and no empty implementation in the two changed files. |
+| Nine web files (D-39-1) | | Prettier: lines over 120 characters | ⚠️ Warning | `npm run verify` stops at `format:check`. Pre-existing, unchanged by 11-39, no behavior impact. Needs a small formatting task. |
 | `11-VALIDATION.md` | 5 to 7 | `status: draft`, `nyquist_compliant: false` | ℹ️ Info | Run `/gsd-validate-phase 11` if the Nyquist sign-off is wanted. |
 | Phase 11 migrations | | Drops, renames, triggers | none found | Only `AddSiteContactDetails` has a SQL step, which blanks two bracket placeholders (D-39); migrations are the allowed place for SQL. |
 
 ### Prohibitions (judgment tier, autonomous run)
 
-All 43 are `verification: judgment`; none is test tier. Each is flagged **unverified-prohibition, human review recommended**. The verdicts below are a non-authoritative judge, not a pass.
+43 are `verification: judgment` (plans 11-01 to 11-38); plan 11-39 adds 2 test-tier items (last two rows). Each judgment item is flagged **unverified-prohibition, human review recommended**, and so is the second 11-39 item, giving 44 flagged. The verdicts below are a non-authoritative judge, not a pass.
 
 | Plans | Prohibition (short) | Judge verdict | Evidence seen |
 | ----- | ------------------- | ------------- | ------------- |
@@ -294,14 +317,16 @@ All 43 are `verification: judgment`; none is test tier. Each is flagged **unveri
 | 11-36 | No look change; no limit raised; LCP not blocking | not violated | thresholds frozen; font change is a unicode-range cut only, parity reported passing |
 | 11-38 | Dev seed only CSPS_Dev or CSPS_E2E | not violated | `tools/Csps.DevSeed/Program.cs` guard |
 | The other 29 | See each plan's `must_haves.prohibitions` | no contrary evidence found | not individually traced |
+| 11-39 (GAL-03, test tier) | MUST NOT return or send the picked File for any decodable photo | not violated, enforced by tests | Wired enforcement: the images.test.ts cases assert the result is the encoder blob and not the picked File; run here, 64 passed. Only the undecodable HEIC branch returns `file`. |
+| 11-39 (CONT-02, test tier) | MUST NOT loosen a check, change a caller, the server rules or ImageMetadataStripper | not violated, flagged | The check order and limits are unchanged in `images.ts` and their existing tests still pass. The diff `3435461b..HEAD` touches only images.ts and images.test.ts. No automated gate enforces "no caller or server change", so that part rests on the diff read here and is flagged unverified-prohibition, human review recommended. |
 
 ### Human Verification Required
 
 ### 1. Full e2e result on this commit
 
-**Test:** Read the result of the Playwright run the other agent is doing now.
-**Expected:** Green, including @public-sweep, @link-preview, contact, gallery and site-content specs on all five projects.
-**Why human:** Playwright was off limits for this verifier; layout widths and phone behaviour rely on these specs.
+**Test:** Read the full-suite result in 11-E2E-PHASE-END.md and the 11-39 runs, and accept or reject the recorded flakes.
+**Expected:** Green apart from the listed flakes, including @public-sweep, @link-preview, contact, gallery and site-content specs on all five projects.
+**Why human:** Playwright and LocalDB were off limits for this verifier. Cited, not seen here: full run 2264 of 2438 passed (115 failed, passed on re-run apart from listed flakes); 11-39 runs 15 passed (@site-content-share, five projects) and 9 passed (three upload tags, chromium).
 
 ### 2. Cloudinary named sizes on the live account (P11-BL-21, D-44)
 
@@ -340,15 +365,29 @@ All 43 are `verification: judgment`; none is test tier. Each is flagged **unveri
 **Expected:** Each confirmed or a finding raised.
 **Why human:** Autonomous run; the judge verdict is not authoritative.
 
+### 8. Re-test UAT test 19 (G-11-19, D-P11-BL-65)
+
+**Test:** Run `/gsd-verify-work` for test 19: upload a real phone photo that carries location data and is 2000 px or smaller (share picture, a product line photo, a gallery photo and an order photo).
+**Expected:** Each goes up as a redrawn copy, the stored and public copy has no location or camera data, and G-11-19 is marked resolved.
+**Why human:** The code and unit tests are verified here, but no automated test sends a photo with Exif or GPS and reads the uploaded bytes, and the real-browser canvas strip cannot be seen from code. G-11-19 stays failed in 11-UAT.md until the re-test.
+
+### Other open UAT items
+
+11-UAT.md shows 259 of 263 passed, 1 issue (test 19, above) and 3 blocked (tests 21, 22 and 23: live Cloudinary setup, real content entry and the Facebook Sharing Debugger). The three are blocked on the deploy ("phase 11 isnt live yet", owner, 2026-11-14), the same as human items 2 to 4. They are go-live checklist steps, not code gaps.
+
+### Open owner question from 11-39
+
+The PNG size edge: the size limit now counts the redrawn file. Recommended (a): keep it, so a PNG keeps its transparency. Option (b): turn an over-limit PNG into a JPEG. Not answered yet (see 11-39-SUMMARY.md).
+
 ### Gaps Summary
 
-No code gaps. Every success criterion is backed by real, wired code with passing tests, several run here. The open points are owner steps and owner rulings, not missing work.
+No code gaps against the five success criteria or plan 11-39. Every success criterion is backed by real, wired code with passing tests, several run here. Plan 11-39 closed the code side of G-11-19. The open points are owner steps and rulings, one UAT re-test, and one not-met plan gate: `npm run verify` stops at format:check on nine untouched files (D-39-1). That is a formatting chore with no behavior impact, so it is a warning, not a blocker.
 
 Recorded but not blocking a success criterion (owner items, no action asked here): P11-BL-35 (two uploads at once can answer 500, IMPORTANT, rare), P11-BL-24 (Contact bundle at 149.09 of 150 KB), P11-BL-44 (CLS 0.041 and 0.043), P11-BL-46 (Firefox focus partly under a sticky bar; WCAG met), P11-BL-31 (removing consent on a cancelled order is refused; the order is not public, so no exposure), and the wording items P11-BL-01 to P11-BL-41.
 
-Tracking fixes for whoever closes the phase: tick PUB-05, PUB-06, CONT-04 and CONT-05 in REQUIREMENTS.md, and correct the PERF-02 note for the public pages.
+Tracking fixes for whoever closes the phase: correct the PERF-02 note for the public pages (PUB-05, PUB-06, CONT-04 and CONT-05 are now ticked), and run `npm --prefix web run format` on the nine D-39-1 files, then `verify`. D-39-2 (e2e could not run in the plan worktree) was answered by the orchestrator runs from the main checkout.
 
 ---
 
-_Verified: 2026-11-13T10:58:00Z_
+_Verified: 2026-11-15T02:45:00Z (re-verification after plan 11-39)_
 _Verifier: Claude (gsd-verifier)_
