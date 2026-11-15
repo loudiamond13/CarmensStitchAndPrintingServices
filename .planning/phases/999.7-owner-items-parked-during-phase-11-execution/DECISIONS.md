@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-14T21:45:54-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-15T00:45:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -557,6 +557,8 @@ On a busy machine Firefox cancels a font download and logs it as a console error
 - **C:** preload the fonts (changes the pages).
 
 Detail is in `11-E2E-PHASE-END.md` under "Owner items".
+
+**Seen again (2026-11-15):** the post third-review run of `public.spec.ts`, `fixture-selftest.spec.ts` and `order-public-website.spec.ts` (all projects) had 134 passed and 2 failed. Both failures were this Firefox message on an Archivo font file, in `@order-public-website` "takes a shown order off the website" and "at 320px the window is a bottom sheet". Re-run alone 3 times each in Firefox, 6 of 6 passed.
 
 ## P11-BL-56 · WebKit test page wait is too short on a busy machine (e2e pass)
 
