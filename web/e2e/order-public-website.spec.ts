@@ -336,7 +336,8 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
     let id: string | null = null;
     try {
       await page.getByRole('button', { name: 'Save Order' }).click();
-      id = ((await (await created).json()) as { id: string }).id;
+      const body = (await (await created).json()) as { id?: string };
+      id = body.id ?? null;
       await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
       const saved = formCard(page);
       await expect(saved).toBeVisible();
