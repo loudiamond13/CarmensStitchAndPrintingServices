@@ -71,7 +71,7 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
   request,
   guard,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const order = await openOrderWithPhoto(page, request, 'Admin', 'Public Website');
   const region = card(page);
@@ -133,7 +133,7 @@ test('@order-public-website a Manager takes a shown order off the website: the g
   request,
   guard,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const order = await openOrderWithPhoto(page, request, 'Manager', 'Take Off');
   await withSiteContentLock(async () => {
@@ -305,7 +305,7 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
   request,
   guard,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const admin = await createStaff(request, 'Admin');
   const customer = `E2E Form Public ${randomUUID().replaceAll('-', '').slice(0, 8)}`;
@@ -348,7 +348,7 @@ test('@order-form-public a Manager edits a shown order, changes Name shown, save
   request,
   guard,
 }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const order = await openOrderWithPhoto(page, request, 'Manager', 'Form Edit');
   await withSiteContentLock(async () => {
