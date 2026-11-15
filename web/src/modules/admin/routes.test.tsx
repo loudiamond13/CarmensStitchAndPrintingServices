@@ -26,6 +26,7 @@ import { server } from '@/test/msw';
 import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
+import { LINE_IDS, lineProductTypesAre, productLinesBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -159,7 +160,14 @@ const adminSession = () =>
   });
 
 describe('Manager-only routes (USER-08)', () => {
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
+  it.each([
+    '/admin/users',
+    '/admin/audit-log',
+    '/admin/settings',
+    '/admin/site-content',
+    '/admin/site-content/products/new',
+    `/admin/site-content/products/${LINE_IDS.basketball}`,
+  ])(
     'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
       answerRefresh(adminSession());
@@ -243,18 +251,22 @@ describe('Manager-only routes (USER-08)', () => {
     });
   });
 
-  it.each(['/admin/users', '/admin/audit-log', '/admin/settings'])(
-    'a visitor without a session opening %s goes to sign-in with the return path',
-    async (path) => {
-      answerRefresh();
-      const router = createMemoryRouter(routes, { initialEntries: [path] });
-      render(<RouterProvider router={router} />);
+  it.each([
+    '/admin/users',
+    '/admin/audit-log',
+    '/admin/settings',
+    '/admin/site-content',
+    '/admin/site-content/products/new',
+    `/admin/site-content/products/${LINE_IDS.basketball}`,
+  ])('a visitor without a session opening %s goes to sign-in with the return path', async (path) => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: [path] });
+    render(<RouterProvider router={router} />);
 
-      await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
-      expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
-    },
-  );
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent(path)}`);
+  });
 
   it('a session with an unknown role is sent to sign-in, never shown the Manager pages', async () => {
     answerRefresh(sessionResponse({ user: { ...sessionResponse().user, role: 'Owner' } }));
@@ -268,7 +280,22 @@ describe('Manager-only routes (USER-08)', () => {
 });
 
 describe('an unknown admin address (D-89)', () => {
-  it('shows the in-shell Page not found screen, not the public holding page', async () => {
+  it.each(['/admin/site-content/no-such-page', '/admin/site-content/products', '/admin/site-content/products/a/b'])(
+    'shows the in-shell Page not found screen for %s under Site Content, for a Manager',
+    async (path) => {
+      answerRefresh(sessionResponse());
+      const router = createMemoryRouter(routes, { initialEntries: [path] });
+      render(<RouterProvider router={router} />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(router.state.location.pathname).toBe(path);
+    },
+    30_000,
+  );
+
+  it('shows the in-shell Page not found screen, not the public 404 page', async () => {
     answerRefresh(sessionResponse());
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/no-such-page'] });
     render(<RouterProvider router={router} />);
@@ -276,7 +303,7 @@ describe('an unknown admin address (D-89)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' }, { timeout: 10_000 })).toBeVisible();
     expect(router.state.location.pathname).toBe('/admin/no-such-page');
     expect(screen.getAllByRole('navigation', { name: 'Admin' }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('heading', { level: 1, name: /New website/ })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Out of bounds.' })).toBeNull();
     await waitFor(() => {
       expect(document.title).toBe('Page not found · CSPS Admin');
     });
@@ -620,6 +647,63 @@ describe('Settings for Managers (D-14, OQ-3; plan 06-17)', () => {
   }, 30_000);
 });
 
+describe('Site Content for Managers (D-27; plan 11-12)', () => {
+  it('a Manager who opens /admin/site-content stays and sees the page, with Site Content the one current item and no tab current', async () => {
+    answerRefresh(sessionResponse());
+    siteSettingsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/site-content'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Site Content' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByLabelText(/^Tagline/)).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/site-content');
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Site Content']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    await waitFor(() => {
+      expect(document.title).toBe('Site Content · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('a Manager who opens a product line stays and sees its editor, with Site Content the one current item', async () => {
+    answerRefresh(sessionResponse());
+    productLinesBackend();
+    lineProductTypesAre();
+    const router = createMemoryRouter(routes, { initialEntries: [`/admin/site-content/products/${LINE_IDS.polo}`] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Polo Shirts' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.pathname).toBe(`/admin/site-content/products/${LINE_IDS.polo}`);
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Site Content']);
+  }, 30_000);
+
+  it('a Manager who opens /admin/site-content/products/new sees the New Product Line editor', async () => {
+    answerRefresh(sessionResponse());
+    productLinesBackend();
+    lineProductTypesAre();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/site-content/products/new'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'New Product Line' }, { timeout: 10_000 }),
+    ).toBeVisible();
+  }, 30_000);
+
+  it('an Admin sees no Site Content item in the shell', async () => {
+    answerRefresh(adminSession());
+    server.use(http.get('*/api/v1/sessions', () => HttpResponse.json([])));
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    render(<RouterProvider router={router} />);
+
+    await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
+    expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
+  }, 30_000);
+});
+
 describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
   it('a Manager who opens /admin/components stays and sees the showcase marked as demo data, with no nav item current', async () => {
     answerRefresh(sessionResponse());
@@ -711,11 +795,11 @@ function devTree(): RouteObject[] {
 }
 
 describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
-  it('the production routes have no /dev/components: it falls through to the public holding page', async () => {
+  it('the production routes have no /dev/components: it falls through to the public 404 page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/components'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Out of bounds.' }, { timeout: 10_000 })).toBeVisible();
     expect(screen.queryByText('Component Showcase')).toBeNull();
   });
 
@@ -864,16 +948,19 @@ describe('production and dev route lists (D-20 reversed, Pitfall 11)', () => {
     for (let index = 1; index <= 16; index += 1) {
       expect(screen.getByRole('textbox', { name: `Field ${String(index)}` })).toBeVisible();
     }
-    expect(document.title).toBe('Public layout check');
+    // The title is set in an effect, which can land after the heading under load.
+    await waitFor(() => {
+      expect(document.title).toBe('Public layout check');
+    });
     expect(probe.count).toBe(0);
     await expectNoAxeViolations(container);
   }, 30_000);
 
-  it('the production routes have no /dev/public: it falls through to the public holding page', async () => {
+  it('the production routes have no /dev/public: it falls through to the public 404 page', async () => {
     const router = createMemoryRouter(routes, { initialEntries: ['/dev/public'] });
     render(<RouterProvider router={router} />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: /New website/ }, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Out of bounds.' }, { timeout: 10_000 })).toBeVisible();
     expect(screen.queryByText('Public layout check')).toBeNull();
   });
 });

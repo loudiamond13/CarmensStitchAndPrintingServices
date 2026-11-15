@@ -2,7 +2,8 @@
 // order details, the Images card (the draft photo picker), the items and one save that sends them together. Picked photos stay on
 // the form; once the order exists they go to its upload queue and the order page shows them uploading. Every server rule is
 // checked in the browser first with the server's own words (OR-3). One Idempotency-Key covers a submission and its retries (SEC-06). The order date starts at the
-// server's business today; the device clock is never read (D-59).
+// server's business today; the device clock is never read (D-59). F1 and F2 also carry the Public website card (plan 11-35): its four
+// values live in this form and save with the order.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
@@ -44,6 +45,8 @@ import { OrderLockedBanner } from '@/modules/admin/components/OrderLockedBanner'
 import { OrderFormSaveBar, saveBarCaption } from '@/modules/admin/components/OrderFormSaveBar';
 import { OrderItemsEditor } from '@/modules/admin/components/OrderItemsEditor';
 import { OrderSummaryAside } from '@/modules/admin/components/OrderSummaryAside';
+import type { PublicWebsiteFormLike } from '@/modules/admin/components/PublicWebsiteFields';
+import { PublicWebsiteFormCard } from '@/modules/admin/components/PublicWebsiteFormCard';
 import {
   orderFormBannerClasses,
   orderFormCardClasses,
@@ -80,6 +83,7 @@ import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import { isLocked } from '@/modules/admin/orderRules';
+import { blankPublicWebsite, publicWebsiteValuesOf } from '@/modules/admin/publicWebsiteSchemas';
 import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
@@ -97,6 +101,9 @@ const EDIT_STALE = 'edit.stale';
 
 /** The server's code for "the order is Completed or Cancelled" (D-15). */
 const ORDERS_LOCKED = 'orders.locked';
+
+/** The server's code for "a Cancelled order cannot be shown on the website": the order was cancelled since the form opened. */
+const ORDERS_PUBLIC_CANCELLED = 'orders.public-cancelled';
 
 const STATUS_OPTIONS = CREATE_STATUSES.map((status) => ({
   value: status,
@@ -132,6 +139,11 @@ const DETAIL_FIELDS: Readonly<Record<string, FieldPath<UpdateOrderDetailsFormInp
   orderdate: 'orderDate',
   duedate: 'dueDate',
   notes: 'notes',
+  // The Public website card, which the server answers under the publicWebsite. prefix.
+  'publicwebsite.customerconsent': 'customerConsent',
+  'publicwebsite.showonwebsite': 'showOnWebsite',
+  'publicwebsite.productlineid': 'productLineId',
+  'publicwebsite.publicname': 'publicName',
 };
 
 const TOP_FIELDS: Readonly<Record<string, FieldPath<CreateOrderFormInput>>> = {
@@ -194,6 +206,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     control,
     handleSubmit,
     setError,
+    setValue,
     getValues,
     formState: { errors, isDirty },
   } = useForm<CreateOrderFormInput, unknown, CreateOrderFormValues>({
@@ -210,15 +223,21 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
       status: 'pending',
       notes: '',
       items: [blankOrderItem()],
+      ...blankPublicWebsite(),
     },
   });
 
   // The shared cards read only the detail fields, which this form holds with the same names and types. Control is invariant in its
   // field values, so the wider control is narrowed here, once.
   const detailsControl = control as unknown as OrderDetailsControl;
+  // The Public website card reads and writes its four values on this form, so it takes the same narrowing.
+  const publicForm = { control, setValue } as unknown as PublicWebsiteFormLike;
   const hasChanges = isDirty || drafts.drafts.length > 0;
   const guard = useUnsavedChangesGuard({ isDirty: hasChanges });
-  const [orderDate, dueDate, status] = useWatch({ control, name: ['orderDate', 'dueDate', 'status'] });
+  const [orderDate, dueDate, status, teamName] = useWatch({
+    control,
+    name: ['orderDate', 'dueDate', 'status', 'teamName'],
+  });
   const preview = useItemsPreview(control);
   const days = daysBetween(orderDate, dueDate);
 
@@ -381,6 +400,13 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
               />
             }
           />
+          <PublicWebsiteFormCard
+            form={publicForm}
+            order={null}
+            teamName={teamName}
+            headingId={`${formId}-public`}
+            lineFromItems
+          />
           <section className={orderFormCardClasses} aria-labelledby={`${formId}-images`}>
             <div className={orderFormCardHeadClasses}>
               <div>
@@ -441,6 +467,7 @@ function valuesOf(order: OrderDetailResponse): UpdateOrderDetailsFormInput {
     orderDate: order.orderDate,
     dueDate: order.dueDate ?? '',
     notes: order.notes ?? '',
+    ...publicWebsiteValuesOf(order),
   };
 }
 
@@ -474,6 +501,7 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
     control,
     handleSubmit,
     setError,
+    setValue,
     reset,
     formState: { errors, isDirty },
   } = useForm<UpdateOrderDetailsFormInput, unknown, UpdateOrderDetailsFormValues>({
@@ -483,7 +511,10 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   });
 
   const guard = useUnsavedChangesGuard({ isDirty });
-  const [orderDate, dueDate] = useWatch({ control, name: ['orderDate', 'dueDate'] });
+  const [orderDate, dueDate, teamName] = useWatch({ control, name: ['orderDate', 'dueDate', 'teamName'] });
+  // The shared cards read only the detail fields and the Public website card only its four values: the wider control is narrowed once.
+  const detailsControl = control as unknown as OrderDetailsControl;
+  const publicForm = { control, setValue } as unknown as PublicWebsiteFormLike;
   const days = daysBetween(orderDate, dueDate);
   // An imported order with no due date says why the box is empty until a date is typed (D-38).
   const noDueDate = opened.dueDate === null && dueDate.trim() === '';
@@ -524,7 +555,11 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
       return;
     }
     // The order was completed or cancelled since the form opened: read it again, and the locked banner takes the form's place.
-    if (isHttpError(error) && error.status === 422 && error.code === ORDERS_LOCKED) {
+    if (
+      isHttpError(error) &&
+      error.status === 422 &&
+      (error.code === ORDERS_LOCKED || error.code === ORDERS_PUBLIC_CANCELLED)
+    ) {
       void query.refetch().then((result) => {
         if (result.data !== undefined) {
           setOpened(result.data);
@@ -551,7 +586,11 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
   };
 
   const submission = useSubmission<UpdateOrderDetailsFormValues, OrderDetailResponse>(
-    (_key, values) => ordersService.updateDetails(opened.id, toUpdateOrderDetailsRequest(values, opened.version)),
+    (_key, values) =>
+      ordersService.updateDetails(
+        opened.id,
+        toUpdateOrderDetailsRequest(values, opened.version, publicWebsiteValuesOf(opened)),
+      ),
     {
       onSuccess: (order) => {
         applyOrder(order);
@@ -657,8 +696,9 @@ function EditOrderForm({ initial }: EditOrderFormProps) {
               }}
             />
           )}
-          <OrderFormCustomerCard control={control} headingId={`${formId}-customer`} />
-          <OrderFormDetailsCard control={control} headingId={`${formId}-details`} dueHint={dueHint} />
+          <OrderFormCustomerCard control={detailsControl} headingId={`${formId}-customer`} />
+          <OrderFormDetailsCard control={detailsControl} headingId={`${formId}-details`} dueHint={dueHint} />
+          <PublicWebsiteFormCard form={publicForm} order={opened} teamName={teamName} headingId={`${formId}-public`} />
           <OrderFormSaveBar
             caption={caption}
             saveLabel={COPY.edit.saveBar.save}

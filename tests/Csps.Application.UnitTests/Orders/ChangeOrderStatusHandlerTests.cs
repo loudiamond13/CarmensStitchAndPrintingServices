@@ -7,6 +7,7 @@ using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.Content;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
 using NSubstitute;
@@ -158,6 +159,60 @@ public sealed class ChangeOrderStatusHandlerTests
     }
 
     [Fact]
+    public async Task CancellingAShownOrderRemovesItsGalleryEntryAndRecordsTheTakenOffEntryAfterTheStatusEntryInOneSave()
+    {
+        var harness = new Harness(shown: true);
+
+        var result = await harness.Handler.HandleAsync(harness.OrderId, new ChangeOrderStatusRequest("cancelled"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Last.IsShownOnWebsite.ShouldBeFalse();
+        harness.Last.HasCustomerConsent.ShouldBeTrue();
+        harness.Gallery.Received(1).Remove(Arg.Is<GalleryEntry>(entry => entry.OrderId == harness.OrderId));
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderStatusChanged, AuditActions.OrderTakenOffWebsite]);
+        harness.Audit.Entries[1].Call.Detail.ShouldBe(OrderAuditDetail.PublicSetting(harness.Last));
+        harness.Audit.Entries.ShouldAllBe(entry => entry.SavesSoFar == 0);
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task CancellingAShownOrderWhoseEntryIsAlreadyGoneRemovesNothingAndStillRecordsTheTakenOffEntry()
+    {
+        var harness = new Harness(shown: true, entryExists: false);
+
+        var result = await harness.Handler.HandleAsync(harness.OrderId, new ChangeOrderStatusRequest("cancelled"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Gallery.DidNotReceive().Remove(Arg.Any<GalleryEntry>());
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderStatusChanged, AuditActions.OrderTakenOffWebsite]);
+    }
+
+    [Fact]
+    public async Task CancellingAnOrderThatIsNotShownNeverTouchesTheGallery()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(harness.OrderId, new ChangeOrderStatusRequest("cancelled"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Gallery.ReceivedCalls().ShouldBeEmpty();
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderStatusChanged]);
+    }
+
+    [Fact]
+    public async Task AnotherMoveOfAShownOrderKeepsItShownAndTouchesNoGalleryEntry()
+    {
+        var harness = new Harness(shown: true);
+
+        var result = await harness.Handler.HandleAsync(harness.OrderId, new ChangeOrderStatusRequest("mockup"), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Last.IsShownOnWebsite.ShouldBeTrue();
+        harness.Gallery.ReceivedCalls().ShouldBeEmpty();
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderStatusChanged]);
+    }
+
+    [Fact]
     public async Task ALostRaceIsReadAgainAndDecidedAgainOnce()
     {
         var harness = new Harness();
@@ -194,12 +249,17 @@ public sealed class ChangeOrderStatusHandlerTests
     private sealed class Harness
     {
         private readonly OrderStatus _startAt;
+        private readonly bool _shown;
         private readonly List<Order> _loaded = [];
         private int _lockFailures;
 
-        public Harness(bool noCaller = false, bool found = true, OrderStatus startAt = OrderStatus.Pending)
+        public Harness(bool noCaller = false, bool found = true, OrderStatus startAt = OrderStatus.Pending, bool shown = false, bool entryExists = true)
         {
             _startAt = startAt;
+            _shown = shown;
+            Gallery = Substitute.For<IGalleryEntries>();
+            Gallery.FindForOrderAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+                .Returns(call => Task.FromResult<GalleryEntry?>(entryExists ? GalleryEntry.ForOrder(call.Arg<Guid>(), 0, Now) : null));
             Audit = new SaveAwareAudit(Unit);
             var seed = Make(null);
             OrderId = seed.Id;
@@ -221,7 +281,7 @@ public sealed class ChangeOrderStatusHandlerTests
             Reader.GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult<OrderDetailResponse?>(Detail()));
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new ChangeOrderStatusHandler(Orders, Reader, new FixedCalendar(), Audit, Unit, request, new ChangeOrderStatusRequestValidator());
+            Handler = new ChangeOrderStatusHandler(Orders, Reader, Gallery, new FixedCalendar(), Audit, Unit, request, new ChangeOrderStatusRequestValidator());
         }
 
         public Guid OrderId { get; }
@@ -229,6 +289,8 @@ public sealed class ChangeOrderStatusHandlerTests
         public IOrders Orders { get; }
 
         public IOrderReader Reader { get; }
+
+        public IGalleryEntries Gallery { get; }
 
         public FakeUnitOfWork Unit { get; } = new();
 
@@ -256,6 +318,11 @@ public sealed class ChangeOrderStatusHandlerTests
             var details = new OrderDetails("Juan Dela Cruz", null, "0917 123 4567", null, null, new DateOnly(2026, 10, 28), new DateOnly(2026, 11, 11), null);
             var payments = _startAt is OrderStatus.Completed ? new[] { new NewOrderPayment(new DateOnly(2026, 10, 28), 9750.00m, Cash, null, null, CallerId) } : [];
             var order = Order.Create(new NewOrder(details, OrderStatus.Pending, items) { Payments = payments }, Guid.NewGuid(), Now, new DateOnly(2026, 10, 28)).Value;
+            if (_shown)
+            {
+                order.SetPublicSettings(new OrderPublicSettings(true, true, null, "Sample Team"), CallerId, JerseyType, Now).IsSuccess.ShouldBeTrue();
+            }
+
             if (_startAt is OrderStatus.Completed or OrderStatus.Cancelled)
             {
                 order.ChangeStatus(_startAt, CallerId, Now).IsSuccess.ShouldBeTrue();
@@ -290,6 +357,7 @@ public sealed class ChangeOrderStatusHandlerTests
             [],
             [],
             new OrderTotalsResponse(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, false),
+            new OrderPublicWebsiteDto(false, null, null, false, null, null, null, null, null, 0, false, true),
             new ActorRef(CallerId, "Mina Mercado", false),
             Now,
             null,

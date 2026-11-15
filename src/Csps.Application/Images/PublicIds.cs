@@ -10,6 +10,7 @@ namespace Csps.Application.Images;
 public static class PublicIds
 {
     private const int RandomBytes = 16;
+    private const string ContentSegment = "content";
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz234567";
 
     /// <summary>Gets the storage folder of an order's photos.</summary>
@@ -27,6 +28,34 @@ public static class PublicIds
     /// <param name="orderId">The order id.</param>
     /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
     public static string New(string root, Guid orderId) => $"{Folder(root, orderId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
+
+    /// <summary>
+    /// Gets the storage folder of the content photos of one owner, such as a product line. Content photos live under <c>{root}/content/</c>,
+    /// never under the orders folder, so the stray sweep tells them apart (IMG-03, RESEARCH P-9).
+    /// </summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <param name="area">The kind of content, lowercase letters only, such as <c>lines</c>.</param>
+    /// <param name="ownerId">The id of the thing the photos belong to.</param>
+    /// <returns>The folder, without a trailing slash.</returns>
+    public static string ContentFolder(string root, string area, Guid ownerId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        ArgumentException.ThrowIfNullOrWhiteSpace(area);
+        if (!area.All(char.IsAsciiLetterLower))
+        {
+            throw new ArgumentException("The area must be lowercase letters.", nameof(area));
+        }
+
+        return $"{root}/{ContentSegment}/{area}/{ownerId:D}";
+    }
+
+    /// <summary>Makes a new random public id inside the owner's content folder.</summary>
+    /// <param name="root">The environment's root folder.</param>
+    /// <param name="area">The kind of content, such as <c>lines</c>.</param>
+    /// <param name="ownerId">The id of the thing the photo belongs to.</param>
+    /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
+    public static string NewContent(string root, string area, Guid ownerId) =>
+        $"{ContentFolder(root, area, ownerId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
 
     // RFC 4648 base32 in lowercase without padding: 16 bytes make 26 characters.
     private static string Base32(ReadOnlySpan<byte> bytes)

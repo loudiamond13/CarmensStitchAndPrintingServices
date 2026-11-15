@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -5,12 +6,15 @@ using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Orders;
 using Csps.Infrastructure.Images;
+using Csps.Infrastructure.Persistence;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Csps.Testing.Images;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -420,6 +424,74 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
         rows.Select(row => row.Slot).Order().ShouldBe([0, 1, 2, 3, 4]);
     }
 
+    // D-P11-BL-35: reads no longer wait for another request's unfinished save, so two uploads to two orders do not deadlock.
+    [Fact]
+    public async Task UploadsToTwoDifferentOrdersSentTogetherBothSaveEveryTime()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var orderIds = new List<Guid>();
+        for (var round = 1; round <= 10; round++)
+        {
+            var firstId = (await CreateOrderAsync(factory, client, manager.AccessToken)).GetProperty("id").GetGuid();
+            var secondId = (await CreateOrderAsync(factory, client, manager.AccessToken)).GetProperty("id").GetGuid();
+            orderIds.AddRange([firstId, secondId]);
+
+            var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+                () => UploadAsync(client, manager.AccessToken, firstId, Photo),
+                () => UploadAsync(client, manager.AccessToken, secondId, Photo));
+            using (first)
+            using (second)
+            {
+                var firstText = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                var secondText = await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                first.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}, first upload: {firstText}");
+                second.StatusCode.ShouldBe(HttpStatusCode.OK, $"round {round}, second upload: {secondText}");
+            }
+        }
+
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(image => orderIds.Contains(image.OrderId)).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Count.ShouldBe(20);
+        rows.GroupBy(row => row.OrderId).ShouldAllBe(group => group.Count() == 1 && group.Single().Slot == 0);
+    }
+
+    [Fact]
+    public async Task AnotherUploadThatTakesTheLastSlotWhileTheOrderIsCheckedAnswersThePhotoLimitAndSendsNothingToStorage()
+    {
+        var hook = new SaveTheLastPhotoDuringTheCheck(database);
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            services.ConfigureDbContext<CspsDbContext>(options => options.AddInterceptors(hook))));
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var created = await CreateOrderAsync(baseFactory, client, manager.AccessToken);
+        var id = created.GetProperty("id").GetGuid();
+        for (var number = 1; number <= 4; number++)
+        {
+            using var accepted = await UploadAsync(client, manager.AccessToken, id, Photo);
+            accepted.StatusCode.ShouldBe(HttpStatusCode.OK, $"photo {number}");
+        }
+
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+        hook.Arm(id);
+        using var response = await UploadAsync(client, manager.AccessToken, id, Photo);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        hook.Fired.ShouldBeTrue();
+        response.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity, text);
+        using (var problem = JsonDocument.Parse(text))
+        {
+            problem.RootElement.GetProperty("code").GetString().ShouldBe(OrderImageRules.LimitCode);
+        }
+
+        storage.Uploads.Count(recorded => recorded.AssetFolder == $"csps-test/orders/{id:D}").ShouldBe(4);
+        await using var context = database.CreateContext();
+        var rows = await context.Set<OrderImage>().AsNoTracking().Where(image => image.OrderId == id).ToListAsync(TestContext.Current.CancellationToken);
+        rows.Select(row => row.Slot).Order().ShouldBe([0, 1, 2, 3, 4]);
+    }
+
     private static async Task<JsonElement> CreateOrderAsync(CspsApiFactory factory, HttpClient client, string accessToken)
     {
         var today = await OrderFixtures.TodayAsync(factory);
@@ -445,5 +517,34 @@ public sealed class OrderImagesEndpointTests(CspsDatabase database) : IClassFixt
 
         request.Content = form;
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    // Once armed, saves a fifth photo for the order on another connection just before the upload's check reads the photo list, once.
+    // The check has read the order's row by then, so the row version moves under it, as when another upload wins the last slot.
+    private sealed class SaveTheLastPhotoDuringTheCheck(CspsDatabase database) : DbCommandInterceptor
+    {
+        private Guid? _orderId;
+        private int _fired;
+
+        public bool Fired => Volatile.Read(ref _fired) == 1;
+
+        public void Arm(Guid orderId) => _orderId = orderId;
+
+        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (_orderId is { } orderId
+                && command.CommandText.Contains("[OrderImages]", StringComparison.Ordinal)
+                && command.Parameters.Cast<DbParameter>().Any(parameter => parameter.Value is Guid value && value == orderId)
+                && Interlocked.Exchange(ref _fired, 1) == 0)
+            {
+                await using var other = database.CreateContext();
+                var order = await other.Orders.Include(row => row.Images).SingleAsync(row => row.Id == orderId, cancellationToken);
+                order.AddImage(new NewOrderImage($"csps-test/orders/{orderId:D}/{Guid.NewGuid():N}", 640, 480, 1000, "jpg", null), TimeProvider.System.GetUtcNow()).IsSuccess.ShouldBeTrue();
+                await other.SaveChangesAsync(cancellationToken);
+            }
+
+            return result;
+        }
     }
 }

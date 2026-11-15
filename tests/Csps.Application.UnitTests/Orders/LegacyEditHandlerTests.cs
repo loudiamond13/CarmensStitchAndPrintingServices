@@ -198,7 +198,15 @@ public sealed class LegacyEditHandlerTests
             new(Orders, Reader, new FixedCalendar(), Substitute.For<IAuditTrail>(), Unit, Request, new UpdateOrderDiscountRequestValidator());
 
         public UpdateOrderDetailsHandler Details() =>
-            new(Orders, Reader, new FixedCalendar(), Substitute.For<IAuditTrail>(), Unit, Request, new UpdateOrderDetailsRequestValidator());
+            new(
+                Orders,
+                Reader,
+                new FixedCalendar(),
+                Substitute.For<IAuditTrail>(),
+                Unit,
+                Request,
+                new UpdateOrderDetailsRequestValidator(),
+                new OrderPublicWebsiteWriter(Substitute.For<IProductLines>(), Substitute.For<IGalleryEntries>(), Substitute.For<ISiteContentLock>(), Substitute.For<IAuditTrail>()));
     }
 
     private static OrderDetailResponse DetailOf(Order order)
@@ -226,6 +234,7 @@ public sealed class LegacyEditHandlerTests
             [],
             [],
             new OrderTotalsResponse(order.Subtotal, order.DiscountTotal, order.Total, order.PaidTotal, order.RefundedTotal, order.Balance, order.CustomerCredit, order.ExpensesTotal, order.Profit, order.FullyPaid),
+            new OrderPublicWebsiteDto(false, null, null, false, null, null, null, null, null, 0, false, true),
             person,
             Now,
             null,

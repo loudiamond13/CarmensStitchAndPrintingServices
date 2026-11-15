@@ -88,6 +88,10 @@ interface RowActionCommon {
 export interface RowActionButtonProps extends RowActionCommon {
   to?: undefined;
   onClick?: (() => void) | undefined;
+  /** The action is not available now: aria-disabled, so it keeps focus and ignores a press (Move up on the first row). */
+  disabled?: boolean | undefined;
+  /** The action (or another on its row) is saving: aria-busy and aria-disabled on the pressed control (WEB-09). */
+  busy?: boolean | undefined;
   /** D-27 an expand toggle: whether its row's detail is open. Sets aria-expanded and turns the icon when open. */
   expanded?: boolean | undefined;
   /** The id of the detail the toggle opens (aria-controls); used with `expanded`. */
@@ -99,6 +103,8 @@ export interface RowActionButtonProps extends RowActionCommon {
 export interface RowActionLinkProps extends RowActionCommon {
   to: string;
   onClick?: undefined;
+  disabled?: undefined;
+  busy?: undefined;
   expanded?: undefined;
   controls?: undefined;
   /** The anchor element. */
@@ -116,6 +122,8 @@ export function RowAction({
   onClick,
   expanded,
   controls,
+  disabled,
+  busy,
   ref,
 }: RowActionProps) {
   const tone: keyof typeof rowActionClasses = danger ? 'danger' : 'neutral';
@@ -133,6 +141,7 @@ export function RowAction({
     );
   }
   const turn: keyof typeof rowActionChevronClasses = expanded === true ? 'open' : 'closed';
+  const inactive = disabled === true || busy === true;
   return (
     <button
       type="button"
@@ -140,8 +149,10 @@ export function RowAction({
       title={title}
       aria-expanded={expanded}
       aria-controls={expanded === undefined ? undefined : controls}
+      aria-disabled={inactive || undefined}
+      aria-busy={busy === true || undefined}
       className={clsx(rowActionClasses[tone], targetAreaClasses)}
-      onClick={onClick}
+      onClick={inactive ? undefined : onClick}
       ref={ref}
     >
       <Icon name={icon} size={18} className={expanded === undefined ? '' : rowActionChevronClasses[turn]} />

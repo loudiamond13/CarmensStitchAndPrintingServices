@@ -23,13 +23,23 @@ public enum Caller
 /// <param name="Anonymous">The status for an anonymous caller.</param>
 /// <param name="Admin">The status for an Admin.</param>
 /// <param name="Manager">The status for a Manager.</param>
-public sealed record MatrixRow(string Method, string RoutePattern, string SamplePath, int Anonymous, int Admin, int Manager)
+/// <param name="ManagerAlso">
+/// A second status a Manager may get, for a row whose answer depends on data another matrix row can change in the same run (the Testing
+/// seed that puts a demo share picture in place); null for every row whose answer is one status.
+/// </param>
+public sealed record MatrixRow(string Method, string RoutePattern, string SamplePath, int Anonymous, int Admin, int Manager, int? ManagerAlso = null)
 {
     /// <summary>The endpoint key, <c>"{METHOD|*} {RoutePattern}"</c>, that matches <see cref="AuthorizationCoverage.KeysOf"/>.</summary>
     public string Key => $"{Method} {RoutePattern}";
 
     /// <summary>The method to send: GET for a <c>*</c> row.</summary>
     public HttpMethod RequestMethod => Method == AuthorizationCoverage.AnyMethod ? HttpMethod.Get : new HttpMethod(Method);
+
+    /// <summary>Tells whether <paramref name="status"/> is one the caller may get.</summary>
+    /// <param name="caller">The caller.</param>
+    /// <param name="status">The HTTP status code the call answered.</param>
+    /// <returns>True when the status is the expected one, or the Manager's second one.</returns>
+    public bool Allows(Caller caller, int status) => status == ExpectedFor(caller) || (caller == Caller.Manager && status == ManagerAlso);
 
     /// <summary>Returns the status <paramref name="caller"/> must get.</summary>
     /// <param name="caller">The caller.</param>
@@ -58,7 +68,7 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400.
+    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400. POST /api/testing/site-content needs no body and answers 204.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
@@ -66,6 +76,7 @@ public static class AuthorizationMatrix
             new("POST", "/api/testing/staff", "/api/testing/staff", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
+            new("POST", "/api/testing/site-content", "/api/testing/site-content", Anonymous: 204, Admin: 204, Manager: 204),
             new("GET", "/api/testing/images/{id}", "/api/testing/images/unknown-photo", Anonymous: 404, Admin: 404, Manager: 404),
             new("POST", "/api/testing/images/fail-next", "/api/testing/images/fail-next", Anonymous: 400, Admin: 400, Manager: 400),
         ]
@@ -78,6 +89,56 @@ public static class AuthorizationMatrix
         new("HEAD", "/health", "/health", Anonymous: 200, Admin: 200, Manager: 200),
         new("*", "/api/{**path}", "/api/v1/does-not-exist", Anonymous: 404, Admin: 404, Manager: 404),
         new("GET", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 200, Manager: 200),
+        // Saving the business info (CONT-01): Managers only. With no body a Manager meets the 400 field errors.
+        new("PUT", "/api/v1/site-settings", "/api/v1/site-settings", Anonymous: 401, Admin: 403, Manager: 400),
+        // The default link preview picture (D-26): Manager only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 images.file-missing.
+        new("POST", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 400),
+        // Removing it: a Manager meets 404 when no picture is set. The Testing seed row in the same run can put a demo picture in place, and then the first removal answers 204.
+        new("DELETE", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 404, ManagerAlso: 204),
+        new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/gallery", "/api/v1/public/gallery", Anonymous: 200, Admin: 200, Manager: 200),
+        // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
+        new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
+        new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
+        // Holidays and closures (CONT-04, D-21): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add and edit, and a fresh random id is no closure (404) on delete.
+        new("GET", "/api/v1/shop-closures", "/api/v1/shop-closures", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/shop-closures", "/api/v1/shop-closures", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/5b7e2c94-1d08-4a63-9e5f-8c3a6d0b7f21", Anonymous: 401, Admin: 403, Manager: 400),
+        new("DELETE", "/api/v1/shop-closures/{id:guid}", "/api/v1/shop-closures/a94d1f36-7c20-4e8b-b5d3-2f6e0c8a9b47", Anonymous: 401, Admin: 403, Manager: 404),
+        // Product lines (CONT-02, D-01): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add, edit and move, and a fresh random id is no line (404) on read, hide, show and delete.
+        new("GET", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 200),
+        new("GET", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/8d3f5a21-0b64-4e97-a1c8-5f2e7b9d0c43", Anonymous: 401, Admin: 403, Manager: 404),
+        // The line options the order window lists (D-16): both roles, because Admin may show an order too.
+        new("GET", "/api/v1/product-lines/options", "/api/v1/product-lines/options", Anonymous: 401, Admin: 200, Manager: 200),
+        new("POST", "/api/v1/product-lines", "/api/v1/product-lines", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/2e7c9b46-8a15-4d03-b6f2-c1a4e8d5f730", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-lines/{id:guid}/move", "/api/v1/product-lines/b5a1d8e3-4c72-4f09-9e60-3d7f2a8c1b54/move", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/product-lines/{id:guid}/hide", "/api/v1/product-lines/6c0e4f97-d238-4a15-b8e1-9a3b5d7c2f08/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/product-lines/{id:guid}/show", "/api/v1/product-lines/f4d2a6b8-1e90-4c37-a5d3-0b8e6c9f1a72/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/product-lines/{id:guid}", "/api/v1/product-lines/09a7e3c5-b641-4d82-8f10-e6c2d4a9b357", Anonymous: 401, Admin: 403, Manager: 404),
+        // Line photos (D-02): Manager only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 images.file-missing before the line is looked up.
+        new("POST", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/c8e41d72-9a05-4b3f-8d16-72f0a5b9e3c1/photos/main", Anonymous: 401, Admin: 403, Manager: 400),
+        new("DELETE", "/api/v1/product-lines/{lineId:guid}/photos/{slot}", "/api/v1/product-lines/4f9b2a68-d317-4e50-a1c4-8b6d0e7f5a29/photos/main", Anonymous: 401, Admin: 403, Manager: 404),
+        // Testimonials (CONT-03, D-05): Managers only. The matrix sends an Idempotency-Key and no body, so a Manager meets the 400 field errors on add, edit and move, and a fresh random id is no testimonial (404) on hide, show and delete.
+        new("GET", "/api/v1/testimonials", "/api/v1/testimonials", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/testimonials", "/api/v1/testimonials", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/testimonials/{id:guid}", "/api/v1/testimonials/3b6e0d94-5a27-4c81-9f03-d8a1c7e2b645", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/testimonials/{id:guid}/move", "/api/v1/testimonials/a7d3f150-2e68-4b94-8c07-1f5b9e3a6d82/move", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/testimonials/{id:guid}/hide", "/api/v1/testimonials/e1c84a07-9d35-4f26-b6a0-5d2f8c7b3e19/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/testimonials/{id:guid}/show", "/api/v1/testimonials/52f9b3c8-0a46-4d71-8e95-c3a7d1f6b024/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("DELETE", "/api/v1/testimonials/{id:guid}", "/api/v1/testimonials/d09a6e43-7b18-4c52-a3f7-6e8b1d4c9a50", Anonymous: 401, Admin: 403, Manager: 404),
+        // Gallery items (GAL-03, D-10): Managers only. The matrix sends an Idempotency-Key and no form body, so a Manager meets 400 on the upload.
+        new("GET", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 200),
+        new("POST", "/api/v1/gallery-items", "/api/v1/gallery-items", Anonymous: 401, Admin: 403, Manager: 400),
+        new("PUT", "/api/v1/gallery-items/{id:guid}", "/api/v1/gallery-items/5d8a1f36-7e02-4c94-b3a7-0f6c2e9d4b18", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/gallery-items/{id:guid}/photo", "/api/v1/gallery-items/a2c6e094-3b71-4d58-8f1e-9d0b5a7c3e62/photo", Anonymous: 401, Admin: 403, Manager: 400),
+        new("POST", "/api/v1/gallery-items/{id:guid}/hide", "/api/v1/gallery-items/c9f3b715-2a80-4e64-b1d9-6e4a8c0f5d37/hide", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/gallery-items/{id:guid}/show", "/api/v1/gallery-items/17e5d9a3-b406-4f82-9c1b-3a8f6d2e0b54/show", Anonymous: 401, Admin: 403, Manager: 404),
+        new("POST", "/api/v1/gallery-items/{id:guid}/move", "/api/v1/gallery-items/3a7d5f91-c0b2-4e68-a914-8d2f6b0c1e75/move", Anonymous: 401, Admin: 403, Manager: 400),
+        new("DELETE", "/api/v1/gallery-items/{id:guid}","/api/v1/gallery-items/e84b0c27-6d91-4a53-b7f2-1c5d9e3a8f06", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
@@ -253,6 +314,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/orders/{id:guid}", "/api/v1/orders/3f7a2c91-6d48-4e15-b0a3-9c1e5d8f2b64", Anonymous: 401, Admin: 404, Manager: 404),
         // Editing an order's details (ORD-05): both roles may edit any order (D-25). The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("PUT", "/api/v1/orders/{id:guid}", "/api/v1/orders/9b2d6e14-7a35-4c80-a1f9-3e5c8d0b2a76", Anonymous: 401, Admin: 400, Manager: 400),
+        // Recording the customer's OK and showing an order on the website (D-16): both roles, the one public-content write that is not Manager only. The matrix sends no body, so both meet 400 before the order is looked up.
+        new("PUT", "/api/v1/orders/{orderId:guid}/public", "/api/v1/orders/c1b7e4a9-5d38-4f02-8a6c-3e9d0b7a2f51/public", Anonymous: 401, Admin: 400, Manager: 400),
         // Adding an item to a saved order (ORD-05): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 orders.invalid-request before the order is looked up.
         new("POST", "/api/v1/orders/{orderId:guid}/items", "/api/v1/orders/4c8e1a73-5d29-4b06-9f3a-2e7b0d6c1a85/items", Anonymous: 401, Admin: 400, Manager: 400),
         // Editing an item (ORD-05): both roles. The matrix sends no body, so both meet 400 orders.invalid-request before the order is looked up.
@@ -299,9 +362,15 @@ public static class AuthorizationMatrix
         // The maintenance run (JOB-01) is anonymous but needs the X-Maintenance-Key header. The matrix sends none, so every caller meets the same 401.
         new("POST", "/api/v1/maintenance/run", "/api/v1/maintenance/run", Anonymous: 401, Admin: 401, Manager: 401),
 
-        // The SPA shell (WEB-01). MapFallbackToFile registers GET and HEAD only, so the shell has two keys.
+        // The SPA shell (WEB-01, PUB-04). The shaped shell endpoint carries GET and HEAD metadata only, so it has two keys.
         new("GET", "{*path:nonfile}", "/", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "{*path:nonfile}", "/products", Anonymous: 200, Admin: 200, Manager: 200),
+
+        // robots.txt and sitemap.xml (PUB-04): anonymous GET and HEAD for crawlers, never rate limited.
+        new("GET", "/robots.txt", "/robots.txt", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/robots.txt", "/robots.txt", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
 
         // A missing file is a 404 for everyone (research Pitfall 11). The matrix host runs in the Testing environment,
         // not Development, so the two reserved API-doc prefixes are mapped as 404 fallbacks too (D-29).
@@ -331,15 +400,24 @@ public static class AuthorizationMatrix
             "POST /api/v1/profile/email-change/confirm",
             "POST /api/v1/profile/email-change/check",
             "POST /api/v1/maintenance/run",
+            "GET /api/v1/public/site",
+            "GET /api/v1/public/open-status",
+            "GET /api/v1/public/product-lines",
+            "GET /api/v1/public/home",
+            "GET /api/v1/public/gallery",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",
+            "GET /robots.txt",
+            "HEAD /robots.txt",
+            "GET /sitemap.xml",
+            "HEAD /sitemap.xml",
             "* {*path:file}",
             "* /openapi/{**path}",
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "POST /api/testing/site-content", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>

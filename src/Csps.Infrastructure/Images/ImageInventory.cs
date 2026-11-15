@@ -53,11 +53,15 @@ internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
             return found;
         }
 
+        // Order photos, product line photos, gallery uploads and the share picture in one command: a row of any of the four names its file.
         var photos = await context.Set<OrderImage>()
             .IgnoreQueryFilters([SoftDeleteFilter])
             .AsNoTracking()
             .Where(image => wanted.Contains(image.PublicId))
             .Select(image => image.PublicId)
+            .Union(context.ProductLinePhotos.AsNoTracking().Where(photo => wanted.Contains(photo.PublicId)).Select(photo => photo.PublicId))
+            .Union(context.GalleryEntries.AsNoTracking().Where(entry => entry.PublicId != null && wanted.Contains(entry.PublicId)).Select(entry => entry.PublicId!))
+            .Union(context.SiteSettings.AsNoTracking().Where(settings => settings.SharePicturePublicId != null && wanted.Contains(settings.SharePicturePublicId)).Select(settings => settings.SharePicturePublicId!))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         found.UnionWith(photos);

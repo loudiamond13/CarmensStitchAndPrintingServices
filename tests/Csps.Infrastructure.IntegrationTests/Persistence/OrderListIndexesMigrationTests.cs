@@ -8,7 +8,15 @@ public sealed class OrderListIndexesMigrationTests(CspsDatabase database) : ICla
 {
     private const string LiveOnly = "([DeletedAtUtc] IS NULL)";
 
-    private static readonly string[] ExistingIndexes = ["IX_Orders_CreatedById", "IX_Orders_DeletedById", "IX_Orders_Number", "IX_Orders_UpdatedById"];
+    private static readonly string[] ExistingIndexes =
+    [
+        "IX_Orders_CreatedById",
+        "IX_Orders_DeletedById",
+        "IX_Orders_Number",
+        "IX_Orders_PublicConsentById",
+        "IX_Orders_PublicProductLineId",
+        "IX_Orders_UpdatedById",
+    ];
 
     private static readonly string[] ListIndexes =
     [

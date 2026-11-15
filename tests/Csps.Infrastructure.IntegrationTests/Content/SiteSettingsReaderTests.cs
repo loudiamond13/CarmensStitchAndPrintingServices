@@ -30,10 +30,10 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
         snapshot.TimeZoneId.ShouldBe("Asia/Manila");
         snapshot.CurrencyCode.ShouldBe("PHP");
         snapshot.Locale.ShouldBe("en-PH");
-        snapshot.ContactEmail.ShouldBe("[hello@yourdomain.ph]");
+        snapshot.ContactEmail.ShouldBeEmpty();
         snapshot.ContactPhone.ShouldBe("[0917 000 0000]");
         snapshot.AddressLine.ShouldBe("[Shop address], [City], Philippines");
-        snapshot.FacebookUrl.ShouldBe("[Facebook page URL]");
+        snapshot.FacebookUrl.ShouldBeEmpty();
         snapshot.RowVersion.ShouldNotBeNullOrWhiteSpace();
         Convert.FromBase64String(snapshot.RowVersion).Length.ShouldBe(8);
     }
@@ -119,7 +119,7 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
         {
             await using var services = BuildServices(adHoc.ConnectionString);
 
-            // Hold an exclusive lock on the row so the cache factory is still running when the first caller leaves.
+            // Hold a schema lock on the table (reads wait for it even with read committed snapshot) so the cache factory is still running when the first caller leaves.
             var blocker = new SqlConnection(adHoc.ConnectionString);
             await using (blocker)
             {
@@ -131,7 +131,7 @@ public sealed class SiteSettingsReaderTests(CspsDatabase database) : IClassFixtu
                     await using (update)
                     {
                         update.Transaction = transaction;
-                        update.CommandText = "UPDATE dbo.SiteSettings SET BusinessName = BusinessName WHERE Id = 1;";
+                        update.CommandText = "ALTER TABLE dbo.SiteSettings ADD ReaderBlocker int NULL;";
                         await update.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
                     }
 

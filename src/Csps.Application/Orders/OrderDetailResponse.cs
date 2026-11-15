@@ -187,6 +187,36 @@ public sealed record OrderTotalsResponse(
     decimal Profit,
     bool FullyPaid);
 
+/// <summary>
+/// An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is
+/// shown, the line it is shown under and the name shown. The pieces and the auto line are worked out by the server from the items.
+/// </summary>
+/// <param name="CustomerConsent">True when the customer said OK to show.</param>
+/// <param name="ConsentRecordedAtUtc">When the OK was recorded; null while there is none.</param>
+/// <param name="ConsentRecordedByName">Who recorded the OK; null while there is none.</param>
+/// <param name="ShownOnWebsite">True while the order is put on the website.</param>
+/// <param name="ShownSinceUtc">When the order was put on the website; null while it is not shown.</param>
+/// <param name="ProductLineId">The line the order is shown under: the one staff chose, else the auto line; null when there is none.</param>
+/// <param name="ProductLineTitle">The title of that line; null when there is none.</param>
+/// <param name="AutoProductLineId">The line with the most pieces among the items; null when no item is filed under a line.</param>
+/// <param name="PublicName">The name shown instead of the team; null when the team shows.</param>
+/// <param name="Pieces">The sum of the item quantities.</param>
+/// <param name="HasPhoto">True when the order has at least one photo; an order with none does not show until it has one.</param>
+/// <param name="CanShow">False for a Cancelled order, which cannot be shown (D-38).</param>
+public sealed record OrderPublicWebsiteDto(
+    bool CustomerConsent,
+    DateTimeOffset? ConsentRecordedAtUtc,
+    string? ConsentRecordedByName,
+    bool ShownOnWebsite,
+    DateTimeOffset? ShownSinceUtc,
+    Guid? ProductLineId,
+    string? ProductLineTitle,
+    Guid? AutoProductLineId,
+    string? PublicName,
+    int Pieces,
+    bool HasPhoto,
+    bool CanShow);
+
 /// <summary>One order with its items, history, totals and who recorded and last changed it (ORD-03).</summary>
 /// <param name="Id">The order id.</param>
 /// <param name="Number">The order number, <c>ORD-{YYYY}-{NNNN}</c>.</param>
@@ -208,6 +238,7 @@ public sealed record OrderTotalsResponse(
 /// <param name="StatusHistory">The status history, oldest first.</param>
 /// <param name="Images">The photos, in display order; empty when the order has none.</param>
 /// <param name="Totals">The money figures.</param>
+/// <param name="PublicWebsite">The order's place on the public website.</param>
 /// <param name="RecordedBy">Who created it; null reads as System.</param>
 /// <param name="RecordedAt">When it was created.</param>
 /// <param name="LastChangedBy">Who last changed it; null until an edit.</param>
@@ -235,6 +266,7 @@ public sealed record OrderDetailResponse(
     IReadOnlyList<OrderStatusChangeResponse> StatusHistory,
     IReadOnlyList<OrderImageResponse> Images,
     OrderTotalsResponse Totals,
+    OrderPublicWebsiteDto PublicWebsite,
     ActorRef? RecordedBy,
     DateTimeOffset RecordedAt,
     ActorRef? LastChangedBy,

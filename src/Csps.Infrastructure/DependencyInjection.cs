@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<SiteSettingsReader>();
         services.AddScoped<ISiteSettingsReader>(provider => provider.GetRequiredService<SiteSettingsReader>());
         services.AddScoped<ISiteSettingsCache>(provider => provider.GetRequiredService<SiteSettingsReader>());
+        services.AddCspsContent();
 
         // Time comes only from TimeProvider (RS0030 bans the clock statics); tests replace it with a fake clock.
         services.TryAddSingleton(TimeProvider.System);
@@ -131,6 +132,10 @@ public static class DependencyInjection
         services.TryAddSingleton<OutboxSignal>();
         services.TryAddSingleton<OutboxSignalInterceptor>();
 
+        // Clears the public cache after a committed save of a public record. It finds the cache when it flushes, so a host without
+        // one (a tool, a test) still saves.
+        services.TryAddSingleton<PublicContentInvalidationInterceptor>();
+
         // The one SEC-08 stamping point. The host registers its own ICurrentActor first; a plain collection (tests,
         // tools) gets the no-actor default, so its writes read as System.
         services.TryAddSingleton(TimeProvider.System);
@@ -139,6 +144,7 @@ public static class DependencyInjection
         services.AddDbContextFactory<CspsDbContext>((provider, options) =>
             CspsDbContextOptions.Configure(options, connectionString).AddInterceptors(
                 provider.GetRequiredService<OutboxSignalInterceptor>(),
+                provider.GetRequiredService<PublicContentInvalidationInterceptor>(),
                 provider.GetRequiredService<RecordStampInterceptor>()));
         return services;
     }

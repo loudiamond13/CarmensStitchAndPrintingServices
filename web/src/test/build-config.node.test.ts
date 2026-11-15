@@ -110,6 +110,28 @@ describe('vite.config.ts', () => {
       expect(config.build?.assetsInlineLimit).toBe(0);
     },
   );
+
+  // PERF-01: the entry lists every lazy chunk's file name for preloading, so shared chunks carry the content hash only.
+  // Lazy route chunks keep their module name, so the budget report and the build-output test can still find them.
+  it.each(buildModes)(
+    'names lazy route chunks after their module and shared chunks by hash in the $mode build',
+    async ({ mode }) => {
+      const output = (await load('build', mode)).build?.rolldownOptions?.output;
+      const chunkFileNames = output !== undefined && !Array.isArray(output) ? output.chunkFileNames : undefined;
+      expect(typeof chunkFileNames).toBe('function');
+      if (typeof chunkFileNames === 'function') {
+        const named = (facadeModuleId: string | null): string =>
+          chunkFileNames({
+            name: 'x',
+            facadeModuleId,
+            isEntry: false,
+            isDynamicEntry: facadeModuleId !== null,
+          } as Parameters<typeof chunkFileNames>[0]);
+        expect(named(join(webDir, 'src/modules/public/pages/ContactPage.tsx'))).toBe('assets/[name]-[hash].js');
+        expect(named(null)).toBe('assets/[hash].js');
+      }
+    },
+  );
 });
 
 describe('TypeScript alias pair (D-15)', () => {
@@ -124,10 +146,8 @@ describe('TypeScript alias pair (D-15)', () => {
 });
 
 describe('web/public/robots.txt', () => {
-  it('allows every crawler', () => {
-    const lines = readText(join(webDir, 'public/robots.txt'))
-      .split(/\r?\n/)
-      .filter((line) => line.trim() !== '');
-    expect(lines).toEqual(['User-agent: *', 'Allow: /']);
+  // The server writes /robots.txt from the configured origin (PUB-04); a static copy would shadow it.
+  it('is not shipped as a static file', () => {
+    expect(existsSync(join(webDir, 'public/robots.txt'))).toBe(false);
   });
 });

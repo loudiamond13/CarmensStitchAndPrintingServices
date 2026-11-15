@@ -1,5 +1,6 @@
-// Prepares a picked photo in the browser before upload (IMG-05, D-18): check the type by its bytes, turn it upright,
-// shrink it to a 2000 px long side when larger, make a small data: preview. Memory only; nothing is stored.
+// Prepares a picked photo in the browser before upload (IMG-05, D-18, D-P11-BL-65): check the type by its bytes, turn it
+// upright, redraw it (shrunk to a 2000 px long side when larger) so no camera or location data is sent, make a small
+// data: preview. Memory only; nothing is stored.
 
 export type ImageKind = 'jpeg' | 'png' | 'webp' | 'heic';
 
@@ -79,19 +80,18 @@ export function sniffImageType(head: Uint8Array): ImageKind | null {
   return null;
 }
 
-/** The size after shrinking to a long side of `maxLongSide`, keeping proportions. Smaller photos are not touched. */
+/** The size after shrinking to a long side of `maxLongSide`, keeping proportions. Smaller photos keep their size. */
 export function planDownscale(
   width: number,
   height: number,
   maxLongSide = MAX_LONG_SIDE,
-): { width: number; height: number; scaled: boolean } {
+): { width: number; height: number } {
   const longSide = Math.max(width, height);
-  if (longSide <= maxLongSide) return { width, height, scaled: false };
+  if (longSide <= maxLongSide) return { width, height };
   const ratio = maxLongSide / longSide;
   return {
     width: Math.max(1, Math.round(width * ratio)),
     height: Math.max(1, Math.round(height * ratio)),
-    scaled: true,
   };
 }
 
@@ -132,12 +132,7 @@ export const defaultBrowserImageParts: BrowserImageParts = {
   },
 };
 
-const MIME_OF_KIND: Record<ImageKind, string> = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  heic: 'image/heic',
-};
+const HEIC_MIME = 'image/heic';
 
 const EXTENSION_OF_MIME = new Map([
   ['image/jpeg', 'jpg'],
@@ -177,9 +172,9 @@ function previewOf(parts: BrowserImageParts, bitmap: DecodedBitmap): string | nu
 }
 
 /**
- * Checks, rights, shrinks and previews one picked file before any request (IMG-05, D-18; OR-3 mirror of the server's
- * type, size and pixel rules, with the pixel and side limits applied to the shrunk photo, D-53). Keeps no state, so
- * calls may overlap.
+ * Checks, rights, redraws and previews one picked file before any request (IMG-05, D-18; OR-3 mirror of the server's
+ * type, size and pixel rules). Every photo the browser can decode is redrawn. The pixel and side limits apply to the
+ * redrawn size (D-53) and the size limit to the file that is sent. Keeps no state, so calls may overlap.
  */
 export async function prepareImage(
   file: File,
@@ -193,14 +188,15 @@ export async function prepareImage(
   try {
     bitmap = await parts.decode(file);
   } catch {
-    // Most desktop browsers cannot decode HEIC: send it as it is and let the server check its pixels.
+    // Most desktop browsers cannot decode HEIC. It is the only file sent as it is (D-P11-BL-65): the server checks its
+    // pixels and strips its metadata.
     if (kind !== 'heic') return { ok: false, reason: 'unreadable' };
     if (file.size > rules.maxBytes) return { ok: false, reason: 'size' };
     return {
       ok: true,
       file,
       name: file.name,
-      type: MIME_OF_KIND.heic,
+      type: HEIC_MIME,
       width: null,
       height: null,
       preview: null,
@@ -219,20 +215,6 @@ export async function prepareImage(
     }
 
     const preview = previewOf(parts, bitmap);
-    if (!plan.scaled) {
-      if (file.size > rules.maxBytes) return { ok: false, reason: 'size' };
-      return {
-        ok: true,
-        file,
-        name: file.name,
-        type: MIME_OF_KIND[kind],
-        width,
-        height,
-        preview,
-        previewUnavailable: preview === null,
-      };
-    }
-
     const encoded = await encodeSameFamily(parts, bitmap, plan, kind);
     if (encoded === null) return { ok: false, reason: 'unreadable' };
     const { blob, extension } = encoded;

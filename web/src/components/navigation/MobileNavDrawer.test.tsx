@@ -130,6 +130,21 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
     expect(within(drawer()).getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '/admin/settings');
   });
 
+  // SPEC-DEVIATION: D-27 the drawer lists the Manager-only Site Content after Settings (plan 11-12).
+  it('lists Site Content after Settings for a Manager when the shell asks for the extra items', async () => {
+    renderHarness({ withAuditLog: true });
+    await userEvent.click(menuButton());
+
+    const names = within(drawer())
+      .getAllByRole('link')
+      .map((item) => item.textContent);
+    expect(names.indexOf('Site ContentManager')).toBe(names.indexOf('SettingsManager') + 1);
+    expect(within(drawer()).getByRole('link', { name: /^Site Content/ })).toHaveAttribute(
+      'href',
+      '/admin/site-content',
+    );
+  });
+
   it('is the 248px left panel over the scrim at the overlay layer, rendered in place (never a portal)', () => {
     const { container } = renderHarness({ initialOpen: true });
     const root = drawer().parentElement;

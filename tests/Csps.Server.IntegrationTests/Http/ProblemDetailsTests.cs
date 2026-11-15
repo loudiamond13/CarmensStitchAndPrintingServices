@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Testing;
@@ -18,6 +17,9 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
 {
     private const string NotFoundTitle = "We couldn't find that.";
     private const string SiteSettingsRoute = "/api/v1/site-settings";
+
+    // The failure message of a store that throws, SQL with a secret, to prove a 500 never shows it.
+    private const string SecretText = "SELECT secret FROM Users";
 
     [Theory]
     [InlineData("GET", "/api")]
@@ -92,8 +94,8 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
         await using var factory = baseFactory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
             {
-                services.RemoveAll<ISiteSettingsReader>();
-                services.AddScoped<ISiteSettingsReader, ThrowingSiteSettingsReader>();
+                services.RemoveAll<ISiteContentStore>();
+                services.AddScoped<ISiteContentStore>(_ => new ThrowingSiteContentStore(SecretText));
             }));
         using var client = factory.CreateClient();
 
@@ -106,21 +108,12 @@ public sealed class ProblemDetailsTests(CspsDatabase database) : IClassFixture<C
         response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         body.ShouldNotContain("Exception", Case.Insensitive);
-        body.ShouldNotContain(ThrowingSiteSettingsReader.SecretText);
+        body.ShouldNotContain(SecretText);
         var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
         var traceId = ProblemJson.TraceId(problem);
         problem.GetProperty("title").GetString().ShouldBe("Something went wrong.");
         problem.GetProperty("status").GetInt32().ShouldBe(500);
         problem.GetProperty("detail").GetString().ShouldBe($"Something went wrong. Reference: {traceId}");
         response.Headers.GetValues(SecurityHeadersTests.CspHeader).ShouldHaveSingleItem().ShouldBe(SecurityHeadersTests.StrictCsp);
-    }
-
-    /// <summary>A reader whose failure message is SQL with a secret, to prove a 500 never shows it.</summary>
-    private sealed class ThrowingSiteSettingsReader : ISiteSettingsReader
-    {
-        public const string SecretText = "SELECT secret FROM Users";
-
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            throw new InvalidOperationException(SecretText);
     }
 }

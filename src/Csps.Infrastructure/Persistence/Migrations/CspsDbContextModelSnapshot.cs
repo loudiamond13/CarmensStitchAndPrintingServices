@@ -86,10 +86,429 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.GalleryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Format")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsShown")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Pieces")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(80)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GalleryEntries_OrderId")
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("ProductLineId")
+                        .HasDatabaseName("IX_GalleryEntries_ProductLineId");
+
+                    b.HasIndex("Position", "Id")
+                        .HasDatabaseName("IX_GalleryEntries_Position");
+
+                    b.ToTable("GalleryEntries", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_GalleryEntries_Kind", "([Kind] = 'Order' AND [OrderId] IS NOT NULL) OR ([Kind] = 'Upload' AND [OrderId] IS NULL AND [PublicId] IS NOT NULL AND [TeamName] IS NOT NULL AND [ProductLineId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_GalleryEntries_Pieces", "[Pieces] IS NULL OR [Pieces] BETWEEN 1 AND 9999");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.OpeningHours", b =>
+                {
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly?>("ClosesAt")
+                        .HasColumnType("time(0)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeOnly?>("OpensAt")
+                        .HasColumnType("time(0)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("DayOfWeek");
+
+                    b.ToTable("OpeningHours", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OpeningHours_BothOrNone", "([OpensAt] IS NULL AND [ClosesAt] IS NULL) OR ([OpensAt] IS NOT NULL AND [ClosesAt] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_OpeningHours_ClosesAfterOpens", "[OpensAt] IS NULL OR [ClosesAt] > [OpensAt]");
+
+                            t.HasCheckConstraint("CK_OpeningHours_Day", "[DayOfWeek] BETWEEN 1 AND 7");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.ProductLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CardText")
+                        .IsRequired()
+                        .HasMaxLength(140)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(140)");
+
+                    b.Property<string>("CollarText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CutText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("FabricText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("LogosText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("MinimumQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NamesText")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<string>("PlaceholderArt")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("ShortName")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("StartsAtPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLines_Key");
+
+                    b.HasIndex("ShortName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLines_ShortName");
+
+                    b.HasIndex("Position", "Id")
+                        .HasDatabaseName("IX_ProductLines_Position");
+
+                    b.ToTable("ProductLines", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductLines_Minimum", "[MinimumQuantity] BETWEEN 1 AND 9999");
+
+                            t.HasCheckConstraint("CK_ProductLines_Price", "[StartsAtPrice] > 0 AND [StartsAtPrice] <= 999999.99");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.ProductLinePhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Format")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LineId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductLinePhotos_LineSlot");
+
+                    b.ToTable("ProductLinePhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductLinePhotos_Slot", "[Slot] BETWEEN 0 AND 2");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.ShopClosure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("FirstDay")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("LastDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastDay")
+                        .HasDatabaseName("IX_ShopClosures_LastDay");
+
+                    b.ToTable("ShopClosures", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ShopClosures_LastOnOrAfterFirst", "[LastDay] >= [FirstDay]");
+
+                            t.HasCheckConstraint("CK_ShopClosures_Span", "DATEDIFF(day, [FirstDay], [LastDay]) < 31");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.SitePhoneNumber", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsMain")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsMain")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SitePhoneNumbers_Main")
+                        .HasFilter("[IsMain] = 1");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SitePhoneNumbers_Number");
+
+                    b.ToTable("SitePhoneNumbers", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.Content.SiteSettings", b =>
                 {
                     b.Property<int>("Id")
                         .HasColumnType("int");
+
+                    b.Property<string>("AboutText")
+                        .HasMaxLength(600)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(600)");
 
                     b.Property<string>("AddressLine")
                         .IsRequired()
@@ -118,8 +537,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid?>("CreatedByUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("CreatedByUserId");
 
                     b.Property<string>("CurrencyCode")
                         .IsRequired()
@@ -127,8 +547,18 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<string>("DirectionsUrl")
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
                     b.Property<string>("FacebookUrl")
                         .IsRequired()
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("InstagramUrl")
                         .HasMaxLength(300)
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(300)");
@@ -139,11 +569,66 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(16)");
 
+                    b.Property<string>("MapEmbedUrl")
+                        .HasMaxLength(1000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("MessengerUrl")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(4)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(4)");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<int?>("SharePictureBytes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SharePictureFormat")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<int?>("SharePictureHeight")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SharePicturePublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("SharePictureWidth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Street")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Tagline")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("TikTokUrl")
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
@@ -151,11 +636,22 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("TownOrCity")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("TurnaroundLine")
+                        .HasMaxLength(120)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(120)");
+
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid?>("UpdatedByUserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("UpdatedByUserId");
 
                     b.HasKey("Id");
 
@@ -170,13 +666,74 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             Id = 1,
                             AddressLine = "[Shop address], [City], Philippines",
                             BusinessName = "Carmen's Stitch & Printing Services",
-                            ContactEmail = "[hello@yourdomain.ph]",
+                            ContactEmail = "",
                             ContactPhone = "[0917 000 0000]",
                             CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 10, 7, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             CurrencyCode = "PHP",
-                            FacebookUrl = "[Facebook page URL]",
+                            FacebookUrl = "",
                             Locale = "en-PH",
+                            Tagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.",
                             TimeZoneId = "Asia/Manila"
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.Testimonial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsShown")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Quote")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Stars")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TeamOrRole")
+                        .HasMaxLength(80)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Position", "Id")
+                        .HasDatabaseName("IX_Testimonials_Position");
+
+                    b.ToTable("Testimonials", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Testimonials_Stars", "[Stars] BETWEEN 1 AND 5");
                         });
                 });
 
@@ -947,6 +1504,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(40)");
 
+                    b.Property<Guid?>("ProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("RetiredAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -975,6 +1535,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedName")
                         .IsUnique()
                         .HasDatabaseName("IX_ProductTypes_NormalizedName");
+
+                    b.HasIndex("ProductLineId")
+                        .HasDatabaseName("IX_ProductTypes_ProductLineId");
 
                     b.HasIndex("UpdatedById");
 
@@ -1119,6 +1682,20 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTimeOffset?>("PublicConsentAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("PublicConsentById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublicName")
+                        .HasMaxLength(80)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid?>("PublicProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("RefundedTotal")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -1128,6 +1705,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("ShownOnWebsiteSinceUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<byte>("Status")
                         .HasColumnType("tinyint");
@@ -1165,6 +1745,12 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasIndex("Number")
                         .IsUnique()
                         .HasDatabaseName("IX_Orders_Number");
+
+                    b.HasIndex("PublicConsentById")
+                        .HasDatabaseName("IX_Orders_PublicConsentById");
+
+                    b.HasIndex("PublicProductLineId")
+                        .HasDatabaseName("IX_Orders_PublicProductLineId");
 
                     b.HasIndex("UpdatedById")
                         .HasDatabaseName("IX_Orders_UpdatedById");
@@ -2052,6 +2638,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Name = "site-content"
+                        },
+                        new
+                        {
                             Name = "account-token:00"
                         },
                         new
@@ -2480,6 +3070,28 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Content.GalleryEntry", b =>
+                {
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("ProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Content.ProductLinePhoto", b =>
+                {
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("LineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Domain.Expenses.CompanyExpense", b =>
                 {
                     b.HasOne("Csps.Domain.Expenses.ExpenseCategory", null)
@@ -2631,6 +3243,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.NoAction);
 
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("ProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UpdatedById")
@@ -2648,6 +3265,16 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DeletedById")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PublicConsentById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("PublicProductLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()

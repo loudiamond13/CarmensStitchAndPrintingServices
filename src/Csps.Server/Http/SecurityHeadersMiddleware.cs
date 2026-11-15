@@ -12,9 +12,12 @@ namespace Csps.Server.Http;
 /// <param name="environment">The host environment; the Scalar carve-out exists in Development only.</param>
 public sealed class SecurityHeadersMiddleware(RequestDelegate next, IHostEnvironment environment)
 {
-    /// <summary>The strict Content-Security-Policy, PRD section 11.3 verbatim. No unsafe-inline, no unsafe-eval.</summary>
+    /// <summary>
+    /// The strict Content-Security-Policy, PRD section 11.3 plus one frame line: the Contact page's tap-to-load Google map (D-20).
+    /// Nothing is added for scripts. No unsafe-inline, no unsafe-eval.
+    /// </summary>
     public const string StrictCsp =
-        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
+        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self'; font-src 'self'; frame-src https://www.google.com/maps/embed; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests";
 
     /// <summary>Denies powerful features. Only features browsers recognize, so no console errors (Pitfall 10).</summary>
     public const string PermissionsPolicy =

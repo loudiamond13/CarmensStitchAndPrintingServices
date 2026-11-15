@@ -1,6 +1,6 @@
 # SmarterASP.NET Hosting Record (FND-13)
 
-*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-10-17T09:42:00-05:00*
+*Created: 2026-10-07T11:10:20-05:00 · Updated: 2026-11-13T22:50:00-06:00*
 
 D-28 decision: option-a (2026-10-07) - a separate, throwaway probe site next to the live site (never on top of it) plus look-only (SELECT) database queries that the owner runs in the control panel.
 
@@ -165,6 +165,7 @@ it on 2026-10-07: `cspstailoring.com` (public, not secret).
 | Database compatibility level (new databases / model) | B3 (`model` row) | Not returned: B3 gave only the live database row, so this account cannot see `model` and the server default is unknown | Unverified | - |
 | Legacy database settings | B3 (live database row) | `db_…_csptailoringdb`: compatibility_level 150, collation SQL_Latin1_General_CP1_CI_AS, is_read_committed_snapshot_on 0, recovery SIMPLE; retired 2026-10-16 (D-03), preserved only in the .bak | Verified | 2026-10-07 |
 | CSPS production database | Owner query, D-18 step 3 (`SELECT @@VERSION` and the `sys.databases` row) | `db_…_cspsdb`: Microsoft SQL Server 2025 (RTM-CU3) (KB5077896) - 17.0.4025.3 (X64), Standard Edition (64-bit) on Windows Server 2022 Standard 10.0 (Build 20348) (Hypervisor); compatibility_level 170, collation SQL_Latin1_General_CP1_CI_AS | Verified | 2026-10-16 |
+| CSPS database: read committed snapshot | Owner query 2026-11-13 (`SELECT name, is_read_committed_snapshot_on FROM sys.databases WHERE name = DB_NAME()`) | `db_…_cspsdb`: is_read_committed_snapshot_on 0 (off). Quick 261113-uj0 adds the migration that turns it on (D-P11-BL-35); check again after the next production script and expect 1 | Verified | 2026-11-13 |
 | SQL Server 2025 offered | Service-desk ticket (owner, 2026-10-07) | Yes: a new SQL Server 2025 database can be created in the control panel. There is no in-place upgrade; the live data moves by restoring a .bak into the new database. Not answered: extra cost, and whether the Basic plan's 1-database limit allows a second database | Verified | 2026-10-07 |
 | Database allocated size | B4 | AllocatedMB 16.0 | Verified | 2026-10-07 |
 | Hosting login owns the database | B5 (IsDbOwner only) | IsDbOwner 1 (the hosting login is a member of db_owner) | Verified | 2026-10-07 |
@@ -255,6 +256,10 @@ owner's observed result and the date (D-09). Nothing here may be relied on befor
   the target. The live legacy database itself is at level 150.
 - **Append-only audit log (D-25, D-32).** The hosting login is db_owner (B5) with CONTROL and full DDL rights (B6),
   so `DENY` permissions could not stop it. This confirms the trigger-based append-only design.
+- **Read committed snapshot (D-P11-BL-35, 2026-11-13).** The main login is db_owner with ALTER (B5, B6), so the script's
+  `ALTER DATABASE` is allowed. It runs from that login when the owner applies the script, never from the app. Each row
+  changed after the switch grows by 14 bytes and earlier row copies sit in tempdb or the database, small at this size
+  against the 1000 MB quota. See `docs/operations/deploy.md`.
 - **Database size.** The quota is 1000 MB and the live database uses 16.0 MB today, so space is not a near-term
   concern. Re-check it before cutover.
 - **App settings and secrets (Phase 3).** Settings can come from environment variables in the app-pool manager or

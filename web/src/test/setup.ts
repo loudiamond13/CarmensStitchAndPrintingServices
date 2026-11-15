@@ -1,9 +1,22 @@
 // Vitest setup for every test file (vitest.config.ts test.setupFiles).
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
 import { server } from './msw';
+import {
+  demoGallery,
+  demoHome,
+  demoLines,
+  demoSite,
+  galleryHandler,
+  homeHandler,
+  openStatusAt0900,
+  openStatusHandler,
+  productLinesHandler,
+  resetPublicData,
+  siteHandler,
+} from './publicFixtures';
 
 // jsdom has no matchMedia (research Pitfall 20). The mock reports "no match" and its listeners do nothing. Node-env
 // tests (*.node.test.ts) have no window, so they skip it.
@@ -41,12 +54,24 @@ installConsoleGuard();
 // Component tests run behind an MSW server: a request without a handler fails the test, so no test reaches a real
 // network (MSW 3 renamed the onUnhandledRequest option to onUnhandledFrame). Registered before the cleanup below, so
 // handlers reset after the unmount. Node-env tests skip it.
+// Every public page reads the shop facts, so each test starts with the demo shop answering that route and the open status
+// (Contact reads it); a test that needs another answer calls server.use and with no public data left from the test before.
 if (typeof window !== 'undefined') {
   beforeAll(() => {
     server.listen({ onUnhandledFrame: 'error' });
   });
+  beforeEach(() => {
+    server.use(
+      siteHandler(demoSite),
+      openStatusHandler(openStatusAt0900),
+      productLinesHandler(demoLines),
+      homeHandler(demoHome),
+      galleryHandler(demoGallery),
+    );
+  });
   afterEach(() => {
     server.resetHandlers();
+    resetPublicData();
   });
   afterAll(() => {
     server.close();

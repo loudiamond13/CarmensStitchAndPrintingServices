@@ -9,7 +9,13 @@ import { useId, type ReactNode } from 'react';
 import { Icon } from '@/components/brand';
 import { messageClasses } from '@/components/forms';
 import { requiredClasses } from '@/components/forms/field.recipe';
-import { checkCellClasses, checkInputClasses, checkLabelClasses, checkTickClasses } from './entry.recipe';
+import {
+  checkCellClasses,
+  checkInactiveClasses,
+  checkInputClasses,
+  checkLabelClasses,
+  checkTickClasses,
+} from './entry.recipe';
 
 export interface CheckboxProps {
   /** The visible text, which is also the box's accessible name. */
@@ -20,6 +26,8 @@ export interface CheckboxProps {
   name?: string;
   value?: string;
   disabled?: boolean;
+  /** Looks and acts disabled but stays focusable, so its hint can be read (the box must be controlled). */
+  ariaDisabled?: boolean;
   /** The new checked state after a click or Space. */
   onChange?: (checked: boolean) => void;
   required?: boolean;
@@ -38,6 +46,7 @@ export function Checkbox({
   name,
   value,
   disabled,
+  ariaDisabled = false,
   onChange,
   required,
   id,
@@ -57,17 +66,26 @@ export function Checkbox({
           <input
             id={iid}
             type="checkbox"
-            className={checkInputClasses}
+            className={clsx(checkInputClasses, ariaDisabled && checkInactiveClasses)}
             name={name}
             value={value}
             checked={checked}
             defaultChecked={defaultChecked}
             disabled={disabled}
             required={required}
+            aria-disabled={ariaDisabled || undefined}
             aria-invalid={invalid || undefined}
             aria-describedby={hasMessage ? messageId : undefined}
+            onClick={(event) => {
+              // A controlled box is put back by React. An uncontrolled one has no such owner, so the toggle is undone here.
+              if (ariaDisabled && checked === undefined) {
+                event.currentTarget.checked = !event.currentTarget.checked;
+              }
+            }}
             onChange={(event) => {
-              onChange?.(event.target.checked);
+              if (!ariaDisabled) {
+                onChange?.(event.target.checked);
+              }
             }}
           />
           <span className={checkTickClasses} aria-hidden="true" />

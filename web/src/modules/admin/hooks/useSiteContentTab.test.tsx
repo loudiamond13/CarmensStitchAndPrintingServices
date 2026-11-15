@@ -1,0 +1,163 @@
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
+import type { ReactNode } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
+import { SITE_CONTENT_TABS, useSiteContentTab } from './useSiteContentTab';
+
+// The Site Content tab lives in the URL `tab` parameter (D-27, WEB-10).
+
+type UrlUpdateSpy = ReturnType<typeof vi.fn<OnUrlUpdateFunction>>;
+
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 30));
+}
+
+function renderTab(searchParams = '') {
+  const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <NuqsTestingAdapter
+      searchParams={searchParams}
+      onUrlUpdate={onUrlUpdate}
+      defaultOptions={URL_STATE_DEFAULTS}
+      processUrlSearchParams={orderSearchParams}
+      hasMemory
+    >
+      {children}
+    </NuqsTestingAdapter>
+  );
+  return { ...renderHook(() => useSiteContentTab(), { wrapper }), onUrlUpdate };
+}
+
+function updates(onUrlUpdate: UrlUpdateSpy): { history: string; query: string }[] {
+  return onUrlUpdate.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
+}
+
+describe('useSiteContentTab', () => {
+  it('lists the tabs in order: Business Info, Hours and Closures, Products, Testimonials, Gallery', () => {
+    expect(SITE_CONTENT_TABS).toEqual(['business', 'hours', 'products', 'testimonials', 'gallery']);
+  });
+
+  it('reads business and writes nothing to the URL when there is no tab parameter', async () => {
+    const { result, onUrlUpdate } = renderTab('');
+
+    expect(result.current.tab).toBe('business');
+    await settle();
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each(SITE_CONTENT_TABS.slice(1))('reads ?tab=%s', async (tab) => {
+    const { result } = renderTab(`?tab=${tab}`);
+
+    expect(result.current.tab).toBe(tab);
+    await settle();
+  });
+
+  it('writes tab=hours with a replace, not a push', async () => {
+    const { result, onUrlUpdate } = renderTab('');
+
+    act(() => {
+      result.current.setTab('hours');
+    });
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=hours' }]);
+    expect(result.current.tab).toBe('hours');
+  });
+
+  it('keeps the default tab out of the URL: choosing business removes the parameter', async () => {
+    const { result, onUrlUpdate } = renderTab('?tab=gallery');
+
+    act(() => {
+      result.current.setTab('business');
+    });
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    expect(result.current.tab).toBe('business');
+  });
+
+  it('falls back to business for ?tab=bogus and removes it with one replace', async () => {
+    const { result, onUrlUpdate } = renderTab('?tab=bogus');
+
+    expect(result.current.tab).toBe('business');
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    await settle();
+    expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+  });
+
+  describe("the Gallery tab's line, page and size (plan 11-32)", () => {
+    const LINE = '8c1f4a20-0000-4000-8000-000000000003';
+
+    it('removes them in the same replace as the tab change when another tab is chosen', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=gallery&line=${LINE}&page=2&size=50`);
+
+      act(() => {
+        result.current.setTab('hours');
+      });
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=hours' }]);
+    });
+
+    it('removes them with one replace from a link that carries them on another tab', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=testimonials&line=${LINE}&page=2`);
+
+      expect(result.current.tab).toBe('testimonials');
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=testimonials' }]);
+    });
+
+    it('leaves them alone on the Gallery tab', async () => {
+      const { result, onUrlUpdate } = renderTab(`?tab=gallery&line=${LINE}&page=2&size=50`);
+
+      expect(result.current.tab).toBe('gallery');
+      await settle();
+      expect(onUrlUpdate).not.toHaveBeenCalled();
+    });
+
+    it('writes nothing extra when another tab is chosen and there is nothing to remove', async () => {
+      const { result, onUrlUpdate } = renderTab('?tab=gallery');
+
+      act(() => {
+        result.current.setTab('products');
+      });
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?tab=products' }]);
+    });
+  });
+
+  it.each(['?tab=Hours', '?tab=', '?tab=hours%20', '?tab=business'])(
+    'treats %s as non-canonical and rewrites it once',
+    async (search) => {
+      const { onUrlUpdate } = renderTab(search);
+
+      await waitFor(() => {
+        expect(onUrlUpdate).toHaveBeenCalled();
+      });
+      await settle();
+      expect(onUrlUpdate).toHaveBeenCalledTimes(1);
+    },
+  );
+});

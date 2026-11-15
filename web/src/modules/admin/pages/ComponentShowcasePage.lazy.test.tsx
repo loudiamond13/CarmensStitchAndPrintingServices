@@ -34,3 +34,32 @@ describe('ComponentShowcase: the Dashboard and staff money cases load only on re
     expect(loaded.times).toBe(1);
   }, 20_000);
 });
+
+// The Site content and public website cases are a lazy chunk too (plan 11-37), loaded the same way.
+const loaded11 = vi.hoisted(() => ({ times: 0 }));
+
+vi.mock('@/modules/admin/components/showcase/Phase11Demos', () => {
+  loaded11.times += 1;
+  return { Phase11Demos: () => <div data-testid="phase11-demos">Phase 11 demos</div> };
+});
+
+describe('ComponentShowcase: the Site content and public website cases load only on request', () => {
+  it('does not load the Phase 11 demos with the page, and loads them when the button is pressed', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <ComponentShowcaseRoute />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeInTheDocument();
+    expect(loaded11.times).toBe(0);
+    expect(screen.queryByTestId('phase11-demos')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Show the Site content cases' }));
+
+    expect(await screen.findByTestId('phase11-demos')).toBeInTheDocument();
+    expect(loaded11.times).toBe(1);
+  }, 20_000);
+});

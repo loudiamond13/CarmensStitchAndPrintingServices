@@ -12,6 +12,7 @@ import {
   assertGateReport,
   assertReport,
   layoutShiftCulprits,
+  lcpMilliseconds,
   REPORT_ONLY_METRICS,
   THRESHOLDS,
 } from './lighthouse-assert.mjs';
@@ -19,9 +20,11 @@ import { PORT_BUSY_MESSAGE } from './e2e.mjs';
 import {
   executeSteps,
   HEALTH_URL,
+  LIGHTHOUSE_PAGES,
   LIGHTHOUSE_URL,
   planSteps,
   REPORT_PATH,
+  reportPathFor,
   SERVER_PROJECT,
   stopHostSync,
   WWWROOT,
@@ -239,9 +242,9 @@ describe('assertReport: every failure, in a fixed order (PERF-02 ordering edge)'
   });
 });
 
-// Owner decision 2026-10-16 (WINDOWS.md entry 1): until Phase 11 an LCP miss is reported on every run but does not fail the
+// Owner decisions 2026-10-16 (WINDOWS.md entry 1) and D-29 (2026-11-11): an LCP miss is reported on every run but does not fail the
 // build. The relaxation is one named list; every other assertion stays a hard failure, and these tests fail if one is downgraded.
-describe('LCP is report-only until Phase 11 (WINDOWS.md entry 1)', () => {
+describe('LCP is report-only (D-29, WINDOWS.md entry 1)', () => {
   const missLcp = lighthouseReport({ metrics: { 'largest-contentful-paint': 2127.388 } });
 
   it('waives exactly one metric, LCP, and keeps its 2000 ms target', () => {
@@ -256,7 +259,7 @@ describe('LCP is report-only until Phase 11 (WINDOWS.md entry 1)', () => {
     expect(result.passed).toBe(true);
     expect(result.failures).toEqual([]);
     expect(result.warnings).toEqual([
-      'metric LCP (largest-contentful-paint): 2127.388 ms is not below 2000 ms (report only until Phase 11, WINDOWS.md entry 1)',
+      'metric LCP (largest-contentful-paint): 2127.388 ms is not below 2000 ms (report only, D-29)',
     ]);
     expect(result.lines).toContain('metric LCP (largest-contentful-paint): 2127.388 ms (needs < 2000 ms) WAIVED');
   });
@@ -309,10 +312,15 @@ describe('planSteps (lighthouse.mjs)', () => {
   });
 
   // The shared-machine preflight is a wait gate in main(), before planning (shared-machine.mjs, TOOL-WR-08).
-  it('runs the production build, the host, lighthouse and the assertion, in that order', () => {
+  it('runs the production build, the host, lighthouse on each page and the assertion on each, in that order', () => {
     const steps = planSteps({ portBusy: false });
 
-    expect(steps.map((step) => step.name)).toEqual(['build', 'host', 'lighthouse', 'assert']);
+    expect(steps.map((step) => step.name)).toEqual([
+      'build',
+      'host',
+      ...LIGHTHOUSE_PAGES.map(() => 'lighthouse'),
+      ...LIGHTHOUSE_PAGES.map(() => 'assert'),
+    ]);
   });
 
   it('builds production into wwwroot with this Node binary and the vite JS entry', () => {
@@ -356,6 +364,7 @@ describe('planSteps (lighthouse.mjs)', () => {
     expect(planSteps({ portBusy: false, chromePath: 'C:/chrome/chrome.exe' })[2]).toEqual({
       kind: 'run',
       name: 'lighthouse',
+      page: '/',
       command: process.execPath,
       args: [
         'node_modules/lighthouse/cli/index.js',
@@ -393,7 +402,12 @@ describe('planSteps (lighthouse.mjs)', () => {
   });
 
   it('asserts the report it wrote', () => {
-    expect(planSteps({ portBusy: false })[3]).toEqual({ kind: 'assert', name: 'assert', reportPath: REPORT_PATH });
+    expect(planSteps({ portBusy: false }).at(-4)).toEqual({
+      kind: 'assert',
+      name: 'assert',
+      page: '/',
+      reportPath: REPORT_PATH,
+    });
   });
 
   it('never spawns a .cmd or .bat shim, npm or npx (L-22)', () => {
@@ -438,7 +452,7 @@ function fakeDeps(options: { runStatus?: Record<string, number>; hostFails?: boo
 }
 
 describe('executeSteps (lighthouse.mjs)', () => {
-  it('runs every step, stops the host it started after lighthouse, and returns 0 when the report passes', async () => {
+  it('runs every step, stops the host it started after lighthouse, and returns 0 when the reports pass', async () => {
     const { events, deps } = fakeDeps();
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(0);
@@ -446,18 +460,19 @@ describe('executeSteps (lighthouse.mjs)', () => {
     expect(events.filter((event) => !event.startsWith('log '))).toEqual([
       'run build',
       'start host',
-      'run lighthouse',
+      ...LIGHTHOUSE_PAGES.map(() => 'run lighthouse'),
       'stop host',
       'read report',
+      ...LIGHTHOUSE_PAGES.slice(1).map((page) => `read ${reportPathFor(page)}`),
     ]);
   });
 
-  it('returns 0 and prints the LCP value and target when only the waived LCP misses (WINDOWS.md entry 1)', async () => {
+  it('returns 0 and prints the LCP value and target when only the waived LCP misses (D-29)', async () => {
     const { events, deps } = fakeDeps({ report: lighthouseReport({ metrics: { 'largest-contentful-paint': 2127 } }) });
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(0);
     expect(events).toContain(
-      'log lighthouse: WAIVED metric LCP (largest-contentful-paint): 2127 ms is not below 2000 ms (report only until Phase 11, WINDOWS.md entry 1)',
+      'log lighthouse /: WAIVED metric LCP (largest-contentful-paint): 2127 ms is not below 2000 ms (report only, D-29)',
     );
   });
 
@@ -484,16 +499,18 @@ describe('executeSteps (lighthouse.mjs)', () => {
     const { events, deps } = fakeDeps({ report: lighthouseReport({ scores: { seo: 0.9 } }) });
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(1);
-    expect(events).toContain('log lighthouse: category seo: score 0.9 is below 0.95');
+    expect(events).toContain('log lighthouse /: category seo: score 0.9 is below 0.95');
   });
 
-  it('still stops the host when lighthouse itself fails, and never reads a report', async () => {
+  it('still stops the host when lighthouse itself fails (after two more tries), and never reads a report', async () => {
     const { events, deps } = fakeDeps({ runStatus: { lighthouse: 2 } });
 
     expect(await executeSteps(planSteps({ portBusy: false }), deps)).toBe(2);
     expect(events.filter((event) => !event.startsWith('log '))).toEqual([
       'run build',
       'start host',
+      'run lighthouse',
+      'run lighthouse',
       'run lighthouse',
       'stop host',
     ]);
@@ -593,5 +610,19 @@ describe('layoutShiftCulprits (lighthouse-assert.mjs)', () => {
     ['an item without a node or score', report([{}, { score: 0.1 }, { node: {} }])],
   ])('gives no lines for %s', (_name, input) => {
     expect(layoutShiftCulprits(input)).toEqual([]);
+  });
+});
+
+describe('lcpMilliseconds (lighthouse-assert.mjs)', () => {
+  it('reads the raw LCP value of a report', () => {
+    expect(lcpMilliseconds(lighthouseReport({ metrics: { 'largest-contentful-paint': 1812.4 } }))).toBe(1812.4);
+  });
+
+  it.each([
+    ['no report', null],
+    ['no audits', {}],
+    ['no value', lighthouseReport({ metrics: { 'largest-contentful-paint': null } })],
+  ])('gives null for %s', (_name, input) => {
+    expect(lcpMilliseconds(input)).toBeNull();
   });
 });

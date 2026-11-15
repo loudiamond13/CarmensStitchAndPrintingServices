@@ -1,20 +1,21 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 10
-current_phase_name: Admin Dashboard
-status: "Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word"
-stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-11-10T15:43:39.722Z"
-last_activity: 2026-11-10
-state_head: 3ccebab6a17e3a83737caa24955344c4b3a8570b
+current_phase: 11
+current_phase_name: Public Site & Content Management
+status: executing
+stopped_at: Phase 11 gap plan 11-39 executed
+last_updated: "2026-11-15T13:26:48.749Z"
+last_activity: 2026-11-15
+last_activity_desc: "Phase 11 shipped as PR #25"
+state_head: 3771812540eb4df07b23d41c4c68ded4b72ca123
 progress:
   total_phases: 18
-  completed_phases: 8
-  total_plans: 302
-  completed_plans: 302
-  percent: 44
+  completed_phases: 9
+  total_plans: 341
+  completed_plans: 341
+  percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-10T15:10:00-06:00"
+updated: "2026-11-14T20:19:16-06:00"
 ---
 
 # Project State
@@ -24,21 +25,21 @@ updated: "2026-11-10T15:10:00-06:00"
 See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 10 — Admin Dashboard
+**Current focus:** Phase 11 — Public Site & Content Management
 
 ## Current Position
 
-Phase: 10 (Admin Dashboard) — EXECUTING
-Plan: 1 of 21
-Status: Phase 10 PR #24 is ready for review (D-114, corrected 2026-11-10); merge waits on a green full CI run with the parity snapshots, then the owner's word
-Last activity: 2026-11-10
+Phase: 11 (Public Site & Content Management) — EXECUTING
+Plan: 39 of 39 (gap plan 11-39 done)
+Status: Phase 11 plans complete; verification next
+Last activity: 2026-11-15 -- Phase 11 shipped as PR #25
 
-Progress: [████░░░░░░] 44%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 248
+- Total plans completed: 269
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -55,6 +56,7 @@ Progress: [████░░░░░░] 44%
 | 7 | 20 | - | - |
 | 07.1 | 12 | - | - |
 | 08 | 29 | - | - |
+| 10 | 21 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -1067,6 +1069,12 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 | 261109-c4l | Fix the Phase 10 UI review findings UI-01 to UI-24 (D-107, D-108) | 2026-11-09 | 96a5981f | [261109-c4l-fix-the-phase-10-ui-review-findings-ui-0](./quick/261109-c4l-fix-the-phase-10-ui-review-findings-ui-0/) |
 | 261109-fmv | Fix P10-BL-21: header Transfer reason, tablet tables, focus-after-delete test (D-109, D-110) | 2026-11-09 | 77b4f562 | [261109-fmv-fix-p10-bl-21-header-transfer-reason-tab](./quick/261109-fmv-fix-p10-bl-21-header-transfer-reason-tab/) |
 | 261109-vj6 | Fix the D-111 rulings: P10-BL-02, 04, 05, 08, 13, 17 | 2026-11-10 | 647e2aa5 | [261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08](./quick/261109-vj6-fix-the-d-111-rulings-p10-bl-02-04-05-08/) |
+| 261113-nqv | Fix phase 11 UI review findings | 2026-11-13 | 4304af7c | [261113-nqv-fix-phase-11-ui-review-findings](./quick/261113-nqv-fix-phase-11-ui-review-findings/) |
+| 261113-tiq | Deleting an order turns Show on the website off (D-P11-BL-29) | 2026-11-13 | 8aad608e | [261113-tiq-deleting-an-order-turns-show-on-the-webs](./quick/261113-tiq-deleting-an-order-turns-show-on-the-webs/) |
+| 261113-uj0 | Turn on read committed snapshot for the CSPS database (D-P11-BL-35) | 2026-11-13 | 8e02c1c0 | [261113-uj0-turn-on-read-committed-snapshot-for-the-](./quick/261113-uj0-turn-on-read-committed-snapshot-for-the-/) |
+| 261114-t04 | Fix Phase 11 UI review warnings N-01 (breadcrumb label in copy) and N-02 (named Contact bar and tagline tokens) | 2026-11-14 | 9eb417e1 | [261114-t04-fix-phase-11-ui-review-warnings-n-01-and](./quick/261114-t04-fix-phase-11-ui-review-warnings-n-01-and/) |
+| 43 | Give the Contact bar Messenger button the 48px button shape (D-P11-BL-67) | 2026-11-14 | babb2667 | — |
+| 44 | Format nine web files so the CI Prettier step passes (D-39-1) | 2026-11-15 | da6e311e | — |
 
 ## Deferred Items
 
@@ -1078,9 +1086,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T18:26:31.199Z
-Stopped at: Phase 10 UI-SPEC approved
-Resume file: .planning/phases/10-admin-dashboard/10-UI-SPEC.md
+Last session: 2026-11-15T02:19:47.691Z
+Stopped at: Phase 11 gap plan 11-39 executed
+Resume file: .planning/phases/11-public-site-content-management/11-UI-SPEC.md
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 

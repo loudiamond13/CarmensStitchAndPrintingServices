@@ -1,0 +1,140 @@
+{
+  "note": "Accept and refuse cases for the public link rules (CONT-01, D-24, CWE-601). Read by the .NET domain tests and by the web zod tests. A case is the exact text, with no trimming. An empty optional field is 'not set' and is never checked against these rules.",
+  "messenger": {
+    "accept": [
+      "https://m.me/cspsdemo",
+      "https://m.me/csps.demo",
+      "https://m.me/Csps123",
+      "https://m.me/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "refuse": [
+      "",
+      "http://m.me/cspsdemo",
+      "https://m.me/",
+      "https://m.me/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "https://evil.example/m.me/cspsdemo",
+      "https://m.me.evil.example/cspsdemo",
+      "https://m.me:8443/cspsdemo",
+      "https://user@m.me/cspsdemo",
+      "https://m.me/csps_demo",
+      "https://m.me/csps/demo",
+      "https://m.me/cspsdemo?ref=x",
+      "https://m.me/cspsdemo#top",
+      "m.me/cspsdemo",
+      "https://m.me/my page"
+    ]
+  },
+  "facebook": {
+    "accept": [
+      "https://facebook.com/cspsdemo",
+      "https://www.facebook.com/cspsdemo",
+      "https://m.facebook.com/cspsdemo",
+      "https://fb.com/cspsdemo",
+      "https://www.facebook.com/cspsdemo/",
+      "https://www.facebook.com/profile.php?id=1234567890"
+    ],
+    "refuse": [
+      "",
+      "http://www.facebook.com/cspsdemo",
+      "https://facebook.example/cspsdemo",
+      "https://l.facebook.com/cspsdemo",
+      "https://evil.example/www.facebook.com/cspsdemo",
+      "https://www.facebook.com.evil.example/cspsdemo",
+      "https://facebook.com@evil.example/cspsdemo",
+      "https://evil.example@facebook.com/cspsdemo",
+      "https://www.facebook.com:8443/cspsdemo",
+      "www.facebook.com/cspsdemo",
+      "ftp://www.facebook.com/cspsdemo",
+      "https://m.me/cspsdemo",
+      "https://www.facebook.com/my page"
+    ]
+  },
+  "instagram": {
+    "accept": [
+      "https://instagram.com/cspsdemo",
+      "https://www.instagram.com/cspsdemo",
+      "https://www.instagram.com/cspsdemo/"
+    ],
+    "refuse": [
+      "",
+      "http://www.instagram.com/cspsdemo",
+      "https://instagr.am/cspsdemo",
+      "https://help.instagram.com/cspsdemo",
+      "https://www.instagram.com.evil.example/cspsdemo",
+      "https://evil.example/www.instagram.com/cspsdemo",
+      "https://www.instagram.com@evil.example/cspsdemo",
+      "https://www.tiktok.com/@cspsdemo",
+      "https://www.instagram.com/my page"
+    ]
+  },
+  "tiktok": {
+    "accept": [
+      "https://tiktok.com/@cspsdemo",
+      "https://www.tiktok.com/@cspsdemo",
+      "https://www.tiktok.com/@cspsdemo?lang=en"
+    ],
+    "refuse": [
+      "",
+      "http://www.tiktok.com/@cspsdemo",
+      "https://vm.tiktok.com/abc123",
+      "https://www.tiktok.com.evil.example/@cspsdemo",
+      "https://evil.example/www.tiktok.com/@cspsdemo",
+      "https://www.tiktok.com@evil.example/@cspsdemo",
+      "https://www.instagram.com/cspsdemo",
+      "https://www.tiktok.com/@my page"
+    ]
+  },
+  "directions": {
+    "accept": [
+      "https://maps.app.goo.gl/abc123",
+      "https://goo.gl/maps/abc123",
+      "https://www.google.com/maps/place/Sample+Shop",
+      "https://www.google.com/maps?q=sample",
+      "https://maps.google.com/?q=sample",
+      "https://maps.google.com/maps?q=sample"
+    ],
+    "refuse": [
+      "",
+      "http://maps.app.goo.gl/abc123",
+      "https://goo.gl/abc123",
+      "https://www.google.com/search?q=maps",
+      "https://www.google.com/mapsx/abc",
+      "https://www.google.com/",
+      "https://maps.app.goo.gl.evil.example/abc123",
+      "https://evil.example/maps.app.goo.gl/abc123",
+      "https://maps.app.goo.gl@evil.example/abc123",
+      "https://maps.app.goo.gl:8443/abc123",
+      "maps.app.goo.gl/abc123",
+      "https://maps.app.goo.gl/abc 123"
+    ]
+  },
+  "embed": {
+    "accept": [
+      "https://www.google.com/maps/embed?pb=sample",
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3!2d121.0!3d14.6"
+    ],
+    "refuse": [
+      "",
+      "http://www.google.com/maps/embed?pb=sample",
+      "https://www.google.com/maps/embed",
+      "https://www.google.com/maps/embed/v1/place?q=sample",
+      "https://www.google.com/maps?q=sample",
+      "https://google.com/maps/embed?pb=sample",
+      "https://www.google.com.evil.example/maps/embed?pb=sample",
+      "https://evil.example/https://www.google.com/maps/embed?pb=sample",
+      "https://www.google.com/maps/embed?pb=a b",
+      "<iframe src=\"https://www.google.com/maps/embed?pb=sample\"></iframe>"
+    ]
+  },
+  "refuseEverywhere": [
+    "",
+    "javascript:alert(1)",
+    "JAVASCRIPT:alert(1)",
+    "data:text/html,hello",
+    "[Facebook page URL]",
+    "[https://m.me/yourpage]",
+    "https://m.me/[yourpage]",
+    "  ",
+    "#"
+  ]
+}

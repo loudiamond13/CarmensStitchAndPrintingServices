@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-10T06:30:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-14T20:19:16-06:00*
 
 ## Overview
 
@@ -62,7 +62,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 7: Order Domain & API** - Order aggregate, numbering, invariants, transitions, concurrency and import path, proven by fixtures and race tests (completed 2026-10-29)
 - [x] **Phase 8: Order Screens** - Order list, search and filters, create flow, detail page with tabs, modals, totals and profit, safe delete (completed 2026-10-31)
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
-- [ ] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers
+- [x] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers (completed 2026-11-13)
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
 - [ ] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
@@ -1092,7 +1092,7 @@ Plans:
 
 **Research flag:** Standard patterns, once the C-40 definitions are settled.
 
-**Plans**: 21/21 plans executed in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
+**Plans**: 21/21 plans complete in 11 waves (planned 2026-11-05; each plan leads with an end-to-end tracer task; TDD; the plans that change the API contract, 10-05, 10-06, 10-08, 10-10, 10-12, 10-14, 10-16 and 10-18, each sit in their own wave)
 
 **Wave 1**
 - [x] 10-01-PLAN.md — Ledger union query proven on SQL Server, the Wave 0 spike (MONEY-02; RESEARCH A1, A2)
@@ -1163,13 +1163,21 @@ Plans:
 
      Each change appears publicly at once, because the cache is invalidated (`ETag`/`Cache-Control`).
 **Owner decisions to close at discuss step:**
+- **Closed 2026-11-11 (owner):** C-21, C-12, C-36 (scope) and the LCP follow-up are ruled in `.planning/phases/11-public-site-content-management/11-CONTEXT.md` (Phase 11 D-01 to D-29). C-35, C-17 and OD-14 carry forward unchanged.
 - **C-21** content model: fixed product lines with rich copy vs a database price list (a hybrid `ProductLine` is recommended)
 - **C-12** Gallery scope. Owner input from 09 CONTEXT Deferred (2026-10-31): order photos show on the public site by default, and a Manager can hide any order. Settle customer consent (Data Privacy Act, LEGAL-01) when discussing.
 - **C-36** scope check only: does the quote/inquiry feature ship this milestone? The answer decides the Contact layout; the details close in Phase 13.
 - **C-35** apply the Phase 2 ruling on lightbox controls on phones
 - **C-17** spec-gap screens: site content and price-list management
 - **OD-14**
-- **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), then empty `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` so LCP fails the build again.
+- **Carry-over from Phase 3 (WINDOWS.md entry 1):** public LCP is about 2.1 to 2.2 s against the 2.0 s limit and is report-only in CI. Revisit fonts here (options in `.planning/phases/03-ci-cd-staging-deploy/deferred-items.md`), Ruled 2026-11-11 (owner, 11 D-28, D-29): fixes that keep the look first, and LCP **stays report-only** in CI (supersedes emptying `REPORT_ONLY_METRICS`).
+- **Carry-over from Phase 10 (D-119, owner 2026-11-11):** PR 24 is merged (25bd3431). Detail for each item is in `.planning/phases/999.6-owner-items-parked-during-phase-10-execution/DECISIONS.md`.
+  - **Live deploy (P10-BL-24):** done 2026-11-11. 25bd3431 is live (release `deploy-20261111122749-25bd343`).
+  - **Order-number deadlock answers 500 (P10-BL-22):** fix it the way the staff-money lock was fixed, test first.
+  - **Owner review (P10-BL-23):** the expense list deferred-join query, and the create-user roster lock with its 409 "busy" answer.
+  - **Owner review (P10-BL-20 item 3):** the choices quick 261109-vj6 made inside D-111.
+  - **UAT tests 18 and 19:** met by the green full CI run on 89d723cd; mark them passed with `/gsd-verify-work 10`.
+  - **Dependabot alert 6 (minimatch, GHSA-g3hv-75wg-m249):** dev-only and pulled in by another package, fixed in 11.0.1. A package change needs the usual owner approval.
 
 **Owner prerequisites:** Real business content: prices, hours, address, phone numbers, Messenger URL and gallery photos. The phase doesn't need it, since the seed holds placeholders, but it must be entered through the management screens before cutover.
 
@@ -1178,7 +1186,81 @@ Plans:
 - server-shaped `index.html` with HybridCache
 - fitting the Contact page within the 150 KB budget
 
-**Plans**: TBD
+**Plans**: 39/39 plans executed: 38 in 16 waves, plus gap-closure plan 11-39 (UAT G-11-19, planned 2026-11-14) (planned 2026-11-11; each plan leads with an end-to-end tracer task; TDD; the server plans that rewrite the authorization matrix and the API contract, 11-02, 11-07, 11-09, 11-11, 11-13, 11-15, 11-17, 11-19, 11-21, 11-23, 11-26, 11-28, 11-30 and 11-33, each sit in their own wave; D-45 is the first task of 11-01)
+
+**Wave 1**
+- [x] 11-01-PLAN.md — The audit gate keeps passing (D-45, first) and an order-number deadlock answers 409 (P10-BL-22) (OPS-03, ORD-14, SEC-07)
+- [x] 11-02-PLAN.md — Server-shaped shell: per-page head, real 404, admin noindex, robots.txt, sitemap.xml (PUB-04, PUB-01)
+- [x] 11-03-PLAN.md — Open or closed status as one pure rule in Manila time (PUB-05, CONT-04)
+- [x] 11-04-PLAN.md — Philippine phone numbers: tel: and display forms (PUB-06, CONT-01)
+- [x] 11-05-PLAN.md — Weekly hours text for footer, Contact and admin preview (PUB-05, CONT-04)
+
+**Wave 2**
+- [x] 11-06-PLAN.md — Owner reviews P10-BL-23 and P10-BL-20 item 3; UAT 18 and 19 reminder (carry-over)
+- [x] 11-07-PLAN.md — Site contact details from the database, cached public read, JSON-LD and boot data (PUB-02, PUB-03, PUB-04, CONT-01, CONT-05)
+- [x] 11-08-PLAN.md — Public layout, the four page heads, the 404 page and per-page budgets (PUB-01)
+
+**Wave 3**
+- [x] 11-09-PLAN.md — Manager Business Info write with every rule, audit and 409 (CONT-01, PUB-02, PUB-03)
+- [x] 11-10-PLAN.md — Public data store, data-driven footer and the Contact page base with tap-to-load map (PUB-02, PUB-06, PUB-01)
+
+**Wave 4**
+- [x] 11-11-PLAN.md — Opening hours and the open-status API (PUB-05, CONT-01, PUB-04)
+- [x] 11-12-PLAN.md — Site Content area and the Business Info tab (CONT-01, PUB-03)
+
+**Wave 5**
+- [x] 11-13-PLAN.md — Shop closures under the site-content lock (CONT-04, PUB-05, PUB-04)
+
+**Wave 6**
+- [x] 11-14-PLAN.md — Contact hours card and open status (PUB-05, CONT-04, PUB-02)
+- [x] 11-15-PLAN.md — Product lines table, six seeded lines and the public read (PUB-02, CONT-02)
+- [x] 11-16-PLAN.md — Hours & Closures tab (CONT-04, CONT-01, PUB-05)
+
+**Wave 7**
+- [x] 11-17-PLAN.md — Product lines admin API: edit, move, hide, show, delete when unused, type links (CONT-02, PUB-03)
+- [x] 11-18-PLAN.md — Products page (PUB-01, PUB-02, CONT-02)
+
+**Wave 8**
+- [x] 11-19-PLAN.md — Line photos, new Cloudinary sizes, content folder sweep, Products og:image (CONT-02, PUB-04, PUB-02)
+- [x] 11-20-PLAN.md — Products tab and the product line editor (CONT-02, PUB-03)
+
+**Wave 9**
+- [x] 11-21-PLAN.md — Testimonials and the public Home read (CONT-03, PUB-02, PUB-03)
+- [x] 11-22-PLAN.md — PhotoSlot and the editor's Photos card (CONT-02, GAL-03)
+
+**Wave 10**
+- [x] 11-23-PLAN.md — Order public settings: customer OK, show on the website, gallery entries (GAL-03, CONT-03, PUB-03) (restore ruling parked as P11-BL-29)
+- [x] 11-24-PLAN.md — Testimonials tab (CONT-03, PUB-03)
+- [x] 11-25-PLAN.md — Home page (PUB-01, PUB-02, CONT-03)
+
+**Wave 11**
+- [x] 11-26-PLAN.md — Public gallery read, Recent work, hero tag, privacy backstop (GAL-01, CONT-03, PUB-02, PUB-04)
+- [x] 11-27-PLAN.md — Public website card and window on the order page (GAL-03, CONT-03)
+
+**Wave 12**
+- [x] 11-28-PLAN.md — Gallery admin API: uploads, edit, hide, show, delete, moves (GAL-03, CONT-03, PUB-03)
+- [x] 11-29-PLAN.md — Gallery page with category pills and masonry; Home Recent work (GAL-01, CONT-03, PUB-01)
+
+**Wave 13**
+- [x] 11-30-PLAN.md — Default share picture and og:image on every page (PUB-04, CONT-01)
+- [x] 11-31-PLAN.md — Gallery lightbox (GAL-02)
+- [x] 11-32-PLAN.md — Gallery tab (GAL-03, CONT-03)
+
+**Wave 14**
+- [x] 11-33-PLAN.md — Order create and edit carry the public website block (GAL-03)
+- [x] 11-34-PLAN.md — Link preview picture card in Business Info (PUB-04, CONT-01)
+
+**Wave 15**
+- [x] 11-35-PLAN.md — Public website card on the New Order and Edit Order forms (GAL-03)
+- [x] 11-36-PLAN.md — LCP: Brotli, unused fonts dropped, measured; LCP stays report-only (D-28, D-29, D-46) (PERF-02, PUB-01)
+
+**Wave 16**
+- [x] 11-37-PLAN.md — Link-preview, layout, accessibility, CSP and focus sweeps; showcase; audit labels (PUB-01, PUB-04, CONT-05, GAL-02)
+- [x] 11-38-PLAN.md — Go-live checklist (D-44), dev seed demo content, deploy-gap ruling (PUB-02, CONT-01, CONT-02)
+
+**Gap closure** *(UAT G-11-19, planned 2026-11-14; run with `/gsd-execute-phase 11 --gaps-only`)*
+- [x] 11-39-PLAN.md — Every photo the browser can open is redrawn before upload, also when it needs no shrink, so its location never leaves the phone; only a HEIC the browser cannot open goes as it is (D-P11-BL-65) (GAL-03, CONT-02, PUB-04)
+
 **UI hint**: yes
 
 ### Phase 12: Consent, Analytics & Legal
@@ -1458,8 +1540,8 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 7. Order Domain & API | 20/20 | Complete    | 2026-10-29 |
 | 8. Order Screens | 29/29 | Complete    | 2026-10-31 |
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
-| 10. Admin Dashboard | 21/21 | In Progress | - |
-| 11. Public Site & Content Management | 0/TBD | Not started | - |
+| 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
+| 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
@@ -1520,6 +1602,15 @@ Plans:
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.7: Owner items parked during Phase 11 execution (BACKLOG)
+
+**Goal:** Settle the owner decisions and manual checks parked while the owner was away during the Phase 11 run (2026-11-11 onward). Each item is in `.planning/phases/999.7-owner-items-parked-during-phase-11-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ---
 *Roadmap created: 2026-10-07*
-*Last updated: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*
+*Last updated: 2026-11-11T06:10:00-06:00 after D-119 moved the open Phase 10 items into Phase 11. Earlier: 2026-10-17T09:30:00-05:00 after plans 03-20 to 03-22 were marked complete (CSPS live, first Manager signed in, owner acceptance 2026-10-17). Earlier: 2026-10-15T22:10:30-05:00 after plan 03-23 amended Phases 3, 16 and 17 to the Phase 3 owner decisions (no staging site; CSPS replaces the legacy site in Phase 3)*

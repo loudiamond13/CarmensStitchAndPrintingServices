@@ -52,6 +52,8 @@ export type BudgetName = 'publicJs' | 'adminJs' | 'css';
 export interface BudgetMeasurement {
   readonly name: BudgetName;
   readonly label: string;
+  /** The public page this measures, for the public JS rows. */
+  readonly route?: PublicRouteName;
   /** Null when the value could not be measured (a missing route module); the report then has an error. */
   readonly bytes: number | null;
   readonly limit: number;
@@ -62,7 +64,10 @@ export interface BudgetReport {
   readonly ok: boolean;
   readonly build: BudgetBuild;
   readonly devRoutes: boolean;
+  /** The largest of the public pages' figures; null when any page could not be measured. */
   readonly publicJs: number | null;
+  /** The initial JS of each public page with the layout, in gzip bytes; null when that page could not be measured. */
+  readonly publicRoutes: Readonly<Record<PublicRouteName, number | null>>;
   readonly adminJs: number | null;
   readonly css: number | null;
   readonly measurements: readonly BudgetMeasurement[];
@@ -83,8 +88,42 @@ export const BARREL_SPLIT_TRIGGER = 135_000;
 /** The HTML entry whose chunk every route loads first. */
 export const MAIN_ENTRY = 'index.html';
 
-/** The route module the public site renders on first load: the D-17 holding page (PublicLayout returns with Phase 11). */
-export const PUBLIC_ROUTE: readonly string[] = Object.freeze(['src/modules/public/pages/HoldingPage.tsx']);
+/** The public layout every public page renders inside. */
+export const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
+
+/** The lazy layout that holds the one NuqsAdapter (WEB-10); only the Gallery route loads it. */
+export const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
+
+/** The public pages, in the order the report lists them. */
+export const PUBLIC_ROUTE_NAMES = ['home', 'products', 'gallery', 'contact', 'notFound'] as const;
+
+export type PublicRouteName = (typeof PUBLIC_ROUTE_NAMES)[number];
+
+const HOME_PAGE = 'src/modules/public/pages/HomePage.tsx';
+
+/**
+ * The route modules each public page loads first (PUB-01, RESEARCH P-7): the layout plus the page, measured as one route
+ * each, so a page that grows is named and the others are not blamed. The Gallery route also loads the URL-state layout.
+ */
+export const PUBLIC_ROUTES: Readonly<Record<PublicRouteName, readonly string[]>> = Object.freeze({
+  home: Object.freeze([PUBLIC_LAYOUT, HOME_PAGE]),
+  products: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ProductsPage.tsx']),
+  gallery: Object.freeze([PUBLIC_LAYOUT, URL_STATE_LAYOUT, 'src/modules/public/pages/GalleryPage.tsx']),
+  contact: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ContactPage.tsx']),
+  notFound: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/NotFoundPage.tsx']),
+});
+
+/**
+ * The route modules the production build preloads (PERF-02): the layout and the Home page, which is where a visitor
+ * lands. Preloading every page would make a phone fetch pages it may never open.
+ */
+export const PUBLIC_PRELOAD_ROUTE: readonly string[] = Object.freeze([PUBLIC_LAYOUT, HOME_PAGE]);
+
+/** Module prefixes the Gallery route alone may load: nuqs and the URL-state modules (WEB-10). */
+export const GALLERY_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
+  'node_modules/nuqs/',
+  'src/lib/url-state/',
+]);
 
 /** The shipped modules a signed-in `/admin` visit loads first: the query client route, the guard, the admin layout, the URL-state layout and the devices page. */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
@@ -140,8 +179,9 @@ const isShowcaseHeld = (moduleId: string): boolean => isShowcaseOnly(moduleId) &
 
 /**
  * Module ids the public initial JS must never contain (PERF-02): TanStack Query and the admin app load with the admin
- * chunks, so `/` ships only what the holding page needs. The admin route table (`routes.tsx`) is the one admin module
- * the entry holds; its page, layout and service imports are all lazy.
+ * chunks, so a public page ships only what it needs. The admin route table (`routes.tsx`) is the one admin module
+ * the entry holds; its page, layout and service imports are all lazy. The Gallery route alone may load nuqs and the
+ * URL-state modules (GALLERY_ONLY_MODULE_PREFIXES, WEB-10).
  */
 export const PUBLIC_FORBIDDEN_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'node_modules/@tanstack/',
@@ -204,6 +244,7 @@ function measureRoute(
   name: 'publicJs' | 'adminJs',
   modules: readonly string[],
   errors: string[],
+  label: string = LABELS[name],
 ): BudgetMeasurement {
   const roots: string[] = [];
   let complete = entry !== undefined;
@@ -224,14 +265,14 @@ function measureRoute(
     }
   }
   if (!complete) {
-    return { name, label: LABELS[name], bytes: null, limit: BUDGETS[name], files: [] };
+    return { name, label, bytes: null, limit: BUDGETS[name], files: [] };
   }
   try {
     const { bytes, files } = routeInitialSize(graph.chunks, roots);
-    return { name, label: LABELS[name], bytes, limit: BUDGETS[name], files };
+    return { name, label, bytes, limit: BUDGETS[name], files };
   } catch (error: unknown) {
     errors.push(`${LABELS[name]}: ${error instanceof Error ? error.message : String(error)}`);
-    return { name, label: LABELS[name], bytes: null, limit: BUDGETS[name], files: [] };
+    return { name, label, bytes: null, limit: BUDGETS[name], files: [] };
   }
 }
 
@@ -386,7 +427,14 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
       : signedOut.bytes > signedIn.bytes
         ? signedOut
         : signedIn;
-  const measurements: BudgetMeasurement[] = [measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTE, errors), admin];
+  // Each public page is measured with the layout. A module every page needs (the layout) that has no chunk is reported once.
+  const publicErrors: string[] = [];
+  const publicMeasurements: BudgetMeasurement[] = PUBLIC_ROUTE_NAMES.map((route) => ({
+    ...measureRoute(graph, entry, 'publicJs', PUBLIC_ROUTES[route], publicErrors, `${LABELS.publicJs} (${route})`),
+    route,
+  }));
+  errors.push(...new Set(publicErrors));
+  const measurements: BudgetMeasurement[] = [...publicMeasurements, admin];
 
   const cssAssets = graph.assets.filter((a) => a.fileName.endsWith('.css'));
   if (cssAssets.length !== 1) {
@@ -403,7 +451,11 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
   });
 
   if (options.build === 'production') {
-    const initialFiles = new Set([...(measurements[0]?.files ?? []), ...signedIn.files, ...signedOut.files]);
+    const initialFiles = new Set([
+      ...publicMeasurements.flatMap((m) => m.files),
+      ...signedIn.files,
+      ...signedOut.files,
+    ]);
     errors.push(...showcaseErrors(graph, initialFiles));
   }
 
@@ -413,26 +465,40 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     }
   }
 
-  // PERF-02: every chunk of the public route's initial JS is free of TanStack Query and admin code. The dev-only ids are
-  // reported by the production rule above, so they are not named twice.
-  const publicFiles = new Set(measurements[0]?.files ?? []);
-  for (const c of graph.chunks.filter((candidate) => publicFiles.has(candidate.fileName))) {
-    for (const id of c.moduleIds) {
-      // The production rules above name these ids, so they are not named twice.
-      const devOnly = options.build === 'production' && (isDevOnly(id) || isShowcaseOnly(id));
-      if (
-        !devOnly &&
-        !PUBLIC_ALLOWED_ADMIN_MODULES.includes(id) &&
-        PUBLIC_FORBIDDEN_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix))
-      ) {
-        errors.push(
-          `The public initial JS (${c.fileName}) contains ${id}: TanStack Query and admin code must load with the admin chunks (PERF-02).`,
-        );
+  // PERF-02: every chunk of every public page's initial JS is free of TanStack Query and admin code; nuqs and the
+  // URL-state modules are allowed only in the Gallery route's chunks (WEB-10). A chunk several pages share is named once.
+  // The dev-only ids are reported by the production rule above, so they are not named twice.
+  const publicProblems = new Set<string>();
+  for (const m of publicMeasurements) {
+    const files = new Set(m.files);
+    for (const c of graph.chunks.filter((candidate) => files.has(candidate.fileName))) {
+      for (const id of c.moduleIds) {
+        const devOnly = options.build === 'production' && (isDevOnly(id) || isShowcaseOnly(id));
+        const galleryOnly =
+          m.route === 'gallery' && GALLERY_ONLY_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix));
+        if (
+          !devOnly &&
+          !galleryOnly &&
+          !PUBLIC_ALLOWED_ADMIN_MODULES.includes(id) &&
+          PUBLIC_FORBIDDEN_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix))
+        ) {
+          publicProblems.add(
+            `The public initial JS (${c.fileName}) contains ${id}: TanStack Query and admin code must load with the admin chunks, and nuqs only with the Gallery route (PERF-02, WEB-10).`,
+          );
+        }
       }
     }
   }
+  errors.push(...publicProblems);
 
-  const publicJs = measurements[0]?.bytes ?? null;
+  const publicRoutes = Object.fromEntries(publicMeasurements.map((m) => [m.route, m.bytes])) as Record<
+    PublicRouteName,
+    number | null
+  >;
+  const publicSizes = publicMeasurements.map((m) => m.bytes);
+  const publicJs = publicSizes.some((bytes) => bytes === null)
+    ? null
+    : Math.max(...publicSizes.map((bytes) => bytes ?? 0));
   if (devRoutes && publicJs !== null && publicJs > BARREL_SPLIT_TRIGGER) {
     notes.push(
       `Note: public JS in the admin-included topology is ${formatKb(publicJs)}, past the ${formatKb(BARREL_SPLIT_TRIGGER)} trigger for the Phase 4 barrel split (research Flag 4).`,
@@ -444,7 +510,8 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     ok: errors.length === 0,
     build: options.build,
     devRoutes,
-    publicJs: value('publicJs'),
+    publicJs,
+    publicRoutes,
     adminJs: value('adminJs'),
     css: value('css'),
     measurements,

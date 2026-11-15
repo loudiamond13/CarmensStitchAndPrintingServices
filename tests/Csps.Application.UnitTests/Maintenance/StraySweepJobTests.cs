@@ -13,9 +13,12 @@ public sealed class StraySweepJobTests
 {
     private const string StrayLabel = "Stray files removed (older than 2 days)";
     private const string Folder = "csps-test/orders/";
+    private const string ContentFolder = "csps-test/content/";
     private static readonly DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
 
     private static string PublicId(string name) => $"{Folder}00000000-0000-0000-0000-000000000001/{name}";
+
+    private static string ContentId(string name) => $"{ContentFolder}lines/00000000-0000-0000-0000-000000000002/{name}";
 
     private static StoredImageEntry Entry(string publicId, TimeSpan age) => new(publicId, Now - age);
 
@@ -67,7 +70,7 @@ public sealed class StraySweepJobTests
 
         await harness.RunAsync();
 
-        harness.Storage.Listings.ShouldBe([(Folder, null)]);
+        harness.OrderListings.ShouldBe([(Folder, null)]);
         harness.Inventory.Asked.ShouldHaveSingleItem().ShouldBe([PublicId("old")]);
         harness.Queue.Queued.ShouldBe([(PublicId("old"), ImageDeletionReason.Stray)]);
     }
@@ -82,7 +85,7 @@ public sealed class StraySweepJobTests
 
         var report = await harness.RunAsync();
 
-        harness.Storage.Listings.ShouldBe([(Folder, null), (Folder, "next-1"), (Folder, "next-2")]);
+        harness.OrderListings.ShouldBe([(Folder, null), (Folder, "next-1"), (Folder, "next-2")]);
         harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("a"), PublicId("b"), PublicId("c")]);
         report.Lines.ShouldHaveSingleItem().Value.ShouldBe(3);
     }
@@ -277,7 +280,7 @@ public sealed class StraySweepJobTests
 
         var report = await harness.RunAsync();
 
-        harness.Storage.Listings.ShouldBe([(Folder, "saved-7")]);
+        harness.OrderListings.ShouldBe([(Folder, "saved-7")]);
         report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(1);
     }
 
@@ -308,7 +311,7 @@ public sealed class StraySweepJobTests
         var second = await harness.RunAsync();
 
         first.More.ShouldBeTrue();
-        harness.Storage.Listings.ShouldBe([(Folder, null), (Folder, "next-1")]);
+        harness.OrderListings.ShouldBe([(Folder, null), (Folder, "next-1")]);
         harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("a"), PublicId("b")]);
         second.More.ShouldBeFalse();
         harness.Cursors.Saved.ShouldBeEmpty();
@@ -400,6 +403,142 @@ public sealed class StraySweepJobTests
         report.Lines.ShouldAllBe(line => !(line.Label + line.Text).Contains("secret-name", StringComparison.Ordinal));
     }
 
+    // -- the content folder (RESEARCH P-9) ----------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task AContentFileNamedByALinePhotoIsKeptAndAnOldContentFileNamedByNothingIsQueuedAsStray()
+    {
+        var harness = new Harness();
+        harness.Inventory.Photos.Add(ContentId("known"));
+        harness.Storage.Page(ContentFolder, null, new StoredImagePage(
+            [
+                Entry(ContentId("known"), TimeSpan.FromDays(30)),
+                Entry(ContentId("stray"), TimeSpan.FromDays(3)),
+                Entry(ContentId("young"), TimeSpan.FromDays(1)),
+            ],
+            null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.ShouldBe([(ContentId("stray"), ImageDeletionReason.Stray)]);
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value, line.Failed).ShouldBe((StrayLabel, 1L, false));
+        harness.ContentListings.ShouldBe([(ContentFolder, null)]);
+    }
+
+    [Fact]
+    public async Task OnlyFilesUnderTheOwnContentFolderWithTheTrailingSlashAreEverChecked()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(ContentFolder, null, new StoredImagePage(
+            [
+                Entry("csps-test-dev/content/lines/x/old", TimeSpan.FromDays(30)),
+                Entry("csps-test/content", TimeSpan.FromDays(30)),
+                Entry("csps-test/other/x/old", TimeSpan.FromDays(30)),
+                Entry(ContentId("old"), TimeSpan.FromDays(30)),
+            ],
+            null));
+
+        await harness.RunAsync();
+
+        harness.Inventory.Asked.ShouldHaveSingleItem().ShouldBe([ContentId("old")]);
+        harness.Queue.Queued.ShouldBe([(ContentId("old"), ImageDeletionReason.Stray)]);
+    }
+
+    [Fact]
+    public async Task TheOrdersPassRunsFirstAndAnOrdersFileIsNeverJudgedByTheContentPass()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(Folder, null, new StoredImagePage([Entry(PublicId("order-stray"), TimeSpan.FromDays(5))], null));
+        harness.Storage.Page(ContentFolder, null, new StoredImagePage([Entry(ContentId("content-stray"), TimeSpan.FromDays(5))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe([Folder, ContentFolder]);
+        harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("order-stray"), ContentId("content-stray")]);
+        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task TheContentPassFollowsItsOwnCursorAndKeepsItsOwnPlaceWhenTheBudgetIsSpent()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(ContentFolder, null, new StoredImagePage([Entry(ContentId("a"), TimeSpan.FromDays(5))], "content-next"));
+        harness.Storage.Page(ContentFolder, "content-next", new StoredImagePage([Entry(ContentId("b"), TimeSpan.FromDays(5))], null));
+        harness.Storage.OnList = () =>
+        {
+            if (harness.Storage.Listings.Any(listing => listing.Prefix == ContentFolder))
+            {
+                harness.Time.Advance(TimeSpan.FromSeconds(2));
+            }
+        };
+
+        var first = await harness.RunAsync(new MaintenanceBudget(harness.Time, TimeSpan.FromSeconds(1)));
+        var savedAfterFirst = new Dictionary<string, string>(harness.Cursors.Saved);
+        harness.Storage.OnList = null;
+        var second = await harness.RunAsync();
+
+        first.More.ShouldBeTrue();
+        savedAfterFirst.ShouldBe(new Dictionary<string, string> { ["stray-sweep-content"] = "content-next" });
+        harness.ContentListings.ShouldBe([(ContentFolder, null), (ContentFolder, "content-next")]);
+        harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([ContentId("a"), ContentId("b")]);
+        second.More.ShouldBeFalse();
+        harness.Cursors.Saved.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ASavedContentCursorIsUsedAndTheOrdersCursorIsNotTouched()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep-content"] = "content-7";
+        harness.Storage.Page(ContentFolder, "content-7", new StoredImagePage([Entry(ContentId("a"), TimeSpan.FromDays(5))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.ContentListings.ShouldBe([(ContentFolder, "content-7")]);
+        harness.OrderListings.ShouldBe([(Folder, null)]);
+        harness.Cursors.Saved.ShouldBeEmpty();
+        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheCapIsSharedByBothPassesAndTheContentPassStopsOnceItIsPassed()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(Folder, null, new StoredImagePage(Strays(0, 30), null));
+        harness.Storage.Page(ContentFolder, null, new StoredImagePage([.. Enumerable.Range(0, 30).Select(number => Entry(ContentId($"stray{number:D3}"), TimeSpan.FromDays(5)))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Count.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.Single(line => line.Failed).Label.ShouldBe("Stray file limit");
+    }
+
+    [Fact]
+    public async Task AnOrdersListingThatCannotBeReadSkipsTheContentPass()
+    {
+        var harness = new Harness();
+        harness.Storage.ListFailure = new ImageStorageException(ImageFailureCodes.Transient);
+
+        await harness.RunAsync();
+
+        harness.ContentListings.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AContentListingThatCannotBeReadGivesAFailedLineAndKeepsWhatWasQueued()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(Folder, null, new StoredImagePage([Entry(PublicId("a"), TimeSpan.FromDays(5))], null));
+        harness.Storage.OnList = () => harness.Storage.ListFailure = new ImageStorageException("failed");
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("a")]);
+        report.Lines.Single(line => line.Failed).Text.ShouldBe("The stray file sweep could not read the photo storage.");
+    }
+
     private static List<StoredImageEntry> Strays(int first, int count) =>
         [.. Enumerable.Range(first, count).Select(number => Entry(PublicId($"stray{number:D3}"), TimeSpan.FromDays(5)))];
 
@@ -424,6 +563,10 @@ public sealed class StraySweepJobTests
         public FakeMaintenanceCursors Cursors { get; } = new();
 
         public StraySweepJob Job { get; }
+
+        public List<(string Prefix, string? Cursor)> OrderListings => [.. Storage.Listings.Where(listing => listing.Prefix == Folder)];
+
+        public List<(string Prefix, string? Cursor)> ContentListings => [.. Storage.Listings.Where(listing => listing.Prefix == ContentFolder)];
 
         public Task<MaintenanceJobReport> RunAsync(MaintenanceBudget? budget = null) =>
             Job.RunAsync(budget ?? new MaintenanceBudget(Time), TestContext.Current.CancellationToken);

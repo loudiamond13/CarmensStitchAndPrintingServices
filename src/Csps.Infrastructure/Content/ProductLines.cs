@@ -1,0 +1,170 @@
+using Csps.Application.Ports;
+using Csps.Domain.Content;
+using Csps.Domain.OrderLists;
+using Csps.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Csps.Infrastructure.Content;
+
+/// <summary>
+/// <see cref="IProductLines"/> over EF: reads are untracked, and the rows a handler changes are loaded as tracked rows and saved by the
+/// unit of work, so the stamp, audit and cache-clearing interceptors all run. The staff read is never cached.
+/// </summary>
+internal sealed class ProductLines(CspsDbContext context) : IProductLines
+{
+    public async Task<IReadOnlyList<ProductLineListRow>> ListAsync(CancellationToken cancellationToken)
+    {
+        var lines = await context.ProductLines
+            .AsNoTracking()
+            .OrderBy(line => line.Position)
+            .ThenBy(line => line.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var types = await context.ProductTypes
+            .AsNoTracking()
+            .Where(type => type.ProductLineId != null)
+            .OrderBy(type => type.Name)
+            .Select(type => new { type.Id, LineId = type.ProductLineId!.Value })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var photos = await context.ProductLinePhotos
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // The filed items are the uploads under a line and the orders that chose it, which the delete guard counts. The shown ones are the
+        // public items of the one gallery projection.
+        var filedUploads = await context.GalleryEntries.AsNoTracking()
+            .Where(entry => entry.ProductLineId != null)
+            .GroupBy(entry => entry.ProductLineId!.Value)
+            .Select(group => new { LineId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.LineId, group => group.Count, cancellationToken)
+            .ConfigureAwait(false);
+        var filedOrders = await context.Orders.IgnoreQueryFilters(["SoftDelete"]).AsNoTracking()
+            .Where(order => order.PublicProductLineId != null)
+            .GroupBy(order => order.PublicProductLineId!.Value)
+            .Select(group => new { LineId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(group => group.LineId, group => group.Count, cancellationToken)
+            .ConfigureAwait(false);
+        var shownItems = (await PublicGalleryProjection.LoadAsync(context, cancellationToken).ConfigureAwait(false)).Items
+            .GroupBy(item => item.LineId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        return
+        [
+            .. lines.Select(line => new ProductLineListRow(
+                line,
+                [.. types.Where(type => type.LineId == line.Id).Select(type => type.Id)],
+                photos.Count(photo => photo.LineId == line.Id),
+                filedUploads.GetValueOrDefault(line.Id) + filedOrders.GetValueOrDefault(line.Id),
+                photos.Find(photo => photo.LineId == line.Id && photo.Slot == ProductLinePhotoSlot.Main),
+                shownItems.GetValueOrDefault(line.Id))),
+        ];
+    }
+
+    // The last changer comes from the user row, so a rename shows at once and a deleted person keeps their name.
+    public async Task<ProductLineDetailRow?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var row = await (
+            from line in context.ProductLines.AsNoTracking()
+            where line.Id == id
+            join changerUser in context.Users on line.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            select new
+            {
+                Line = line,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (row is null)
+        {
+            return null;
+        }
+
+        var typeIds = await context.ProductTypes
+            .AsNoTracking()
+            .Where(type => type.ProductLineId == id)
+            .OrderBy(type => type.Name)
+            .Select(type => type.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var photos = await context.ProductLinePhotos
+            .AsNoTracking()
+            .Where(photo => photo.LineId == id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return new ProductLineDetailRow(row.Line, typeIds, row.ChangerFirst is null ? null : $"{row.ChangerFirst} {row.ChangerLast}", photos);
+    }
+
+    public Task<ProductLine?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        context.ProductLines.SingleOrDefaultAsync(line => line.Id == id, cancellationToken);
+
+    // Positions are made unique by the add and the swap, which both run under the site-content lock.
+    public Task<ProductLine?> FindNeighbourAsync(ProductLine line, bool up, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        var position = line.Position;
+        return up
+            ? context.ProductLines.Where(other => other.Position < position).OrderByDescending(other => other.Position).ThenBy(other => other.Id).FirstOrDefaultAsync(cancellationToken)
+            : context.ProductLines.Where(other => other.Position > position).OrderBy(other => other.Position).ThenBy(other => other.Id).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    // The comparison is the database's own, the same collation the unique short name index uses, so a name the index would refuse is refused here first.
+    public Task<bool> ShortNameTakenAsync(string shortName, Guid? excluding, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(shortName);
+        var trimmed = shortName.Trim();
+        return context.ProductLines.AsNoTracking().AnyAsync(line => line.ShortName == trimmed && line.Id != excluding, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ProductType>> GetLinkedTypesAsync(Guid lineId, CancellationToken cancellationToken) =>
+        await context.ProductTypes.Where(type => type.ProductLineId == lineId).ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<ProductType>> FindTypesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        return await context.ProductTypes.Where(type => ids.Contains(type.Id)).ToListAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetTitlesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        return await context.ProductLines.AsNoTracking()
+            .Where(line => ids.Contains(line.Id))
+            .ToDictionaryAsync(line => line.Id, line => line.Title, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    // Gallery items are the uploads filed under the line plus the orders staff chose the line for, deleted orders included, because the
+    // foreign keys hold the line either way.
+    public async Task<ProductLineUsage> GetUsageAsync(Guid lineId, CancellationToken cancellationToken)
+    {
+        var photos = await context.ProductLinePhotos.AsNoTracking().CountAsync(photo => photo.LineId == lineId, cancellationToken).ConfigureAwait(false);
+        var types = await context.ProductTypes.AsNoTracking().CountAsync(type => type.ProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        var uploads = await context.GalleryEntries.AsNoTracking().CountAsync(entry => entry.ProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        var orders = await context.Orders.IgnoreQueryFilters(["SoftDelete"]).AsNoTracking().CountAsync(order => order.PublicProductLineId == lineId, cancellationToken).ConfigureAwait(false);
+        return new ProductLineUsage(photos, types, uploads + orders);
+    }
+
+    public async Task<IReadOnlySet<string>> GetKeysAsync(CancellationToken cancellationToken)
+    {
+        var keys = await context.ProductLines.AsNoTracking().Select(line => line.Key).ToListAsync(cancellationToken).ConfigureAwait(false);
+        return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<int> GetNextPositionAsync(CancellationToken cancellationToken) =>
+        (await context.ProductLines.MaxAsync(line => (int?)line.Position, cancellationToken).ConfigureAwait(false) ?? 0) + 1;
+
+    public Task<ProductLinePhoto?> FindPhotoAsync(Guid lineId, ProductLinePhotoSlot slot, CancellationToken cancellationToken) =>
+        context.ProductLinePhotos.SingleOrDefaultAsync(photo => photo.LineId == lineId && photo.Slot == slot, cancellationToken);
+
+    public void AddPhoto(ProductLinePhoto photo) => context.ProductLinePhotos.Add(photo);
+
+    public void RemovePhoto(ProductLinePhoto photo) => context.ProductLinePhotos.Remove(photo);
+
+    public void Add(ProductLine line) => context.ProductLines.Add(line);
+
+    public void Remove(ProductLine line) => context.ProductLines.Remove(line);
+}

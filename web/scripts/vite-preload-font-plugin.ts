@@ -76,3 +76,62 @@ export function woff2OnlyPlugin(): Plugin {
     },
   };
 }
+
+// D-28, D-46 (plan 11-36). Barlow Condensed has no peso sign (U+20B1) in any subset (cmap checked), but its latin-ext faces list
+// U+20A0-20C0 in their unicode-range, so a peso in display text made the browser download them for nothing: the peso falls
+// through to Archivo Variable either way. Taking U+20B1 out of the Barlow ranges stops those requests and draws the same page.
+// Archivo is not touched: its latin-ext file does hold the peso.
+const BARLOW_STYLESHEET = /[\\/]node_modules[\\/]@fontsource[\\/]barlow-condensed[\\/][^?]*\.css(?:\?.*)?$/;
+const PESO_SIGN = 0x20b1;
+const UNICODE_RANGE = /(unicode-range\s*:\s*)([^;}]*)/g;
+const RANGE_TOKEN = /^U\+([0-9a-f]+)(?:-([0-9a-f]+))?$/i;
+
+function formatRange(from: number, to: number): string {
+  const hex = (value: number): string => value.toString(16).toUpperCase().padStart(4, '0');
+  return from === to ? `U+${hex(from)}` : `U+${hex(from)}-${hex(to)}`;
+}
+
+/** The comma list with U+20B1 cut out of whichever range holds it; every other token is kept as written. */
+function withoutPeso(list: string): string {
+  const kept: string[] = [];
+  for (const token of list.split(',').map((part) => part.trim())) {
+    const match = RANGE_TOKEN.exec(token);
+    const from = match?.[1] === undefined ? Number.NaN : Number.parseInt(match[1], 16);
+    const to = match?.[2] === undefined ? from : Number.parseInt(match[2], 16);
+    if (Number.isNaN(from) || PESO_SIGN < from || PESO_SIGN > to) {
+      kept.push(token);
+      continue;
+    }
+    if (from < PESO_SIGN) {
+      kept.push(formatRange(from, PESO_SIGN - 1));
+    }
+    if (to > PESO_SIGN) {
+      kept.push(formatRange(PESO_SIGN + 1, to));
+    }
+  }
+  return kept.join(',');
+}
+
+export function barlowNoPesoPlugin(): Plugin {
+  return {
+    name: 'csps-barlow-no-peso',
+    // Before vite:css reads the stylesheet, like woff2OnlyPlugin.
+    enforce: 'pre',
+    transform: {
+      handler(code, id) {
+        if (!BARLOW_STYLESHEET.test(id)) {
+          return null;
+        }
+        const next = code.replace(UNICODE_RANGE, (_whole, prefix: string, list: string) => {
+          const kept = withoutPeso(list);
+          if (kept === '') {
+            // An empty range is invalid CSS and would be ignored, so the face would then cover every character.
+            return this.error(`barlowNoPesoPlugin: a face in ${id} lists only U+20B1, so no range would be left.`);
+          }
+          return `${prefix}${kept}`;
+        });
+        return next === code ? null : { code: next, map: null };
+      },
+    },
+  };
+}

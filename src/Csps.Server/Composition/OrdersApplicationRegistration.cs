@@ -41,6 +41,9 @@ public static class OrdersApplicationRegistration
         services.AddScoped<GetOrderHandler>();
         services.AddScoped<GetDeletedOrderHandler>();
         services.AddScoped<UpdateOrderDetailsHandler>();
+        services.AddSingleton<IValidator<SetOrderPublicSettingsRequest>, SetOrderPublicSettingsRequestValidator>();
+        services.AddScoped<OrderPublicWebsiteWriter>();
+        services.AddScoped<SetOrderPublicSettingsHandler>();
         services.AddScoped<AddOrderItemHandler>();
         services.AddScoped<UpdateOrderItemHandler>();
         services.AddScoped<RemoveOrderItemHandler>();

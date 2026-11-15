@@ -3,9 +3,11 @@ import {
   Archive,
   ArchiveRestore,
   Camera,
+  ChevronUp,
   Copy,
   Eraser,
   Funnel,
+  Globe,
   History,
   KeyRound,
   LockOpen,
@@ -83,7 +85,7 @@ const SPEC_ICON_NAMES = [
 ] as const;
 
 // Not in App. D.5: the owner's empty-value icon (OR-4, 2026-10-14), the six Phase 5 icons (UI-SPEC OQ-9), then the five Phase 6
-// icons (UI-SPEC OQ-12), then the Phase 9 camera icon (D-26, "Take Photo").
+// icons (UI-SPEC OQ-12), then the Phase 9 camera icon (D-26, "Take Photo"), then the two Phase 11 icons (D-37: the Site Content globe and the move-up chevron).
 const OWNER_ICON_NAMES = [
   'minus',
   'copy',
@@ -98,6 +100,8 @@ const OWNER_ICON_NAMES = [
   'archive-restore',
   'eraser',
   'camera',
+  'chevron-up',
+  'globe',
 ] as const;
 
 /** The one svg an Icon renders. */
@@ -227,6 +231,11 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
 
   it('draws camera with lucide’s Camera (Phase 9, D-26)', () => {
     expect(ICONS.camera).toBe(Camera);
+  });
+
+  it('draws chevron-up and globe with the lucide components of the same name (Phase 11, D-37)', () => {
+    expect(ICONS['chevron-up']).toBe(ChevronUp);
+    expect(ICONS.globe).toBe(Globe);
   });
 
   it('renders the History icon as a named image', () => {

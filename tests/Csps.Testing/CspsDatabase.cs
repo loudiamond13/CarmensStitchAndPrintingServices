@@ -24,9 +24,10 @@ public sealed class CspsDatabase : IAsyncLifetime
     private const int MinCompatibilityLevel = 100;
     private const int MaxCompatibilityLevel = 170;
 
-    // Never reset: migration history, the migration-seeded SiteSettings row, AspNetRoles and the DatabaseLocks standing rows
-    // (Pitfall 7), and the append-only audit log with its empty truncate guard (the trigger rejects Respawn's DELETE, research Pitfall 1).
-    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "AspNetRoles", "DatabaseLocks", "AuditLog", "AuditLogTruncateGuard"];
+    // Never reset: migration history, the migration-seeded SiteSettings row, seven OpeningHours rows and six ProductLines rows, AspNetRoles and the
+    // DatabaseLocks standing rows (Pitfall 7), and the append-only audit log with its empty truncate guard (the trigger rejects Respawn's DELETE,
+    // research Pitfall 1). Tests that change a product line put it back, or use their own database.
+    private static readonly string[] IgnoredTables = ["__EFMigrationsHistory", "SiteSettings", "OpeningHours", "ProductLines", "AspNetRoles", "DatabaseLocks", "AuditLog", "AuditLogTruncateGuard"];
 
     private SqlServerInstance? _server;
     private Respawner? _respawner;

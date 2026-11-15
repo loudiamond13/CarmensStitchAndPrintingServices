@@ -23,7 +23,7 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy and the photo upload policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy and the <c>public-read</c> policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -40,7 +40,13 @@ public static class RateLimitingRegistration
         configuration.GetSection(MaintenanceRateLimit.SectionName).Bind(maintenance);
         var images = ImageUploadRateLimit.Default();
         configuration.GetSection(ImageUploadRateLimit.SectionName).Bind(images);
-        var problems = settings.Validate().Concat(MaintenanceRateLimit.Validate(maintenance)).Concat(ImageUploadRateLimit.Validate(images)).ToList();
+        var publicRead = PublicReadRateLimit.Default();
+        configuration.GetSection(PublicReadRateLimit.SectionName).Bind(publicRead);
+        var problems = settings.Validate()
+            .Concat(MaintenanceRateLimit.Validate(maintenance))
+            .Concat(ImageUploadRateLimit.Validate(images))
+            .Concat(PublicReadRateLimit.Validate(publicRead))
+            .ToList();
         if (problems.Count > 0)
         {
             throw new InvalidOperationException(string.Join(" ", problems));
@@ -56,6 +62,7 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.Refresh] = settings.Refresh.Window,
             [RateLimitPolicies.Maintenance] = maintenance.Window,
             [RateLimitPolicies.ImageUpload] = images.Window,
+            [RateLimitPolicies.PublicRead] = publicRead.Window,
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
@@ -71,6 +78,7 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.Refresh, settings.Refresh);
             AddPolicy(options, RateLimitPolicies.Maintenance, maintenance);
             AddPolicy(options, RateLimitPolicies.ImageUpload, images);
+            AddPolicy(options, RateLimitPolicies.PublicRead, publicRead);
         });
         return services;
     }

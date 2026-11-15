@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-10-26T19:02:00-05:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-13T00:24:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -40,6 +40,82 @@ A route module is usually the start of its own lazy chunk. In the parity build t
 `QueryRoot` is the lazy route that holds the TanStack Query client for every admin screen. It is in both admin rows because the admin screens need it before they show anything.
 
 If a route module cannot be found in the build at all, the build fails. A renamed or moved route must update `PUBLIC_ROUTE` or `ADMIN_ROUTE` in `budget.ts`; the check never silently skips it.
+
+## Public routes (Phase 11)
+
+From plan 11-08 the public site is measured **one page at a time** (requirement PUB-01, research P-7). Each public page is `PublicLayout` plus that page, on top of the entry chunk and everything they import, and each of the five figures must be at or under 150 KB gzip. A page that grows is named in the table, and the others are not blamed. This replaces the single holding-page row above; the code is `PUBLIC_ROUTES` in `web/scripts/budget.ts`.
+
+| Page | Route modules (after the layout, `src/layouts/PublicLayout.tsx`) |
+|---|---|
+| Home (`/`) | `src/modules/public/pages/HomePage.tsx` |
+| Products (`/products`) | `src/modules/public/pages/ProductsPage.tsx` |
+| Gallery (`/gallery`) | `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/public/pages/GalleryPage.tsx` |
+| Contact (`/contact`) | `src/modules/public/pages/ContactPage.tsx` |
+| Not found (any other path) | `src/modules/public/pages/NotFoundPage.tsx` |
+
+- The report and the numbers file give one figure per page (`publicRoutes`), and `publicJs` is the largest of them.
+- TanStack Query, react-hook-form, zod and admin code are forbidden in every page. nuqs and the `src/lib/url-state/` modules are allowed only in the Gallery row, which is the one route under the lazy `UrlStateLayout` (WEB-10). A module in a chunk the Contact page loads fails the build; the same module in the `UrlStateLayout` chunk passes.
+- The production build preloads only the layout and the Home page (`PUBLIC_PRELOAD_ROUTE`), not all five pages.
+
+Figures from plan 11-08 (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
+
+| Page | `npm run build:budget` (admin routes included) | `npm run build` (production) |
+|---|---|---|
+| Home | 137.68 KB | 137.41 KB |
+| Products | 138.08 KB | 137.81 KB |
+| Gallery | 143.04 KB | 142.78 KB |
+| Contact | 138.09 KB | 137.82 KB |
+| Not found | 138.22 KB | 137.95 KB |
+
+The Gallery page is the largest because it also loads nuqs. The data sections of later plans must fit in the room that is left (about 12 KB on Home and 7 KB on Gallery), or load lazily.
+
+## Fonts and compression (Phase 11)
+
+Plan 11-36 (decisions D-28, D-29, D-46) worked on the public LCP without changing the look. Nothing here changes a font family, weight or style.
+
+**Brotli files at build time.** The production and e2e builds write a Brotli (quality 11) `.br` file next to every `.js`, `.css` and `.svg` over 1 KB (`web/scripts/vite-brotli-plugin.ts`, `node:zlib`, no package). `PrecompressedStaticFiles` in the server sends that file, with the original content type and cache headers and `Vary: Accept-Encoding`, only when the request lists `br` in `Accept-Encoding`. Every other client gets the plain file, and the host's own response compression may still gzip it: Facebook's link-preview crawler accepts only gzip and deflate and never gets a `.br` body. A `.br` file is never served by its own address, and a response that already has a `Content-Encoding` is never compressed twice. Measured with `node:zlib` on the production build of this plan:
+
+| File | Raw | gzip 9 | Brotli 11 (`.br`) |
+|---|---|---|---|
+| Entry script (`index-*.js`) | 337,339 B | 105,231 B | 90,571 B (13.9% smaller than gzip) |
+| CSS (`index-*.css`) | 104,637 B | 19,590 B | 15,901 B (18.8% smaller) |
+| Home page chunk | 13,498 B | 4,763 B | 4,234 B (11.1% smaller) |
+
+**Font files.** The four public pages request at most four font files, listed by `e2e/fonts.spec.ts` (`@fonts`, at 390 and 1440 px, in the test annotations): Archivo latin (the one preloaded file), Barlow Condensed latin 700, 800 italic, and on Home and Contact 800 normal. Barlow Condensed 600 was requested about four seconds after load in the Lighthouse runs (not at load in the Playwright log), so some element uses it. No file that a page requests is unused, so none was removed.
+
+One font request was useless: Barlow Condensed has no peso sign (U+20B1, checked in the cmap of its latin and latin-ext files), yet its latin-ext files list U+20A0-20C0 in their `unicode-range`, so a peso in display text made the browser download them for nothing (14.6 KB each, one per weight in use). The peso falls through to Archivo Variable either way. `barlowNoPesoPlugin` (`web/scripts/vite-preload-font-plugin.ts`) cuts U+20B1 out of the Barlow ranges at build time; Archivo is not touched, because its latin-ext file does draw the peso. The `@fonts` showcase test proves it in the browser: with a peso in display text it requests `archivo-latin-ext-wght-normal` and no Barlow latin-ext file (without the plugin the same test failed on `barlow-condensed-latin-ext-700-normal`). The seeded public pages show no peso in display text, so their font requests are the same before and after.
+
+**LCP on the real pages** (`npm --prefix web run lighthouse`, mobile profile, simulated slow 4G, on this machine, LCP in ms; the target is 2000 ms and stays report-only by D-29):
+
+| Page | Before (Task 1 build) | After (fonts step) |
+|---|---|---|
+| `/` | 2348 | 2354, 2367 |
+| `/products` | 2258 | 2134, 2530 |
+| `/gallery` | 2301 | 2298, 2337 |
+| `/contact` | 2120 | 2563, 2419 |
+
+The numbers move by 200 to 400 ms between runs of the same build on this shared machine, and the font requests of the four pages are the same before and after, so the two columns show noise and not a gain. FCP is 1970 to 2260 ms on every page and LCP follows it by 150 to 300 ms, so the limit is the first paint, which waits for the entry script, the CSS and about 100 KB of fonts on the simulated link. The next step that keeps the look is font subsetting, which needs a tool and the owner's yes (D-124).
+
+## Chunk file names
+
+The entry chunk holds a list of every lazy chunk's file name, so the browser can preload a route's chunks when it opens the route. Every public page downloads that list, and it grows with each admin chunk. To keep it short, `chunkFileNames` in `web/vite.config.ts` names chunks this way (pinned in `src/test/build-config.node.test.ts`):
+
+- a lazy route chunk (a page or layout reached through a dynamic `import()`) keeps its module name: `assets/ContactPage-<hash>.js`,
+- a shared chunk is named by its content hash only: `assets/<hash>.js`.
+
+The hash is the same 8 characters as before, so `/assets/*` files stay safe to cache as immutable. Nothing loads differently: the same chunks, the same preloads, only shorter names. In `budget.json` a shared chunk therefore shows as a bare hash; to see what it holds, open the file in the build output.
+
+Measured on 2026-11-12, before and after this change (gzip -9, 1 KB = 1000 B):
+
+| Measure | `build:budget` before | `build:budget` after | `build` (production) before | `build` (production) after |
+|---|---|---|---|---|
+| Home | 142.40 KB | 141.25 KB | 142.20 KB | 141.04 KB |
+| Products | 146.35 KB | 145.07 KB | 146.16 KB | 144.86 KB |
+| Gallery | 147.76 KB | 146.56 KB | 147.57 KB | 146.35 KB |
+| Contact | 150.02 KB (over) | 148.74 KB | 149.82 KB | 148.53 KB |
+| Not found | 142.96 KB | 141.76 KB | 142.76 KB | 141.55 KB |
+| Admin | 221.41 KB | 219.37 KB | 219.20 KB | 217.24 KB |
+| CSS | 18.17 KB | 18.17 KB | 18.17 KB | 18.17 KB |
 
 ## The builds
 

@@ -33,10 +33,10 @@ public sealed class MigrationTests(CspsDatabase database) : IClassFixture<CspsDa
                     reader.GetString(2).ShouldBe("Asia/Manila");
                     reader.GetString(3).ShouldBe("PHP");
                     reader.GetString(4).ShouldBe("en-PH");
-                    reader.GetString(5).ShouldBe("[hello@yourdomain.ph]");
+                    reader.GetString(5).ShouldBeEmpty();
                     reader.GetString(6).ShouldBe("[0917 000 0000]");
                     reader.GetString(7).ShouldBe("[Shop address], [City], Philippines");
-                    reader.GetString(8).ShouldBe("[Facebook page URL]");
+                    reader.GetString(8).ShouldBeEmpty();
 
                     (await reader.ReadAsync(TestContext.Current.CancellationToken)).ShouldBeFalse("SiteSettings must hold exactly one row.");
                 }

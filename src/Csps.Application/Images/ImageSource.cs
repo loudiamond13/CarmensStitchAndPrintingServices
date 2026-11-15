@@ -15,3 +15,21 @@ public sealed record PhotoUrls(ImageSource Thumb, ImageSource Viewer, string Ful
 /// <param name="Card">The 16:10 card cover, with width candidates.</param>
 /// <param name="Table">The 44 px table thumb, with a 2x candidate.</param>
 public sealed record CoverUrls(ImageSource Card, ImageSource Table);
+
+/// <summary>The addresses of one product line photo, one per display slot (Phase 11).</summary>
+/// <param name="Card">The 4:5 category card, with width candidates.</param>
+/// <param name="Large">The product large cell, the whole photo limited by width, with width candidates.</param>
+/// <param name="Small">The 1:1 product small cell, with width candidates.</param>
+/// <param name="Thumb">The address of the 44 px square thumb of the Manager's list.</param>
+public sealed record LinePhotoUrls(ImageSource Card, ImageSource Large, ImageSource Small, string Thumb);
+
+/// <summary>The addresses of one public gallery photo, one per display slot (Phase 11).</summary>
+/// <param name="Masonry">The masonry tile, the whole photo limited by width, with width candidates.</param>
+/// <param name="Viewer">The lightbox, the whole photo, with width candidates.</param>
+/// <param name="Thumb">The address of the square lightbox thumb.</param>
+public sealed record GalleryPhotoUrls(ImageSource Masonry, ImageSource Viewer, string Thumb);
+
+/// <summary>The two preview addresses of the default link preview picture on the admin screen (Phase 11).</summary>
+/// <param name="Src320">The address of the 320 x 168 preview.</param>
+/// <param name="Src640">The address of the 640 x 336 preview, for the full-width view on a phone.</param>
+public sealed record SharePreviewUrls(string Src320, string Src640);

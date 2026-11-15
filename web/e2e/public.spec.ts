@@ -1,38 +1,57 @@
-// Holding page E2E (D-17, WEB-05, A11Y-01, A11Y-02): the real host serves the SPA for every non-API path, and each public
-// path shows the one standalone holding page in all five projects: one h1 with the approved heading, one main, no
-// banner or contentinfo (no site frame), the phone as a tel: link and the Facebook page as an https link, the skip link
-// first in the keyboard order moving focus to main without a hash in the URL, and no console, page, CSP, response (the
-// guard) or axe findings.
+// Public pages E2E (PUB-01, PUB-04, WEB-05, A11Y-01, A11Y-02): the real host serves the SPA for every non-API path (a path
+// the site does not know answers a real 404 with the same shell), and each public path shows its page inside the public
+// layout in all five projects: the status, one h1 with the approved heading, the document title the server sends (the
+// client sets the same one on navigation), one banner, one main and one contentinfo, the skip link first in the keyboard
+// order moving focus to main without a hash in the URL, no sideways scroll from 320 to 1920 px, and no console, page, CSP,
+// response (the guard) or axe findings.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { ensureDemoSiteContent, isDemoSeeded } from './site-content-lock.ts';
 
-const HEADING = 'New website on the way.';
+// Home and the Gallery list the demo shown orders, so the demo content is put in place first (once per worker, under the site content lock).
+// Only the first test of a worker waits for the lock, so only it gets the long budget.
+test.beforeEach(async ({ request }, testInfo) => {
+  if (!isDemoSeeded()) testInfo.setTimeout(testInfo.timeout + 480_000);
+  await ensureDemoSiteContent(request);
+});
 
-const PATHS: readonly string[] = ['/', '/products', '/gallery', '/contact', '/some/deep/path'];
+interface PublicPage {
+  readonly path: string;
+  readonly status: number;
+  readonly heading: string;
+  readonly title: string;
+}
+
+const PAGES: readonly PublicPage[] = [
+  { path: '/', status: 200, heading: 'Built for the whole team.', title: 'CSPS · Custom Team Jerseys and Tailoring' },
+  { path: '/products', status: 200, heading: 'Every kit, your way.', title: 'Products and Prices · CSPS' },
+  { path: '/gallery', status: 200, heading: 'Worn on court & road.', title: 'Our Work · Gallery · CSPS' },
+  { path: '/contact', status: 200, heading: "Let's build your kit.", title: 'Contact Us and Get a Quote · CSPS' },
+  // A path no page owns: the server answers 404 with the shell, and the client draws the 404 page.
+  { path: '/nope', status: 404, heading: 'Out of bounds.', title: 'Page Not Found · CSPS' },
+  { path: '/some/deep/path', status: 404, heading: 'Out of bounds.', title: 'Page Not Found · CSPS' },
+];
 
 /** The text of the first element in document order that Tab can reach (a page script: the node program has no DOM). */
 const FIRST_FOCUSABLE_TEXT = `document.querySelector('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')?.textContent ?? null`;
 
-for (const path of PATHS) {
-  test(`@public ${path} shows the holding page with the shop facts and no site frame`, async ({
+for (const { path, status, heading, title } of PAGES) {
+  test(`@public ${path} answers ${String(status)} with its page inside the public layout`, async ({
     page,
     browserName,
+    guard,
   }) => {
+    if (status === 404) {
+      guard.expectStatus(path, status);
+    }
     const response = await page.goto(path);
 
-    expect(response?.status()).toBe(200);
+    expect(response?.status()).toBe(status);
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('h1')).toHaveText(HEADING);
+    await expect(page.locator('h1')).toHaveText(heading);
+    await expect(page).toHaveTitle(title);
+    await expect(page.getByRole('banner')).toHaveCount(1);
     await expect(page.getByRole('main')).toHaveCount(1);
-    await expect(page.getByRole('banner')).toHaveCount(0);
-    await expect(page.getByRole('contentinfo')).toHaveCount(0);
-
-    const phone = page.getByRole('link', { name: '0976 287 1938' });
-    await expect(phone).toBeVisible();
-    await expect(phone).toHaveAttribute('href', 'tel:+639762871938');
-    const facebook = page.getByRole('link', { name: 'Facebook page' });
-    await expect(facebook).toBeVisible();
-    await expect(facebook).toHaveAttribute('href', 'https://www.facebook.com/csptailoring2025');
-    await expect(facebook).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(page.getByRole('contentinfo')).toHaveCount(1);
 
     // A11Y-02: the skip link is the first stop of the keyboard order; it moves focus to main and leaves the URL alone.
     const skip = page.getByRole('link', { name: 'Skip to main content' });
@@ -56,50 +75,58 @@ for (const path of PATHS) {
   });
 }
 
-/** Where the holding page h1 sits in its wrapper (read in the page). */
-interface H1Fit {
+// PUB-04: a client navigation sets the same title the server sends for that page, with no new request for the document.
+test('@public a footer link opens Products in the app and sets its title', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle(PAGES[0]?.title ?? '');
+  await page.getByRole('contentinfo').getByRole('link', { name: 'Products' }).click();
+
+  await expect(page.locator('h1')).toHaveText('Every kit, your way.');
+  await expect(page).toHaveTitle('Products and Prices · CSPS');
+  expect(new URL(page.url()).pathname).toBe('/products');
+});
+
+/** What one page reads about its width and its h1 (read in the page). */
+interface Fit {
   readonly pageWidth: number;
   readonly viewport: number;
-  readonly left: number;
-  readonly right: number;
-  readonly innerLeft: number;
-  readonly innerRight: number;
-  readonly overflows: boolean;
-  readonly lines: number;
-  readonly fontSize: string;
+  readonly h1Left: number;
+  readonly h1Right: number;
+  readonly h1Overflows: boolean;
 }
 
-// Long-text backstop (UI-SPEC "long-text | Public placeholder H1"): at 320px the 52px H1 "NEW WEBSITE ON THE WAY."
-// wraps inside its wrapper; nothing is clipped and the page never scrolls sideways.
-test('@public at 320px the holding page h1 wraps inside its wrapper with no horizontal scroll', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('/');
-  const heading = page.locator('h1');
-  await expect(heading).toHaveText(HEADING);
+const READ_FIT = `(() => {
+  const h1 = document.querySelector('h1');
+  const box = h1.getBoundingClientRect();
+  return {
+    pageWidth: document.documentElement.scrollWidth,
+    viewport: window.innerWidth,
+    h1Left: box.left,
+    h1Right: box.right,
+    h1Overflows: h1.scrollWidth > h1.clientWidth,
+  };
+})()`;
 
-  const fit = await page.evaluate<H1Fit>(`(() => {
-    const h1 = document.querySelector('h1');
-    const wrapper = h1.parentElement;
-    const box = h1.getBoundingClientRect();
-    const frame = wrapper.getBoundingClientRect();
-    const style = getComputedStyle(wrapper);
-    return {
-      pageWidth: document.documentElement.scrollWidth,
-      viewport: window.innerWidth,
-      left: box.left,
-      right: box.right,
-      innerLeft: frame.left + parseFloat(style.paddingLeft),
-      innerRight: frame.right - parseFloat(style.paddingRight),
-      overflows: h1.scrollWidth > h1.clientWidth,
-      lines: Math.round(box.height / parseFloat(getComputedStyle(h1).lineHeight)),
-      fontSize: getComputedStyle(h1).fontSize,
-    };
-  })()`);
+/** The P2 Playwright widths. */
+const WIDTHS = [320, 375, 414, 768, 1024, 1280, 1536, 1920] as const;
 
-  expect(fit.fontSize).toBe('52px');
-  expect(fit.pageWidth).toBeLessThanOrEqual(fit.viewport);
-  expect(fit.left).toBeGreaterThanOrEqual(fit.innerLeft);
-  expect(fit.right).toBeLessThanOrEqual(fit.innerRight);
-  expect(fit.overflows).toBe(false);
-  expect(fit.lines).toBeGreaterThan(1);
-});
+// UI layout backstop: no public page shell scrolls sideways from 320 to 1920 px, and the h1 stays inside the window
+// (long text: "BUILT FOR THE WHOLE TEAM." wraps at 320 px).
+for (const { path, status, heading } of PAGES.slice(0, 5)) {
+  test(`@public ${path} has no sideways scroll from 320 to 1920 px and its h1 fits`, async ({ page, guard }) => {
+    if (status === 404) {
+      guard.expectStatus(path, status);
+    }
+    await page.goto(path);
+    await expect(page.locator('h1')).toHaveText(heading);
+
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 800 });
+      const fit = await page.evaluate<Fit>(READ_FIT);
+      expect(fit.pageWidth, `${String(width)}px page width`).toBeLessThanOrEqual(fit.viewport);
+      expect(fit.h1Left, `${String(width)}px h1 left`).toBeGreaterThanOrEqual(0);
+      expect(fit.h1Right, `${String(width)}px h1 right`).toBeLessThanOrEqual(fit.viewport);
+      expect(fit.h1Overflows, `${String(width)}px h1 overflow`).toBe(false);
+    }
+  });
+}

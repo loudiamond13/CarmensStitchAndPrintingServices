@@ -119,6 +119,37 @@ const API_ACTIONS = [
   'money-transfer.deleted',
   'money-transfer.permanently-deleted',
   'money-transfer.handed-over',
+  'site-settings.changed',
+  'opening-hours.changed',
+  'shop-closure.added',
+  'shop-closure.changed',
+  'shop-closure.deleted',
+  'product-line.added',
+  'product-line.changed',
+  'product-line.moved',
+  'product-line.hidden',
+  'product-line.shown',
+  'product-line.deleted',
+  'product-type.line-linked',
+  'product-line.photo-changed',
+  'testimonial.added',
+  'testimonial.changed',
+  'testimonial.moved',
+  'testimonial.hidden',
+  'testimonial.shown',
+  'testimonial.deleted',
+  'order.public-consent-recorded',
+  'order.public-consent-removed',
+  'order.shown-on-website',
+  'order.taken-off-website',
+  'order.public-details-changed',
+  'gallery-photo.added',
+  'gallery-photo.changed',
+  'gallery-photo.hidden',
+  'gallery-photo.shown',
+  'gallery-photo.deleted',
+  'gallery-item.moved',
+  'site-settings.share-picture-changed',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -142,8 +173,8 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors every code of the API', () => {
-    expect(API_ACTIONS).toHaveLength(101);
-    expect(AUDIT_ACTION_CODES).toHaveLength(101);
+    expect(API_ACTIONS).toHaveLength(132);
+    expect(AUDIT_ACTION_CODES).toHaveLength(132);
   });
 
   it('reads the four money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {
@@ -173,7 +204,7 @@ describe('the action labels (D-28)', () => {
     }
   });
 
-  it('names the eight groups: the five from the UI-SPEC, the two order groups and Staff money', () => {
+  it('names the nine groups: the five from the UI-SPEC, the two order groups, Staff money and Site content', () => {
     expect(AUDIT_GROUPS).toEqual([
       'Sign-in and security',
       'Staff accounts',
@@ -183,7 +214,56 @@ describe('the action labels (D-28)', () => {
       'Orders',
       'Order lists',
       'Staff money',
+      'Site content',
     ]);
+  });
+
+  it('reads the 31 Phase 11 events in the UI-SPEC words, under Site content or Orders (AUDIT-02)', () => {
+    const siteContent: [string, string][] = [
+      ['site-settings.changed', 'Site settings changed'],
+      ['site-settings.share-picture-changed', 'Link preview picture changed'],
+      ['opening-hours.changed', 'Opening hours changed'],
+      ['shop-closure.added', 'Closure added'],
+      ['shop-closure.changed', 'Closure changed'],
+      ['shop-closure.deleted', 'Closure deleted'],
+      ['product-line.added', 'Product line added'],
+      ['product-line.changed', 'Product line changed'],
+      ['product-line.moved', 'Product line moved'],
+      ['product-line.hidden', 'Product line hidden'],
+      ['product-line.shown', 'Product line shown'],
+      ['product-line.deleted', 'Product line deleted'],
+      ['product-line.photo-changed', 'Product line photo changed'],
+      ['product-type.line-linked', 'Order product type linked to a product line'],
+      ['testimonial.added', 'Testimonial added'],
+      ['testimonial.changed', 'Testimonial changed'],
+      ['testimonial.moved', 'Testimonial moved'],
+      ['testimonial.hidden', 'Testimonial hidden'],
+      ['testimonial.shown', 'Testimonial shown'],
+      ['testimonial.deleted', 'Testimonial deleted'],
+      ['gallery-photo.added', 'Gallery photo added'],
+      ['gallery-photo.changed', 'Gallery photo changed'],
+      ['gallery-item.moved', 'Gallery item moved'],
+      ['gallery-photo.hidden', 'Gallery photo hidden'],
+      ['gallery-photo.shown', 'Gallery photo shown'],
+      ['gallery-photo.deleted', 'Gallery photo deleted'],
+    ];
+    const orders: [string, string][] = [
+      ['order.public-consent-recorded', 'Customer OK to show recorded'],
+      ['order.public-consent-removed', 'Customer OK to show removed'],
+      ['order.shown-on-website', 'Order shown on the website'],
+      ['order.taken-off-website', 'Order taken off the website'],
+      ['order.public-details-changed', 'Order public details changed'],
+    ];
+    for (const [code, label] of siteContent) {
+      expect(auditActionLabel(code), code).toBe(label);
+      expect(auditActionGroup(code), code).toBe('Site content');
+    }
+    for (const [code, label] of orders) {
+      expect(auditActionLabel(code), code).toBe(label);
+      expect(auditActionGroup(code), code).toBe('Orders');
+    }
+    expect(siteContent).toHaveLength(26);
+    expect(orders).toHaveLength(5);
   });
 
   it('reads the order and list events in plain words', () => {
@@ -219,7 +299,8 @@ describe('the action labels (D-28)', () => {
 
   it('puts the order and child events under Orders and the list events under Order lists', () => {
     const group = (code: string) => AUDIT_ACTIONS.find((action) => action.code === code)?.group;
-    const isList = (code: string) => /^(product-type|payment-method|order-expense-category)\./.test(code);
+    const isList = (code: string) =>
+      /^(product-type|payment-method|order-expense-category)\./.test(code) && code !== 'product-type.line-linked';
 
     for (const code of API_ACTIONS.filter((item) => item.startsWith('order') && !isList(item))) {
       expect(group(code), code).toBe('Orders');
@@ -301,6 +382,160 @@ describe('describeAuditDetail (D-40)', () => {
         expect(describeAuditDetail(action, detail) ?? '').not.toContain('@');
       }
     }
+  });
+});
+
+describe('describeAuditDetail for the Phase 11 site content events (AUDIT-01, AUDIT-02)', () => {
+  const cases: [string, string, string | null][] = [
+    [
+      'site-settings.changed',
+      'fields=businessName;businessName=Carmen Stitch>Carmen Stitch Works',
+      'Business name: Carmen Stitch to Carmen Stitch Works',
+    ],
+    [
+      'site-settings.changed',
+      'fields=businessName;businessName=Fit%3B Tailor%3D1>Fit',
+      'Business name: Fit; Tailor=1 to Fit',
+    ],
+    [
+      'site-settings.changed',
+      'fields=messengerUrl;messengerUrl=>https://m.me/cspsdemo',
+      'Messenger link: Not set to https://m.me/cspsdemo',
+    ],
+    [
+      'site-settings.changed',
+      'fields=tiktokUrl;tiktokUrl=>https://www.tiktok.com/@cspsdemo',
+      'TikTok link: Not set to https://www.tiktok.com/@cspsdemo',
+    ],
+    [
+      'site-settings.changed',
+      'fields=aboutText,contactEmail,phones,tagline;tagline=Old line>New line',
+      'About text changed. Shop email changed. Phone numbers changed. Tagline changed',
+    ],
+    ['site-settings.changed', 'fields=businessName;businessName=carmen@example.ph>Carmen', 'Business name changed'],
+    ['site-settings.changed', 'fields=shoe-size', 'Other detail changed'],
+    ['site-settings.share-picture-changed', 'change=added', 'Picture added'],
+    ['site-settings.share-picture-changed', 'change=replaced', 'Picture replaced'],
+    ['site-settings.share-picture-changed', 'change=removed', 'Picture removed'],
+    [
+      'opening-hours.changed',
+      'monday=closed>09:00-18:00;sunday=10:00-15:00>closed',
+      'Monday: Closed to 9:00 AM - 6:00 PM. Sunday: 10:00 AM - 3:00 PM to Closed',
+    ],
+    ['opening-hours.changed', 'tuesday=00:30-12:00>12:00-23:45', 'Tuesday: 12:30 AM - 12:00 PM to 12:00 PM - 11:45 PM'],
+    ['shop-closure.added', 'first=2026-12-25;last=2026-12-25', 'Closed on Dec 25, 2026'],
+    [
+      'shop-closure.added',
+      'first=2026-12-24;last=2026-12-26;fields=note',
+      'Closed Dec 24, 2026 to Dec 26, 2026. Note changed',
+    ],
+    [
+      'shop-closure.changed',
+      'first=2026-12-25>2026-12-24;last=2026-12-25;fields=note',
+      'Closed Dec 24, 2026 to Dec 25, 2026. First day: Dec 25, 2026 to Dec 24, 2026. Note changed',
+    ],
+    ['shop-closure.changed', 'fields=note', 'Note changed'],
+    ['shop-closure.deleted', 'first=2026-12-25;last=2026-12-25', 'Closed on Dec 25, 2026'],
+    ['product-line.added', 'key=polo;title=Polo Shirts', 'Product line: Polo Shirts'],
+    ['product-line.deleted', 'key=polo;title=Polo Shirts', 'Product line: Polo Shirts'],
+    [
+      'product-line.changed',
+      'fields=title,startsAtPrice,minimumQuantity,cardText;title=Polo>Polo Shirts;price=450.00>500.00;minimum=10>12',
+      'Title: Polo to Polo Shirts. Starts-at price: ₱450.00 to ₱500.00. Minimum quantity: 10 to 12. Card text changed',
+    ],
+    [
+      'product-line.changed',
+      'fields=startsAtPrice,shortName;price=>450.00;shortName=Polo>Polos',
+      'Starts-at price: Not set to ₱450.00. Short name: Polo to Polos',
+    ],
+    [
+      'product-line.changed',
+      'fields=description,fabricText,collarText,cutText,namesText,logosText,number',
+      'Description changed. Fabric text changed. Collar text changed. Cut text changed. Names text changed. Logos text changed. Number changed',
+    ],
+    ['product-line.moved', 'title=Polo;position=2>1', 'Product line: Polo. Place: 2 to 1'],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=main;change=replaced',
+      'Product line: Polo. Main photo replaced',
+    ],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=back;change=added',
+      'Product line: Polo. Back photo added',
+    ],
+    [
+      'product-line.photo-changed',
+      'key=polo;title=Polo;slot=fabric;change=removed',
+      'Product line: Polo. Fabric photo removed',
+    ],
+    ['product-type.line-linked', 'line=Polo>Basketball Jerseys', 'Product line: Polo to Basketball Jerseys'],
+    ['product-type.line-linked', 'line=>Polo', 'Product line: Not set to Polo'],
+    ['product-type.line-linked', 'line=Polo>', 'Product line: Polo to Not set'],
+    ['testimonial.added', 'name=Ana Reyes', 'Testimonial: Ana Reyes'],
+    ['testimonial.moved', 'name=Ana Reyes;position=4>1', 'Testimonial: Ana Reyes. Place: 4 to 1'],
+    [
+      'testimonial.changed',
+      'fields=quote,name,teamOrRole,stars;name=Ana>Anna;stars=4>5',
+      'Quote changed. Name: Ana to Anna. Team or role changed. Stars: 4 to 5',
+    ],
+    [
+      'gallery-photo.added',
+      'team=Sample Ballers;line=Basketball Jerseys',
+      'Team: Sample Ballers. Product line: Basketball Jerseys',
+    ],
+    [
+      'gallery-photo.changed',
+      'fields=team,line,pieces,note,photo;team=A>B;line=Moto>Polo',
+      'Team: A to B. Product line: Moto to Polo. Pieces changed. Note changed. Photo replaced',
+    ],
+    ['gallery-photo.changed', 'fields=photo', 'Photo replaced'],
+    ['gallery-item.moved', 'kind=upload;name=Sample Riders;position=2>1', 'Gallery item: Sample Riders. Place: 2 to 1'],
+    [
+      'order.public-details-changed',
+      'number=ORD-2026-0148;fields=line,name',
+      'Product line changed. Name shown changed',
+    ],
+    ['order.public-details-changed', 'number=ORD-2026-0148;fields=name', 'Name shown changed'],
+    ['order.shown-on-website', 'number=ORD-2026-0148', null],
+    ['order.taken-off-website', 'number=ORD-2026-0148', null],
+    ['order.public-consent-recorded', 'number=ORD-2026-0148', null],
+    ['order.public-consent-removed', 'number=ORD-2026-0148', null],
+  ];
+
+  it.each(cases)('reads %s "%s" as a fixed sentence', (action, detail, expected) => {
+    expect(describeAuditDetail(action, detail)).toBe(expected);
+  });
+
+  it('shows "Quote changed" and "Note changed" and never the text, even if a stored pair held it (06 D-27)', () => {
+    expect(describeAuditDetail('testimonial.changed', 'fields=quote;quote=Best jerseys ever>Worst jerseys ever')).toBe(
+      'Quote changed',
+    );
+    expect(describeAuditDetail('shop-closure.changed', 'fields=note;note=Fiesta>Typhoon')).toBe('Note changed');
+    expect(describeAuditDetail('gallery-photo.changed', 'fields=note;note=Dri-fit>Mesh')).toBe('Note changed');
+    expect(describeAuditDetail('product-line.changed', 'fields=cardText;cardText=Secret>Other')).toBe(
+      'Card text changed',
+    );
+    expect(
+      describeAuditDetail(
+        'site-settings.changed',
+        'fields=aboutText,contactEmail,phones;contactEmail=a@b.ph>c@d.ph;phones=0917>0918',
+      ),
+    ).toBe('About text changed. Shop email changed. Phone numbers changed');
+  });
+
+  it('never says an email address, and never returns an @ from a stored email (D-25)', () => {
+    expect(describeAuditDetail('testimonial.added', 'name=carmen@example.ph')).toBeNull();
+    expect(describeAuditDetail('gallery-photo.added', 'team=carmen@example.ph;line=Polo')).toBe('Product line: Polo');
+    expect(describeAuditDetail('product-type.line-linked', 'line=carmen@example.ph>Polo')).toBe('Product line changed');
+    expect(describeAuditDetail('opening-hours.changed', 'monday=carmen@example.ph>closed')).toBe('Monday changed');
+  });
+
+  it('gives null for a word it does not know and for a detail with no pairs', () => {
+    expect(describeAuditDetail('testimonial.moved', 'nothing here')).toBeNull();
+    expect(describeAuditDetail('product-line.moved', 'position=oops')).toBeNull();
+    expect(describeAuditDetail('site-settings.share-picture-changed', 'change=exploded')).toBeNull();
+    expect(describeAuditDetail('product-line.photo-changed', 'key=polo;slot=side;change=added')).toBe('Photo added');
   });
 });
 
@@ -611,5 +846,25 @@ describe('AUDIT_DETAIL_SENTENCES (the list the owner reviews the "What changed" 
     for (const { action } of AUDIT_DETAIL_SENTENCES) {
       expect(AUDIT_ACTION_CODES).toContain(action);
     }
+  });
+
+  it('lists the fixed Phase 11 words too, with Quote changed and Note changed, so the owner reviews them (AUDIT-02)', () => {
+    const phase11 = AUDIT_DETAIL_SENTENCES.filter(
+      ({ action }) => auditActionGroup(action) === 'Site content' || action.startsWith('order.public'),
+    );
+    const sentences = phase11.map((entry) => entry.sentence);
+
+    expect(sentences).toEqual(
+      expect.arrayContaining([
+        'Quote changed',
+        'Note changed',
+        'Card text changed',
+        'Phone numbers changed',
+        'Photo replaced',
+        'Picture removed',
+        'Name shown changed',
+      ]),
+    );
+    expect(phase11.length).toBeGreaterThan(30);
   });
 });

@@ -1,7 +1,8 @@
 namespace Csps.Application.Ports;
 
 /// <summary>
-/// Tells the maintenance jobs which stored photo files the database still knows (JOB-02, D-23). A photo of a soft-deleted order counts:
+/// Tells the maintenance jobs which stored photo files the database still knows (JOB-02, D-23): order photos, product line photos,
+/// gallery uploads and the default link preview picture. A photo of a soft-deleted order counts:
 /// the order can be restored, and a Cloudinary removal cannot be undone. Ids compare without regard to case, which only ever keeps a
 /// file that a strict compare would have removed.
 /// </summary>

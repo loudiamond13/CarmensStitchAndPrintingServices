@@ -142,7 +142,7 @@ export const dateIconClasses = tw('supports-[-moz-appearance:none]:hidden');
 /** `.csp-select select option`. */
 export const selectOptionClasses = tw('bg-surface-3 text-ink');
 
-const messageBase = tw('m-0 flex items-center gap-1.5 text-[12px] leading-4');
+const messageBase = tw('m-0 flex items-center gap-1.5 text-[12px] leading-4 wrap-anywhere');
 const messageTone = {
   hint: tw('text-ink-muted'),
   error: tw('font-medium text-danger'),

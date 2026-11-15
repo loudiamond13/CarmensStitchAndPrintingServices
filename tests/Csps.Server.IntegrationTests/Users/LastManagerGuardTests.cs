@@ -16,6 +16,7 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
 {
     private const string LastManagerCode = "users.last-active-manager";
     private const string LastManagerMessage = "You can't remove the last active Manager.";
+    private const string BusyCode = "auth.session-busy";
     private const string OwnAccountCode = "users.own-account";
     private const string OwnAccountMessage = "You can't do this to your own account.";
 
@@ -117,10 +118,7 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
             using (first)
             using (second)
             {
-                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
-                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
-                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
-                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
+                await AssertOneWinsAsync(first, second, run);
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
@@ -194,10 +192,7 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
             using (first)
             using (second)
             {
-                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
-                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
-                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
-                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
+                await AssertOneWinsAsync(first, second, run);
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
@@ -224,8 +219,7 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
             using (first)
             using (second)
             {
-                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
-                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
+                await AssertOneWinsAsync(first, second, run);
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
@@ -310,14 +304,22 @@ public sealed class LastManagerGuardTests(CspsDatabase database) : IClassFixture
             using (first)
             using (second)
             {
-                new[] { first.StatusCode, second.StatusCode }.Order().ToArray()
-                    .ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.UnprocessableEntity], $"run {run}");
-                var loser = first.StatusCode == HttpStatusCode.UnprocessableEntity ? first : second;
-                (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe(LastManagerCode, $"run {run}");
+                await AssertOneWinsAsync(first, second, run);
             }
 
             (await ActiveManagersAsync()).Count.ShouldBe(1, $"run {run}");
         }
+    }
+
+    // One request wins. The other is refused as the last Manager, or, when the two locks deadlock under load,
+    // answers the busy 409 (D-120). Either way the database keeps exactly one active Manager.
+    private static async Task AssertOneWinsAsync(HttpResponseMessage first, HttpResponseMessage second, int run)
+    {
+        var statuses = new[] { first.StatusCode, second.StatusCode };
+        statuses.Count(status => status == HttpStatusCode.NoContent).ShouldBe(1, $"run {run}");
+        var loser = first.StatusCode == HttpStatusCode.NoContent ? second : first;
+        var code = (await ProblemJson.ReadAsync(loser, TestContext.Current.CancellationToken)).GetProperty("code").GetString();
+        (loser.StatusCode, code).ShouldBeOneOf([(HttpStatusCode.UnprocessableEntity, LastManagerCode), (HttpStatusCode.Conflict, BusyCode)], $"run {run}");
     }
 
     private static async Task AssertRefusedAsync(HttpResponseMessage response, string code, string message)

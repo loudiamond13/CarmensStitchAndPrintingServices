@@ -90,8 +90,10 @@ public sealed partial class MigrationScriptTests
         {
             var script = context.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
 
-            BeginTransaction().Count(script).ShouldBe(AllMigrations().Count);
-            Commit().Count(script).ShouldBe(AllMigrations().Count);
+            // TurnOnReadCommittedSnapshot is the one migration with no transaction: SQL Server refuses ALTER DATABASE inside one (D-P11-BL-35).
+            var inTransaction = AllMigrations().Count(id => !id.EndsWith("_TurnOnReadCommittedSnapshot", StringComparison.Ordinal));
+            BeginTransaction().Count(script).ShouldBe(inTransaction);
+            Commit().Count(script).ShouldBe(inTransaction);
         }
     }
 

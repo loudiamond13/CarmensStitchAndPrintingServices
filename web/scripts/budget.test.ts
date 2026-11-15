@@ -9,7 +9,9 @@ import {
   BUDGETS,
   evaluateBudgets,
   PARITY_ENTRY,
-  PUBLIC_ROUTE,
+  PUBLIC_FORBIDDEN_MODULE_PREFIXES,
+  PUBLIC_PRELOAD_ROUTE,
+  PUBLIC_ROUTES,
   routeInitialSize,
   SHOWCASE_ONLY_MODULE_PREFIXES,
   SHOWCASE_PAGE,
@@ -35,7 +37,16 @@ function css(fileName: string, gzipSize: number): BudgetAsset {
   return { fileName, gzipSize };
 }
 
-const PUBLIC_PAGE = 'src/modules/public/pages/HoldingPage.tsx';
+const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
+const PAGE_MODULES = {
+  home: 'src/modules/public/pages/HomePage.tsx',
+  products: 'src/modules/public/pages/ProductsPage.tsx',
+  gallery: 'src/modules/public/pages/GalleryPage.tsx',
+  contact: 'src/modules/public/pages/ContactPage.tsx',
+  notFound: 'src/modules/public/pages/NotFoundPage.tsx',
+} as const;
+const PAGE_NAMES = ['home', 'products', 'gallery', 'contact', 'notFound'] as const;
+const HOME_PAGE = PAGE_MODULES.home;
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
 const SESSIONS_PAGE = 'src/modules/admin/pages/SessionsPage.tsx';
@@ -48,35 +59,45 @@ const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
 
 /**
- * A production-shaped graph: the entry and the holding page both import one shared chunk. The public initial JS is
- * entry + shared + page = `publicBytes`. The guarded admin app ships too:
+ * A production-shaped graph: the entry, the public layout and the five public pages all import one shared chunk. Each
+ * of the five public routes totals `publicBytes` (entry + shared + layout + page; the Gallery route also loads the
+ * URL-state layout and the chunk it imports, so its page chunk is smaller). The guarded admin app ships too:
  * the signed-in entry (guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
- * signed-out entry (guard, auth layout, sign-in page) is about 3 KB over the public number.
+ * signed-out entry (guard, auth layout, sign-in page) is about 2 KB over the public number.
  */
 function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes = publicBytes + 42_000): BudgetGraph {
   const adminShared = 'assets/admin-shared-G7.js';
+  const pageChunks = PAGE_NAMES.map((name) =>
+    chunk(`assets/${name}-Page-D4.js`, name === 'gallery' ? 1_000 : 3_000, {
+      isDynamicEntry: true,
+      facadeModuleId: PAGE_MODULES[name],
+      imports: [SHARED],
+      moduleIds: [PAGE_MODULES[name]],
+    }),
+  );
   return {
     chunks: [
-      chunk(ENTRY, publicBytes - 3_000, {
+      chunk(ENTRY, publicBytes - 5_000, {
         isEntry: true,
         facadeModuleId: 'index.html',
         imports: [SHARED],
         moduleIds: ['index.html', 'src/main.tsx', 'src/core/routes/router.tsx'],
       }),
       chunk(SHARED, 1_000, { moduleIds: ['node_modules/react/index.js'] }),
-      chunk('assets/HoldingPage-D4.js', 2_000, {
+      chunk('assets/PublicLayout-D3.js', 1_000, {
         isDynamicEntry: true,
-        facadeModuleId: PUBLIC_PAGE,
+        facadeModuleId: PUBLIC_LAYOUT,
         imports: [SHARED],
-        moduleIds: [PUBLIC_PAGE],
+        moduleIds: [PUBLIC_LAYOUT],
       }),
+      ...pageChunks,
       chunk('assets/QueryRoot-Q5.js', 1_000, {
         isDynamicEntry: true,
         facadeModuleId: QUERY_ROOT,
         imports: [SHARED],
         moduleIds: [QUERY_ROOT, 'node_modules/@tanstack/query-core/build/modern/queryClient.js'],
       }),
-      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 3_000, {
+      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 1_000, {
         isDynamicEntry: true,
         facadeModuleId: ADMIN_LAYOUT,
         imports: [SHARED, adminShared],
@@ -160,8 +181,16 @@ describe('BUDGETS (PERF-01)', () => {
     expect(BUDGETS).toEqual({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
   });
 
-  it('names the public route module (the D-17 holding page) and the admin route modules', () => {
-    expect(PUBLIC_ROUTE).toEqual(['src/modules/public/pages/HoldingPage.tsx']);
+  it('names the public layout and each public page module (PUB-01, RESEARCH P-7), and the admin route modules', () => {
+    expect(PUBLIC_ROUTES).toEqual({
+      home: [PUBLIC_LAYOUT, PAGE_MODULES.home],
+      products: [PUBLIC_LAYOUT, PAGE_MODULES.products],
+      gallery: [PUBLIC_LAYOUT, 'src/lib/url-state/UrlStateLayout.tsx', PAGE_MODULES.gallery],
+      contact: [PUBLIC_LAYOUT, PAGE_MODULES.contact],
+      notFound: [PUBLIC_LAYOUT, PAGE_MODULES.notFound],
+    });
+    expect(Object.isFrozen(PUBLIC_ROUTES)).toBe(true);
+    expect(PUBLIC_PRELOAD_ROUTE).toEqual([PUBLIC_LAYOUT, HOME_PAGE]);
     expect(ADMIN_ROUTE).toEqual([
       'src/core/routes/QueryRoot.tsx',
       'src/layouts/AdminLayout.tsx',
@@ -182,9 +211,9 @@ describe('BUDGETS (PERF-01)', () => {
 describe('routeInitialSize', () => {
   it('counts a chunk shared by the entry and a route chunk once', () => {
     const graph = productionGraph(100_000);
-    const result = routeInitialSize(graph.chunks, [ENTRY, 'assets/HoldingPage-D4.js']);
-    expect(result.files.toSorted()).toEqual([ENTRY, 'assets/HoldingPage-D4.js', SHARED].toSorted());
-    expect(result.bytes).toBe(97_000 + 1_000 + 2_000);
+    const result = routeInitialSize(graph.chunks, [ENTRY, 'assets/home-Page-D4.js']);
+    expect(result.files.toSorted()).toEqual([ENTRY, 'assets/home-Page-D4.js', SHARED].toSorted());
+    expect(result.bytes).toBe(95_000 + 1_000 + 3_000);
   });
 
   it('follows static imports transitively', () => {
@@ -216,10 +245,15 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     expect(report.publicJs).toBe(150_000);
   });
 
-  it('fails public initial JS of 150.1 KB', () => {
+  it('fails public initial JS of 150.1 KB, once for each public route', () => {
     const report = evaluateBudgets(productionGraph(150_100), production);
     expect(report.ok).toBe(false);
-    expect(report.errors).toEqual([expect.stringMatching(/public JS.*150\.10 KB.*150\.00 KB/)]);
+    expect(report.errors).toHaveLength(PAGE_NAMES.length);
+    for (const name of PAGE_NAMES) {
+      expect(report.errors).toContainEqual(
+        expect.stringMatching(new RegExp(`public JS \\(${name}\\).*150\\.10 KB.*150\\.00 KB`)),
+      );
+    }
   });
 
   it('passes 35.0 KB of CSS and fails 35.1 KB', () => {
@@ -247,13 +281,24 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     expect(report.errors).toEqual([expect.stringMatching(/exactly one CSS asset/)]);
   });
 
-  it('fails closed when a public route module has no chunk', () => {
+  it('fails closed when a public page module has no chunk', () => {
     const graph = productionGraph(120_000);
-    const chunks = graph.chunks.filter((c) => c.facadeModuleId !== PUBLIC_PAGE);
+    const chunks = graph.chunks.filter((c) => c.facadeModuleId !== HOME_PAGE);
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
     expect(report.publicJs).toBeNull();
-    expect(report.errors).toEqual([expect.stringContaining('src/modules/public/pages/HoldingPage.tsx')]);
+    expect(report.publicRoutes.home).toBeNull();
+    expect(report.publicRoutes.products).toBe(120_000);
+    expect(report.errors).toEqual([expect.stringContaining(HOME_PAGE)]);
+  });
+
+  it('fails closed, once, when the public layout has no chunk (every route needs it)', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.filter((c) => c.facadeModuleId !== PUBLIC_LAYOUT);
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.publicJs).toBeNull();
+    expect(report.errors).toEqual([expect.stringContaining(PUBLIC_LAYOUT)]);
   });
 
   it('fails closed when the index.html entry chunk is missing', () => {
@@ -307,8 +352,8 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     const chunks = graph.chunks.map((c) => (c.facadeModuleId === AUTH_LAYOUT ? { ...c, gzipSize: 200_000 } : c));
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
-    expect(report.adminJs).toBe(322_000);
-    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*322.00 KB.*250\.00 KB/)]);
+    expect(report.adminJs).toBe(320_000);
+    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*320.00 KB.*250\.00 KB/)]);
   });
 
   it.each([[SIGN_IN_PAGE], [GUARD], [SESSIONS_PAGE]])(
@@ -325,7 +370,8 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
 
   it('reports every measured value against its limit in a table', () => {
     const report = evaluateBudgets(productionGraph(150_100), production);
-    expect(report.table).toContain('public JS');
+    expect(report.table).toContain('public JS (home)');
+    expect(report.table).toContain('public JS (notFound)');
     expect(report.table).toContain('150.10 KB');
     expect(report.table).toContain('150.00 KB');
     expect(report.table).toContain('CSS');
@@ -360,7 +406,7 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
   it('finds a route module that sits in a shared chunk (the parity entry imports it statically, so it is no facade)', () => {
     const graph = parityGraph(240_000);
     const chunks = graph.chunks.map((c) =>
-      c.facadeModuleId === ADMIN_LAYOUT || c.facadeModuleId === PUBLIC_PAGE
+      c.facadeModuleId === ADMIN_LAYOUT || c.facadeModuleId === HOME_PAGE || c.facadeModuleId === PUBLIC_LAYOUT
         ? { ...c, facadeModuleId: null, isDynamicEntry: false }
         : c,
     );
@@ -380,7 +426,8 @@ describe('evaluateBudgets: admin topology (budget-mode build with dev routes)', 
   it('fails public initial JS of 150.1 KB in the e2e and budget builds (the limits apply to every build)', () => {
     const report = evaluateBudgets(devRoutesGraph(200_000, 150_100), devRoutes);
     expect(report.ok).toBe(false);
-    expect(report.errors).toEqual([expect.stringMatching(/public JS.*150\.10 KB.*150\.00 KB/)]);
+    expect(report.errors).toHaveLength(PAGE_NAMES.length);
+    expect(report.errors.every((error) => /public JS.*150\.10 KB.*150\.00 KB/.test(error))).toBe(true);
   });
 
   // The e2e and budget builds measure the shipped topology; the test-only parity page would reshape the shared chunks
@@ -416,9 +463,9 @@ describe('evaluateBudgets: the parity build (test-only parity page)', () => {
   });
 
   it('still fails public initial JS of 150.1 KB and admin initial JS of 251 KB', () => {
-    expect(evaluateBudgets(parityGraph(200_000, 150_100), parity).errors).toEqual([
-      expect.stringMatching(/public JS.*150\.10 KB/),
-    ]);
+    const publicErrors = evaluateBudgets(parityGraph(200_000, 150_100), parity).errors;
+    expect(publicErrors).toHaveLength(PAGE_NAMES.length);
+    expect(publicErrors.every((error) => /public JS.*150\.10 KB/.test(error))).toBe(true);
     expect(evaluateBudgets(parityGraph(251_000), parity).errors).toEqual([
       expect.stringMatching(/admin JS.*251\.00 KB/),
     ]);
@@ -691,6 +738,110 @@ describe('evaluateBudgets: the public initial JS carries no TanStack Query and n
   it('allows the admin route table and the error boundaries in the entry', () => {
     expect(withEntryModule('src/modules/admin/routes.tsx').errors).toEqual([]);
     expect(withEntryModule('src/core/routes/ErrorBoundary.tsx').errors).toEqual([]);
+  });
+});
+
+// PUB-01, RESEARCH P-7: PublicLayout and each public page are measured as one route, so a page that grows is named and
+// the others are not blamed. TanStack Query, react-hook-form and zod are forbidden in all of them; nuqs and the URL-state
+// layout only under the Gallery route (WEB-10).
+describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-10)', () => {
+  const PAGE_CHUNK = (name: (typeof PAGE_NAMES)[number]) => `assets/${name}-Page-D4.js`;
+
+  /** The production graph with one extra module id in the chunk whose facade module is `facade`. */
+  function evaluateWith(facade: string, moduleId: string, build: typeof production | typeof devRoutes = production) {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) =>
+      c.facadeModuleId === facade ? { ...c, moduleIds: [...c.moduleIds, moduleId] } : c,
+    );
+    return evaluateBudgets({ ...graph, chunks }, build);
+  }
+
+  it('reports one figure per public page, each with the layout counted', () => {
+    const report = evaluateBudgets(productionGraph(120_000), production);
+    expect(report.errors).toEqual([]);
+    expect(report.publicRoutes).toEqual({
+      home: 120_000,
+      products: 120_000,
+      gallery: 120_000,
+      contact: 120_000,
+      notFound: 120_000,
+    });
+    expect(report.measurements.filter((m) => m.name === 'publicJs').map((m) => m.label)).toEqual(
+      PAGE_NAMES.map((name) => `public JS (${name})`),
+    );
+  });
+
+  it('names only the page that grew past 150.0 KB, and reports the largest page as public JS', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) => (c.fileName === PAGE_CHUNK('products') ? { ...c, gzipSize: 33_100 } : c));
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.publicRoutes.products).toBe(150_100);
+    expect(report.publicRoutes.home).toBe(120_000);
+    expect(report.publicJs).toBe(150_100);
+    expect(report.errors).toEqual([expect.stringMatching(/public JS \(products\).*150\.10 KB.*150\.00 KB/)]);
+  });
+
+  it('passes a page at exactly 150.0 KB', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) => (c.fileName === PAGE_CHUNK('home') ? { ...c, gzipSize: 33_000 } : c));
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.errors).toEqual([]);
+    expect(report.publicRoutes.home).toBe(150_000);
+  });
+
+  it.each(PAGE_NAMES)('fails TanStack Query in the %s page chunk', (name) => {
+    const report = evaluateWith(PAGE_MODULES[name], 'node_modules/@tanstack/query-core/build/modern/query.js');
+    expect(report.errors).toEqual([
+      expect.stringContaining(
+        `The public initial JS (${PAGE_CHUNK(name)}) contains node_modules/@tanstack/query-core/build/modern/query.js`,
+      ),
+    ]);
+  });
+
+  it.each(['node_modules/react-hook-form/dist/index.esm.mjs', 'node_modules/zod/v4/classic/schemas.js'])(
+    'fails %s in a page chunk, the Gallery page included',
+    (moduleId) => {
+      for (const name of PAGE_NAMES) {
+        expect(evaluateWith(PAGE_MODULES[name], moduleId).ok).toBe(false);
+      }
+    },
+  );
+
+  it('fails nuqs in the Contact page chunk (it loads outside the Gallery route)', () => {
+    const report = evaluateWith(PAGE_MODULES.contact, 'node_modules/nuqs/dist/index.js');
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([
+      expect.stringContaining(`(${PAGE_CHUNK('contact')}) contains node_modules/nuqs/dist/index.js`),
+    ]);
+  });
+
+  it.each(['home', 'products', 'notFound'] as const)('fails nuqs in the %s page chunk', (name) => {
+    expect(evaluateWith(PAGE_MODULES[name], 'node_modules/nuqs/dist/index.js').ok).toBe(false);
+  });
+
+  it('fails nuqs in the public layout chunk, which every route loads', () => {
+    const report = evaluateWith(PUBLIC_LAYOUT, 'node_modules/nuqs/dist/index.js');
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringContaining('PublicLayout-D3.js) contains node_modules/nuqs')]);
+  });
+
+  it('passes the same nuqs module in the URL-state layout chunk, which only the Gallery route loads', () => {
+    for (const build of [production, devRoutes]) {
+      const report = evaluateWith(URL_STATE_LAYOUT, 'node_modules/nuqs/dist/index.js', build);
+      expect(report.errors).toEqual([]);
+      expect(report.publicRoutes.gallery).toBe(120_000);
+    }
+  });
+
+  it('passes nuqs in the Gallery page chunk itself', () => {
+    expect(evaluateWith(PAGE_MODULES.gallery, 'node_modules/nuqs/dist/index.js').errors).toEqual([]);
+  });
+
+  it('holds nuqs and TanStack Query in the forbidden list (WEB-10, PERF-02)', () => {
+    expect(PUBLIC_FORBIDDEN_MODULE_PREFIXES).toEqual(
+      expect.arrayContaining(['node_modules/nuqs/', 'node_modules/@tanstack/', 'node_modules/zod/']),
+    );
   });
 });
 

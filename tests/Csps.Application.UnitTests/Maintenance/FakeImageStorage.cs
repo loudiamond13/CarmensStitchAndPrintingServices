@@ -7,6 +7,7 @@ internal sealed class FakeImageStorage : IImageStorage
 {
     private readonly Queue<ImageRemovalOutcome> _removalScript = new();
     private readonly Dictionary<string, StoredImagePage> _pages = new(StringComparer.Ordinal);
+    private readonly Dictionary<(string Prefix, string Cursor), StoredImagePage> _prefixPages = [];
 
     public bool IsConfigured { get; set; } = true;
 
@@ -40,6 +41,9 @@ internal sealed class FakeImageStorage : IImageStorage
 
     public void Page(string? cursor, StoredImagePage page) => _pages[cursor ?? string.Empty] = page;
 
+    /// <summary>Scripts one page of the listing of one folder; it wins over a page scripted for the cursor alone.</summary>
+    public void Page(string prefix, string? cursor, StoredImagePage page) => _prefixPages[(prefix, cursor ?? string.Empty)] = page;
+
     public Task<ImageUploadOutcome> UploadAsync(ImageUpload upload, CancellationToken cancellationToken) =>
         throw new NotSupportedException("The jobs never upload.");
 
@@ -63,7 +67,9 @@ internal sealed class FakeImageStorage : IImageStorage
             throw ListFailure;
         }
 
-        var answer = _pages.TryGetValue(cursor ?? string.Empty, out var page) ? page : new StoredImagePage([], null);
+        var answer = _prefixPages.TryGetValue((prefix, cursor ?? string.Empty), out var own)
+            ? own
+            : _pages.TryGetValue(cursor ?? string.Empty, out var page) ? page : new StoredImagePage([], null);
         OnList?.Invoke();
         return Task.FromResult(answer);
     }

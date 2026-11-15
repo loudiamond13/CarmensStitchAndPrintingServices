@@ -72,6 +72,24 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
+/** The public layout and the five public pages, each a lazy chunk (PUB-01, RESEARCH P-7). */
+function publicChunks(): Rollup.OutputChunk[] {
+  const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
+    outputChunk(fileName, 'export const b = 2;', {
+      isDynamicEntry: true,
+      facadeModuleId: `${ROOT}/${relative}?v=1`,
+      moduleIds: [`${ROOT}/${relative}`],
+    });
+  return [
+    lazy('assets/PublicLayout-D3.js', 'src/layouts/PublicLayout.tsx'),
+    lazy('assets/HomePage-D4.js', 'src/modules/public/pages/HomePage.tsx'),
+    lazy('assets/ProductsPage-D5.js', 'src/modules/public/pages/ProductsPage.tsx'),
+    lazy('assets/GalleryPage-D6.js', 'src/modules/public/pages/GalleryPage.tsx'),
+    lazy('assets/ContactPage-D7.js', 'src/modules/public/pages/ContactPage.tsx'),
+    lazy('assets/NotFoundPage-D8.js', 'src/modules/public/pages/NotFoundPage.tsx'),
+  ];
+}
+
 /** The guarded admin app's first-load chunks, which ship in every build: the signed-in and the sign-in entries. */
 function adminChunks(): Rollup.OutputChunk[] {
   const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
@@ -105,11 +123,7 @@ function bundle(
       rendered: entryModules,
       renderedCode: entryRenderedCode,
     }),
-    outputChunk('assets/HoldingPage-D4.js', 'export const b = 2;', {
-      isDynamicEntry: true,
-      facadeModuleId: `${ROOT}/src/modules/public/pages/HoldingPage.tsx?v=1`,
-      moduleIds: [`${ROOT}/src/modules/public/pages/HoldingPage.tsx`],
-    }),
+    ...publicChunks(),
     ...adminChunks(),
     outputAsset('assets/index-E5.css', 'body{color:red}'),
     outputAsset('index.html', '<!doctype html>'),
@@ -199,6 +213,14 @@ describe('budgetPlugin (PERF-01)', () => {
     });
     expect(summary.publicJs).toBeTypeOf('number');
     expect(summary.publicJs).toBeGreaterThan(0);
+    expect(Object.keys(summary.publicRoutes as Record<string, number>)).toEqual([
+      'home',
+      'products',
+      'gallery',
+      'contact',
+      'notFound',
+    ]);
+    expect(Object.values(summary.publicRoutes as Record<string, number>).every((bytes) => bytes > 0)).toBe(true);
     expect(summary.adminJs).toBeTypeOf('number');
     expect(summary.adminJs).toBeGreaterThan(0);
     expect(summary.css).toBeTypeOf('number');
@@ -213,8 +235,11 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
-    expect(summary.errors).toHaveLength(1);
+    // The 200 KB entry is part of every public page, so each of the five pages is over its limit.
+    expect(summary.errors).toHaveLength(5);
+    expect(summary.errors.every((error) => error.startsWith('public JS ('))).toBe(true);
   });
+
   it('fails the production build when a shipped admin entry has no chunk (the admin limit must be measurable)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = Object.fromEntries(

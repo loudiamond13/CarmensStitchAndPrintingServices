@@ -1,7 +1,7 @@
 ---
 phase: 03-ci-cd-staging-deploy
 created: "2026-10-16T08:35:00-05:00"
-updated: "2026-10-16T14:00:00-05:00"
+updated: "2026-11-13T00:27:00-06:00"
 ---
 
 # Phase 3 deferred items
@@ -68,6 +68,25 @@ The split is a real saving for every visitor on `/` (9.2 KB gzip less), but the 
 
 ## LCP is report-only in CI until Phase 11 (plan 03-16, owner decision 2026-10-16)
 
-status: waived until Phase 11 (WINDOWS.md entry 1)
+status: waived; kept after Phase 11 by D-29 (WINDOWS.md entry 1)
 
 The first full gate on GitHub (ubuntu-24.04) measured LCP 2127 ms and 2131 ms against the 2000 ms limit, the same as the local 2.19 s. The owner chose "report LCP, do not fail". `REPORT_ONLY_METRICS` in `web/scripts/lighthouse-assert.mjs` lists LCP: the step still measures and prints it on every run (log line and GitHub run summary, with the 2000 ms target), and every other assertion stays a hard failure, pinned by `lighthouse-assert.test.ts`. The 2000 ms target is unchanged. **Phase 11 must revisit fonts (options above) and then empty `REPORT_ONLY_METRICS`.** The Phase 11 reminder is in `.planning/ROADMAP.md` under "Owner decisions to close at discuss step".
+
+## Phase 11 result (plan 11-36, D-28, D-29, D-46)
+
+status: LCP still over 2000 ms on the four public pages; report-only kept by D-29; font subsetting is the next step (D-124)
+
+**Done, with the look unchanged:** option (a) is built. The production and e2e builds write a Brotli quality 11 `.br` file next to every `.js`, `.css` and `.svg` over 1 KB, and the host sends it only to a browser that lists `br` (the entry script is 90,571 B as `.br` against 105,231 B as gzip 9, 13.9 percent smaller; the CSS 15,901 B against 19,590 B). Link-preview crawlers that accept only gzip and deflate still get the plain file. Font files no page needs: none of the files the four pages request is unused, but a peso in display text made the browser download the Barlow Condensed latin-ext files, which have no peso sign; those downloads are removed (U+20B1 is cut out of the Barlow unicode-ranges at build time).
+
+**Measured** on this machine, mobile profile, LCP in ms (target 2000, report-only by D-29), the Task 1 build against the fonts step (two runs):
+
+| Page | Before | After |
+|---|---|---|
+| / | 2348 | 2354, 2367 |
+| /products | 2258 | 2134, 2530 |
+| /gallery | 2301 | 2298, 2337 |
+| /contact | 2120 | 2563, 2419 |
+
+The font requests of the four pages are the same before and after (Archivo latin, Barlow 700, 800 italic, and on Home and Contact 800 normal), so the two columns are run-to-run noise of 200 to 400 ms, not a gain. FCP is 1970 to 2260 ms, so the first paint is the limit. **Next step (D-124):** font subsetting as a follow-up /gsd-quick, with a package check and the owner's yes before any tool is added; no change to the look.
+
+**Warning for the four-page gate:** the performance category (a hard limit of 0.95) is built partly from LCP, so with LCP between 2.1 and 2.5 s it sat at 0.94 on one page in two of the three full runs (/contact once, /products once) and at 0.96 or 0.97 otherwise. CLS is 0.041 on /products and 0.043 on /contact against the 0.05 limit. See the plan 11-36 SUMMARY for the owner decision.

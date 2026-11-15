@@ -1,0 +1,136 @@
+// Products page E2E (PUB-01, PUB-02, CONT-02, D-04, D-32, D-42): the six product lines reach a visitor's page from the
+// server's own HTML with no extra request, with the Manager's price, in every width. Every test resets the demo shop facts
+// and the six lines (the Testing seeder) and runs under the site content lock, because the lines are shared by all five
+// projects.
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { withSiteContentLock } from './site-content-lock.ts';
+import { seedDemoSiteContent } from './testing-api.ts';
+
+const LINES_API = '/api/v1/public/product-lines';
+
+// Each test waits its turn for the site content lock, so the 30 second default is not enough (see the site content specs).
+test.describe.configure({ timeout: 480_000 });
+
+test('@products /products shows six articles and the basketball demo price, with no lines request on the first load', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const lineRequests: string[] = [];
+    page.on('request', (seen) => {
+      if (seen.url().includes(LINES_API)) {
+        lineRequests.push(seen.url());
+      }
+    });
+
+    await page.goto('/products');
+
+    await expect(page.getByRole('article')).toHaveCount(6);
+    const basketball = page.getByRole('article', { name: 'Basketball Jerseys' });
+    await expect(basketball.getByText('Starts at')).toBeVisible();
+    await expect(basketball.getByText('₱650.00')).toBeVisible();
+    await expect(basketball.getByText('/ pc · min. 10 pcs')).toBeVisible();
+    await expect(
+      page.getByRole('article', { name: 'Volleyball Jerseys' }).getByText('Message us for a price'),
+    ).toBeVisible();
+    expect(lineRequests).toEqual([]);
+  });
+});
+
+const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
+const BAR = '[data-products-bar]';
+const PILL_ROW_OVERFLOW = `(() => { const row = document.querySelector('${BAR} nav'); return row === null ? -1 : row.scrollWidth - row.clientWidth; })()`;
+
+test('@products opening /products#polo lands on the polo article, clear of the header and the pill bar', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.goto('/products#polo');
+
+    const bar = page.locator(BAR);
+    const polo = page.locator('article#polo');
+    await expect(polo).toBeAttached();
+    // The scroll may be smooth, so wait until the article stops moving (the same place twice, 400ms apart).
+    let last = Number.NaN;
+    await expect
+      .poll(
+        async () => {
+          const top = (await polo.boundingBox())?.y ?? 99999;
+          const settled = top === last;
+          last = top;
+          await page.waitForTimeout(400);
+          return settled;
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true);
+    const [barBox, poloBox] = await Promise.all([bar.boundingBox(), polo.boundingBox()]);
+    const barBottom = (barBox?.y ?? 0) + (barBox?.height ?? 0);
+    expect(poloBox?.y ?? 99999, 'the article starts below the sticky bars').toBeGreaterThanOrEqual(barBottom);
+    expect(poloBox?.y ?? 99999, 'the article was scrolled up to just under them').toBeLessThan(450);
+  });
+});
+
+test('@products at 320px the pill bar scrolls inside itself, the pills are 44px tall and the page has no sideways scroll', async ({
+  page,
+  request,
+}) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto('/products');
+
+    const nav = page.getByRole('navigation', { name: 'Product lines' });
+    await expect(nav.getByRole('link')).toHaveCount(6);
+    const inner = Number(await page.evaluate(PILL_ROW_OVERFLOW));
+    expect(inner, 'the pills are wider than the bar, so it scrolls inside itself').toBeGreaterThan(0);
+    for (const link of await nav.getByRole('link').all()) {
+      expect(Math.round((await link.boundingBox())?.height ?? 0)).toBeGreaterThanOrEqual(44);
+    }
+    const bar = await page.locator(BAR).boundingBox();
+    expect(Math.round(bar?.height ?? 0)).toBeGreaterThanOrEqual(69);
+    expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+  });
+});
+
+test('@products a control reached by focus stops clear of the header and the pill bar', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto('/products');
+    await expect(page.getByRole('article')).toHaveCount(6);
+
+    const barBottom = async () => {
+      const box = await page.locator(BAR).boundingBox();
+      return (box?.y ?? 0) + (box?.height ?? 0);
+    };
+    for (const link of await page.getByRole('main').getByRole('link', { name: 'Get a Quote' }).all()) {
+      await link.focus();
+      await expect(link).toBeFocused();
+      await page.waitForTimeout(150);
+      const top = (await link.boundingBox())?.y ?? 0;
+      expect(top, 'the focused link is below the sticky bars').toBeGreaterThanOrEqual((await barBottom()) - 1);
+    }
+  });
+});
+
+// The guard fixture fails each test on any console, page, CSP or response finding, so these also prove a clean console.
+for (const width of [390, 1440]) {
+  test(`@products at ${String(width)}px there are no axe, console or CSP findings and no sideways scroll`, async ({
+    page,
+    request,
+  }) => {
+    await withSiteContentLock(async () => {
+      await seedDemoSiteContent(request);
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/products');
+      await expect(page.getByRole('article')).toHaveCount(6);
+
+      expect(await page.evaluate<number>(SIDEWAYS_OVERFLOW)).toBeLessThanOrEqual(0);
+      await expectNoAxeViolations(page);
+    });
+  });
+}

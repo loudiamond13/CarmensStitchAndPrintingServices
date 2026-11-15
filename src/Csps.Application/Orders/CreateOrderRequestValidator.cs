@@ -51,6 +51,10 @@ public sealed class CreateOrderRequestValidator : AbstractValidator<CreateOrderR
         RuleForEach(request => request.Expenses)
             .NotNull().WithMessage(OrderRules.ExpenseRequired)
             .SetValidator(new ExpenseValidator());
+
+        When(
+            static request => request.PublicWebsite is not null,
+            () => RuleFor(request => request.PublicWebsite!).SetValidator(new OrderPublicWebsiteFieldsValidator()));
     }
 
     private static void CheckStatus(string? text, ValidationContext<CreateOrderRequest> context)

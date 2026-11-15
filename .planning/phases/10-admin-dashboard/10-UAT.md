@@ -1,14 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 10-admin-dashboard
 source: [10-01-SUMMARY.md, 10-02-SUMMARY.md, 10-03-SUMMARY.md, 10-04-SUMMARY.md, 10-05-SUMMARY.md, 10-06-SUMMARY.md, 10-07-SUMMARY.md, 10-08-SUMMARY.md, 10-09-SUMMARY.md, 10-10-SUMMARY.md, 10-11-SUMMARY.md, 10-12-SUMMARY.md, 10-13-SUMMARY.md, 10-14-SUMMARY.md, 10-15-SUMMARY.md, 10-16-SUMMARY.md, 10-17-SUMMARY.md, 10-18-SUMMARY.md, 10-19-SUMMARY.md, 10-20-SUMMARY.md, 10-21-SUMMARY.md]
 started: 2026-11-09T19:50:00-06:00
 created: 2026-11-09T19:50:00-06:00
-updated: 2026-11-10T03:25:43.999Z
+updated: 2026-11-14T05:20:39.140Z
 ---
 
 # Phase 10 UAT: Admin Dashboard
-*Created: 2026-11-09T19:50:00-06:00 · Updated: 2026-11-09T21:25:25-06:00*
+*Created: 2026-11-09T19:50:00-06:00 · Updated: 2026-11-13T23:55:00-06:00*
 
 All 21 plans are built. Tests 1 to 19 are hands-on checks for the owner, user flow first (tests 1 to 13), then layout and look (14 to 17), then the CI ship gates (18 and 19).
 Tests 20 to 149 are passed by automated tests (coverage blocks); they are not asked.
@@ -101,16 +101,14 @@ covers: 10-21 D7
 
 ### 18. CI parity snapshots on the phase PR
 expected: On the Phase 10 PR, the parity pixel snapshot job is green before merge (ship gate D-1; snapshots differ locally by glyph edges, so only CI can confirm).
-result: blocked
-blocked_by: release-build
-reason: "No Phase 10 PR exists yet and the branch is not pushed, so the CI parity job has not run. Owner ruled (2026-11-09): mark blocked until the phase PR's CI runs (/gsd-ship 10). Ship gate D-1, P10-BL-20 step 1."
+result: pass
+evidence: "Owner confirmed 2026-11-13: CI run 42979065519 on 89d723cd (PR 24) green; parity tests 10/10 and 15/15, e2e 713 passed; merged as 25bd3431."
 covers: 10-04 D5; 10-13 D7
 
 ### 19. One clean full test run
 expected: One full e2e run and one Server test run on CI (or a quiet machine) pass in a single pass, with ExpenseListTimingTests under 300 ms.
-result: blocked
-blocked_by: release-build
-reason: "Needs the phase PR's CI run. Owner ruled (2026-11-09): mark blocked until then. P10-BL-20 step 5."
+result: pass
+evidence: "Owner confirmed 2026-11-13: one CI pass on 89d723cd: .NET 1323, 2561 (Server, incl. ExpenseListTimingTests), 9 and 1067 tests, web 9076, e2e 713 and Lighthouse all passed."
 
 ### 20. 10-01 D1: One LINQ Concat of narrow projections over payments, refunds, company expenses and order...
 expected: One LINQ Concat of narrow projections over payments, refunds, company expenses and order expenses pages one person's rows newest first in one UNION ALL statement, with the signs from the UI-SPEC and no row of another person
@@ -895,11 +893,11 @@ coverage_id: 10-21 D6
 ## Summary
 
 total: 149
-passed: 147
+passed: 149
 issues: 0
 pending: 0
 skipped: 0
-blocked: 2
+blocked: 0
 
 ## Gaps
 

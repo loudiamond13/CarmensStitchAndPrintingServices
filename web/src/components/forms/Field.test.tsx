@@ -40,7 +40,7 @@ const END_PLAIN = 'pr-3';
 // App. B `.csp-prefix`.
 const PREFIX = 'pl-3 font-semibold text-ink-muted';
 // App. B `.csp-msg` and `.csp-msg-error`.
-const MESSAGE = 'm-0 flex items-center gap-1.5 text-[12px] leading-4';
+const MESSAGE = 'm-0 flex items-center gap-1.5 text-[12px] leading-4 wrap-anywhere';
 const HINT = 'text-ink-muted';
 const ERROR = 'font-medium text-danger';
 

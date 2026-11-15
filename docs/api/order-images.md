@@ -95,7 +95,8 @@ more answers `413` before the upload runs. Every other route in the API still st
 same line a little higher (11 MiB), so the app answers `413` itself. The browser also shrinks photos before it sends them. The
 photo is held in memory only, never in a temp file.
 
-**Note on the pace.** One address may upload 30 times in 10 minutes. The whole server works on two uploads at a time and lets up
+**Note on the pace.** One address may upload 30 times in 10 minutes. The whole server works on two photo uploads at a time (order photos,
+gallery photos, product line photos and the share picture count together) and lets up
 to four more wait their turn. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
 that long, then send the same request again with the same `Idempotency-Key`.
 

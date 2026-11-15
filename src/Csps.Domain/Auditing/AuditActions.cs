@@ -147,6 +147,99 @@ public static class AuditActions
     /// <summary>A Manager handed money from a former staff member to a coworker (D-17).</summary>
     public const string MoneyHandedOver = "money-transfer.handed-over";
 
+    /// <summary>A Manager saved the business info; the detail names the changed fields (CONT-01).</summary>
+    public const string SiteSettingsChanged = "site-settings.changed";
+
+    /// <summary>A Manager saved the weekly opening hours; the detail names each changed day with its old and new times (CONT-01).</summary>
+    public const string OpeningHoursChanged = "opening-hours.changed";
+
+    /// <summary>A Manager added a holiday or closure; the detail holds its first and last day and says when a note was set, never the note (CONT-04).</summary>
+    public const string ShopClosureAdded = "shop-closure.added";
+
+    /// <summary>A Manager changed a closure; the detail holds the old and new days and says when the note changed, never the note (CONT-04).</summary>
+    public const string ShopClosureChanged = "shop-closure.changed";
+
+    /// <summary>A Manager deleted a closure; the detail holds its first and last day (CONT-04).</summary>
+    public const string ShopClosureDeleted = "shop-closure.deleted";
+
+    /// <summary>A Manager added a product line; the detail holds its key and title (CONT-02).</summary>
+    public const string ProductLineAdded = "product-line.added";
+
+    /// <summary>A Manager changed a product line; the detail names the changed fields and holds the old and new title, short name, price and minimum, never the long texts (CONT-02).</summary>
+    public const string ProductLineChanged = "product-line.changed";
+
+    /// <summary>A Manager moved a product line in the display order; the detail holds the old and new position (CONT-02).</summary>
+    public const string ProductLineMoved = "product-line.moved";
+
+    /// <summary>A Manager hid a product line (CONT-02, D-08).</summary>
+    public const string ProductLineHidden = "product-line.hidden";
+
+    /// <summary>A Manager showed a product line (CONT-02).</summary>
+    public const string ProductLineShown = "product-line.shown";
+
+    /// <summary>A Manager deleted an unused product line (CONT-02, D-08).</summary>
+    public const string ProductLineDeleted = "product-line.deleted";
+
+    /// <summary>A Manager added, replaced or removed a photo of a product line; the detail holds the line key and title, the slot and the change, never the address (D-02).</summary>
+    public const string ProductLinePhotoChanged = "product-line.photo-changed";
+
+    /// <summary>A Manager added a testimonial (CONT-03). The detail names the person, never the words.</summary>
+    public const string TestimonialAdded = "testimonial.added";
+
+    /// <summary>A Manager changed a testimonial. The detail names the changed fields and never copies the quote or the team line.</summary>
+    public const string TestimonialChanged = "testimonial.changed";
+
+    /// <summary>A Manager moved a testimonial in the order.</summary>
+    public const string TestimonialMoved = "testimonial.moved";
+
+    /// <summary>A Manager took a testimonial off the Home page.</summary>
+    public const string TestimonialHidden = "testimonial.hidden";
+
+    /// <summary>A Manager put a testimonial back on the Home page.</summary>
+    public const string TestimonialShown = "testimonial.shown";
+
+    /// <summary>A Manager deleted a testimonial.</summary>
+    public const string TestimonialDeleted = "testimonial.deleted";
+
+    /// <summary>A Manager added a gallery photo for older work (GAL-03). The detail holds the team and the line title, never the address.</summary>
+    public const string GalleryPhotoAdded = "gallery-photo.added";
+
+    /// <summary>A Manager changed a gallery upload or replaced its photo. The detail names the changed fields and never copies the note.</summary>
+    public const string GalleryPhotoChanged = "gallery-photo.changed";
+
+    /// <summary>A Manager took a gallery upload off the website.</summary>
+    public const string GalleryPhotoHidden = "gallery-photo.hidden";
+
+    /// <summary>A Manager put a gallery upload on the website.</summary>
+    public const string GalleryPhotoShown = "gallery-photo.shown";
+
+    /// <summary>A Manager deleted a gallery upload.</summary>
+    public const string GalleryPhotoDeleted = "gallery-photo.deleted";
+
+    /// <summary>A Manager moved an item (an order or an upload) in the gallery order (GAL-03).</summary>
+    public const string GalleryItemMoved = "gallery-item.moved";
+
+    /// <summary>A Manager added, replaced or removed the default link preview picture; the detail holds the change and never the address (D-26).</summary>
+    public const string SharePictureChanged = "site-settings.share-picture-changed";
+
+    /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
+    public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
+
+    /// <summary>Staff removed the customer's OK to show an order; the order also leaves the website (D-11, D-15).</summary>
+    public const string OrderPublicConsentRemoved = "order.public-consent-removed";
+
+    /// <summary>Staff put an order on the website (D-16).</summary>
+    public const string OrderShownOnWebsite = "order.shown-on-website";
+
+    /// <summary>An order came off the website: staff took it off or removed the customer's OK (D-15).</summary>
+    public const string OrderTakenOffWebsite = "order.taken-off-website";
+
+    /// <summary>Staff changed the line or the name an order is shown under; the detail names the fields, never the words (D-09, D-13).</summary>
+    public const string OrderPublicDetailsChanged = "order.public-details-changed";
+
+    /// <summary>A Manager filed an order product type under a product line, moved it to another line or took it off its line; the detail holds the old and new line titles (D-09).</summary>
+    public const string ProductTypeLineLinked = "product-type.line-linked";
+
     /// <summary>An expense category was added (D-27).</summary>
     public const string ExpenseCategoryAdded = "expense-category.added";
 
@@ -526,5 +619,36 @@ public static class AuditActions
         MoneyTransferDeleted,
         MoneyTransferPermanentlyDeleted,
         MoneyHandedOver,
+        SiteSettingsChanged,
+        OpeningHoursChanged,
+        ShopClosureAdded,
+        ShopClosureChanged,
+        ShopClosureDeleted,
+        ProductLineAdded,
+        ProductLineChanged,
+        ProductLineMoved,
+        ProductLineHidden,
+        ProductLineShown,
+        ProductLineDeleted,
+        ProductTypeLineLinked,
+        ProductLinePhotoChanged,
+        TestimonialAdded,
+        TestimonialChanged,
+        TestimonialMoved,
+        TestimonialHidden,
+        TestimonialShown,
+        TestimonialDeleted,
+        OrderPublicConsentRecorded,
+        OrderPublicConsentRemoved,
+        OrderShownOnWebsite,
+        OrderTakenOffWebsite,
+        OrderPublicDetailsChanged,
+        GalleryPhotoAdded,
+        GalleryPhotoChanged,
+        GalleryPhotoHidden,
+        GalleryPhotoShown,
+        GalleryPhotoDeleted,
+        GalleryItemMoved,
+        SharePictureChanged,
     ];
 }

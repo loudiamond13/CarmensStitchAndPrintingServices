@@ -551,6 +551,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/gallery-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the gallery in gallery order, one page at a time: every upload (shown or hidden) and every order that is shown. Each row
+         *     has its kind (`order` or `upload`), the name shown, the line and the short name of the line, whether the line is
+         *     hidden (the item is then off the public site), the pieces, whether it is shown, the order id and number of an order item, the
+         *     note and the version of an upload, and a small photo address. A page past the last answers no rows and the real total.
+         */
+        get: operations["ListGalleryItems"];
+        put?: never;
+        /**
+         * Adds a photo of older work to the Gallery as a multipart form with the file in the `file` part and the fields
+         *     `teamName`, `productLineId`, `pieces` (optional), `note` (optional) and `isShown` as form parts. The type is read from
+         *     the first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can
+         *     use, is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The
+         *     photo is stored under a random id the client never chooses, in the entry's own content folder. The upload joins at the top of
+         *     the gallery. It is hidden unless `isShown` is `true`, and a line that is hidden keeps it off the public site. When photo
+         *     storage is not set up the answer is 503 `images.not-configured`. A retry with the same `Idempotency-Key` and body
+         *     answers with the stored answer and adds nothing more. Who added it and when come from the token and the clock. The change is
+         *     recorded in the audit log without the address, and the public pages show it at once.
+         */
+        post: operations["CreateGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits an upload with the version the form was opened with, as JSON: `teamName`, `productLineId`, `pieces`,
+         *     `note`, `isShown` and `version`. The values follow the same rules as when adding. A `version` that is not the
+         *     stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change stores nothing
+         *     and keeps the version. The photo is replaced through its own route. An item that came from an order answers 404: it is changed on
+         *     its order. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateGalleryUpload"];
+        post?: never;
+        /**
+         * Deletes an upload for good. Its photo is queued for removal in the same save and leaves the storage on the next cleanup run;
+         *     nothing calls the storage during the request. It takes no version. Deleting an upload that is already gone is a 404, and so is an
+         *     item that came from an order: it is taken off the website from its order.
+         */
+        delete: operations["DeleteGalleryUpload"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides an upload: it leaves the public site and stays in this list, and nothing is lost. Hiding a hidden upload is a 204 that
+         *     changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         *     An item that came from an order answers 404: it is taken off the website from its order.
+         */
+        post: operations["HideGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;
+         *     send `lineId` when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge
+         *     swaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It
+         *     takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. The public gallery shows the new
+         *     order at once; Home's Recent work does not follow it.
+         */
+        post: operations["MoveGalleryItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts a new photo in the place of an upload's photo, as a multipart form with the file in the `file` part. The file is held
+         *     to the same rules as when adding (type read from the first bytes, 10 MB, 25 megapixels, location and camera data removed) and is
+         *     stored under a new random id in the upload's own folder. The old file is queued for removal in the same save. It takes no
+         *     version; the answer carries the new one. An item that came from an order answers 404: its photos come from the order. A retry
+         *     with the same `Idempotency-Key` and body answers with the stored answer. The change is recorded in the audit log as a photo
+         *     change, never with the address, and the public pages show it at once.
+         */
+        post: operations["ReplaceGalleryPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/gallery-items/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden upload on the public site again (a hidden line still keeps it off). Showing a shown upload is a 204 that changes
+         *     and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. An item
+         *     that came from an order answers 404.
+         */
+        post: operations["ShowGalleryUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/money-transfers": {
         parameters: {
             query?: never;
@@ -668,6 +818,32 @@ export interface paths {
          *     written to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.
          */
         delete: operations["RemoveMoneyTransfer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/opening-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns the seven days, Monday (1) first, each with its opening and closing time as "HH:mm" or none for a closed day, the version a
+         *     save must send back, and who last changed the hours and when. Until a Manager saves hours every day is closed.
+         */
+        get: operations["GetOpeningHours"];
+        /**
+         * Saves all seven days at once. An open day needs both times, and the closing time must be after the opening time. A `version`
+         *     that is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A save with no change
+         *     stores nothing, writes no audit entry and keeps the version. The next public read, open-status read and page show the change.
+         *     Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateOpeningHours"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1284,6 +1460,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{orderId}/public": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Saves the customer's OK and the public settings of one order with the version the window was opened with. An order is shown only
+         *     with the customer's OK, and removing the OK also takes it off the website. Who recorded the OK and when come from the token and
+         *     the clock; any such member in the body is ignored. A Completed order can be shown; a Cancelled order answers 422
+         *     `orders.public-cancelled`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a save is
+         *     never retried. A save with no change keeps the version. The answer is the whole order.
+         */
+        put: operations["SetOrderPublicSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{orderId}/refunds": {
         parameters: {
             query?: never;
@@ -1434,6 +1633,171 @@ export interface paths {
          */
         post: operations["RetirePaymentMethod"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every product line, shown and hidden, in display order. Each has its id, key, title, short name, starting price and minimum
+         *     order (null when not set), whether it is shown, its position from 1, the small main photo (null until it has one), the ids of the
+         *     order product types filed under it, how many shown gallery items and photos it has, whether it can be deleted, and the version an
+         *     edit must send back.
+         */
+        get: operations["ListProductLines"];
+        put?: never;
+        /**
+         * Adds a product line. The line goes to the end of the order with the custom drawing and is hidden unless `isActive` is true.
+         *     Its URL key is made once from the short name and never changes. A retry with the same `Idempotency-Key` and body answers
+         *     with the stored 201 and adds nothing more. Who added it and when come from the token and the clock; any such member in the body
+         *     is ignored.
+         */
+        post: operations["CreateProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the active product lines in display order, each with its id, title and short name. Hidden lines are not listed. */
+        get: operations["ListProductLineOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one product line with every field, the order product types filed under it, its version and who last changed it. */
+        get: operations["GetProductLine"];
+        /**
+         * Edits a product line with the version the form was opened with. The values follow the same rules as when adding. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. The key never changes. Who changed it and when come from the token and the
+         *     clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateProductLine"];
+        post?: never;
+        /**
+         * Deletes a product line for good, only while nothing is filed under it. A line with a photo, a gallery item or an order product
+         *     type answers 422 `product-lines.in-use` ("This product line is in use. Hide it instead.") and nothing is deleted. It takes no
+         *     version. Deleting a line that is already gone is a 404.
+         */
+        delete: operations["DeleteProductLine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides a line: it and everything filed under it leave the public site, and nothing is lost. Hiding a hidden line is a 204 that
+         *     changes and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["HideProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a line one place up or down in the display order. A move at the end of the order is a 204 that changes and records nothing.
+         *     It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["MoveProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden line on the public site again. Showing a shown line is a 204 that changes and records nothing. It takes no
+         *     version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["ShowProductLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/product-lines/{lineId}/photos/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Puts one photo into a slot of a product line as a multipart form with the file in the `file` part. The type is read from the
+         *     first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use,
+         *     is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The photo is
+         *     stored under a random id the client never chooses, in the line's own content folder. A slot that already holds a photo is
+         *     replaced, and the old file is queued for removal in the same save. The slot is `main`, `back` or `fabric`; any
+         *     other word answers 404. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and adds nothing more. Who added the photo and when come from the
+         *     token and the clock. The change is recorded in the audit log with the slot and never the address, and the public pages show it at
+         *     once.
+         */
+        post: operations["UploadProductLinePhoto"];
+        /**
+         * Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal
+         *     in the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The
+         *     change is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.
+         */
+        delete: operations["RemoveProductLinePhoto"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1657,6 +2021,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/gallery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the Gallery (GAL-01, D-10): `items`, every public item in gallery order, each with its `id`, `team` (the name shown),
+         *     `lineKey`, `lineShortName`, `pieces` (null when not given), `note` (uploads only), `placeholderArt` and
+         *     `photos` (the cover first, each with the masonry `src` and `srcSet`, the lightbox `viewerSrc` and
+         *     `viewerSrcSet`, the `thumbSrc` and the `width` and `height`); `pills`, one for each shown line that has at
+         *     least one item, with its `key`, `shortName` and `count`; and `total`. Only work with the customer's recorded OK,
+         *     shown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,
+         *     a price, an order note or a photo description. A request whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicGallery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its
+         *     `key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main
+         *     photo), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,
+         *     `teamOrRole` and `stars`), `recentWork` (the six newest shown orders, newest first, each with its `team`,
+         *     `lineKey`, `lineShortName`, `pieces`, `placeholderArt` and cover `photo` at the strip sizes) and `heroTag`
+         *     (the newest shown order's `name` and `pieces`; null when none is shown). A hidden line or testimonial is left out. A request
+         *     whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicHome"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/open-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` ("HH:mm")
+         *     when open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and
+         *     `when` of "today", "tomorrow" or "weekday") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be
+         *     kept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.
+         */
+        get: operations["GetOpenStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/product-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,
+         *     `title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and
+         *     `minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each
+         *     null until a photo is added) and `hasGalleryItems` (true when the Gallery has a public item under the line). A hidden line is left out; with none shown the list is empty. A request
+         *     whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicProductLines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the shop facts every visitor sees: business name, tagline, about text, turnaround line, address parts, phone numbers (the
+         *     main one first), the Messenger, Facebook, Instagram, TikTok, directions and map links, and the current business year. A value
+         *     that is not set is null. The shop email is never sent. A request whose `If-None-Match` matches the current ETag gets 304.
+         */
+        get: operations["GetPublicSite"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -1691,6 +2171,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/shop-closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the upcoming closures: every closure whose last day is today or later in business time, by first day. Each has its id, its
+         *     first and last day as "yyyy-MM-dd" (the same day for a single day), its public note or none, and the version an edit must send
+         *     back. Past closures are not listed.
+         */
+        get: operations["ListShopClosures"];
+        put?: never;
+        /**
+         * Adds a closure. The first day is required and is today or later in business time. The last day is optional, on or after the first
+         *     day and at most 31 days in all; leave it out for one day. The note is optional and at most 80 characters. A closure that shares a
+         *     day with another one is a 400 on `firstDay` naming the first shared day, such as "There's already a closure on Dec 25,
+         *     2026." If the shop is busy saving another closure the answer is 409. Who added it and when come from the token and the clock; any
+         *     such member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds
+         *     nothing more. The next public read, open-status read and page show the closure.
+         */
+        post: operations["CreateShopClosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shop-closures/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits a closure with the version the form was opened with. The days and the note follow the same rules as when adding, except
+         *     that a first day that is already past is kept as it is, so the note of a closure that is running can still be fixed. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member
+         *     in the body is ignored.
+         */
+        put: operations["UpdateShopClosure"];
+        post?: never;
+        /** Deletes a closure for good; the shop shows its normal hours on those days again. It takes no version. Deleting a closure that is already gone is a 404. */
+        delete: operations["DeleteShopClosure"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings": {
         parameters: {
             query?: never;
@@ -1698,11 +2231,52 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the site settings. */
+        /**
+         * Returns every Business Info field, the shop email (staff only), the phones with the main one first, the version a save must
+         *     send back, who last changed the settings and when, and the fixed time zone, currency and locale.
+         */
         get: operations["GetSiteSettings"];
-        put?: never;
+        /**
+         * Saves the business info, Managers only: the name, tagline, about text, turnaround line, address parts, directions and map links,
+         *     one to four phone numbers with exactly one main, the Messenger, Facebook, Instagram and TikTok links and the shop email. An empty
+         *     optional value is stored as not set and left out of the public site. The time zone, currency and locale are not part of the
+         *     save. The next public read and page show the change. A `version` that is not the stored one answers 409 `edit.stale`
+         *     and changes nothing; a form save is never retried. A save with no change stores nothing, writes no audit entry and keeps the
+         *     version. Who changed it and when come from the token and the clock; any such member in the body is ignored.
+         */
+        put: operations["UpdateSiteSettings"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/site-settings/share-picture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sets the default link preview picture as a multipart form with the file in the `file` part. The type is read from the first
+         *     bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use, is over
+         *     10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The picture is stored
+         *     under a new random id every time, so a link shared before the change is not stuck with the old picture, and the file it replaces is
+         *     queued for removal in the same save. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with
+         *     the same `Idempotency-Key` and body answers with the stored answer and adds nothing more. The public pages carry the new
+         *     picture at once.
+         */
+        post: operations["UploadSharePicture"];
+        /**
+         * Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
+         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+         *     nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
+         */
+        delete: operations["RemoveSharePicture"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1833,6 +2407,114 @@ export interface paths {
         get: operations["GetStaffLedger"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every testimonial, shown and hidden, in display order. Each has its id, quote, name, team or role (null when not set), stars,
+         *     position from 1, whether it is shown, and the version an edit must send back. The Home page shows the first three shown ones.
+         */
+        get: operations["ListTestimonials"];
+        put?: never;
+        /**
+         * Adds a testimonial. It goes to the end of the order and is hidden unless `isShown` is true. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored 201 and adds nothing more. Who added it and when come from the token and
+         *     the clock; any such member in the body is ignored.
+         */
+        post: operations["CreateTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edits a testimonial with the version the form was opened with. The values follow the same rules as when adding. A
+         *     `version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form
+         *     with no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member in
+         *     the body is ignored.
+         */
+        put: operations["UpdateTestimonial"];
+        post?: never;
+        /** Deletes a testimonial for good. It takes no version. Deleting a testimonial that is already gone is a 404. */
+        delete: operations["DeleteTestimonial"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hides a testimonial: it leaves the public Home page and nothing is lost. Hiding a hidden testimonial is a 204 that changes and
+         *     records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["HideTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a testimonial one place up or down in the display order. A move at the end of the order is a 204 that changes and records
+         *     nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["MoveTestimonial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/testimonials/{id}/show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Shows a hidden testimonial on the public site again. Showing a shown testimonial is a 204 that changes and records nothing. It
+         *     takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.
+         */
+        post: operations["ShowTestimonial"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2590,6 +3272,7 @@ export interface components {
             orderDate: null | string;
             /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
             payments?: null | components["schemas"]["OrderPaymentRequest"][];
+            publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
             /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
             status: null | string;
             /** @description The team or club name. */
@@ -2743,6 +3426,18 @@ export interface components {
              * @description The business today, so the browser never reads the device clock for it.
              */
             today: string;
+        };
+        /** @description One weekday's hours as people send and read them. A closed day has no times. */
+        DayHoursDto: {
+            /** @description The closing time as "HH:mm" (24 hours); null on a closed day. */
+            closesAt: null | string;
+            /**
+             * Format: int32
+             * @description The weekday, 1 for Monday to 7 for Sunday.
+             */
+            day: number | string;
+            /** @description The opening time as "HH:mm" (24 hours); null on a closed day. */
+            opensAt: null | string;
         };
         /** @description One deleted expense in the deleted list. It carries no notes (D-19). */
         DeletedExpenseListItem: {
@@ -2962,6 +3657,91 @@ export interface components {
         ForgotPasswordRequest: {
             /** @description The email address. */
             email: null | string;
+        };
+        /** @description One page of the Manager's gallery list. */
+        GalleryItemListDto: {
+            /**
+             * Format: int32
+             * @description The page number, from 1.
+             */
+            page: number | string;
+            /** @description The rows of the page, in gallery order. */
+            rows: components["schemas"]["GalleryItemRowDto"][];
+            /**
+             * Format: int32
+             * @description The page size.
+             */
+            size: number | string;
+            /**
+             * Format: int32
+             * @description How many items match the filter over every page.
+             */
+            total: number | string;
+        };
+        /** @description One gallery item as the Manager's Gallery tab reads it (GAL-03, D-10). */
+        GalleryItemRowDto: {
+            /**
+             * Format: uuid
+             * @description The gallery entry id.
+             */
+            id: string;
+            /** @description True while the item can show on the website; always true for an order item, which is listed while it is shown. */
+            isShown: boolean;
+            /** @description `order` or `upload`. */
+            kind: string;
+            /** @description True when the line is hidden, so the item is off the public site. */
+            lineHidden: boolean;
+            /**
+             * Format: uuid
+             * @description The line the item is filed under; null when an order has none.
+             */
+            lineId: null | string;
+            /** @description The line's short name; null when there is no line. */
+            lineShortName: null | string;
+            /** @description The name shown. */
+            name: string;
+            /** @description The note of an upload; null when none. */
+            note: null | string;
+            /**
+             * Format: uuid
+             * @description The order of an order item; null on an upload.
+             */
+            orderId: null | string;
+            /** @description The number of an order item; null on an upload. */
+            orderNumber: null | string;
+            /**
+             * Format: int32
+             * @description The pieces; null for an upload that gives none.
+             */
+            pieces: null | number | string;
+            /** @description The address of the small square photo; null when there is none. */
+            thumb: null | string;
+            /** @description The text an edit of an upload must send back; null on an order item. */
+            version: null | string;
+        };
+        /**
+         * @description The fields of the gallery upload form (GAL-03, SEC-07), for adding (sent as form parts next to the photo) and for editing (sent as JSON).
+         *     Any other member is ignored: who added the upload and when come from the server (SEC-08).
+         */
+        GalleryUploadRequest: {
+            /** @description True to show the upload on the website. A new upload is hidden when this is missing; an edit keeps it as it is when this is missing. */
+            isShown: null | boolean;
+            /** @description The note, at most 120 characters; empty for none. */
+            note: null | string;
+            /**
+             * Format: double
+             * @description The pieces, a whole number from 1 to 9,999; null for none.
+             */
+            pieces: null | number | string;
+            /**
+             * Format: uuid
+             * @description The line the upload is filed under, required.
+             */
+            productLineId: null | string;
+            /** @description The team or name shown, required, at most 80 characters. */
+            teamName: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** Format: binary */
         IFormFile: string;
@@ -3204,6 +3984,16 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description The gallery move form: which way an item goes in the one gallery order, and the line the Manager's list is filtered to. */
+        MoveGalleryItemRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+            /**
+             * Format: uuid
+             * @description The line the list is filtered to; the neighbour is then the next item of that line. Null when the list shows every line.
+             */
+            lineId?: null | string;
+        };
         /**
          * @description Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so "Make Cover" is the same request with
          *     place 0. It carries the order's version as the page was opened. Any other member in the body is ignored.
@@ -3216,6 +4006,59 @@ export interface components {
             position: null | number | string;
             /** @description The base64 of the eight-byte row version of the order the page was opened with. */
             version: null | string;
+        };
+        /** @description The move form: which way a line goes in the order. */
+        MoveProductLineRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+        };
+        /** @description The move form: which way a testimonial goes in the order. */
+        MoveTestimonialRequest: {
+            /** @description "up" or "down". */
+            direction: null | string;
+        };
+        /** @description When the shop opens next, as facts the page turns into words (D-22). */
+        NextOpeningDto: {
+            /** @description The business date of the opening, "yyyy-MM-dd". */
+            date: string;
+            /**
+             * Format: int32
+             * @description The weekday of that date, 1 for Monday to 7 for Sunday.
+             */
+            day: number | string;
+            /** @description The opening time as "HH:mm" (24 hours). */
+            opensAt: string;
+            /** @description "today", "tomorrow" or "weekday". */
+            when: string;
+        };
+        /** @description Whether the shop is open now, worked out by the server in business time (PUB-05, D-22). The page only turns these facts into words. */
+        OpenStatusDto: {
+            /** @description True when a closure covers today. */
+            closedToday: boolean;
+            /** @description The closing time today as "HH:mm" when open; otherwise null. */
+            closesAt: null | string;
+            /** @description True when the shop is open at this instant. */
+            isOpen: boolean;
+            nextOpening: null | components["schemas"]["NextOpeningDto"];
+            /** @description The note of the closure that covers today; null when none or no note. */
+            todayClosureNote: null | string;
+        };
+        /**
+         * @description The staff view of the weekly hours (CONT-01, D-21): seven days, Monday first, the version a save must send back and who last changed
+         *     any day. The version belongs to the hours alone, so a Business Info save never makes it stale (P-8).
+         */
+        OpeningHoursDto: {
+            /** @description The seven days, Monday first. */
+            days: components["schemas"]["DayHoursDto"][];
+            /**
+             * Format: date-time
+             * @description When any day was last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed any day; null when no person did. */
+            updatedByName: null | string;
+            /** @description The text a save must send back (409 on a stale one). */
+            version: string;
         };
         /** @description An order's cover photo in the list (ORD-04, IMG-04). The addresses are built when the list is read and are never stored. */
         OrderCoverResponse: {
@@ -3279,6 +4122,8 @@ export interface components {
             orderDate: string;
             /** @description The payments, oldest payment date first. */
             payments: components["schemas"]["OrderPaymentResponse"][];
+            /** @description The order's place on the public website. */
+            publicWebsite: components["schemas"]["OrderPublicWebsiteDto"];
             /**
              * Format: date-time
              * @description When it was created.
@@ -3768,6 +4613,68 @@ export interface components {
             /** @description The reference, such as a transfer number; null when none. */
             reference: null | string;
         };
+        /**
+         * @description An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is
+         *     shown, the line it is shown under and the name shown. The pieces and the auto line are worked out by the server from the items.
+         */
+        OrderPublicWebsiteDto: {
+            /**
+             * Format: uuid
+             * @description The line with the most pieces among the items; null when no item is filed under a line.
+             */
+            autoProductLineId: null | string;
+            /** @description False for a Cancelled order, which cannot be shown (D-38). */
+            canShow: boolean;
+            /**
+             * Format: date-time
+             * @description When the OK was recorded; null while there is none.
+             */
+            consentRecordedAtUtc: null | string;
+            /** @description Who recorded the OK; null while there is none. */
+            consentRecordedByName: null | string;
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /** @description True when the order has at least one photo; an order with none does not show until it has one. */
+            hasPhoto: boolean;
+            /**
+             * Format: int32
+             * @description The sum of the item quantities.
+             */
+            pieces: number | string;
+            /**
+             * Format: uuid
+             * @description The line the order is shown under: the one staff chose, else the auto line; null when there is none.
+             */
+            productLineId: null | string;
+            /** @description The title of that line; null when there is none. */
+            productLineTitle: null | string;
+            /** @description The name shown instead of the team; null when the team shows. */
+            publicName: null | string;
+            /** @description True while the order is put on the website. */
+            shownOnWebsite: boolean;
+            /**
+             * Format: date-time
+             * @description When the order was put on the website; null while it is not shown.
+             */
+            shownSinceUtc: null | string;
+        };
+        /**
+         * @description The optional `publicWebsite` block of the New Order and Edit Order forms (UI-SPEC F1, F2). Any other member in the block, such as a
+         *     forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock (D-11).
+         */
+        OrderPublicWebsiteFields: {
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /**
+             * Format: uuid
+             * @description The line to show the order under; null to use the auto line from the items.
+             */
+            productLineId: null | string;
+            /** @description The name shown instead of the team, at most 80 characters; null or empty to show the team. */
+            publicName: null | string;
+            /** @description True to show the order on the website; needs the customer's OK. */
+            showOnWebsite: boolean;
+        };
         /** @description One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in. */
         OrderRefundResponse: {
             /**
@@ -3870,6 +4777,15 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description One phone number of the Business Info form. */
+        PhoneEntry: {
+            /** @description True for the number the Call buttons dial; exactly one number is the main one. */
+            isMain: boolean;
+            /** @description An optional label, at most 20 characters. */
+            label: null | string;
+            /** @description The number as typed; a Philippine mobile or landline number. */
+            number: null | string;
+        };
         ProblemDetails: {
             detail?: null | string;
             instance?: null | string;
@@ -3877,6 +4793,201 @@ export interface components {
             status?: null | number | string;
             title?: null | string;
             type?: null | string;
+        };
+        /** @description One product line with every field, for the editor (CONT-02). */
+        ProductLineDetailDto: {
+            /** @description The Home card text. */
+            cardText: string;
+            /** @description What the Collar style card says. */
+            collarText: string;
+            /**
+             * Format: date-time
+             * @description When the line was added.
+             */
+            createdAtUtc: string;
+            /** @description What the Cut and fit card says. */
+            cutText: string;
+            /** @description The Products page description. */
+            description: string;
+            /** @description What the Fabric card says. */
+            fabricText: string;
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description True while the line shows on the website. */
+            isActive: boolean;
+            /** @description The URL key; it never changes. */
+            key: string;
+            /** @description What the Logos and sponsors card says. */
+            logosText: string;
+            /**
+             * Format: int32
+             * @description The minimum order; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description What the Names and numbers card says. */
+            namesText: string;
+            /** @description The number on the drawing; empty for none. */
+            number: string;
+            /** @description The photos of the three slots; a slot with no photo is null. */
+            photos: components["schemas"]["ProductLinePhotosDto"];
+            /** @description The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The order product types filed under the line, A to Z. */
+            productTypeIds: string[];
+            /** @description The short name. */
+            shortName: string;
+            /**
+             * Format: double
+             * @description The starting price; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title. */
+            title: string;
+            /**
+             * Format: date-time
+             * @description When the line was last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed the line; null when no person did. */
+            updatedByName: null | string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /** @description One row of the Manager's product line list (CONT-02): what the Products tab shows and what its actions need. */
+        ProductLineListItemDto: {
+            /** @description True when nothing is filed under the line, so Delete is offered. */
+            canDelete: boolean;
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description True while the line shows on the website. */
+            isActive: boolean;
+            /** @description The URL key. */
+            key: string;
+            /** @description The small main photo; null until the line has one. */
+            mainPhotoThumb: null | string;
+            /**
+             * Format: int32
+             * @description The minimum order; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /**
+             * Format: int32
+             * @description How many photos the line has.
+             */
+            photoCount: number | string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The order product types filed under the line, A to Z. */
+            productTypeIds: string[];
+            /** @description The short name. */
+            shortName: string;
+            /**
+             * Format: int32
+             * @description How many public gallery items a visitor sees under the line.
+             */
+            shownGalleryCount: number | string;
+            /**
+             * Format: double
+             * @description The starting price; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title. */
+            title: string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /** @description One product line the order window offers (D-09, D-16). */
+        ProductLineOptionDto: {
+            /**
+             * Format: uuid
+             * @description The line id.
+             */
+            id: string;
+            /** @description The short name. */
+            shortName: string;
+            /** @description The title. */
+            title: string;
+        };
+        /** @description One photo of a product line as the Manager's screens read it (D-02). */
+        ProductLinePhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The place on the line: `main`, `back` or `fabric`. */
+            slot: string;
+            /** @description The address of the preview at a size that fits the slot. */
+            src: string;
+            /** @description The `srcset` text with the smaller and larger candidates. */
+            srcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description The three photo slots of a product line as the Manager's editor reads them; a slot with no photo is null. */
+        ProductLinePhotosDto: {
+            back: null | components["schemas"]["ProductLinePhotoDto"];
+            fabric: null | components["schemas"]["ProductLinePhotoDto"];
+            main: null | components["schemas"]["ProductLinePhotoDto"];
+        };
+        /**
+         * @description The product line form (CONT-02, SEC-07), for adding and for editing. Any other member in the body is ignored: the key, the order, the
+         *     drawing, who changed the line and when come from the server (SEC-08).
+         */
+        ProductLineRequest: {
+            /** @description The Home card text, required, at most 140 characters. */
+            cardText: null | string;
+            /** @description What the Collar style card says, required, at most 120 characters. */
+            collarText: null | string;
+            /** @description What the Cut and fit card says, required, at most 120 characters. */
+            cutText: null | string;
+            /** @description The Products page description, required, at most 300 characters. */
+            description: null | string;
+            /** @description What the Fabric card says, required, at most 120 characters. */
+            fabricText: null | string;
+            /** @description True to show the line on the website. A new line is hidden when this is missing; an edit keeps the line as it is when this is missing. */
+            isActive: null | boolean;
+            /** @description What the Logos and sponsors card says, required, at most 120 characters. */
+            logosText: null | string;
+            /**
+             * Format: double
+             * @description The minimum order, a whole number from 1 to 9,999; null for none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description What the Names and numbers card says, required, at most 120 characters. */
+            namesText: null | string;
+            /** @description The number on the drawing, up to 2 letters or digits; empty for none. */
+            number: null | string;
+            /** @description The order product types filed under this line. Missing on an edit keeps the links as they are; a list sets them exactly. */
+            productTypeIds: null | string[];
+            /** @description The short name, required, at most 20 characters, and not used by another line. */
+            shortName: null | string;
+            /**
+             * Format: double
+             * @description The starting price per piece, 0.01 to 999,999.99 with at most two decimals; null for none.
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title, required, at most 60 characters. */
+            title: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The signed-in staff member's own profile (PROF-01). */
         ProfileResponse: {
@@ -3905,6 +5016,299 @@ export interface components {
              * @description The edit version to send back with the next save (SEC-07).
              */
             version: string;
+        };
+        /** @description The shop address as parts; a part that is not set is null. */
+        PublicAddressDto: {
+            /** @description Postal code. */
+            postalCode: null | string;
+            /** @description Province. */
+            province: null | string;
+            /** @description Street and barangay. */
+            street: null | string;
+            /** @description Town or city. */
+            townOrCity: null | string;
+        };
+        /** @description One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included. */
+        PublicClosureDto: {
+            /** @description The first closed day, "yyyy-MM-dd". */
+            firstDay: string;
+            /** @description The last closed day, "yyyy-MM-dd"; the same as the first for a single day. */
+            lastDay: string;
+            /** @description A short reason shown to visitors; null when there is none. */
+            note: null | string;
+        };
+        /** @description The five "what you can customize" texts of a product line, always in this order on the page. */
+        PublicCustomizeDto: {
+            /** @description What the Collar style card says. */
+            collar: string;
+            /** @description What the Cut and fit card says. */
+            cut: string;
+            /** @description What the Fabric card says. */
+            fabric: string;
+            /** @description What the Logos and sponsors card says. */
+            logos: string;
+            /** @description What the Names and numbers card says. */
+            names: string;
+        };
+        /** @description Everything the Gallery draws, in one read (GAL-01, D-10): every public item in gallery order, the pills in display order and the total. */
+        PublicGalleryDto: {
+            /** @description The public items in gallery order. */
+            items: components["schemas"]["PublicGalleryItemDto"][];
+            /** @description One pill for each shown line that has at least one item, in display order. */
+            pills: components["schemas"]["PublicGalleryPillDto"][];
+            /**
+             * Format: int32
+             * @description The number of items.
+             */
+            total: number | string;
+        };
+        /**
+         * @description One tile of the Gallery (D-10): an order with all its photos, or one uploaded photo. It holds public text only (D-13): the name shown, the
+         *     line, the pieces and, for an upload, the note. It never holds a customer's name, phone, email or address, a price, an order note or a
+         *     photo description.
+         */
+        PublicGalleryItemDto: {
+            /**
+             * Format: uuid
+             * @description The id of the gallery entry, stable for the life of the tile.
+             */
+            id: string;
+            /** @description The key of the line the item is filed under, such as "basketball". */
+            lineKey: string;
+            /** @description The short name of that line, such as "Basketball". */
+            lineShortName: string;
+            /** @description The note of an upload; null for an order and for an upload with none. */
+            note: null | string;
+            /** @description The photos in display order, the cover first. */
+            photos: components["schemas"]["PublicGalleryPhotoDto"][];
+            /**
+             * Format: int32
+             * @description How many pieces; null for an upload that gives none.
+             */
+            pieces: null | number | string;
+            /** @description The drawing shown when no photo address is available: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The name shown: the public name when staff typed one, else the team. */
+            team: string;
+        };
+        /** @description One photo of a gallery item, with the addresses of each place the Gallery draws it (D-12, D-30). */
+        PublicGalleryPhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The masonry tile address, at the largest masonry size that fits the photo. */
+            src: string;
+            /** @description The masonry `srcset` text with the smaller sizes. */
+            srcSet: string;
+            /** @description The address of the square lightbox thumb. */
+            thumbSrc: string;
+            /** @description The lightbox address, the whole photo at the middle viewer size. */
+            viewerSrc: string;
+            /** @description The lightbox `srcset` text. */
+            viewerSrcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description One category pill of the Gallery: a shown line that has at least one public item. */
+        PublicGalleryPillDto: {
+            /**
+             * Format: int32
+             * @description How many public items are filed under the line.
+             */
+            count: number | string;
+            /** @description The line key, which the page writes to the address. */
+            key: string;
+            /** @description The short name on the pill. */
+            shortName: string;
+        };
+        /** @description The Home page's hero tag: the newest shown order (D-14). */
+        PublicHeroTagDto: {
+            /** @description The public name of the order. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The number of pieces.
+             */
+            pieces: number | string;
+        };
+        /**
+         * @description What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three
+         *     shown testimonials in display order, the Recent work strip and the hero tag. The last two are empty when no order is shown.
+         */
+        PublicHomeDto: {
+            heroTag: null | components["schemas"]["PublicHeroTagDto"];
+            /**
+             * Format: int32
+             * @description How many lines are shown.
+             */
+            lineCount: number | string;
+            /** @description The shown product lines in display order. */
+            lines: components["schemas"]["PublicHomeLineDto"][];
+            /** @description The Recent work tiles, newest first, at most six; empty when no order is shown. */
+            recentWork: components["schemas"]["PublicRecentWorkDto"][];
+            /** @description The first three shown testimonials in display order; empty when none is shown. */
+            testimonials: components["schemas"]["PublicTestimonialDto"][];
+        };
+        /** @description One product line card on the Home page (PUB-02, D-01): what a visitor needs to draw it and link to its place on Products. */
+        PublicHomeLineDto: {
+            cardPhoto: null | components["schemas"]["PublicPhotoDto"];
+            /** @description The card text. */
+            cardText: string;
+            /** @description The key the card links to, such as "basketball" (`/products#basketball`). */
+            key: string;
+            /** @description The number drawn on the jersey, such as "23". */
+            number: string;
+            /** @description The drawing shown when the line has no photo: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The title, such as "Basketball Jerseys". */
+            title: string;
+        };
+        /** @description The three photo slots of a product line; a slot with no photo is null and the page shows the drawing. */
+        PublicLinePhotosDto: {
+            back: null | components["schemas"]["PublicPhotoDto"];
+            fabric: null | components["schemas"]["PublicPhotoDto"];
+            main: null | components["schemas"]["PublicPhotoDto"];
+        };
+        /** @description One public phone number. */
+        PublicPhoneDto: {
+            /** @description The number as people read it, such as "0917 123 4567". */
+            display: string;
+            /** @description The number for a `tel:` link, such as "+639171234567". */
+            e164: string;
+            /** @description True for the number the Call buttons dial; the main number is listed first. */
+            isMain: boolean;
+            /** @description An optional label such as "Globe"; null when not set. */
+            label: null | string;
+        };
+        /** @description One photo of a product line, as the public page draws it. */
+        PublicPhotoDto: {
+            /**
+             * Format: int32
+             * @description The upright height in pixels.
+             */
+            height: number | string;
+            /** @description The address of the photo at its largest size. */
+            src: string;
+            /** @description The `srcset` text with the smaller sizes. */
+            srcSet: string;
+            /**
+             * Format: int32
+             * @description The upright width in pixels.
+             */
+            width: number | string;
+        };
+        /** @description One product line a visitor sees (PUB-02). */
+        PublicProductLineDto: {
+            /** @description The Home card text. */
+            cardText: string;
+            /** @description The five "what you can customize" texts. */
+            customize: components["schemas"]["PublicCustomizeDto"];
+            /** @description The Products page description. */
+            description: string;
+            /** @description True when the Gallery has a photo under this line, so "See {short name} work" has something to show. */
+            hasGalleryItems: boolean;
+            /** @description The key the page anchors and gallery filters use, such as "basketball". */
+            key: string;
+            /**
+             * Format: int32
+             * @description The minimum order in pieces; null when there is none.
+             */
+            minimumQuantity: null | number | string;
+            /** @description The number drawn on the jersey and the empty photo boxes, such as "23". */
+            number: string;
+            /** @description The photos; each slot is null until a Manager adds one. */
+            photos: components["schemas"]["PublicLinePhotosDto"];
+            /** @description The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`. */
+            placeholderArt: string;
+            /** @description The short name, such as "Basketball". */
+            shortName: string;
+            /**
+             * Format: double
+             * @description The starting price per piece in pesos; null means "Message us for a price".
+             */
+            startsAtPrice: null | number | string;
+            /** @description The title, such as "Basketball Jerseys". */
+            title: string;
+        };
+        /** @description The shown product lines in display order; empty when the Manager has hidden all of them (CONT-02). */
+        PublicProductLinesDto: {
+            /** @description The lines. */
+            lines: components["schemas"]["PublicProductLineDto"][];
+        };
+        /** @description One tile of the Home page's Recent work strip: one of the six newest shown orders (D-14). */
+        PublicRecentWorkDto: {
+            /** @description The key of the order's line, which the tile links to in the Gallery. */
+            lineKey: string;
+            /** @description The short name of the order's line. */
+            lineShortName: string;
+            photo: null | components["schemas"]["PublicPhotoDto"];
+            /**
+             * Format: int32
+             * @description The number of pieces; null when unknown.
+             */
+            pieces: null | number | string;
+            /** @description The drawing shown when the order has no photo. */
+            placeholderArt: string;
+            /** @description The public name of the order. */
+            team: string;
+        };
+        /**
+         * @description The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is
+         *     not a member (D-25). A value that is not set is null and the page leaves it out.
+         */
+        PublicSiteDto: {
+            /** @description The about text, used in search results. */
+            aboutText: null | string;
+            /** @description The address parts. */
+            address: components["schemas"]["PublicAddressDto"];
+            /** @description The business name. */
+            businessName: string;
+            /** @description The directions link. */
+            directionsUrl: null | string;
+            /** @description The Facebook page link. */
+            facebookUrl: null | string;
+            /** @description The weekly hours, seven days with Monday (1) first; a closed day has no times. */
+            hours: components["schemas"]["DayHoursDto"][];
+            /** @description The Instagram link. */
+            instagramUrl: null | string;
+            /** @description The map embed link. */
+            mapEmbedUrl: null | string;
+            /** @description The Messenger link. */
+            messengerUrl: null | string;
+            /** @description The phone numbers, the main one first. */
+            phones: components["schemas"]["PublicPhoneDto"][];
+            /** @description The tagline. */
+            tagline: string;
+            /** @description The TikTok link. */
+            tiktokUrl: null | string;
+            /** @description The turnaround promise; null makes no time promise. */
+            turnaroundLine: null | string;
+            /** @description The closures in the next 30 days; empty until a Manager adds one. */
+            upcomingClosures: components["schemas"]["PublicClosureDto"][];
+            /**
+             * Format: int32
+             * @description The current business-calendar year, for the footer's copyright line.
+             */
+            year: number | string;
+        };
+        /** @description One testimonial a visitor sees (CONT-03, D-05). */
+        PublicTestimonialDto: {
+            /** @description The name shown under the quote. */
+            name: string;
+            /** @description The customer's words. */
+            quote: string;
+            /**
+             * Format: int32
+             * @description The rating, 1 to 5.
+             */
+            stars: number | string;
+            /** @description The team or role line; null when not set. */
+            teamOrRole: null | string;
         };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
@@ -4023,12 +5427,81 @@ export interface components {
             newPassword: null | string;
         };
         /**
+         * @description The Public Website window of an order (D-09 to D-16). It carries the version the window was opened with. Any other member in the body,
+         *     such as a forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock.
+         */
+        SetOrderPublicSettingsRequest: {
+            /** @description True when the customer said OK to show. */
+            customerConsent: boolean;
+            /**
+             * Format: uuid
+             * @description The line to show the order under; null to use the auto line from the items.
+             */
+            productLineId: null | string;
+            /** @description The name shown instead of the team, at most 80 characters; null or empty to show the team. */
+            publicName: null | string;
+            /** @description True to show the order on the website; needs the customer's OK. */
+            showOnWebsite: boolean;
+            /** @description The base64 of the eight-byte row version the window was opened with. */
+            version: null | string;
+        };
+        /**
          * @description The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account
          *     port and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).
          */
         SetTemporaryPasswordRequest: {
             /** @description The temporary password as typed. */
             temporaryPassword: null | string;
+        };
+        /**
+         * @description The default link preview picture as the Business Info card shows it (D-26): a small and a larger preview at the 1.91:1 shape, and
+         *     the size of the stored file. A site with no picture has none of this: the settings carry null.
+         */
+        SharePictureDto: {
+            /**
+             * Format: int32
+             * @description The upright height of the stored picture in pixels.
+             */
+            height: number | string;
+            /** @description The address of the 320 x 168 preview. */
+            src320: string;
+            /** @description The address of the 640 x 336 preview, for the full-width view on a phone. */
+            src640: string;
+            /**
+             * Format: int32
+             * @description The upright width of the stored picture in pixels.
+             */
+            width: number | string;
+        };
+        /** @description One closure as a Manager sees it (CONT-04): the days as "yyyy-MM-dd", the public note and the version a save must send back. */
+        ShopClosureDto: {
+            /** @description The first closed day, "yyyy-MM-dd". */
+            firstDay: string;
+            /**
+             * Format: uuid
+             * @description The closure id.
+             */
+            id: string;
+            /** @description The last closed day, "yyyy-MM-dd"; the same as the first for a single day. */
+            lastDay: string;
+            /** @description A short reason shown to visitors; null when there is none. */
+            note: null | string;
+            /** @description The text a save must send back (409 on a stale one). */
+            version: string;
+        };
+        /**
+         * @description The closure form (CONT-04, SEC-07), for adding and for editing. Any other member in the body is ignored: who changed the closure
+         *     and when come from the token and the clock (SEC-08).
+         */
+        ShopClosureRequest: {
+            /** @description The first closed day as "yyyy-MM-dd"; required. */
+            firstDay: null | string;
+            /** @description The last closed day as "yyyy-MM-dd"; empty or missing means one day. */
+            lastDay: null | string;
+            /** @description A short reason shown to visitors, at most 80 characters; empty or missing means none. */
+            note: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The sign-in form: email, password and the "keep me signed in" choice (D-03). */
         SignInRequest: {
@@ -4039,26 +5512,69 @@ export interface components {
             /** @description The password, exactly as typed. */
             password: null | string;
         };
-        /** @description The site settings as the API returns them (D-29). Read-only for now; editing comes later. */
+        /** @description One phone number as the Business Info form shows it. */
+        SitePhoneDto: {
+            /** @description True for the number the Call buttons dial. */
+            isMain: boolean;
+            /** @description An optional label such as "Globe"; null when not set. */
+            label: null | string;
+            /** @description The number as people read it, such as "0917 123 4567"; the form sends the same text back. */
+            number: string;
+        };
+        /**
+         * @description The staff view of the site settings (D-29, CONT-01): every Business Info field, the shop email, the phones, the version a save must
+         *     send back and who last changed the settings. The time zone, currency and locale are fixed and only shown (D-35). A value that is
+         *     not set is null.
+         */
         SiteSettingsDto: {
-            /** @description Public shop address. */
-            addressLine: string;
-            /** @description The business name shown on the site. */
+            /** @description The about text. */
+            aboutText: null | string;
+            /** @description The business name. */
             businessName: string;
-            /** @description Public contact email. */
-            contactEmail: string;
-            /** @description Public contact phone. */
-            contactPhone: string;
-            /** @description ISO 4217 currency code. */
+            /** @description The shop email, for staff use only. */
+            contactEmail: null | string;
+            /** @description ISO 4217 currency code; read-only. */
             currencyCode: string;
-            /** @description Public Facebook page URL. */
-            facebookUrl: string;
-            /** @description Formatting locale. */
+            /** @description The directions link. */
+            directionsUrl: null | string;
+            /** @description The Facebook page link. */
+            facebookUrl: null | string;
+            /** @description The Instagram link. */
+            instagramUrl: null | string;
+            /** @description Formatting locale; read-only. */
             locale: string;
-            /** @description Base64 concurrency token, echoed back by a future edit (409 on conflict). */
-            rowVersion: string;
-            /** @description The business time zone id. */
+            /** @description The map embed link. */
+            mapEmbedUrl: null | string;
+            /** @description The Messenger link. */
+            messengerUrl: null | string;
+            /** @description The phone numbers, the main one first. */
+            phones: components["schemas"]["SitePhoneDto"][];
+            /** @description Postal code. */
+            postalCode: null | string;
+            /** @description Province. */
+            province: null | string;
+            sharePicture: null | components["schemas"]["SharePictureDto"];
+            /** @description Street and barangay. */
+            street: null | string;
+            /** @description The tagline. */
+            tagline: string;
+            /** @description The TikTok link. */
+            tiktokUrl: null | string;
+            /** @description The business time zone id; read-only. */
             timeZoneId: string;
+            /** @description Town or city. */
+            townOrCity: null | string;
+            /** @description The turnaround line. */
+            turnaroundLine: null | string;
+            /**
+             * Format: date-time
+             * @description When the settings were last changed; null until a change.
+             */
+            updatedAtUtc: null | string;
+            /** @description The name of the person who last changed the settings; null when no person did. */
+            updatedByName: null | string;
+            /** @description The base64 of the eight-byte row version a save must send back (409 on a stale one). */
+            version: string;
         };
         /** @description One person's row in the all-staff list. */
         StaffBalanceRow: {
@@ -4124,6 +5640,55 @@ export interface components {
              * @description The person.
              */
             userId: string;
+        };
+        /** @description One testimonial as the Manager's Testimonials tab reads it (CONT-03, D-05). */
+        TestimonialDto: {
+            /**
+             * Format: uuid
+             * @description The testimonial id.
+             */
+            id: string;
+            /** @description True while the testimonial can show on the website. */
+            isShown: boolean;
+            /** @description The name shown under the quote. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The place in the order, from 1.
+             */
+            position: number | string;
+            /** @description The customer's words. */
+            quote: string;
+            /**
+             * Format: int32
+             * @description The rating, 1 to 5.
+             */
+            stars: number | string;
+            /** @description The team or role line; null when not set. */
+            teamOrRole: null | string;
+            /** @description The text an edit must send back. */
+            version: string;
+        };
+        /**
+         * @description The testimonial form (CONT-03, SEC-07), for adding and for editing. Any other member in the body is ignored: the order, who changed
+         *     the testimonial and when come from the server (SEC-08).
+         */
+        TestimonialRequest: {
+            /** @description True to show the testimonial on the website. A new testimonial is hidden when this is missing; an edit keeps it as it is when this is missing. */
+            isShown: null | boolean;
+            /** @description The name, required, at most 60 characters. */
+            name: null | string;
+            /** @description The customer's words, required, at most 300 characters. */
+            quote: null | string;
+            /**
+             * Format: double
+             * @description The rating, a whole number from 1 to 5.
+             */
+            stars: null | number | string;
+            /** @description The team or role line, at most 80 characters; empty for none. */
+            teamOrRole: null | string;
+            /** @description The version the form was opened with; required when editing, ignored when adding. */
+            version: null | string;
         };
         /** @description The category with the highest total this month. */
         TopCategoryKpi: {
@@ -4200,6 +5765,16 @@ export interface components {
             version: null | string;
         };
         /**
+         * @description The weekly hours form (CONT-01, SEC-07). All seven days are sent every time. Any other member in the body is ignored: who changed the
+         *     hours and when come from the token and the clock (SEC-08).
+         */
+        UpdateOpeningHoursRequest: {
+            /** @description The seven days, each once, in any order; a closed day has no times. */
+            days: null | components["schemas"]["DayHoursDto"][];
+            /** @description The week version the form was opened with; required. */
+            version: null | string;
+        };
+        /**
          * @description The Edit Order details form (ORD-05, SEC-07). It carries the version the form was opened with. Any other member in the body,
          *     such as a forged `createdById`, `updatedById`, `number`, `status` or `totals`, is ignored: who changed the
          *     order and when come from the token and the clock (SEC-08), and the number, status and money figures are not editable here.
@@ -4219,6 +5794,7 @@ export interface components {
             notes: null | string;
             /** @description The day the order was taken, `yyyy-MM-dd`. */
             orderDate: null | string;
+            publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
             /** @description The team or club name. */
             teamName: null | string;
             /** @description The base64 of the eight-byte row version the form was opened with. */
@@ -4358,6 +5934,46 @@ export interface components {
             /** @description Family name. */
             lastName: null | string;
             /** @description The edit version as a GUID in `D` form. */
+            version: null | string;
+        };
+        /**
+         * @description The Business Info form (CONT-01, SEC-07). An empty optional value clears it. Any other member in the body is ignored: who changed
+         *     the settings and when come from the token and the clock (SEC-08).
+         */
+        UpdateSiteSettingsRequest: {
+            /** @description The about text; at most 600 characters. */
+            aboutText: null | string;
+            /** @description The business name; required, at most 100 characters. */
+            businessName: null | string;
+            /** @description The shop email, for staff use only; at most 254 characters. */
+            contactEmail: null | string;
+            /** @description A Google Maps link. */
+            directionsUrl: null | string;
+            /** @description A Facebook page link. */
+            facebookUrl: null | string;
+            /** @description An Instagram link. */
+            instagramUrl: null | string;
+            /** @description A `https://www.google.com/maps/embed?` link. */
+            mapEmbedUrl: null | string;
+            /** @description A `https://m.me/` link. */
+            messengerUrl: null | string;
+            /** @description One to four numbers, exactly one of them the main one. */
+            phones: null | components["schemas"]["PhoneEntry"][];
+            /** @description The 4-digit postal code. */
+            postalCode: null | string;
+            /** @description Province; required, at most 60 characters. */
+            province: null | string;
+            /** @description Street and barangay; required, at most 120 characters. */
+            street: null | string;
+            /** @description The tagline; required, at most 160 characters. */
+            tagline: null | string;
+            /** @description A TikTok link. */
+            tiktokUrl: null | string;
+            /** @description Town or city; required, at most 60 characters. */
+            townOrCity: null | string;
+            /** @description The turnaround line; at most 120 characters. */
+            turnaroundLine: null | string;
+            /** @description The base64 of the eight-byte row version the form was opened with; required. */
             version: null | string;
         };
         /**
@@ -6134,6 +7750,589 @@ export interface operations {
             };
         };
     };
+    ListGalleryItems: {
+        parameters: {
+            query?: {
+                /** @description A product line id; none means every line. */
+                line?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page, from 1 to 100; 20 when not sent. */
+                pageSize?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemListDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                } & {
+                    teamName?: string;
+                } & {
+                    productLineId?: string;
+                } & {
+                    pieces?: string;
+                } & {
+                    note?: string;
+                } & {
+                    isShown?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    UpdateGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["GalleryUploadRequest"];
+                "application/json": null | components["schemas"]["GalleryUploadRequest"];
+                "text/json": null | components["schemas"]["GalleryUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveGalleryItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "application/json": null | components["schemas"]["MoveGalleryItemRequest"];
+                "text/json": null | components["schemas"]["MoveGalleryItemRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReplaceGalleryPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GalleryItemRowDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    ShowGalleryUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The gallery entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListMoneyTransfers: {
         parameters: {
             query?: {
@@ -6464,6 +8663,107 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOpeningHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningHoursDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateOpeningHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+                "application/json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+                "text/json": null | components["schemas"]["UpdateOpeningHoursRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningHoursDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8669,6 +10969,81 @@ export interface operations {
             };
         };
     };
+    SetOrderPublicSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The order id. */
+                orderId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+                "application/json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+                "text/json": null | components["schemas"]["SetOrderPublicSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AddOrderRefund: {
         parameters: {
             query?: never;
@@ -9233,6 +11608,687 @@ export interface operations {
             path: {
                 /** @description The payment method id. */
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductLines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineListItemDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ProductLineRequest"];
+                "application/json": null | components["schemas"]["ProductLineRequest"];
+                "text/json": null | components["schemas"]["ProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProductLineOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineOptionDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ProductLineRequest"];
+                "application/json": null | components["schemas"]["ProductLineRequest"];
+                "text/json": null | components["schemas"]["ProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLineDetailDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveProductLineRequest"];
+                "application/json": null | components["schemas"]["MoveProductLineRequest"];
+                "text/json": null | components["schemas"]["MoveProductLineRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowProductLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The line id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadProductLinePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product line id. */
+                lineId: string;
+                /** @description The slot: `main`, `back` or `fabric`. */
+                slot: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductLinePhotoDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    RemoveProductLinePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The product line id. */
+                lineId: string;
+                /** @description The slot: `main`, `back` or `fabric`. */
+                slot: string;
             };
             cookie?: never;
         };
@@ -10081,6 +13137,187 @@ export interface operations {
             };
         };
     };
+    GetPublicGallery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicGalleryDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicHome: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicHomeDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetOpenStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenStatusDto"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicProductLines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicProductLinesDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPublicSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSiteDto"];
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListSessions: {
         parameters: {
             query?: never;
@@ -10169,6 +13406,241 @@ export interface operations {
             };
         };
     };
+    ListShopClosures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ShopClosureRequest"];
+                "application/json": null | components["schemas"]["ShopClosureRequest"];
+                "text/json": null | components["schemas"]["ShopClosureRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The closure id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ShopClosureRequest"];
+                "application/json": null | components["schemas"]["ShopClosureRequest"];
+                "text/json": null | components["schemas"]["ShopClosureRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopClosureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteShopClosure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The closure id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetSiteSettings: {
         parameters: {
             query?: never;
@@ -10185,6 +13657,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+        };
+    };
+    UpdateSiteSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+                "application/json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+                "text/json": null | components["schemas"]["UpdateSiteSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteSettingsDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadSharePicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharePictureDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    RemoveSharePicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -10446,6 +14127,434 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTestimonials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["TestimonialRequest"];
+                "application/json": null | components["schemas"]["TestimonialRequest"];
+                "text/json": null | components["schemas"]["TestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["TestimonialRequest"];
+                "application/json": null | components["schemas"]["TestimonialRequest"];
+                "text/json": null | components["schemas"]["TestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestimonialDto"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    HideTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MoveTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["MoveTestimonialRequest"];
+                "application/json": null | components["schemas"]["MoveTestimonialRequest"];
+                "text/json": null | components["schemas"]["MoveTestimonialRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ShowTestimonial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The testimonial id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

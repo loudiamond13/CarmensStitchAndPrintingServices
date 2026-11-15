@@ -49,8 +49,8 @@ public sealed class OrderReaderDetailSnapshotTests(CspsDatabase database) : ICla
         var view = await new OrderReader(context, new FixedBusinessCalendar(Now), new TestingImageDelivery()).GetDetailAsync(id, TestContext.Current.CancellationToken);
 
         view.ShouldNotBeNull().CustomerName.ShouldBe("Juan Dela Cruz");
-        // Header, seven lists (items to photos), then the version check.
-        counter.Count.ShouldBe(9, string.Join(Environment.NewLine, counter.Commands));
+        // Header, seven lists (items to photos), the product lines for the public website block, then the version check.
+        counter.Count.ShouldBe(10, string.Join(Environment.NewLine, counter.Commands));
     }
 
     [Fact]

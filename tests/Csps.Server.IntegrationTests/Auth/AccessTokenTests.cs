@@ -1,6 +1,5 @@
 using System.Net;
 using Csps.Application.Auth;
-using Csps.Application.Content;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Server.Composition;
@@ -74,8 +73,8 @@ public sealed class AccessTokenTests
         await using var baseFactory = new CspsApiFactory();
         await using var factory = baseFactory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<ISiteSettingsReader>();
-            services.AddScoped<ISiteSettingsReader, FixedSiteSettingsReader>();
+            services.RemoveAll<ISiteContentStore>();
+            services.AddScoped<ISiteContentStore, FixedSiteContentStore>();
         }));
         using var client = factory.CreateClient();
         var access = NewIssuer(TimeProvider.System).Issue(UserId, Roles.Manager, SessionId);
@@ -99,12 +98,4 @@ public sealed class AccessTokenTests
         Options.Create(new JwtOptions { Issuer = TestJwt.Issuer, Audience = TestJwt.Audience, SigningKey = TestJwt.SigningKeyBase64 }),
         new AuthSettings(),
         time);
-
-    // Answers from memory, so a signed-in request succeeds without a database.
-    private sealed class FixedSiteSettingsReader : ISiteSettingsReader
-    {
-        public ValueTask<SiteSettingsSnapshot> GetAsync(CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SiteSettingsSnapshot(
-                "Carmen's Stitch & Printing Services", "Asia/Manila", "PHP", "en-PH", string.Empty, string.Empty, string.Empty, string.Empty, "AAAAAAAAB9E="));
-    }
 }

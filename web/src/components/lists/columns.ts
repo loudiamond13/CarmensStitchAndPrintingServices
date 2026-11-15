@@ -15,18 +15,26 @@ export interface ResponsiveTableColumn<T> {
   lead?: boolean | undefined;
   /** The row actions (`td.r.is-acts`); the header text is visually hidden. */
   actions?: boolean | undefined;
+  /**
+   * Many row actions (more than three 36px buttons would cover the card title): on phones the actions cell sits in the card under the other
+   * cells, end-aligned, instead of pinned to the top right over the title. Only with `actions`.
+   */
+  flowActions?: boolean | undefined;
   /** An end-aligned tabular money cell (`th.r`, `td.r.m`). */
   money?: boolean | undefined;
   /** A muted cell (`.s-muted`, like App. E.12 "Created"). */
   muted?: boolean | undefined;
 }
 
-/** The three cell looks: the phone card title (`td.is-lead`), the pinned actions (`td.is-acts`) or a plain value. */
-export type CellKind = 'plain' | 'lead' | 'actions';
+/**
+ * The cell looks: the phone card title (`td.is-lead`), the pinned actions (`td.is-acts`), actions that flow in the card (`flowActions`) or a
+ * plain value.
+ */
+export type CellKind = 'plain' | 'lead' | 'actions' | 'flowActions';
 
-export function kindOf(column: Pick<ResponsiveTableColumn<never>, 'lead' | 'actions'>): CellKind {
+export function kindOf(column: Pick<ResponsiveTableColumn<never>, 'lead' | 'actions' | 'flowActions'>): CellKind {
   if (column.lead === true) return 'lead';
-  if (column.actions === true) return 'actions';
+  if (column.actions === true) return column.flowActions === true ? 'flowActions' : 'actions';
   return 'plain';
 }
 

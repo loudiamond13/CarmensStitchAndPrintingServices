@@ -1260,6 +1260,17 @@
               "array"
             ]
           },
+          "publicWebsite": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderPublicWebsiteFields",
+                "description": "The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F1); when absent the order has no consent and is not shown."
+              }
+            ]
+          },
           "status": {
             "description": "The status to start in: pending, mockup, production, ready or delivered; pending when not sent.",
             "type": [
@@ -1632,6 +1643,40 @@
           "expenses",
           "statuses",
           "recentOrders"
+        ],
+        "type": "object"
+      },
+      "DayHoursDto": {
+        "description": "One weekday's hours as people send and read them. A closed day has no times.",
+        "properties": {
+          "closesAt": {
+            "description": "The closing time as \"HH:mm\" (24 hours); null on a closed day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "day": {
+            "description": "The weekday, 1 for Monday to 7 for Sunday.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "opensAt": {
+            "description": "The opening time as \"HH:mm\" (24 hours); null on a closed day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "day",
+          "opensAt",
+          "closesAt"
         ],
         "type": "object"
       },
@@ -2158,6 +2203,215 @@
         },
         "required": [
           "email"
+        ],
+        "type": "object"
+      },
+      "GalleryItemListDto": {
+        "description": "One page of the Manager's gallery list.",
+        "properties": {
+          "page": {
+            "description": "The page number, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "rows": {
+            "description": "The rows of the page, in gallery order.",
+            "items": {
+              "$ref": "#/components/schemas/GalleryItemRowDto"
+            },
+            "type": "array"
+          },
+          "size": {
+            "description": "The page size.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many items match the filter over every page.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "size"
+        ],
+        "type": "object"
+      },
+      "GalleryItemRowDto": {
+        "description": "One gallery item as the Manager's Gallery tab reads it (GAL-03, D-10).",
+        "properties": {
+          "id": {
+            "description": "The gallery entry id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isShown": {
+            "description": "True while the item can show on the website; always true for an order item, which is listed while it is shown.",
+            "type": "boolean"
+          },
+          "kind": {
+            "description": "`order` or `upload`.",
+            "type": "string"
+          },
+          "lineHidden": {
+            "description": "True when the line is hidden, so the item is off the public site.",
+            "type": "boolean"
+          },
+          "lineId": {
+            "description": "The line the item is filed under; null when an order has none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineShortName": {
+            "description": "The line's short name; null when there is no line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "The name shown.",
+            "type": "string"
+          },
+          "note": {
+            "description": "The note of an upload; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderId": {
+            "description": "The order of an order item; null on an upload.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "The number of an order item; null on an upload.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pieces": {
+            "description": "The pieces; null for an upload that gives none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "thumb": {
+            "description": "The address of the small square photo; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit of an upload must send back; null on an order item.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "lineId",
+          "lineShortName",
+          "lineHidden",
+          "pieces",
+          "isShown",
+          "orderId",
+          "orderNumber",
+          "note",
+          "thumb",
+          "version"
+        ],
+        "type": "object"
+      },
+      "GalleryUploadRequest": {
+        "description": "The fields of the gallery upload form (GAL-03, SEC-07), for adding (sent as form parts next to the photo) and for editing (sent as JSON).\nAny other member is ignored: who added the upload and when come from the server (SEC-08).",
+        "properties": {
+          "isShown": {
+            "description": "True to show the upload on the website. A new upload is hidden when this is missing; an edit keeps it as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "note": {
+            "description": "The note, at most 120 characters; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pieces": {
+            "description": "The pieces, a whole number from 1 to 9,999; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "productLineId": {
+            "description": "The line the upload is filed under, required.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or name shown, required, at most 80 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "teamName",
+          "productLineId",
+          "pieces",
+          "note",
+          "isShown",
+          "version"
         ],
         "type": "object"
       },
@@ -2749,6 +3003,30 @@
         ],
         "type": "object"
       },
+      "MoveGalleryItemRequest": {
+        "description": "The gallery move form: which way an item goes in the one gallery order, and the line the Manager's list is filtered to.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lineId": {
+            "description": "The line the list is filtered to; the neighbour is then the next item of that line. Null when the list shows every line.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
       "MoveOrderImageRequest": {
         "description": "Moves one photo of a saved order to a place (ORD-04, D-13, D-14). Place 0 is the cover, so \"Make Cover\" is the same request with\nplace 0. It carries the order's version as the page was opened. Any other member in the body is ignored.",
         "properties": {
@@ -2773,6 +3051,155 @@
         "required": [
           "position",
           "version"
+        ],
+        "type": "object"
+      },
+      "MoveProductLineRequest": {
+        "description": "The move form: which way a line goes in the order.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "MoveTestimonialRequest": {
+        "description": "The move form: which way a testimonial goes in the order.",
+        "properties": {
+          "direction": {
+            "description": "\"up\" or \"down\".",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "NextOpeningDto": {
+        "description": "When the shop opens next, as facts the page turns into words (D-22).",
+        "properties": {
+          "date": {
+            "description": "The business date of the opening, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "day": {
+            "description": "The weekday of that date, 1 for Monday to 7 for Sunday.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "opensAt": {
+            "description": "The opening time as \"HH:mm\" (24 hours).",
+            "type": "string"
+          },
+          "when": {
+            "description": "\"today\", \"tomorrow\" or \"weekday\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "day",
+          "opensAt",
+          "when"
+        ],
+        "type": "object"
+      },
+      "OpenStatusDto": {
+        "description": "Whether the shop is open now, worked out by the server in business time (PUB-05, D-22). The page only turns these facts into words.",
+        "properties": {
+          "closedToday": {
+            "description": "True when a closure covers today.",
+            "type": "boolean"
+          },
+          "closesAt": {
+            "description": "The closing time today as \"HH:mm\" when open; otherwise null.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOpen": {
+            "description": "True when the shop is open at this instant.",
+            "type": "boolean"
+          },
+          "nextOpening": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NextOpeningDto",
+                "description": "The next opening within 38 days (the longest closure and a week); null when open or when nothing opens in that time."
+              }
+            ]
+          },
+          "todayClosureNote": {
+            "description": "The note of the closure that covers today; null when none or no note.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "isOpen",
+          "closesAt",
+          "closedToday",
+          "todayClosureNote",
+          "nextOpening"
+        ],
+        "type": "object"
+      },
+      "OpeningHoursDto": {
+        "description": "The staff view of the weekly hours (CONT-01, D-21): seven days, Monday first, the version a save must send back and who last changed\nany day. The version belongs to the hours alone, so a Business Info save never makes it stale (P-8).",
+        "properties": {
+          "days": {
+            "description": "The seven days, Monday first.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": "array"
+          },
+          "updatedAtUtc": {
+            "description": "When any day was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed any day; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text a save must send back (409 on a stale one).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days",
+          "version",
+          "updatedByName",
+          "updatedAtUtc"
         ],
         "type": "object"
       },
@@ -2925,6 +3352,10 @@
             },
             "type": "array"
           },
+          "publicWebsite": {
+            "$ref": "#/components/schemas/OrderPublicWebsiteDto",
+            "description": "The order's place on the public website."
+          },
           "recordedAt": {
             "description": "When it was created.",
             "format": "date-time",
@@ -3006,6 +3437,7 @@
           "statusHistory",
           "images",
           "totals",
+          "publicWebsite",
           "recordedBy",
           "recordedAt",
           "lastChangedBy",
@@ -4092,6 +4524,139 @@
         ],
         "type": "object"
       },
+      "OrderPublicWebsiteDto": {
+        "description": "An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is\nshown, the line it is shown under and the name shown. The pieces and the auto line are worked out by the server from the items.",
+        "properties": {
+          "autoProductLineId": {
+            "description": "The line with the most pieces among the items; null when no item is filed under a line.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "canShow": {
+            "description": "False for a Cancelled order, which cannot be shown (D-38).",
+            "type": "boolean"
+          },
+          "consentRecordedAtUtc": {
+            "description": "When the OK was recorded; null while there is none.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "consentRecordedByName": {
+            "description": "Who recorded the OK; null while there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "hasPhoto": {
+            "description": "True when the order has at least one photo; an order with none does not show until it has one.",
+            "type": "boolean"
+          },
+          "pieces": {
+            "description": "The sum of the item quantities.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productLineId": {
+            "description": "The line the order is shown under: the one staff chose, else the auto line; null when there is none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productLineTitle": {
+            "description": "The title of that line; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team; null when the team shows.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shownOnWebsite": {
+            "description": "True while the order is put on the website.",
+            "type": "boolean"
+          },
+          "shownSinceUtc": {
+            "description": "When the order was put on the website; null while it is not shown.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerConsent",
+          "consentRecordedAtUtc",
+          "consentRecordedByName",
+          "shownOnWebsite",
+          "shownSinceUtc",
+          "productLineId",
+          "productLineTitle",
+          "autoProductLineId",
+          "publicName",
+          "pieces",
+          "hasPhoto",
+          "canShow"
+        ],
+        "type": "object"
+      },
+      "OrderPublicWebsiteFields": {
+        "description": "The optional `publicWebsite` block of the New Order and Edit Order forms (UI-SPEC F1, F2). Any other member in the block, such as a\nforged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock (D-11).",
+        "properties": {
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "productLineId": {
+            "description": "The line to show the order under; null to use the auto line from the items.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team, at most 80 characters; null or empty to show the team.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showOnWebsite": {
+            "description": "True to show the order on the website; needs the customer's OK.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "customerConsent",
+          "showOnWebsite",
+          "productLineId",
+          "publicName"
+        ],
+        "type": "object"
+      },
       "OrderRefundResponse": {
         "description": "One refund (ORD-18, D-07). Refunded by is who handed the money back; recorded by is who typed the refund in.",
         "properties": {
@@ -4318,6 +4883,35 @@
         ],
         "type": "object"
       },
+      "PhoneEntry": {
+        "description": "One phone number of the Business Info form.",
+        "properties": {
+          "isMain": {
+            "description": "True for the number the Call buttons dial; exactly one number is the main one.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label, at most 20 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number as typed; a Philippine mobile or landline number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "number",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "properties": {
           "detail": {
@@ -4354,6 +4948,521 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "ProductLineDetailDto": {
+        "description": "One product line with every field, for the editor (CONT-02).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text.",
+            "type": "string"
+          },
+          "collarText": {
+            "description": "What the Collar style card says.",
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "description": "When the line was added.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "cutText": {
+            "description": "What the Cut and fit card says.",
+            "type": "string"
+          },
+          "description": {
+            "description": "The Products page description.",
+            "type": "string"
+          },
+          "fabricText": {
+            "description": "What the Fabric card says.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "description": "True while the line shows on the website.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The URL key; it never changes.",
+            "type": "string"
+          },
+          "logosText": {
+            "description": "What the Logos and sponsors card says.",
+            "type": "string"
+          },
+          "minimumQuantity": {
+            "description": "The minimum order; null for none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "namesText": {
+            "description": "What the Names and numbers card says.",
+            "type": "string"
+          },
+          "number": {
+            "description": "The number on the drawing; empty for none.",
+            "type": "string"
+          },
+          "photos": {
+            "$ref": "#/components/schemas/ProductLinePhotosDto",
+            "description": "The photos of the three slots; a slot with no photo is null."
+          },
+          "placeholderArt": {
+            "description": "The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under the line, A to Z.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "startsAtPrice": {
+            "description": "The starting price; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          },
+          "updatedAtUtc": {
+            "description": "When the line was last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed the line; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "title",
+          "shortName",
+          "number",
+          "cardText",
+          "description",
+          "fabricText",
+          "collarText",
+          "cutText",
+          "namesText",
+          "logosText",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "position",
+          "placeholderArt",
+          "productTypeIds",
+          "photos",
+          "version",
+          "updatedByName",
+          "createdAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object"
+      },
+      "ProductLineListItemDto": {
+        "description": "One row of the Manager's product line list (CONT-02): what the Products tab shows and what its actions need.",
+        "properties": {
+          "canDelete": {
+            "description": "True when nothing is filed under the line, so Delete is offered.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isActive": {
+            "description": "True while the line shows on the website.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The URL key.",
+            "type": "string"
+          },
+          "mainPhotoThumb": {
+            "description": "The small main photo; null until the line has one.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minimumQuantity": {
+            "description": "The minimum order; null for none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "photoCount": {
+            "description": "How many photos the line has.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under the line, A to Z.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "shownGalleryCount": {
+            "description": "How many public gallery items a visitor sees under the line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "startsAtPrice": {
+            "description": "The starting price; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "title",
+          "shortName",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "position",
+          "mainPhotoThumb",
+          "productTypeIds",
+          "shownGalleryCount",
+          "photoCount",
+          "canDelete",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ProductLineOptionDto": {
+        "description": "One product line the order window offers (D-09, D-16).",
+        "properties": {
+          "id": {
+            "description": "The line id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The title.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "shortName"
+        ],
+        "type": "object"
+      },
+      "ProductLinePhotoDto": {
+        "description": "One photo of a product line as the Manager's screens read it (D-02).",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "slot": {
+            "description": "The place on the line: `main`, `back` or `fabric`.",
+            "type": "string"
+          },
+          "src": {
+            "description": "The address of the preview at a size that fits the slot.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The `srcset` text with the smaller and larger candidates.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slot",
+          "src",
+          "srcSet",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "ProductLinePhotosDto": {
+        "description": "The three photo slots of a product line as the Manager's editor reads them; a slot with no photo is null.",
+        "properties": {
+          "back": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The back view."
+              }
+            ]
+          },
+          "fabric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The fabric detail."
+              }
+            ]
+          },
+          "main": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProductLinePhotoDto",
+                "description": "The main photo."
+              }
+            ]
+          }
+        },
+        "required": [
+          "main",
+          "back",
+          "fabric"
+        ],
+        "type": "object"
+      },
+      "ProductLineRequest": {
+        "description": "The product line form (CONT-02, SEC-07), for adding and for editing. Any other member in the body is ignored: the key, the order, the\ndrawing, who changed the line and when come from the server (SEC-08).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text, required, at most 140 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "collarText": {
+            "description": "What the Collar style card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cutText": {
+            "description": "What the Cut and fit card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "description": "The Products page description, required, at most 300 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fabricText": {
+            "description": "What the Fabric card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isActive": {
+            "description": "True to show the line on the website. A new line is hidden when this is missing; an edit keeps the line as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "logosText": {
+            "description": "What the Logos and sponsors card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minimumQuantity": {
+            "description": "The minimum order, a whole number from 1 to 9,999; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "namesText": {
+            "description": "What the Names and numbers card says, required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number on the drawing, up to 2 letters or digits; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productTypeIds": {
+            "description": "The order product types filed under this line. Missing on an edit keeps the links as they are; a list sets them exactly.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "shortName": {
+            "description": "The short name, required, at most 20 characters, and not used by another line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startsAtPrice": {
+            "description": "The starting price per piece, 0.01 to 999,999.99 with at most two decimals; null for none.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title, required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "title",
+          "shortName",
+          "number",
+          "cardText",
+          "description",
+          "fabricText",
+          "collarText",
+          "cutText",
+          "namesText",
+          "logosText",
+          "startsAtPrice",
+          "minimumQuantity",
+          "isActive",
+          "productTypeIds",
+          "version"
+        ],
         "type": "object"
       },
       "ProfileResponse": {
@@ -4407,6 +5516,820 @@
           "pendingEmail",
           "memberSince",
           "version"
+        ],
+        "type": "object"
+      },
+      "PublicAddressDto": {
+        "description": "The shop address as parts; a part that is not set is null.",
+        "properties": {
+          "postalCode": {
+            "description": "Postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "street": {
+            "description": "Street and barangay.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "townOrCity": {
+            "description": "Town or city.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode"
+        ],
+        "type": "object"
+      },
+      "PublicClosureDto": {
+        "description": "One closure in the next 30 days: the shop is closed all day on every day from the first to the last, both included.",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "lastDay": {
+            "description": "The last closed day, \"yyyy-MM-dd\"; the same as the first for a single day.",
+            "type": "string"
+          },
+          "note": {
+            "description": "A short reason shown to visitors; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstDay",
+          "lastDay",
+          "note"
+        ],
+        "type": "object"
+      },
+      "PublicCustomizeDto": {
+        "description": "The five \"what you can customize\" texts of a product line, always in this order on the page.",
+        "properties": {
+          "collar": {
+            "description": "What the Collar style card says.",
+            "type": "string"
+          },
+          "cut": {
+            "description": "What the Cut and fit card says.",
+            "type": "string"
+          },
+          "fabric": {
+            "description": "What the Fabric card says.",
+            "type": "string"
+          },
+          "logos": {
+            "description": "What the Logos and sponsors card says.",
+            "type": "string"
+          },
+          "names": {
+            "description": "What the Names and numbers card says.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fabric",
+          "collar",
+          "cut",
+          "names",
+          "logos"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryDto": {
+        "description": "Everything the Gallery draws, in one read (GAL-01, D-10): every public item in gallery order, the pills in display order and the total.",
+        "properties": {
+          "items": {
+            "description": "The public items in gallery order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryItemDto"
+            },
+            "type": "array"
+          },
+          "pills": {
+            "description": "One pill for each shown line that has at least one item, in display order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPillDto"
+            },
+            "type": "array"
+          },
+          "total": {
+            "description": "The number of items.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "pills",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryItemDto": {
+        "description": "One tile of the Gallery (D-10): an order with all its photos, or one uploaded photo. It holds public text only (D-13): the name shown, the\nline, the pieces and, for an upload, the note. It never holds a customer's name, phone, email or address, a price, an order note or a\nphoto description.",
+        "properties": {
+          "id": {
+            "description": "The id of the gallery entry, stable for the life of the tile.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lineKey": {
+            "description": "The key of the line the item is filed under, such as \"basketball\".",
+            "type": "string"
+          },
+          "lineShortName": {
+            "description": "The short name of that line, such as \"Basketball\".",
+            "type": "string"
+          },
+          "note": {
+            "description": "The note of an upload; null for an order and for an upload with none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photos": {
+            "description": "The photos in display order, the cover first.",
+            "items": {
+              "$ref": "#/components/schemas/PublicGalleryPhotoDto"
+            },
+            "type": "array"
+          },
+          "pieces": {
+            "description": "How many pieces; null for an upload that gives none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when no photo address is available: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "team": {
+            "description": "The name shown: the public name when staff typed one, else the team.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "team",
+          "lineKey",
+          "lineShortName",
+          "pieces",
+          "note",
+          "placeholderArt",
+          "photos"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPhotoDto": {
+        "description": "One photo of a gallery item, with the addresses of each place the Gallery draws it (D-12, D-30).",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src": {
+            "description": "The masonry tile address, at the largest masonry size that fits the photo.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The masonry `srcset` text with the smaller sizes.",
+            "type": "string"
+          },
+          "thumbSrc": {
+            "description": "The address of the square lightbox thumb.",
+            "type": "string"
+          },
+          "viewerSrc": {
+            "description": "The lightbox address, the whole photo at the middle viewer size.",
+            "type": "string"
+          },
+          "viewerSrcSet": {
+            "description": "The lightbox `srcset` text.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "srcSet",
+          "viewerSrc",
+          "viewerSrcSet",
+          "thumbSrc",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "PublicGalleryPillDto": {
+        "description": "One category pill of the Gallery: a shown line that has at least one public item.",
+        "properties": {
+          "count": {
+            "description": "How many public items are filed under the line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "key": {
+            "description": "The line key, which the page writes to the address.",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name on the pill.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "shortName",
+          "count"
+        ],
+        "type": "object"
+      },
+      "PublicHeroTagDto": {
+        "description": "The Home page's hero tag: the newest shown order (D-14).",
+        "properties": {
+          "name": {
+            "description": "The public name of the order.",
+            "type": "string"
+          },
+          "pieces": {
+            "description": "The number of pieces.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "pieces"
+        ],
+        "type": "object"
+      },
+      "PublicHomeDto": {
+        "description": "What the Home page needs in one read (PUB-02, CONT-03): the shown product lines as cards, the count of shown lines, the first three\nshown testimonials in display order, the Recent work strip and the hero tag. The last two are empty when no order is shown.",
+        "properties": {
+          "heroTag": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicHeroTagDto",
+                "description": "The hero tag; null when no order is shown."
+              }
+            ]
+          },
+          "lineCount": {
+            "description": "How many lines are shown.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "lines": {
+            "description": "The shown product lines in display order.",
+            "items": {
+              "$ref": "#/components/schemas/PublicHomeLineDto"
+            },
+            "type": "array"
+          },
+          "recentWork": {
+            "description": "The Recent work tiles, newest first, at most six; empty when no order is shown.",
+            "items": {
+              "$ref": "#/components/schemas/PublicRecentWorkDto"
+            },
+            "type": "array"
+          },
+          "testimonials": {
+            "description": "The first three shown testimonials in display order; empty when none is shown.",
+            "items": {
+              "$ref": "#/components/schemas/PublicTestimonialDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines",
+          "lineCount",
+          "testimonials",
+          "recentWork",
+          "heroTag"
+        ],
+        "type": "object"
+      },
+      "PublicHomeLineDto": {
+        "description": "One product line card on the Home page (PUB-02, D-01): what a visitor needs to draw it and link to its place on Products.",
+        "properties": {
+          "cardPhoto": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The line's main photo at the 4:5 card sizes; null until a Manager adds one."
+              }
+            ]
+          },
+          "cardText": {
+            "description": "The card text.",
+            "type": "string"
+          },
+          "key": {
+            "description": "The key the card links to, such as \"basketball\" (`/products#basketball`).",
+            "type": "string"
+          },
+          "number": {
+            "description": "The number drawn on the jersey, such as \"23\".",
+            "type": "string"
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when the line has no photo: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The title, such as \"Basketball Jerseys\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "cardText",
+          "placeholderArt",
+          "cardPhoto"
+        ],
+        "type": "object"
+      },
+      "PublicLinePhotosDto": {
+        "description": "The three photo slots of a product line; a slot with no photo is null and the page shows the drawing.",
+        "properties": {
+          "back": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The back view."
+              }
+            ]
+          },
+          "fabric": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The fabric detail."
+              }
+            ]
+          },
+          "main": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The main photo."
+              }
+            ]
+          }
+        },
+        "required": [
+          "main",
+          "back",
+          "fabric"
+        ],
+        "type": "object"
+      },
+      "PublicPhoneDto": {
+        "description": "One public phone number.",
+        "properties": {
+          "display": {
+            "description": "The number as people read it, such as \"0917 123 4567\".",
+            "type": "string"
+          },
+          "e164": {
+            "description": "The number for a `tel:` link, such as \"+639171234567\".",
+            "type": "string"
+          },
+          "isMain": {
+            "description": "True for the number the Call buttons dial; the main number is listed first.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label such as \"Globe\"; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "display",
+          "e164",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
+      "PublicPhotoDto": {
+        "description": "One photo of a product line, as the public page draws it.",
+        "properties": {
+          "height": {
+            "description": "The upright height in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src": {
+            "description": "The address of the photo at its largest size.",
+            "type": "string"
+          },
+          "srcSet": {
+            "description": "The `srcset` text with the smaller sizes.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src",
+          "srcSet",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "PublicProductLineDto": {
+        "description": "One product line a visitor sees (PUB-02).",
+        "properties": {
+          "cardText": {
+            "description": "The Home card text.",
+            "type": "string"
+          },
+          "customize": {
+            "$ref": "#/components/schemas/PublicCustomizeDto",
+            "description": "The five \"what you can customize\" texts."
+          },
+          "description": {
+            "description": "The Products page description.",
+            "type": "string"
+          },
+          "hasGalleryItems": {
+            "description": "True when the Gallery has a photo under this line, so \"See {short name} work\" has something to show.",
+            "type": "boolean"
+          },
+          "key": {
+            "description": "The key the page anchors and gallery filters use, such as \"basketball\".",
+            "type": "string"
+          },
+          "minimumQuantity": {
+            "description": "The minimum order in pieces; null when there is none.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number drawn on the jersey and the empty photo boxes, such as \"23\".",
+            "type": "string"
+          },
+          "photos": {
+            "$ref": "#/components/schemas/PublicLinePhotosDto",
+            "description": "The photos; each slot is null until a Manager adds one."
+          },
+          "placeholderArt": {
+            "description": "The drawing shown until there are photos: `basketball`, `volleyball`, `moto`, `longSleeves`, `polo` or `custom`.",
+            "type": "string"
+          },
+          "shortName": {
+            "description": "The short name, such as \"Basketball\".",
+            "type": "string"
+          },
+          "startsAtPrice": {
+            "description": "The starting price per piece in pesos; null means \"Message us for a price\".",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "title": {
+            "description": "The title, such as \"Basketball Jerseys\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "number",
+          "title",
+          "shortName",
+          "cardText",
+          "description",
+          "customize",
+          "startsAtPrice",
+          "minimumQuantity",
+          "placeholderArt",
+          "photos",
+          "hasGalleryItems"
+        ],
+        "type": "object"
+      },
+      "PublicProductLinesDto": {
+        "description": "The shown product lines in display order; empty when the Manager has hidden all of them (CONT-02).",
+        "properties": {
+          "lines": {
+            "description": "The lines.",
+            "items": {
+              "$ref": "#/components/schemas/PublicProductLineDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "type": "object"
+      },
+      "PublicRecentWorkDto": {
+        "description": "One tile of the Home page's Recent work strip: one of the six newest shown orders (D-14).",
+        "properties": {
+          "lineKey": {
+            "description": "The key of the order's line, which the tile links to in the Gallery.",
+            "type": "string"
+          },
+          "lineShortName": {
+            "description": "The short name of the order's line.",
+            "type": "string"
+          },
+          "photo": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicPhotoDto",
+                "description": "The cover photo at the 4:5 strip sizes; null when the account has no address for it."
+              }
+            ]
+          },
+          "pieces": {
+            "description": "The number of pieces; null when unknown.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "placeholderArt": {
+            "description": "The drawing shown when the order has no photo.",
+            "type": "string"
+          },
+          "team": {
+            "description": "The public name of the order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team",
+          "lineKey",
+          "lineShortName",
+          "pieces",
+          "placeholderArt",
+          "photo"
+        ],
+        "type": "object"
+      },
+      "PublicSiteDto": {
+        "description": "The shop facts every visitor sees (PUB-02): name, words, address, phones and links. It carries nothing private; the shop email is\nnot a member (D-25). A value that is not set is null and the page leaves it out.",
+        "properties": {
+          "aboutText": {
+            "description": "The about text, used in search results.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "$ref": "#/components/schemas/PublicAddressDto",
+            "description": "The address parts."
+          },
+          "businessName": {
+            "description": "The business name.",
+            "type": "string"
+          },
+          "directionsUrl": {
+            "description": "The directions link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "facebookUrl": {
+            "description": "The Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hours": {
+            "description": "The weekly hours, seven days with Monday (1) first; a closed day has no times.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": "array"
+          },
+          "instagramUrl": {
+            "description": "The Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mapEmbedUrl": {
+            "description": "The map embed link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "The Messenger link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "The phone numbers, the main one first.",
+            "items": {
+              "$ref": "#/components/schemas/PublicPhoneDto"
+            },
+            "type": "array"
+          },
+          "tagline": {
+            "description": "The tagline.",
+            "type": "string"
+          },
+          "tiktokUrl": {
+            "description": "The TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround promise; null makes no time promise.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "upcomingClosures": {
+            "description": "The closures in the next 30 days; empty until a Manager adds one.",
+            "items": {
+              "$ref": "#/components/schemas/PublicClosureDto"
+            },
+            "type": "array"
+          },
+          "year": {
+            "description": "The current business-calendar year, for the footer's copyright line.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "address",
+          "phones",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "year",
+          "hours",
+          "upcomingClosures"
+        ],
+        "type": "object"
+      },
+      "PublicTestimonialDto": {
+        "description": "One testimonial a visitor sees (CONT-03, D-05).",
+        "properties": {
+          "name": {
+            "description": "The name shown under the quote.",
+            "type": "string"
+          },
+          "quote": {
+            "description": "The customer's words.",
+            "type": "string"
+          },
+          "stars": {
+            "description": "The rating, 1 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars"
         ],
         "type": "object"
       },
@@ -4682,6 +6605,49 @@
         ],
         "type": "object"
       },
+      "SetOrderPublicSettingsRequest": {
+        "description": "The Public Website window of an order (D-09 to D-16). It carries the version the window was opened with. Any other member in the body,\nsuch as a forged consent time or person, is ignored: who recorded the customer's OK and when come from the token and the clock.",
+        "properties": {
+          "customerConsent": {
+            "description": "True when the customer said OK to show.",
+            "type": "boolean"
+          },
+          "productLineId": {
+            "description": "The line to show the order under; null to use the auto line from the items.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicName": {
+            "description": "The name shown instead of the team, at most 80 characters; null or empty to show the team.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showOnWebsite": {
+            "description": "True to show the order on the website; needs the customer's OK.",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the window was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "customerConsent",
+          "showOnWebsite",
+          "productLineId",
+          "publicName"
+        ],
+        "type": "object"
+      },
       "SetTemporaryPasswordRequest": {
         "description": "The Set Temporary Password form (C-4, 04 D-21): the one-time password a Manager hands to a colleague. It is hashed by the account\nport and goes nowhere else; no version is sent, because the action acts on the latest state (D-21).",
         "properties": {
@@ -4695,6 +6661,121 @@
         },
         "required": [
           "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "SharePictureDto": {
+        "description": "The default link preview picture as the Business Info card shows it (D-26): a small and a larger preview at the 1.91:1 shape, and\nthe size of the stored file. A site with no picture has none of this: the settings carry null.",
+        "properties": {
+          "height": {
+            "description": "The upright height of the stored picture in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "src320": {
+            "description": "The address of the 320 x 168 preview.",
+            "type": "string"
+          },
+          "src640": {
+            "description": "The address of the 640 x 336 preview, for the full-width view on a phone.",
+            "type": "string"
+          },
+          "width": {
+            "description": "The upright width of the stored picture in pixels.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "src320",
+          "src640",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
+      "ShopClosureDto": {
+        "description": "One closure as a Manager sees it (CONT-04): the days as \"yyyy-MM-dd\", the public note and the version a save must send back.",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day, \"yyyy-MM-dd\".",
+            "type": "string"
+          },
+          "id": {
+            "description": "The closure id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastDay": {
+            "description": "The last closed day, \"yyyy-MM-dd\"; the same as the first for a single day.",
+            "type": "string"
+          },
+          "note": {
+            "description": "A short reason shown to visitors; null when there is none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text a save must send back (409 on a stale one).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firstDay",
+          "lastDay",
+          "note",
+          "version"
+        ],
+        "type": "object"
+      },
+      "ShopClosureRequest": {
+        "description": "The closure form (CONT-04, SEC-07), for adding and for editing. Any other member in the body is ignored: who changed the closure\nand when come from the token and the clock (SEC-08).",
+        "properties": {
+          "firstDay": {
+            "description": "The first closed day as \"yyyy-MM-dd\"; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastDay": {
+            "description": "The last closed day as \"yyyy-MM-dd\"; empty or missing means one day.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "description": "A short reason shown to visitors, at most 80 characters; empty or missing means none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "firstDay",
+          "lastDay",
+          "note",
+          "version"
         ],
         "type": "object"
       },
@@ -4727,56 +6808,208 @@
         ],
         "type": "object"
       },
-      "SiteSettingsDto": {
-        "description": "The site settings as the API returns them (D-29). Read-only for now; editing comes later.",
+      "SitePhoneDto": {
+        "description": "One phone number as the Business Info form shows it.",
         "properties": {
-          "addressLine": {
-            "description": "Public shop address.",
+          "isMain": {
+            "description": "True for the number the Call buttons dial.",
+            "type": "boolean"
+          },
+          "label": {
+            "description": "An optional label such as \"Globe\"; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "number": {
+            "description": "The number as people read it, such as \"0917 123 4567\"; the form sends the same text back.",
             "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "label",
+          "isMain"
+        ],
+        "type": "object"
+      },
+      "SiteSettingsDto": {
+        "description": "The staff view of the site settings (D-29, CONT-01): every Business Info field, the shop email, the phones, the version a save must\nsend back and who last changed the settings. The time zone, currency and locale are fixed and only shown (D-35). A value that is\nnot set is null.",
+        "properties": {
+          "aboutText": {
+            "description": "The about text.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "businessName": {
-            "description": "The business name shown on the site.",
+            "description": "The business name.",
             "type": "string"
           },
           "contactEmail": {
-            "description": "Public contact email.",
-            "type": "string"
-          },
-          "contactPhone": {
-            "description": "Public contact phone.",
-            "type": "string"
+            "description": "The shop email, for staff use only.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "currencyCode": {
-            "description": "ISO 4217 currency code.",
+            "description": "ISO 4217 currency code; read-only.",
             "type": "string"
+          },
+          "directionsUrl": {
+            "description": "The directions link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "facebookUrl": {
-            "description": "Public Facebook page URL.",
-            "type": "string"
+            "description": "The Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagramUrl": {
+            "description": "The Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "locale": {
-            "description": "Formatting locale.",
+            "description": "Formatting locale; read-only.",
             "type": "string"
           },
-          "rowVersion": {
-            "description": "Base64 concurrency token, echoed back by a future edit (409 on conflict).",
+          "mapEmbedUrl": {
+            "description": "The map embed link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "The Messenger link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "The phone numbers, the main one first.",
+            "items": {
+              "$ref": "#/components/schemas/SitePhoneDto"
+            },
+            "type": "array"
+          },
+          "postalCode": {
+            "description": "Postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sharePicture": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SharePictureDto",
+                "description": "The default link preview picture with its two preview addresses; null when there is none."
+              }
+            ]
+          },
+          "street": {
+            "description": "Street and barangay.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tagline": {
+            "description": "The tagline.",
             "type": "string"
+          },
+          "tiktokUrl": {
+            "description": "The TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "timeZoneId": {
-            "description": "The business time zone id.",
+            "description": "The business time zone id; read-only.",
+            "type": "string"
+          },
+          "townOrCity": {
+            "description": "Town or city.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround line.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "description": "When the settings were last changed; null until a change.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedByName": {
+            "description": "The name of the person who last changed the settings; null when no person did.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version a save must send back (409 on a stale one).",
             "type": "string"
           }
         },
         "required": [
           "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "contactEmail",
+          "phones",
           "timeZoneId",
           "currencyCode",
           "locale",
-          "contactEmail",
-          "contactPhone",
-          "addressLine",
-          "facebookUrl",
-          "rowVersion"
+          "version",
+          "updatedByName",
+          "updatedAtUtc",
+          "sharePicture"
         ],
         "type": "object"
       },
@@ -4911,6 +7144,127 @@
           "status",
           "balance",
           "today"
+        ],
+        "type": "object"
+      },
+      "TestimonialDto": {
+        "description": "One testimonial as the Manager's Testimonials tab reads it (CONT-03, D-05).",
+        "properties": {
+          "id": {
+            "description": "The testimonial id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isShown": {
+            "description": "True while the testimonial can show on the website.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "The name shown under the quote.",
+            "type": "string"
+          },
+          "position": {
+            "description": "The place in the order, from 1.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "quote": {
+            "description": "The customer's words.",
+            "type": "string"
+          },
+          "stars": {
+            "description": "The rating, 1 to 5.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The text an edit must send back.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars",
+          "position",
+          "isShown",
+          "version"
+        ],
+        "type": "object"
+      },
+      "TestimonialRequest": {
+        "description": "The testimonial form (CONT-03, SEC-07), for adding and for editing. Any other member in the body is ignored: the order, who changed\nthe testimonial and when come from the server (SEC-08).",
+        "properties": {
+          "isShown": {
+            "description": "True to show the testimonial on the website. A new testimonial is hidden when this is missing; an edit keeps it as it is when this is missing.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "name": {
+            "description": "The name, required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quote": {
+            "description": "The customer's words, required, at most 300 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stars": {
+            "description": "The rating, a whole number from 1 to 5.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "teamOrRole": {
+            "description": "The team or role line, at most 80 characters; empty for none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The version the form was opened with; required when editing, ignored when adding.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "quote",
+          "name",
+          "teamOrRole",
+          "stars",
+          "isShown",
+          "version"
         ],
         "type": "object"
       },
@@ -5077,6 +7431,33 @@
         ],
         "type": "object"
       },
+      "UpdateOpeningHoursRequest": {
+        "description": "The weekly hours form (CONT-01, SEC-07). All seven days are sent every time. Any other member in the body is ignored: who changed the\nhours and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "days": {
+            "description": "The seven days, each once, in any order; a closed day has no times.",
+            "items": {
+              "$ref": "#/components/schemas/DayHoursDto"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "version": {
+            "description": "The week version the form was opened with; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "days"
+        ],
+        "type": "object"
+      },
       "UpdateOrderDetailsRequest": {
         "description": "The Edit Order details form (ORD-05, SEC-07). It carries the version the form was opened with. Any other member in the body,\nsuch as a forged `createdById`, `updatedById`, `number`, `status` or `totals`, is ignored: who changed the\norder and when come from the token and the clock (SEC-08), and the number, status and money figures are not editable here.",
         "properties": {
@@ -5127,6 +7508,17 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "publicWebsite": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OrderPublicWebsiteFields",
+                "description": "The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F2); when absent the public settings stay as they are. It never reaches a Completed or Cancelled order's settings through this route."
+              }
             ]
           },
           "teamName": {
@@ -5474,6 +7866,153 @@
           "firstName",
           "lastName",
           "version"
+        ],
+        "type": "object"
+      },
+      "UpdateSiteSettingsRequest": {
+        "description": "The Business Info form (CONT-01, SEC-07). An empty optional value clears it. Any other member in the body is ignored: who changed\nthe settings and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "aboutText": {
+            "description": "The about text; at most 600 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "businessName": {
+            "description": "The business name; required, at most 100 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "contactEmail": {
+            "description": "The shop email, for staff use only; at most 254 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "directionsUrl": {
+            "description": "A Google Maps link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "facebookUrl": {
+            "description": "A Facebook page link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagramUrl": {
+            "description": "An Instagram link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mapEmbedUrl": {
+            "description": "A `https://www.google.com/maps/embed?` link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messengerUrl": {
+            "description": "A `https://m.me/` link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phones": {
+            "description": "One to four numbers, exactly one of them the main one.",
+            "items": {
+              "$ref": "#/components/schemas/PhoneEntry"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "postalCode": {
+            "description": "The 4-digit postal code.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "province": {
+            "description": "Province; required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "street": {
+            "description": "Street and barangay; required, at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tagline": {
+            "description": "The tagline; required, at most 160 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tiktokUrl": {
+            "description": "A TikTok link.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "townOrCity": {
+            "description": "Town or city; required, at most 60 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnaroundLine": {
+            "description": "The turnaround line; at most 120 characters.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the form was opened with; required.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "version",
+          "businessName",
+          "tagline",
+          "aboutText",
+          "turnaroundLine",
+          "street",
+          "townOrCity",
+          "province",
+          "postalCode",
+          "directionsUrl",
+          "mapEmbedUrl",
+          "messengerUrl",
+          "facebookUrl",
+          "instagramUrl",
+          "tiktokUrl",
+          "contactEmail",
+          "phones"
         ],
         "type": "object"
       },
@@ -8158,6 +10697,815 @@
         ]
       }
     },
+    "/api/v1/gallery-items": {
+      "get": {
+        "operationId": "ListGalleryItems",
+        "parameters": [
+          {
+            "description": "A product line id; none means every line.",
+            "in": "query",
+            "name": "line",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page, from 1 to 100; 20 when not sent.",
+            "in": "query",
+            "name": "pageSize",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemListDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the gallery in gallery order, one page at a time: every upload (shown or hidden) and every order that is shown. Each row\nhas its kind (`order` or `upload`), the name shown, the line and the short name of the line, whether the line is\nhidden (the item is then off the public site), the pieces, whether it is shown, the order id and number of an order item, the\nnote and the version of an upload, and a small photo address. A page past the last answers no rows and the real total.",
+        "tags": [
+          "GalleryItems"
+        ]
+      },
+      "post": {
+        "operationId": "CreateGalleryUpload",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "allOf": [
+                  {
+                    "properties": {
+                      "file": {
+                        "$ref": "#/components/schemas/IFormFile"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "teamName": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "productLineId": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "pieces": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "properties": {
+                      "isShown": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  }
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Adds a photo of older work to the Gallery as a multipart form with the file in the `file` part and the fields\n`teamName`, `productLineId`, `pieces` (optional), `note` (optional) and `isShown` as form parts. The type is read from\nthe first bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can\nuse, is over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The\nphoto is stored under a random id the client never chooses, in the entry's own content folder. The upload joins at the top of\nthe gallery. It is hidden unless `isShown` is `true`, and a line that is hidden keeps it off the public site. When photo\nstorage is not set up the answer is 503 `images.not-configured`. A retry with the same `Idempotency-Key` and body\nanswers with the stored answer and adds nothing more. Who added it and when come from the token and the clock. The change is\nrecorded in the audit log without the address, and the public pages show it at once.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}": {
+      "delete": {
+        "operationId": "DeleteGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes an upload for good. Its photo is queued for removal in the same save and leaves the storage on the next cleanup run;\nnothing calls the storage during the request. It takes no version. Deleting an upload that is already gone is a 404, and so is an\nitem that came from an order: it is taken off the website from its order.",
+        "tags": [
+          "GalleryItems"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GalleryUploadRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits an upload with the version the form was opened with, as JSON: `teamName`, `productLineId`, `pieces`,\n`note`, `isShown` and `version`. The values follow the same rules as when adding. A `version` that is not the\nstored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form with no change stores nothing\nand keeps the version. The photo is replaced through its own route. An item that came from an order answers 404: it is changed on\nits order. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/hide": {
+      "post": {
+        "operationId": "HideGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides an upload: it leaves the public site and stays in this list, and nothing is lost. Hiding a hidden upload is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.\nAn item that came from an order answers 404: it is taken off the website from its order.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/move": {
+      "post": {
+        "operationId": "MoveGalleryItem",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveGalleryItemRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves an item, an order or an upload, one place up or down in the one gallery order. It swaps with the next item of the list;\nsend `lineId` when the list is filtered to a line, and the next item of that line is the neighbour. A move across a page edge\nswaps with the item on the next or previous page. A move at the end of the list is a 204 that changes and records nothing. It\ntakes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. The public gallery shows the new\norder at once; Home's Recent work does not follow it.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/photo": {
+      "post": {
+        "operationId": "ReplaceGalleryPhoto",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryItemRowDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Puts a new photo in the place of an upload's photo, as a multipart form with the file in the `file` part. The file is held\nto the same rules as when adding (type read from the first bytes, 10 MB, 25 megapixels, location and camera data removed) and is\nstored under a new random id in the upload's own folder. The old file is queued for removal in the same save. It takes no\nversion; the answer carries the new one. An item that came from an order answers 404: its photos come from the order. A retry\nwith the same `Idempotency-Key` and body answers with the stored answer. The change is recorded in the audit log as a photo\nchange, never with the address, and the public pages show it at once.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
+    "/api/v1/gallery-items/{id}/show": {
+      "post": {
+        "operationId": "ShowGalleryUpload",
+        "parameters": [
+          {
+            "description": "The gallery entry id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden upload on the public site again (a hidden line still keeps it off). Showing a shown upload is a 204 that changes\nand records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204. An item\nthat came from an order answers 404.",
+        "tags": [
+          "GalleryItems"
+        ]
+      }
+    },
     "/api/v1/money-transfers": {
       "get": {
         "operationId": "ListMoneyTransfers",
@@ -8637,6 +11985,147 @@
         "summary": "Removes a deleted transfer for good, Managers only (D-24, D-25). Only a transfer that was deleted first can go; a live one is\nrefused with 422 \"Delete the transfer first.\" Removing changes no balance, because a deleted transfer already counts for\nnothing. The full record (the people, the amount, the date, whether there was a note, who recorded it, who deleted it and when) is\nwritten to the audit log first and kept for the audit retention; the note text is not. Transfers are removed one at a time.",
         "tags": [
           "MoneyTransfers"
+        ]
+      }
+    },
+    "/api/v1/opening-hours": {
+      "get": {
+        "operationId": "GetOpeningHours",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningHoursDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Returns the seven days, Monday (1) first, each with its opening and closing time as \"HH:mm\" or none for a closed day, the version a\nsave must send back, and who last changed the hours and when. Until a Manager saves hours every day is closed.",
+        "tags": [
+          "OpeningHours"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateOpeningHours",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateOpeningHoursRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpeningHoursDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves all seven days at once. An open day needs both times, and the closing time must be after the opening time. A `version`\nthat is not the stored one answers 409 `edit.stale` and changes nothing; a form save is never retried. A save with no change\nstores nothing, writes no audit entry and keeps the version. The next public read, open-status read and page show the change.\nWho changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "OpeningHours"
         ]
       }
     },
@@ -11931,6 +15420,130 @@
         ]
       }
     },
+    "/api/v1/orders/{orderId}/public": {
+      "put": {
+        "operationId": "SetOrderPublicSettings",
+        "parameters": [
+          {
+            "description": "The order id.",
+            "in": "path",
+            "name": "orderId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetOrderPublicSettingsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Saves the customer's OK and the public settings of one order with the version the window was opened with. An order is shown only\nwith the customer's OK, and removing the OK also takes it off the website. Who recorded the OK and when come from the token and\nthe clock; any such member in the body is ignored. A Completed order can be shown; a Cancelled order answers 422\n`orders.public-cancelled`. A version that is not the stored one answers 409 `edit.stale` and changes nothing; a save is\nnever retried. A save with no change keeps the version. The answer is the whole order.",
+        "tags": [
+          "OrderPublicSettings"
+        ]
+      }
+    },
     "/api/v1/orders/{orderId}/refunds": {
       "post": {
         "operationId": "AddOrderRefund",
@@ -12801,6 +16414,914 @@
         "summary": "Retires a payment method, Managers only: it can no longer be chosen on a new or changed payment but stays in the list and\nthe filters, marked `retired`, and saved payments keep it. Retiring a retired method is a 204 that changes and records\nnothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
         "tags": [
           "PaymentMethods"
+        ]
+      }
+    },
+    "/api/v1/product-lines": {
+      "get": {
+        "operationId": "ListProductLines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductLineListItemDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists every product line, shown and hidden, in display order. Each has its id, key, title, short name, starting price and minimum\norder (null when not set), whether it is shown, its position from 1, the small main photo (null until it has one), the ids of the\norder product types filed under it, how many shown gallery items and photos it has, whether it can be deleted, and the version an\nedit must send back.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "post": {
+        "operationId": "CreateProductLine",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a product line. The line goes to the end of the order with the custom drawing and is hidden unless `isActive` is true.\nIts URL key is made once from the short name and never changes. A retry with the same `Idempotency-Key` and body answers\nwith the stored 201 and adds nothing more. Who added it and when come from the token and the clock; any such member in the body\nis ignored.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/options": {
+      "get": {
+        "operationId": "ListProductLineOptions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductLineOptionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the active product lines in display order, each with its id, title and short name. Hidden lines are not listed.",
+        "tags": [
+          "ProductLineOptions"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}": {
+      "delete": {
+        "operationId": "DeleteProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Deletes a product line for good, only while nothing is filed under it. A line with a photo, a gallery item or an order product\ntype answers 422 `product-lines.in-use` (\"This product line is in use. Hide it instead.\") and nothing is deleted. It takes no\nversion. Deleting a line that is already gone is a 404.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "get": {
+        "operationId": "GetProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one product line with every field, the order product types filed under it, its version and who last changed it.",
+        "tags": [
+          "ProductLines"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLineDetailDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a product line with the version the form was opened with. The values follow the same rules as when adding. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. The key never changes. Who changed it and when come from the token and the\nclock; any such member in the body is ignored.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/hide": {
+      "post": {
+        "operationId": "HideProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides a line: it and everything filed under it leave the public site, and nothing is lost. Hiding a hidden line is a 204 that\nchanges and records nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/move": {
+      "post": {
+        "operationId": "MoveProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveProductLineRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves a line one place up or down in the display order. A move at the end of the order is a 204 that changes and records nothing.\nIt takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{id}/show": {
+      "post": {
+        "operationId": "ShowProductLine",
+        "parameters": [
+          {
+            "description": "The line id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden line on the public site again. Showing a shown line is a 204 that changes and records nothing. It takes no\nversion, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "ProductLines"
+        ]
+      }
+    },
+    "/api/v1/product-lines/{lineId}/photos/{slot}": {
+      "delete": {
+        "operationId": "RemoveProductLinePhoto",
+        "parameters": [
+          {
+            "description": "The product line id.",
+            "in": "path",
+            "name": "lineId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The slot: `main`, `back` or `fabric`.",
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal\nin the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The\nchange is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.",
+        "tags": [
+          "ProductLinePhotos"
+        ]
+      },
+      "post": {
+        "operationId": "UploadProductLinePhoto",
+        "parameters": [
+          {
+            "description": "The product line id.",
+            "in": "path",
+            "name": "lineId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The slot: `main`, `back` or `fabric`.",
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductLinePhotoDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Puts one photo into a slot of a product line as a multipart form with the file in the `file` part. The type is read from the\nfirst bytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use,\nis over 10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The photo is\nstored under a random id the client never chooses, in the line's own content folder. A slot that already holds a photo is\nreplaced, and the old file is queued for removal in the same save. The slot is `main`, `back` or `fabric`; any\nother word answers 404. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and adds nothing more. Who added the photo and when come from the\ntoken and the clock. The change is recorded in the audit log with the slot and never the address, and the public pages show it at\nonce.",
+        "tags": [
+          "ProductLinePhotos"
         ]
       }
     },
@@ -13915,6 +18436,185 @@
         ]
       }
     },
+    "/api/v1/public/gallery": {
+      "get": {
+        "operationId": "GetPublicGallery",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicGalleryDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the Gallery (GAL-01, D-10): `items`, every public item in gallery order, each with its `id`, `team` (the name shown),\n`lineKey`, `lineShortName`, `pieces` (null when not given), `note` (uploads only), `placeholderArt` and\n`photos` (the cover first, each with the masonry `src` and `srcSet`, the lightbox `viewerSrc` and\n`viewerSrcSet`, the `thumbSrc` and the `width` and `height`); `pills`, one for each shown line that has at\nleast one item, with its `key`, `shortName` and `count`; and `total`. Only work with the customer's recorded OK,\nshown, not cancelled, not deleted and filed under a shown line is listed. It never holds a customer's name, phone, email or address,\na price, an order note or a photo description. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/home": {
+      "get": {
+        "operationId": "GetPublicHome",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicHomeDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads what the Home page shows (PUB-02, CONT-03): `lines`, one card for each shown product line in display order with its\n`key`, `number`, `title`, `cardText`, `placeholderArt` and `cardPhoto` (null until the line has a main\nphoto), `lineCount`, `testimonials` (the first three shown ones in display order, each with `quote`, `name`,\n`teamOrRole` and `stars`), `recentWork` (the six newest shown orders, newest first, each with its `team`,\n`lineKey`, `lineShortName`, `pieces`, `placeholderArt` and cover `photo` at the strip sizes) and `heroTag`\n(the newest shown order's `name` and `pieces`; null when none is shown). A hidden line or testimonial is left out. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/open-status": {
+      "get": {
+        "operationId": "GetOpenStatus",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenStatusDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/product-lines": {
+      "get": {
+        "operationId": "GetPublicProductLines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProductLinesDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the product lines a visitor sees, in display order (PUB-02, CONT-02): `lines`, each with its `key`, `number`,\n`title`, `shortName`, `cardText`, `description`, the five `customize` texts, `startsAtPrice` and\n`minimumQuantity` (null when not set), `placeholderArt`, `photos` (`main`, `back` and `fabric`, each\nnull until a photo is added) and `hasGalleryItems` (true when the Gallery has a public item under the line). A hidden line is left out; with none shown the list is empty. A request\nwhose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/site": {
+      "get": {
+        "operationId": "GetPublicSite",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSiteDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "304": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Not Modified"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the shop facts every visitor sees: business name, tagline, about text, turnaround line, address parts, phone numbers (the\nmain one first), the Messenger, Facebook, Instagram, TikTok, directions and map links, and the current business year. A value\nthat is not set is null. The shop email is never sent. A request whose `If-None-Match` matches the current ETag gets 304.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -14022,6 +18722,341 @@
         ]
       }
     },
+    "/api/v1/shop-closures": {
+      "get": {
+        "operationId": "ListShopClosures",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ShopClosureDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists the upcoming closures: every closure whose last day is today or later in business time, by first day. Each has its id, its\nfirst and last day as \"yyyy-MM-dd\" (the same day for a single day), its public note or none, and the version an edit must send\nback. Past closures are not listed.",
+        "tags": [
+          "ShopClosures"
+        ]
+      },
+      "post": {
+        "operationId": "CreateShopClosure",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopClosureDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a closure. The first day is required and is today or later in business time. The last day is optional, on or after the first\nday and at most 31 days in all; leave it out for one day. The note is optional and at most 80 characters. A closure that shares a\nday with another one is a 400 on `firstDay` naming the first shared day, such as \"There's already a closure on Dec 25,\n2026.\" If the shop is busy saving another closure the answer is 409. Who added it and when come from the token and the clock; any\nsuch member in the body is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 201 and adds\nnothing more. The next public read, open-status read and page show the closure.",
+        "tags": [
+          "ShopClosures"
+        ]
+      }
+    },
+    "/api/v1/shop-closures/{id}": {
+      "delete": {
+        "operationId": "DeleteShopClosure",
+        "parameters": [
+          {
+            "description": "The closure id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a closure for good; the shop shows its normal hours on those days again. It takes no version. Deleting a closure that is already gone is a 404.",
+        "tags": [
+          "ShopClosures"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateShopClosure",
+        "parameters": [
+          {
+            "description": "The closure id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ShopClosureRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopClosureDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a closure with the version the form was opened with. The days and the note follow the same rules as when adding, except\nthat a first day that is already past is kept as it is, so the note of a closure that is running can still be fixed. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member\nin the body is ignored.",
+        "tags": [
+          "ShopClosures"
+        ]
+      }
+    },
     "/api/v1/site-settings": {
       "get": {
         "operationId": "GetSiteSettings",
@@ -14037,9 +19072,267 @@
             "description": "The settings, or the failure as ProblemDetails."
           }
         },
-        "summary": "Returns the site settings.",
+        "summary": "Returns every Business Info field, the shop email (staff only), the phones with the main one first, the version a save must\nsend back, who last changed the settings and when, and the fixed time zone, currency and locale.",
         "tags": [
           "SiteSettings"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateSiteSettings",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateSiteSettingsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteSettingsDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Saves the business info, Managers only: the name, tagline, about text, turnaround line, address parts, directions and map links,\none to four phone numbers with exactly one main, the Messenger, Facebook, Instagram and TikTok links and the shop email. An empty\noptional value is stored as not set and left out of the public site. The time zone, currency and locale are not part of the\nsave. The next public read and page show the change. A `version` that is not the stored one answers 409 `edit.stale`\nand changes nothing; a form save is never retried. A save with no change stores nothing, writes no audit entry and keeps the\nversion. Who changed it and when come from the token and the clock; any such member in the body is ignored.",
+        "tags": [
+          "SiteSettings"
+        ]
+      }
+    },
+    "/api/v1/site-settings/share-picture": {
+      "delete": {
+        "operationId": "RemoveSharePicture",
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages\ncarry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;\nnothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.",
+        "tags": [
+          "SharePicture"
+        ]
+      },
+      "post": {
+        "operationId": "UploadSharePicture",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePictureDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Sets the default link preview picture as a multipart form with the file in the `file` part. The type is read from the first\nbytes of the file (JPG, PNG, WEBP or HEIC), never from its name or content type, and a file that is not a photo we can use, is over\n10 MB or has too many pixels answers 400 and is never sent to storage. Location and camera data are removed. The picture is stored\nunder a new random id every time, so a link shared before the change is not stuck with the old picture, and the file it replaces is\nqueued for removal in the same save. When photo storage is not set up the answer is 503 `images.not-configured`. A retry with\nthe same `Idempotency-Key` and body answers with the stored answer and adds nothing more. The public pages carry the new\npicture at once.",
+        "tags": [
+          "SharePicture"
         ]
       }
     },
@@ -14409,6 +19702,599 @@
         "summary": "Reads one page of one named person's money rows, shaped like `me/ledger` and under the same access rule as the person's\nfigure: an Admin may name only themselves and gets a 403 for any other id before any lookup; a Manager may name any Admin or\nManager, former staff included, and gets a 404 for anyone else. Only a Manager may add `deleted=true` to see deleted\ntransfers. Nothing is cached.",
         "tags": [
           "StaffMoney"
+        ]
+      }
+    },
+    "/api/v1/testimonials": {
+      "get": {
+        "operationId": "ListTestimonials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TestimonialDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Lists every testimonial, shown and hidden, in display order. Each has its id, quote, name, team or role (null when not set), stars,\nposition from 1, whether it is shown, and the version an edit must send back. The Home page shows the first three shown ones.",
+        "tags": [
+          "Testimonials"
+        ]
+      },
+      "post": {
+        "operationId": "CreateTestimonial",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestimonialDto"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds a testimonial. It goes to the end of the order and is hidden unless `isShown` is true. A retry with the same\n`Idempotency-Key` and body answers with the stored 201 and adds nothing more. Who added it and when come from the token and\nthe clock; any such member in the body is ignored.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}": {
+      "delete": {
+        "operationId": "DeleteTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a testimonial for good. It takes no version. Deleting a testimonial that is already gone is a 404.",
+        "tags": [
+          "Testimonials"
+        ]
+      },
+      "put": {
+        "operationId": "UpdateTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/TestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestimonialDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Edits a testimonial with the version the form was opened with. The values follow the same rules as when adding. A\n`version` that is not the stored one answers 409 `edit.stale` and changes nothing; a form edit is never retried. A form\nwith no change stores nothing and keeps the version. Who changed it and when come from the token and the clock; any such member in\nthe body is ignored.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/hide": {
+      "post": {
+        "operationId": "HideTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Hides a testimonial: it leaves the public Home page and nothing is lost. Hiding a hidden testimonial is a 204 that changes and\nrecords nothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/move": {
+      "post": {
+        "operationId": "MoveTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MoveTestimonialRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves a testimonial one place up or down in the display order. A move at the end of the order is a 204 that changes and records\nnothing. It takes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
+        ]
+      }
+    },
+    "/api/v1/testimonials/{id}/show": {
+      "post": {
+        "operationId": "ShowTestimonial",
+        "parameters": [
+          {
+            "description": "The testimonial id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Shows a hidden testimonial on the public site again. Showing a shown testimonial is a 204 that changes and records nothing. It\ntakes no version, and a retry with the same `Idempotency-Key` answers with the stored 204.",
+        "tags": [
+          "Testimonials"
         ]
       }
     },
@@ -15565,10 +21451,16 @@
       "name": "ExpenseCategories"
     },
     {
+      "name": "GalleryItems"
+    },
+    {
       "name": "Invite"
     },
     {
       "name": "MoneyTransfers"
+    },
+    {
+      "name": "OpeningHours"
     },
     {
       "name": "OrderDiscounts"
@@ -15592,6 +21484,9 @@
       "name": "OrderPayments"
     },
     {
+      "name": "OrderPublicSettings"
+    },
+    {
       "name": "OrderRefunds"
     },
     {
@@ -15604,13 +21499,31 @@
       "name": "PaymentMethods"
     },
     {
+      "name": "ProductLineOptions"
+    },
+    {
+      "name": "ProductLinePhotos"
+    },
+    {
+      "name": "ProductLines"
+    },
+    {
       "name": "ProductTypes"
     },
     {
       "name": "Profile"
     },
     {
+      "name": "PublicSite"
+    },
+    {
       "name": "Sessions"
+    },
+    {
+      "name": "SharePicture"
+    },
+    {
+      "name": "ShopClosures"
     },
     {
       "name": "SignIn"
@@ -15623,6 +21536,9 @@
     },
     {
       "name": "StaffMoney"
+    },
+    {
+      "name": "Testimonials"
     },
     {
       "name": "Users"

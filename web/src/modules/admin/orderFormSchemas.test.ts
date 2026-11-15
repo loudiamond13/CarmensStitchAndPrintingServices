@@ -14,6 +14,10 @@ import {
 // The New Order form schemas (OR-3; plan 08-13): every rule of OrderRules.cs, with the server's own message.
 
 const PRODUCT_TYPE = '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6';
+const LINE_ID = '8c1f4a20-0000-4000-8000-000000000001';
+
+/** The public website values of a card nobody touched. */
+const NO_PUBLIC = { customerConsent: false, showOnWebsite: false, productLineId: '', publicName: '' };
 
 function item(overrides: Partial<OrderItemFormInput> = {}): OrderItemFormInput {
   return {
@@ -38,6 +42,7 @@ function order(overrides: Partial<CreateOrderFormInput> = {}): CreateOrderFormIn
     status: 'pending',
     notes: '',
     items: [item()],
+    ...NO_PUBLIC,
     ...overrides,
   };
 }
@@ -234,7 +239,7 @@ describe('toCreateOrderRequest', () => {
 
 describe('updateOrderDetailsSchema (UpdateOrderDetailsRequestValidator)', () => {
   const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order();
-  const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes };
+  const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes, ...NO_PUBLIC };
 
   it('requires a due date, as the server does on an edit (D-38)', () => {
     const result = updateOrderDetailsSchema.safeParse({ ...details, dueDate: '' });
@@ -271,6 +276,7 @@ describe('toUpdateOrderDetailsRequest', () => {
       orderDate,
       dueDate,
       notes,
+      ...NO_PUBLIC,
     });
 
     const body = toUpdateOrderDetailsRequest(parsed, 'AAAAAAAAB9E=');
@@ -288,5 +294,131 @@ describe('toUpdateOrderDetailsRequest', () => {
     });
     expect(Object.keys(body)).not.toContain('status');
     expect(Object.keys(body)).not.toContain('updatedById');
+  });
+});
+
+// The Public website block of both order forms (UI-SPEC F1, F2; D-11, D-13; plan 11-35): the same words as the order window and the server.
+
+const OK_AND_SHOW = { customerConsent: true, showOnWebsite: true };
+
+describe('the public website block on the New Order form', () => {
+  it('accepts a card nobody touched', () => {
+    expect(createOrderSchema.safeParse(order()).success).toBe(true);
+  });
+
+  it('refuses Show without the customer OK, on Show', () => {
+    expect(messageAt(order({ showOnWebsite: true }), 'showOnWebsite')).toBe('Tick Customer said OK to show first.');
+  });
+
+  it('refuses a name over 80 characters after trimming, and accepts exactly 80', () => {
+    expect(messageAt(order({ publicName: 'x'.repeat(81) }), 'publicName')).toBe(
+      'Keep the name to 80 characters or fewer.',
+    );
+    expect(messageAt(order({ publicName: `  ${'x'.repeat(80)}  ` }), 'publicName')).toBeUndefined();
+  });
+
+  it('needs a name to show an order that has no team, and takes the team typed on the form', () => {
+    const noTeam = order({ ...OK_AND_SHOW, teamName: '  ', productLineId: LINE_ID });
+
+    expect(messageAt(noTeam, 'publicName')).toBe('This order has no team name. Enter the name to show.');
+    expect(messageAt({ ...noTeam, publicName: 'Riders' }, 'publicName')).toBeUndefined();
+    expect(messageAt({ ...noTeam, teamName: 'Test Hawks' }, 'publicName')).toBeUndefined();
+  });
+
+  it('does not need a name for an order with no team while it is not shown', () => {
+    expect(messageAt(order({ teamName: '', customerConsent: true }), 'publicName')).toBeUndefined();
+  });
+
+  it('leaves the line to the server on a new order: the items are not known to the browser', () => {
+    expect(messageAt(order({ ...OK_AND_SHOW }), 'productLineId')).toBeUndefined();
+  });
+
+  it('checks the block even when another field is wrong too', () => {
+    expect(messageAt(order({ customerName: '', showOnWebsite: true }), 'showOnWebsite')).toBe(
+      'Tick Customer said OK to show first.',
+    );
+  });
+});
+
+describe('the public website block on the Edit Order form', () => {
+  const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order();
+  const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes, ...NO_PUBLIC };
+
+  function messageFor(overrides: Partial<typeof details>, path: string): string | undefined {
+    const result = updateOrderDetailsSchema.safeParse({ ...details, ...overrides });
+    return result.success ? undefined : result.error.issues.find((issue) => issue.path.join('.') === path)?.message;
+  }
+
+  it('refuses Show without the customer OK, a long name and a missing line, in the window words', () => {
+    expect(messageFor({ showOnWebsite: true }, 'showOnWebsite')).toBe('Tick Customer said OK to show first.');
+    expect(messageFor({ publicName: 'x'.repeat(81) }, 'publicName')).toBe('Keep the name to 80 characters or fewer.');
+    expect(messageFor({ ...OK_AND_SHOW }, 'productLineId')).toBe('Choose the product line to show this order under.');
+    expect(messageFor({ ...OK_AND_SHOW, productLineId: LINE_ID }, 'productLineId')).toBeUndefined();
+  });
+
+  it('needs a name for an order with no team', () => {
+    expect(messageFor({ ...OK_AND_SHOW, productLineId: LINE_ID, teamName: '' }, 'publicName')).toBe(
+      'This order has no team name. Enter the name to show.',
+    );
+  });
+});
+
+describe('the public website block in the requests', () => {
+  it('sends no block on a create when the card was left as it was', () => {
+    expect(toCreateOrderRequest(createOrderSchema.parse(order()))).not.toHaveProperty('publicWebsite');
+  });
+
+  it('sends the OK and Show with no line and no name as nulls', () => {
+    const body = toCreateOrderRequest(createOrderSchema.parse(order({ ...OK_AND_SHOW })));
+
+    expect(body.publicWebsite).toEqual({
+      customerConsent: true,
+      showOnWebsite: true,
+      productLineId: null,
+      publicName: null,
+    });
+  });
+
+  it('sends the line and the trimmed name when they are set, and the OK alone when Show is off', () => {
+    const body = toCreateOrderRequest(
+      createOrderSchema.parse(order({ customerConsent: true, productLineId: LINE_ID, publicName: '  Riders  ' })),
+    );
+
+    expect(body.publicWebsite).toEqual({
+      customerConsent: true,
+      showOnWebsite: false,
+      productLineId: LINE_ID,
+      publicName: 'Riders',
+    });
+  });
+
+  describe('on an edit', () => {
+    const { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes } = order();
+    const details = { customerName, teamName, contactNumber, email, address, orderDate, dueDate, notes };
+    const opened = { customerConsent: true, showOnWebsite: true, productLineId: LINE_ID, publicName: 'Riders' };
+
+    it('sends no block while the card still holds what the order had', () => {
+      const parsed = updateOrderDetailsSchema.parse({ ...details, ...opened });
+
+      expect(toUpdateOrderDetailsRequest(parsed, 'AAAAAAAAB9E=', opened)).not.toHaveProperty('publicWebsite');
+    });
+
+    it('sends the whole block once one value changed, and an all-off block when the OK was taken back', () => {
+      const renamed = updateOrderDetailsSchema.parse({ ...details, ...opened, publicName: 'Riders MC' });
+      const off = updateOrderDetailsSchema.parse({ ...details, ...NO_PUBLIC, productLineId: LINE_ID });
+
+      expect(toUpdateOrderDetailsRequest(renamed, 'AAAAAAAAB9E=', opened).publicWebsite).toEqual({
+        customerConsent: true,
+        showOnWebsite: true,
+        productLineId: LINE_ID,
+        publicName: 'Riders MC',
+      });
+      expect(toUpdateOrderDetailsRequest(off, 'AAAAAAAAB9E=', opened).publicWebsite).toEqual({
+        customerConsent: false,
+        showOnWebsite: false,
+        productLineId: LINE_ID,
+        publicName: null,
+      });
+    });
   });
 });

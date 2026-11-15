@@ -113,6 +113,48 @@ describe('CategoryCard (App. D.3)', () => {
     expect(screen.getByRole('link').getAttribute('href')).toBe('/products/polo');
   });
 
+  describe('the photo prop (11-25, D-34)', () => {
+    const photo = {
+      src: 'https://res.cloudinary.com/sample-cloud/image/upload/card-800.jpg',
+      srcSet:
+        'https://res.cloudinary.com/sample-cloud/image/upload/card-320.jpg 320w, https://res.cloudinary.com/sample-cloud/image/upload/card-800.jpg 800w',
+      sizes: '(max-width: 767px) calc(50vw - 22px), 368px',
+      width: 800,
+      height: 1000,
+    };
+
+    it('shows the photo as a lazy 4:5 image with its srcSet and sizes, decorative, and no placeholder', () => {
+      const { container } = render(inRouter(<CategoryCard {...basketball} photo={photo} />));
+      const image = container.querySelector('img');
+      expect(image?.getAttribute('src')).toBe(photo.src);
+      expect(image?.getAttribute('srcset')).toBe(photo.srcSet);
+      expect(image?.getAttribute('sizes')).toBe(photo.sizes);
+      expect(image?.getAttribute('alt')).toBe('');
+      expect(image?.getAttribute('width')).toBe('800');
+      expect(image?.getAttribute('height')).toBe('1000');
+      expect(image?.getAttribute('loading')).toBe('lazy');
+      expect((image?.parentElement as HTMLElement | null)?.style.getPropertyValue('--ratio')).toBe('4 / 5');
+      expect(screen.queryByRole('img', { name: 'No image yet' })).toBeNull();
+    });
+
+    it('keeps the title, the description and "Customize" in the link name with a photo', () => {
+      render(inRouter(<CategoryCard {...basketball} photo={photo} href="/products#basketball" />));
+      const link = screen.getByRole('link');
+      expect(link.getAttribute('href')).toBe('/products#basketball');
+      expect(link.textContent).toContain('Basketball Jerseys');
+      expect(link.textContent).toContain('Customize');
+    });
+
+    it('without a photo (undefined) renders exactly the same markup as before', () => {
+      const plain = render(inRouter(<CategoryCard {...basketball} />));
+      const first = plain.container.innerHTML;
+      plain.unmount();
+      const withUndefined = render(inRouter(<CategoryCard {...basketball} photo={undefined} />));
+      expect(withUndefined.container.innerHTML).toBe(first);
+      expect(screen.getByRole('img', { name: 'No image yet' })).toBeInTheDocument();
+    });
+  });
+
   it('renders the same markup again for the same props, and the new card for new props', () => {
     const { container, rerender } = render(inRouter(<CategoryCard {...basketball} />));
     const first = container.innerHTML;

@@ -46,6 +46,58 @@ public sealed partial class CloudinaryImageDelivery(IOptions<CloudinarySettings>
         return ImageCandidates.ForCover(width, height, size => Address(publicId, size));
     }
 
+    /// <inheritdoc />
+    public LinePhotoUrls ForLinePhoto(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return new LinePhotoUrls(NoSource, NoSource, NoSource, string.Empty);
+        }
+
+        return ImageCandidates.ForLinePhoto(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
+    public GalleryPhotoUrls ForGallery(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return new GalleryPhotoUrls(NoSource, NoSource, string.Empty);
+        }
+
+        return ImageCandidates.ForGallery(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
+    public ImageSource ForStrip(string publicId, int width, int height)
+    {
+        CheckInput(publicId, width, height);
+        if (NoCloudName())
+        {
+            return NoSource;
+        }
+
+        return ImageCandidates.ForStrip(width, height, size => Address(publicId, size));
+    }
+
+    /// <inheritdoc />
+    public string ForShare(string publicId)
+    {
+        CheckInput(publicId, 1, 1);
+        return NoCloudName() ? string.Empty : Address(publicId, ImageNamedSizes.Share);
+    }
+
+    /// <inheritdoc />
+    public SharePreviewUrls ForSharePreview(string publicId)
+    {
+        CheckInput(publicId, 1, 1);
+        return NoCloudName()
+            ? new SharePreviewUrls(string.Empty, string.Empty)
+            : new SharePreviewUrls(Address(publicId, ImageNamedSizes.SharePreviewOf(320)), Address(publicId, ImageNamedSizes.SharePreviewOf(640)));
+    }
+
     private string Address(string publicId, ImageNamedSize size) =>
         $"https://res.cloudinary.com/{_cloudName}/image/private/t_{size.Name}/v1/{publicId}";
 

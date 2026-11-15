@@ -22,6 +22,7 @@ import {
   order0151,
   orderProblem,
   orderRefund,
+  publicWebsiteBlock,
   useOrderHandlers,
   type OrderDetailFixture,
 } from '@/test/orderFixtures';
@@ -1007,5 +1008,57 @@ describe('leaving with photos that have not uploaded (D-29, UIC-23)', () => {
       holdOnePhoto();
     });
     expect(fireBeforeUnload().defaultPrevented).toBe(true);
+  });
+});
+
+// The Public website card (UI-SPEC O1; D-16; plan 11-27): both roles see it in the side column, after Customer and before Status history.
+describe('the Public website card', () => {
+  it('sits after the Customer card and before the Status history card', async () => {
+    renderOrder();
+    await screen.findByRole('heading', { level: 1, name: 'ORD-2026-0148' });
+
+    const sideHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((heading) => heading.textContent)
+      .filter((text) => text === 'Customer' || text === 'Public website' || text === 'Status history');
+
+    expect(sideHeadings).toEqual(['Customer', 'Public website', 'Status history']);
+  });
+
+  const SHOWN = buildOrderDetail({
+    publicWebsite: publicWebsiteBlock({
+      customerConsent: true,
+      consentRecordedAtUtc: '2026-10-06T02:00:00Z',
+      consentRecordedByName: 'Liza Mercado',
+      shownOnWebsite: true,
+      shownSinceUtc: '2026-10-08T02:00:00Z',
+      productLineId: '8c1f4a20-0000-4000-8000-000000000001',
+      productLineTitle: 'Basketball Jerseys',
+      hasPhoto: false,
+    }),
+  });
+  const CANCELLED = buildOrderDetail({
+    ...cancelledOrderWithRefunds,
+    publicWebsite: publicWebsiteBlock({ canShow: false }),
+  });
+
+  it.each([
+    ['never shown', order0148],
+    ['shown with no photo', SHOWN],
+    ['on a Cancelled order', CANCELLED],
+  ])('has no axe violations on the page with the card %s', async (_state, detail) => {
+    useOrderHandlers({ detail });
+    const { container } = renderOrder({ order: detail });
+
+    expect(await screen.findByRole('region', { name: 'Public website' })).toBeVisible();
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows the card with its Edit button on an order that is Completed', async () => {
+    useOrderHandlers({ detail: completedOrder });
+    renderOrder({ order: completedOrder });
+
+    expect(await screen.findByRole('region', { name: 'Public website' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Edit public website settings' })).toBeVisible();
   });
 });

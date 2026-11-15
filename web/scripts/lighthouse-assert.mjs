@@ -28,9 +28,9 @@ export const THRESHOLDS = Object.freeze({
 });
 
 /**
- * TEMPORARY WAIVER (owner, 2026-10-16; .planning/WINDOWS.md entry 1). These metrics are measured and printed on every run, but
- * missing the limit does not fail the build. Only a limit miss is waived: a missing or empty value still fails. The 2000 ms
- * target in THRESHOLDS is unchanged. REMOVE IN PHASE 11 (empty this list) when the public pages revisit fonts.
+ * LCP stays report-only (owner waiver 2026-10-16, .planning/WINDOWS.md entry 1; kept after Phase 11 by D-29). These metrics are
+ * measured and printed on every run, but missing the limit does not fail the build. Only a limit miss is waived: a missing or
+ * empty value still fails. The 2000 ms target in THRESHOLDS is unchanged. Do not empty this list without the owner's word.
  * @type {readonly string[]}
  */
 export const REPORT_ONLY_METRICS = Object.freeze(['largest-contentful-paint']);
@@ -127,9 +127,7 @@ export function assertReport(report, thresholds = THRESHOLDS, reportOnly = []) {
     const ok = value < metric.below;
     const waived = !ok && reportOnly.includes(metric.id);
     if (waived) {
-      warnings.push(
-        `${name}: ${withUnit(value, metric.unit)} is not below ${limit} (report only until Phase 11, WINDOWS.md entry 1)`,
-      );
+      warnings.push(`${name}: ${withUnit(value, metric.unit)} is not below ${limit} (report only, D-29)`);
     } else if (!ok) {
       failures.push(`${name}: ${withUnit(value, metric.unit)} is not below ${limit}`);
     }
@@ -137,6 +135,15 @@ export function assertReport(report, thresholds = THRESHOLDS, reportOnly = []) {
   }
 
   return { passed: failures.length === 0, failures, warnings, lines };
+}
+
+/**
+ * The LCP of a report in milliseconds, or null when the report has none.
+ * @param {unknown} report the parsed report.json.
+ * @returns {number | null}
+ */
+export function lcpMilliseconds(report) {
+  return finiteAt(asRecord(asRecord(asRecord(report).audits)['largest-contentful-paint']), 'numericValue');
 }
 
 /**

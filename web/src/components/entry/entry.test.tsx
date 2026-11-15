@@ -122,6 +122,39 @@ describe('Checkbox (UI-SPEC Checkbox, D-03)', () => {
     expect(screen.queryByText('About your orders only.')).toBeNull();
   });
 
+  it('keeps an aria-disabled box focusable and unchanged by a click or Space, and reads its hint as its description', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn<(checked: boolean) => void>();
+    render(
+      <Checkbox label="Show it" checked={false} ariaDisabled hint="Tick the first box first." onChange={onChange} />,
+    );
+    const box = screen.getByRole('checkbox', { name: 'Show it' });
+
+    expect(box).toHaveAttribute('aria-disabled', 'true');
+    expect(box).toBeEnabled();
+    expect(box).toHaveAccessibleDescription('Tick the first box first.');
+    await user.tab();
+    expect(box).toHaveFocus();
+    await user.keyboard(' ');
+    await user.click(box);
+
+    expect(box).not.toBeChecked();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps an uncontrolled aria-disabled box unchanged by a click or Space', async () => {
+    const user = userEvent.setup();
+    render(<Checkbox label="Show it" defaultChecked={false} ariaDisabled />);
+    const box = screen.getByRole('checkbox', { name: 'Show it' });
+
+    await user.click(box);
+
+    expect(box).not.toBeChecked();
+    box.focus();
+    await user.keyboard(' ');
+    expect(box).not.toBeChecked();
+  });
+
   it('has no message and no aria-describedby with neither hint nor error', () => {
     const { container } = render(<Checkbox label="Keep me signed in" />);
     expect(container.querySelector('p')).toBeNull();

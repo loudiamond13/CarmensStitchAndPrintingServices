@@ -28,7 +28,7 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-function fast(overrides: { staleAfterMs?: number; heartbeatMs?: number; waitLimitMs?: number } = {}) {
+function fast(overrides: { staleAfterMs?: number; heartbeatMs?: number; waitLimitMs?: number; name?: string } = {}) {
   return createPhotoHostLock({
     directory,
     pollMs: 10,
@@ -139,6 +139,13 @@ describe('createPhotoHostLock', () => {
     const lock = fast({ staleAfterMs: 60_000, waitLimitMs: 100 });
 
     await expect(lock.withLock(() => Promise.resolve())).rejects.toThrow('The photo host lock was not free in time.');
+  });
+
+  it('names the lock it was given in the timeout error', async () => {
+    leaveLock('busy-run', 0);
+    const lock = fast({ staleAfterMs: 60_000, waitLimitMs: 100, name: 'site content' });
+
+    await expect(lock.withLock(() => Promise.resolve())).rejects.toThrow('The site content lock was not free in time.');
   });
 
   it('releases the lock when the work throws', async () => {

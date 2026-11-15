@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Common;
 using Csps.Application.Orders;
 using Csps.Application.Ports;
 using Csps.Application.Security;
@@ -7,6 +8,7 @@ using Csps.Application.UnitTests.Auth;
 using Csps.Application.Users;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Domain.Time;
@@ -35,6 +37,8 @@ public sealed class CreateOrderHandlerTests
     private static readonly Guid BlockedReceiverId = Guid.Parse("d6e90b13-72a4-4f58-8c1d-3a5b7e9f0c26");
     private static readonly Guid FabricId = Guid.Parse("01a17fce-780b-75d1-89e0-5b3b9b185a2c");
     private static readonly Guid RetiredCategoryId = Guid.Parse("8e2c5a47-1d93-4b60-a7f4-6c0d9b3e5a12");
+    private static readonly Guid Basketball = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
+    private static readonly Guid Volleyball = ProductLineSeed.All.Single(entry => entry.Key == "volleyball").Id;
 
     [Fact]
     public async Task WithNoCallerTheSessionHasEnded()
@@ -289,6 +293,21 @@ public sealed class CreateOrderHandlerTests
     }
 
     [Fact]
+    public async Task ADeadlockVictimOnTheNumberLockIsTheSame409AsABusyNumberLockAndTheTransactionRollsBack()
+    {
+        var harness = new Harness();
+        harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException(new InvalidOperationException("A deadlock victim."), outerTransactionEnded: true));
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        harness.Unit.Commits.ShouldBe(0);
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+    }
+
+    [Fact]
     public async Task ADeadlockVictimAtSaveIsTheSame409AsABusyNumberLockAndTheTransactionRollsBack()
     {
         var harness = new Harness();
@@ -534,6 +553,147 @@ public sealed class CreateOrderHandlerTests
     public void AnUndefinedStatusNumberHasNoKey() =>
         Should.Throw<ArgumentOutOfRangeException>(() => OrderStatusNames.ToKey((OrderStatus)0));
 
+    [Fact]
+    public async Task AFormWithNoBlockAndABlockThatSetsNothingTakeNoLockAndAddNoGalleryEntry()
+    {
+        var withoutBlock = new Harness();
+        var emptyBlock = new Harness();
+
+        var first = await withoutBlock.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+        var second = await emptyBlock.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(false, false, null, "  ") }, TestContext.Current.CancellationToken);
+
+        first.IsSuccess.ShouldBeTrue();
+        second.IsSuccess.ShouldBeTrue();
+        foreach (var harness in new[] { withoutBlock, emptyBlock })
+        {
+            await harness.SiteLock.DidNotReceiveWithAnyArgs().TakeAsync(TestContext.Current.CancellationToken);
+            harness.Gallery.DidNotReceiveWithAnyArgs().Add(default!);
+            harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderCreated]);
+        }
+    }
+
+    [Fact]
+    public async Task TheOkAndShowSaveWithTheOrderInOneSaveAfterTheLockAndTheNumber()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(orders => orders.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(true, true, null, null) }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.HasCustomerConsent.ShouldBeTrue();
+        order.PublicConsentById.ShouldBe(CallerId);
+        order.PublicConsentAtUtc.ShouldBe(Now);
+        order.IsShownOnWebsite.ShouldBeTrue();
+        order.PublicProductLineId.ShouldBeNull();
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(1);
+        harness.Added.ShouldHaveSingleItem().OrderId.ShouldBe(order.Id);
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderCreated, AuditActions.OrderPublicConsentRecorded, AuditActions.OrderShownOnWebsite]);
+        harness.Audit.Entries.ShouldAllBe(entry => entry.SavesSoFar == 0);
+        harness.Audit.Entries.Skip(1).ShouldAllBe(entry => entry.Call.Detail == "number=ORD-2027-0001");
+        Received.InOrder(() =>
+        {
+            harness.SiteLock.TakeAsync(Arg.Any<CancellationToken>());
+            harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task ALineAndANameChosenOnTheFormAreStoredAndAuditedAsDetailsWithoutTheName()
+    {
+        var harness = new Harness();
+        Order? added = null;
+        harness.Orders.When(orders => orders.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(true, false, Volleyball, " Display Name ") }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var order = added.ShouldNotBeNull();
+        order.PublicProductLineId.ShouldBe(Volleyball);
+        order.PublicName.ShouldBe("Display Name");
+        harness.Added.ShouldBeEmpty();
+        harness.Audit.Entries.Select(entry => entry.Call.Action).ShouldBe([AuditActions.OrderCreated, AuditActions.OrderPublicConsentRecorded, AuditActions.OrderPublicDetailsChanged]);
+        harness.Audit.Entries[^1].Call.Detail.ShouldBe("number=ORD-2027-0001;fields=line,name");
+    }
+
+    [Fact]
+    public async Task ShowingWithoutTheOkIsA400OnThePrefixedShowFieldBeforeAnyLockOrNumber()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(false, true, null, null) }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "publicWebsite.showOnWebsite", "Tick Customer said OK to show first.");
+        await harness.SiteLock.DidNotReceiveWithAnyArgs().TakeAsync(TestContext.Current.CancellationToken);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ANameOverEightyCharactersIsA400OnThePrefixedNameField()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(true, false, null, new string('n', 81)) }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "publicWebsite.publicName", "Keep the name to 80 characters or fewer.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnOrderWithNoTeamNeedsANameAndTheDomainRefusalTakesNoNumberAndSavesNothing()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { TeamName = null, PublicWebsite = new OrderPublicWebsiteFields(true, true, null, null) }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "publicWebsite.publicName", "This order has no team name. Enter the name to show.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Unit.Saves.ShouldBe(0);
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnOrderWithNoLineToShowItUnderIsRefusedOnThePrefixedLineField()
+    {
+        var harness = new Harness();
+        var request = Valid() with { Items = [Item(OtherProductTypeId)], PublicWebsite = new OrderPublicWebsiteFields(true, true, null, null) };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "publicWebsite.productLineId", "Choose the product line to show this order under.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnUnknownLineIsRefusedOnThePrefixedLineField()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(true, false, Guid.NewGuid(), null) }, TestContext.Current.CancellationToken);
+
+        OnlyField(result, "publicWebsite.productLineId", "Choose the product line to show this order under.");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ABusySiteContentLockIsTheOrdersBusy409AndRecordsNothing()
+    {
+        var harness = new Harness();
+        harness.SiteLock.TakeAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new SiteContentBusyException());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { PublicWebsite = new OrderPublicWebsiteFields(true, true, null, null) }, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        harness.Unit.Rollbacks.ShouldBe(1);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Audit.Entries.ShouldBeEmpty();
+    }
+
     private static CreateOrderRequest Valid() => new(
         "Juan Dela Cruz",
         "Brgy. San Roque Ballers",
@@ -603,6 +763,15 @@ public sealed class CreateOrderHandlerTests
                 ];
                 return Task.FromResult(states);
             });
+            var lines = ProductLineSeed.All.Select(entry => ProductLine.FromSeed(entry, null, null, Now)).ToList();
+            Lines = Substitute.For<IProductLines>();
+            Lines.ListAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<IReadOnlyList<ProductLineListRow>>(
+                [.. lines.Select(line => new ProductLineListRow(line, line.Id == Basketball ? [ProductTypeId] : [], 0, 0))]));
+            Gallery = Substitute.For<IGalleryEntries>();
+            Gallery.GetTopPositionAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(0));
+            Gallery.When(store => store.Add(Arg.Any<GalleryEntry>())).Do(call => Added.Add(call.Arg<GalleryEntry>()));
+            SiteLock = Substitute.For<ISiteContentLock>();
+            SiteLock.TakeAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
             Staff = Substitute.For<IStaffDirectory>();
             Staff.GetStaffStateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
@@ -614,7 +783,7 @@ public sealed class CreateOrderHandlerTests
             });
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new CreateOrderHandler(Orders, Reader, Numbers, Lists, Staff, new FixedCalendar(), Audit, Unit, request, validator ?? new CreateOrderRequestValidator());
+            Handler = new CreateOrderHandler(Orders, Reader, Numbers, Lists, Staff, new FixedCalendar(), Audit, Unit, request, validator ?? new CreateOrderRequestValidator(), new OrderPublicWebsiteWriter(Lines, Gallery, SiteLock, Audit));
             Get = new GetOrderHandler(Reader, request);
         }
 
@@ -627,6 +796,14 @@ public sealed class CreateOrderHandlerTests
         public IOrderLists Lists { get; }
 
         public IStaffDirectory Staff { get; }
+
+        public IProductLines Lines { get; }
+
+        public IGalleryEntries Gallery { get; }
+
+        public ISiteContentLock SiteLock { get; }
+
+        public List<GalleryEntry> Added { get; } = [];
 
         public FakeUnitOfWork Unit { get; } = new();
 
@@ -657,6 +834,7 @@ public sealed class CreateOrderHandlerTests
             [],
             [],
             new OrderTotalsResponse(0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, false),
+            new OrderPublicWebsiteDto(false, null, null, false, null, null, null, null, null, 0, false, true),
             new ActorRef(CallerId, "Mina Mercado", false),
             Now,
             null,

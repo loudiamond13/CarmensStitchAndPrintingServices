@@ -380,7 +380,7 @@ describe('the real source', () => {
   it('lists src files without tests, src/test or declaration files', () => {
     const files = listSourceFiles();
     expect(files).toContain('src/main.tsx');
-    expect(files).toContain('src/modules/public/pages/PublicPlaceholderPage.tsx');
+    expect(files).toContain('src/modules/public/pages/NotFoundPage.tsx');
     expect(files.filter((file) => /\.test\.tsx?$|^src\/test\/|\.d\.ts$/.test(file))).toEqual([]);
   });
 
@@ -392,7 +392,7 @@ describe('the real source', () => {
       ),
     );
     expect(tokens).toContain('@container/pg');
-    expect(tokens).toContain('pg-phone:text-[52px]');
+    expect(tokens).toContain('pg-phone:text-52');
   });
 
   // It compiles every class token in src one at a time: seconds alone, but well over 30 s while the full coverage run

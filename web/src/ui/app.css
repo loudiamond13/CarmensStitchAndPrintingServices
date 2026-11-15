@@ -31,6 +31,10 @@
   --*: initial;
   /* The CSPS 4px step in px, like the spec: p-4 = 16px at any root font size. */
   --spacing: 4px;
+  /* The phone Contact bar's height above the safe area (1px rule, 12px top, 48px button, 16px bottom), pinned to contact.recipe.ts by public-look.node.test.ts. */
+  --spacing-contact-bar: 77px;
+  /* The footer tagline's max width. */
+  --spacing-tagline: 320px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
@@ -41,6 +45,30 @@
   --font-weight-button: 650;
   --font-weight-bold: 700;
   --font-weight-heavy: 800;
+  /* The public font sizes in px, pinned by src/test/public-look.node.test.ts. */
+  --text-12: 12px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-16: 16px;
+  --text-18: 18px;
+  --text-20: 20px;
+  --text-22: 22px;
+  --text-24: 24px;
+  --text-28: 28px;
+  --text-30: 30px;
+  --text-32: 32px;
+  --text-36: 36px;
+  --text-40: 40px;
+  --text-48: 48px;
+  --text-52: 52px;
+  --text-56: 56px;
+  --text-64: 64px;
+  --text-76: 76px;
+  --text-80: 80px;
+  --text-96: 96px;
+  --text-160: 160px;
+  --text-260: 260px;
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;

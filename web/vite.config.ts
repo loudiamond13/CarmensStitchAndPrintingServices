@@ -4,9 +4,10 @@ import { defineConfig, loadEnv } from 'vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
-import { PUBLIC_ROUTE } from './scripts/budget.ts';
+import { PUBLIC_PRELOAD_ROUTE } from './scripts/budget.ts';
 import { budgetPlugin, type BudgetBuild } from './scripts/vite-budget-plugin.ts';
-import { preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
+import { brotliPlugin } from './scripts/vite-brotli-plugin.ts';
+import { barlowNoPesoPlugin, preloadFontPlugin, woff2OnlyPlugin } from './scripts/vite-preload-font-plugin.ts';
 import { routePreloadPlugin } from './scripts/vite-route-preload-plugin.ts';
 
 // SPEC-DEVIATION: the React Compiler runs through @rolldown/plugin-babel (plugin-react 6 README wiring, research
@@ -65,6 +66,9 @@ export default defineConfig(({ mode }) => {
       // SPEC-DEVIATION: PERF-05 woff2 only. The Fontsource weight files list a .woff fallback after each woff2; it
       // is dropped before the CSS pipeline, so the web root ships woff2 files only (research Pattern 14).
       woff2OnlyPlugin(),
+      // D-28 (plan 11-36): Barlow Condensed has no peso sign, so a peso in display text no longer downloads its latin-ext
+      // files; the peso is drawn by Archivo Variable as before, so the look is unchanged.
+      barlowNoPesoPlugin(),
       // SPEC-DEVIATION: PERF-05 preload. Build-only: one <link rel="preload"> for the hashed Archivo latin woff2 (the
       // LCP font), and the build fails if that file is missing or matched twice (research Pattern 14).
       preloadFontPlugin(/archivo-latin-wght-normal-.*\.woff2$/),
@@ -76,7 +80,10 @@ export default defineConfig(({ mode }) => {
       // SPEC-DEVIATION: PERF-02 route preload (plan 02-35). Production only: `<link rel="modulepreload">` for the lazy
       // public layout and page chunks, so a phone fetches them with the entry script instead of one round trip later.
       // The dev-route builds put those modules in shared chunks with no facade, and nothing measures them for speed.
-      ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_ROUTE)]),
+      ...(devRoutes ? [] : [routePreloadPlugin(PUBLIC_PRELOAD_ROUTE)]),
+      // D-28 Brotli twins (plan 11-36). The builds a host serves (production and e2e) get a quality-11 .br next to every
+      // .js, .css and .svg over 1 KB; the budget and parity builds are only measured, so they skip the slow pass.
+      ...(mode === 'production' || mode === 'e2e' ? [brotliPlugin()] : []),
     ],
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     // SPEC-DEVIATION: dev-only routes (showcase, admin preview) exist in development and in the e2e and budget
@@ -105,6 +112,11 @@ export default defineConfig(({ mode }) => {
         // take most of the build time, which the React Compiler (babel) and Tailwind always do in the dev-route builds;
         // it reports speed, not a defect, and nothing here can act on it.
         checks: { bundlerTimings: false },
+        // PERF-01: the entry carries the file name of every lazy chunk for preloading, so shared chunks are named by
+        // their content hash only (about 1.3 KB gzip off every public page). Lazy route chunks keep their module name.
+        output: {
+          chunkFileNames: (chunk) => (chunk.facadeModuleId === null ? 'assets/[hash].js' : 'assets/[name]-[hash].js'),
+        },
         // SPEC-DEVIATION: D-20 / CWE-489. Only the parity build of `npm run parity` (and development) adds the
         // look-equality page, parity.html (WEB-02, D-33). The production, e2e and budget builds keep index.html as their
         // only entry: the page never reaches wwwroot, and its imports never shape the chunks the budgets measure.
