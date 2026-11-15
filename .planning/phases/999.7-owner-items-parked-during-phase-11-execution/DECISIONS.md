@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-13T23:40:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-14T19:30:00-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -664,6 +664,26 @@ The command-line tool that creates the first Manager checks "is there already an
 
 - **A:** a small quick task makes the command take the Manager roster lock first, test first, so a second copy waits as before.
 - **B (recommended):** keep the code and accept the race. The command is run once, by you, by hand, so two copies at the same moment will not happen. One word closes this item and unblocks the script.
+
+## P11-BL-65 · Photos keep their location data on the way up when they are not shrunk (UAT test 19, review F1)
+
+**Status:** decided: A (owner, 2026-11-14) · **Blocks:** Phase 11 UAT gap G-11-19.
+
+**Ruling D-P11-BL-65 (owner, 2026-11-14):** always redraw a photo in the browser before upload, so its location and other metadata never leave the phone. The only exception is a HEIC the browser cannot open, which goes as it is and is stripped by the server. This amends Phase 9 D-18 ("A file already within that size is left as it is") for every upload that goes through prepareImage. The server strip stays.
+
+prepareImage (web/src/utils/images.ts) redraws only when a photo needs shrinking. A photo already 2000 px or smaller, or a HEIC the browser cannot open, was sent as the original file, GPS included. The server strips metadata before storing, so nothing was ever saved or published with it. Rules 11-22 D8 and 11-34 D9 said every upload is redrawn.
+
+- **A (chosen):** always redraw, except an unreadable HEIC.
+- **B:** keep it and reword the rules to "the server strips it".
+
+## P11-BL-66 · Bracket placeholder check only on Business Info (UAT test 19, review F2)
+
+**Status:** decided: B (owner, 2026-11-14) · **Blocks:** nothing.
+
+**Ruling D-P11-BL-66 (owner, 2026-11-14):** keep the bracket placeholder check on the Business Info fields only. Product line text, testimonials, gallery names, order public names and closure notes stay without it. Do not raise this again.
+
+- **A:** extend the check to every field the public site shows.
+- **B (chosen):** leave it on Business Info, as plan 11-09 built it.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 

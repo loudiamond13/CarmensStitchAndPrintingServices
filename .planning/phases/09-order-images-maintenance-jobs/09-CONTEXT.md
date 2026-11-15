@@ -1,5 +1,5 @@
 # Phase 9: Order Images & Maintenance Jobs - Context
-*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-11-06T10:12:00-06:00*
+*Created: 2026-10-31T12:30:00-05:00 · Updated: 2026-11-14T19:30:00-06:00*
 
 **Gathered:** 2026-10-31
 **Status:** Ready for planning
@@ -46,7 +46,7 @@ The owner decisions the roadmap lists for this phase are closed here: OD-9 and C
 - **D-15:** **Photo changes save immediately** (move, cover, alt text, delete), each with a small "Saved" message. Delete asks to confirm. A conflict (rowversion 409) reloads the latest photos (owner, 2026-10-31).
 - **D-16:** **Tapping a photo opens a viewer** with Previous and Next buttons, arrow keys, Esc to close, the alt text and "Open full size". Focus goes back to the photo on close (owner, 2026-10-31).
 - **D-17:** **On phones, two buttons: "Take Photo"** (opens the camera, `capture`) **and "Choose Photos"** (gallery). A computer shows the drop zone and browse only (owner, 2026-10-31).
-- **D-18:** **Every upload is downscaled in the browser to a 2000 px long side**, camera and gallery alike. A file already within that size is left as it is. The server still enforces 10 MB (configurable), magic bytes (JPEG/PNG/WebP/HEIC), max dimensions and no SVG (owner, 2026-10-31).
+- **D-18:** **Every upload is downscaled in the browser to a 2000 px long side**, camera and gallery alike. A file already within that size is left as it is (amended by D-P11-BL-65, owner, 2026-11-14: always redrawn, except a HEIC the browser cannot open). The server still enforces 10 MB (configurable), magic bytes (JPEG/PNG/WebP/HEIC), max dimensions and no SVG (owner, 2026-10-31).
 - **D-19:** **Admins and Managers both** add, arrange and delete photos, like other order parts (07 D-25). Every photo change goes in the audit log (07 D-31) (owner, 2026-10-31).
 
 ### Deletes and maintenance jobs (JOB-01, JOB-02)
