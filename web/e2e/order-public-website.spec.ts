@@ -328,17 +328,25 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
   await expectNoAxeViolations(page);
   // The saved order is shown at the top of the gallery, which is one set for all projects: it is saved, read and deleted under the lock.
   await withSiteContentLock(async () => {
-    await page.getByRole('button', { name: 'Save Order' }).click();
-    await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
-    const id = /\/admin\/orders\/([0-9a-f-]{36})$/.exec(page.url())?.[1] ?? '';
+    // The id comes from the create answer, so the order is deleted even when the page does not reach its URL.
+    const created = page.waitForResponse(
+      (response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/orders',
+    );
+    created.catch(() => undefined);
+    let id: string | null = null;
     try {
+      await page.getByRole('button', { name: 'Save Order' }).click();
+      id = ((await (await created).json()) as { id: string }).id;
+      await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
       const saved = formCard(page);
       await expect(saved).toBeVisible();
       await expect(saved).toContainText(/Yes, recorded .+ by .+/);
       await expect(saved.getByText('Shown', { exact: true })).toBeVisible();
       await expect(saved).toContainText('E2E Form Public Team');
     } finally {
-      await deleteOrderThroughApi(page, id);
+      if (id !== null) {
+        await deleteOrderThroughApi(page, id);
+      }
     }
   });
 });
