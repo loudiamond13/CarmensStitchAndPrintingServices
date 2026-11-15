@@ -8,6 +8,7 @@
 //   - D-131 on phones the drawer slides down and fades in, and on close stays mounted (inert) until its exit ends
 //     (usePresence); nothing moves under reduced motion.
 // The SiteHeader renders its own Logo, so it passes it the header context (the App. C phone tagline, UI-SPEC rule 7a).
+import clsx from 'clsx';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, UiLink } from '@/components/actions';
@@ -15,9 +16,11 @@ import { Icon, Logo } from '@/components/brand';
 import { usePresence } from '@/hooks/usePresence';
 import {
   siteBurgerClasses,
+  siteBurgerIconClasses,
   siteCtaClasses,
   siteDrawerClasses,
   siteDrawerCtaClasses,
+  siteDrawerItemClasses,
   siteDrawerLinkClasses,
   siteHeaderClasses,
   siteHeaderInnerClasses,
@@ -96,7 +99,7 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
             setOpen(!open);
           }}
         >
-          <Icon name={open ? 'x' : 'menu'} size={22} />
+          <Icon name={open ? 'x' : 'menu'} size={22} className={clsx(mounted && siteBurgerIconClasses)} />
         </button>
       </div>
       {mounted && (
@@ -116,14 +119,20 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
               onClick={() => {
                 setOpen(false);
               }}
-              className={siteDrawerLinkClasses}
+              className={clsx(siteDrawerLinkClasses, siteDrawerItemClasses)}
               aria-current={link.label === active ? 'page' : undefined}
             >
               {link.label}
               <Icon name="arrow-right" size={20} />
             </UiLink>
           ))}
-          <Button variant="primary" block iconRight="arrow-right" className={siteDrawerCtaClasses} onClick={quote}>
+          <Button
+            variant="primary"
+            block
+            iconRight="arrow-right"
+            className={clsx(siteDrawerCtaClasses, siteDrawerItemClasses)}
+            onClick={quote}
+          >
             Get a Quote
           </Button>
         </nav>

@@ -1,11 +1,11 @@
 // Keeps a closing node mounted until its exit animation ends (D-38, D-39). The caller renders the node while `mounted`
 // and marks it `data-state={state}`; theme keyframes do the motion. With no animation (reduced motion, jsdom) the node
-// leaves in the same commit, because `animationend` never fires for `animation: none`. A 300 ms timer is the fallback
+// leaves in the same commit, because `animationend` never fires for `animation: none`. A 400 ms timer is the fallback
 // for an animation that never ends; an `animationend` that bubbles up from a child is not the node's own and is ignored.
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-/** The longest exit animation plus a margin (D-38 caps the motion at 250 ms). */
-const FALLBACK_MS = 300;
+/** The longest exit animation plus a margin (D-131: the public phone menu exits over 300 ms). */
+const FALLBACK_MS = 400;
 
 export interface Presence {
   /** True while the node should be in the DOM: open, or closing and still animating. */

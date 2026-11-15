@@ -10,9 +10,11 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation';
 import {
   siteBurgerClasses,
+  siteBurgerIconClasses,
   siteCtaClasses,
   siteDrawerClasses,
   siteDrawerCtaClasses,
+  siteDrawerItemClasses,
   siteDrawerLinkClasses,
   siteHeaderClasses,
   siteHeaderInnerClasses,
@@ -299,6 +301,56 @@ describe('SiteHeader phone drawer motion (D-131)', () => {
     expect(nav.isConnected).toBe(true);
     expect(nav.getAttribute('data-state')).toBe('open');
     expect(nav.hasAttribute('inert')).toBe(false);
+  });
+
+  it('lets the links and the drawer "Get a Quote" rise in one after another, none under reduced motion', async () => {
+    render(inRouter(<SiteHeader />));
+    await userEvent.click(burger());
+
+    expect(tokens(siteDrawerItemClasses)).toEqual(
+      [
+        'animate-csp-site-link-in',
+        'nth-1:[animation-delay:60ms]',
+        'nth-2:[animation-delay:120ms]',
+        'nth-3:[animation-delay:180ms]',
+        'nth-4:[animation-delay:240ms]',
+        'nth-[n+5]:[animation-delay:300ms]',
+        'motion-reduce:animate-none',
+      ].sort(),
+    );
+    for (const item of drawerLinks()) {
+      expect(hasClasses(item, siteDrawerLinkClasses)).toBe(true);
+      expect(hasClasses(item, siteDrawerItemClasses)).toBe(true);
+    }
+    const cta = within(mobileNav()).getByRole('button', { name: 'Get a Quote' });
+    expect(hasClasses(cta, siteDrawerCtaClasses)).toBe(true);
+    expect(hasClasses(cta, siteDrawerItemClasses)).toBe(true);
+  });
+
+  it('turns the burger icon while the menu is open or closing, and not on page load', async () => {
+    animateClosedElements();
+    render(inRouter(<SiteHeader />));
+    const icon = (): Element | null => burger().querySelector('svg');
+
+    expect(tokens(siteBurgerIconClasses)).toEqual(['animate-csp-burger-turn', 'motion-reduce:animate-none']);
+    expect(burger().querySelectorAll('svg')).toHaveLength(1);
+    expect(icon()?.classList.contains('animate-csp-burger-turn')).toBe(false);
+
+    await userEvent.click(burger());
+    expect(burger().querySelectorAll('svg')).toHaveLength(1);
+    expect(hasClasses(icon(), siteBurgerIconClasses)).toBe(true);
+    const nav = mobileNav();
+
+    await userEvent.click(burger());
+    expect(burger().querySelectorAll('svg')).toHaveLength(1);
+    expect(hasClasses(icon(), siteBurgerIconClasses)).toBe(true);
+
+    act(() => {
+      nav.dispatchEvent(new Event('animationend'));
+    });
+    expect(burger().querySelectorAll('svg')).toHaveLength(1);
+    expect(tokens(siteBurgerIconClasses).some((token) => icon()?.classList.contains(token))).toBe(false);
+    expect(burger().getAttribute('aria-expanded')).toBe('false');
   });
 });
 

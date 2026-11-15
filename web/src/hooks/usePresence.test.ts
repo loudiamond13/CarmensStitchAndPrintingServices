@@ -81,13 +81,13 @@ describe('usePresence', () => {
     expect(result.current.mounted).toBe(true);
   });
 
-  it('unmounts after the 300 ms fallback when no animationend arrives', () => {
+  it('unmounts after the 400 ms fallback when no animationend arrives', () => {
     mockAnimationName('csp-rise-out');
     const { result, rerender } = setup(true);
 
     rerender({ open: false });
     act(() => {
-      vi.advanceTimersByTime(299);
+      vi.advanceTimersByTime(399);
     });
     expect(result.current.mounted).toBe(true);
 
