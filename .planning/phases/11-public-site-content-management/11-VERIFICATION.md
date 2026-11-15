@@ -1,13 +1,26 @@
 ---
 phase: 11-public-site-content-management
 created: 2026-11-13T04:58:00-06:00
-updated: 2026-11-14T20:45:00-06:00
+updated: 2026-11-15T07:30:00-06:00
 verified: 2026-11-15T02:45:00Z
-status: human_needed
+status: passed
 score: 6/6 must-haves verified
 requirements_score: 14/14 phase requirements satisfied in code; PERF-02 not met on public pages (LCP waived by the owner, performance score parked)
 behavior_unverified: 0
-overrides_applied: 0
+overrides_applied: 3
+overrides:
+  - must_have: "Cloudinary named sizes on the live account (human item 2, UAT 21)"
+    reason: "Needs the deployed site and production keys. Deferred to the go-live checklist in docs/operations/go-live-public-site.md (D-127)."
+    accepted_by: "owner"
+    accepted_at: "2026-11-15T07:30:00-06:00"
+  - must_have: "Real content entered before cutover (human item 3, UAT 22)"
+    reason: "Owner data entered on the live site after the deploy, per D-123 and the go-live checklist (D-127)."
+    accepted_by: "owner"
+    accepted_at: "2026-11-15T07:30:00-06:00"
+  - must_have: "Facebook Sharing Debugger on the live site (human item 4, UAT 23)"
+    reason: "Needs the live site and Meta's scraper. Deferred to the go-live checklist (D-127)."
+    accepted_by: "owner"
+    accepted_at: "2026-11-15T07:30:00-06:00"
 prohibitions_flagged: 44
 covered_files:
   - ".planning/phases/11-public-site-content-management/11-01-PLAN.md"
@@ -129,9 +142,9 @@ re_verification:
   previous_status: human_needed
   previous_score: 5/5
   trigger: "gap-closure plan 11-39 (UAT G-11-19, ruling D-P11-BL-65) was added after the first report"
-  gaps_closed: []
-  gaps_remaining:
-    - "G-11-19 stays failed in 11-UAT.md until /gsd-verify-work re-tests UAT test 19 (a human test); the code fix is verified here"
+  gaps_closed:
+    - "G-11-19: fixed by plan 11-39; UAT test 19 passed under D-127 (owner, 2026-11-15)"
+  gaps_remaining: []
   regressions: []
 human_verification:
   - test: "Re-test UAT test 19 (privacy: only the redrawn image is uploaded) with a real phone photo that carries location data and is 2000 px or smaller, through /gsd-verify-work."
@@ -164,7 +177,9 @@ human_verification:
 
 **Phase Goal:** Visitors arriving on a phone from Facebook can browse Home, Products, Gallery and Contact, with real business info and prices from the database, and their link previews look right. Managers keep all that content current without a developer.
 **Verified:** 2026-11-15T02:45:00Z (2026-11-14 20:45 Chicago)
-**Status:** human_needed
+**Status:** passed (owner close-out 2026-11-15, D-127)
+
+**Close-out (2026-11-15):** every human item below is settled. Item 1 by UAT test 17 (Phase 11 specs, flakes recorded; the full-suite run is parked as P11-BL-57). Item 5 by D-P11-BL-29. Item 6 by UAT test 18 (D-P11-BL-42; P11-BL-43 parked in 999.7). Item 7 by UAT test 19 (39 hold, F1 to F4 ruled). Item 8 by plan 11-39 and D-127. Items 2 to 4 are deferred to the go-live checklist as overrides (D-127). Still open and not blocking: the PNG size edge question from 11-39.
 **Re-verification:** Yes. The first report was written before gap-closure plan 11-39 (UAT G-11-19, ruling D-P11-BL-65) was added. The five success criteria got a regression pass; plan 11-39 was verified in full.
 
 All five success criteria still hold in the code, and the 11-39 privacy fix is in the code: every photo the browser can decode is now redrawn before upload, and only an undecodable HEIC goes as it is. Every public value comes from the database. The server sends each page's own head and a real 404. Every content write clears the public cache once the change is committed. What is left needs the owner: re-testing UAT test 19 (G-11-19 stays failed in 11-UAT.md until then), the three live go-live steps (UAT 21 to 23, blocked until the deploy), one privacy ruling (P11-BL-29), the page speed ruling (PERF-02), the result of the parallel e2e run, and a review of the plan prohibitions.
