@@ -31,6 +31,8 @@
   --*: initial;
   /* The CSPS 4px step in px, like the spec: p-4 = 16px at any root font size. */
   --spacing: 4px;
+  /* The phone Contact bar's height above the safe area (1px rule, 12px top, 48px button, 16px bottom), pinned to contact.recipe.ts by public-look.node.test.ts. */
+  --spacing-contact-bar: 77px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;

@@ -24,6 +24,8 @@ vi.mock('./FooterHours', async (importOriginal) => {
   return { ...actual, default: vi.fn(actual.default) };
 });
 
+const CLEARANCE = 'pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]';
+
 afterEach(() => {
   resetPublicData();
 });
@@ -238,11 +240,17 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
     expect(within(footer).queryByText(/©/)).not.toBeInTheDocument();
   });
 
-  it('keeps the footer shell with its 96px bottom padding on phones, so the Contact bar never covers the last row', () => {
+  it('pads the base footer 96px on phones, or the Contact bar plus the safe area when that is taller', () => {
     putBootBlock(demoSite);
     renderBase();
 
-    expect(screen.getByRole('contentinfo').className.split(' ')).toContain('pg-phone:pb-[96px]');
+    expect(screen.getByRole('contentinfo').className.split(' ')).toContain(CLEARANCE);
+  });
+
+  it('pads the full footer the same way', () => {
+    renderFullFrom(demoSite);
+
+    expect(screen.getByRole('contentinfo').className.split(' ')).toContain(CLEARANCE);
   });
 
   it('has no axe violations', async () => {

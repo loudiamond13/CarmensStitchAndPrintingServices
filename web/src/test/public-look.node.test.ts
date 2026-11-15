@@ -1,12 +1,12 @@
 // @vitest-environment node
-// Gates for the public look (11-UI-REVIEW): named font sizes, token colours, no style attribute, the safe area under the bar.
+// Gates for the public look (11-UI-REVIEW): named font sizes and spacing, token colours, no style attribute, the safe area under the bar.
 // A node test, because the class gate reads app.css with node:fs.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildCss } from '../../scripts/class-gate.mjs';
-import { barClasses } from '../modules/public/components/contact.recipe';
+import { barClasses, barSecondaryClasses } from '../modules/public/components/contact.recipe';
 
 const srcDir = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = join(srcDir, 'modules', 'public');
@@ -103,5 +103,39 @@ describe('public sticky bar (11-UI-REVIEW fix 6)', () => {
     expect(tokens).toHaveLength(1);
     const css = await buildCss(tokens);
     expect(css).toContain('padding-bottom: calc(16px + env(safe-area-inset-bottom))');
+  });
+});
+
+const CLEARANCE = 'pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]';
+const footerSource = publicSources.find(({ name }) => name.endsWith('/SiteFooter.tsx'))?.source ?? '';
+const compact = (css: string) => css.replaceAll(/\s+/g, '');
+
+describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
+  it('pins --spacing-contact-bar to the sum of the bar parts', () => {
+    const token = /--spacing-contact-bar:\s*(\d+)px;/.exec(appCss);
+    const top = /(?<![\w-])pt-(\d+)(?![\w-])/.exec(barClasses);
+    const button = /(?<![\w-])h-(\d+)(?![\w-])/.exec(barSecondaryClasses);
+    const bottom = /(?<![\w-])pb-\[calc\((\d+)px\+env\(safe-area-inset-bottom\)\)\]/.exec(barClasses);
+    expect(token).not.toBeNull();
+    expect(top).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(bottom).not.toBeNull();
+    expect(barClasses.split(/\s+/)).toContain('border-t');
+    const sum = 1 + 4 * Number(top?.[1]) + 4 * Number(button?.[1]) + Number(bottom?.[1]);
+    expect(Number(token?.[1])).toBe(sum);
+  });
+
+  it('holds no bare px padding or margin in the public module', () => {
+    expect(hitsOf(/(?<![\w-])-?[pm][xytrblse]?-\[[\d.]+px\]/)).toEqual([]);
+  });
+
+  it('clears the Contact bar under both footers with one shared class, 96px while the inset is 0', async () => {
+    expect(footerSource.split(CLEARANCE)).toHaveLength(2);
+    const css = compact(await buildCss([CLEARANCE]));
+    expect(css).toContain(
+      'padding-bottom:max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))',
+    );
+    expect(css).toContain('--spacing-contact-bar:77px');
+    expect(baseCss).toMatch(/--space-24:\s*96px/);
   });
 });

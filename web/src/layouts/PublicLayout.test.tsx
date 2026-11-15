@@ -216,11 +216,13 @@ describe('PublicLayout footer variant by route (UI-SPEC Footer)', () => {
     expect(within(footer).getByRole('link', { name: 'Staff Login' })).toHaveAttribute('href', '/admin/login');
   });
 
-  it('keeps the 96px phone padding under the base row, so the Contact bar never covers it', async () => {
+  it('clears the Contact bar under the base row: 96px, or the bar plus the safe area when taller', async () => {
     putBootBlock(demoSite);
     await renderAt('/contact');
 
-    expect(screen.getByRole('contentinfo').className.split(' ')).toContain('pg-phone:pb-[96px]');
+    expect(screen.getByRole('contentinfo').className.split(' ')).toContain(
+      'pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]',
+    );
   });
 });
 

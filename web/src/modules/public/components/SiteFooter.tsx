@@ -41,8 +41,10 @@ const columnListClasses = tw('flex flex-col gap-3 text-14 leading-5');
 const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
 const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
-/** The base footer: the full footer's shell (App. C `.s-foot`), with its 96px bottom padding on phones, which keeps the Contact bar off the last row. */
-const baseFooterClasses = tw('border-t border-line bg-bg pt-16 pb-8 pg-phone:pb-[96px]');
+/** The footer shell (App. C `.s-foot`). On phones the bottom padding is 96px, or the Contact bar's height plus the safe area when that is taller, so the bar never covers the last row. */
+const footerShellClasses = tw(
+  'border-t border-line bg-bg pt-16 pb-8 pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]',
+);
 
 /** The social squares for the links that are set, in the order FB, IG, TT. */
 function socialsOf(site: PublicSite) {
@@ -125,7 +127,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
   const site = query.status === 'success' ? query.data : undefined;
   if (variant === 'base') {
     return (
-      <footer className={baseFooterClasses}>
+      <footer className={footerShellClasses}>
         <div className="mx-auto max-w-(--container-max) px-6 pg-phone:px-4">
           <div className="flex flex-wrap justify-between gap-3 text-12 leading-4 text-ink-subtle">
             <Logo size="sm" />
@@ -141,7 +143,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
   const showVisit = !failed && (site === undefined || addressLine(site.address) !== '');
   const showContact = !failed && (site === undefined || mainPhone(site) !== undefined || site.messengerUrl !== null);
   return (
-    <footer className="border-t border-line bg-bg pt-16 pb-8 pg-phone:pb-[96px]">
+    <footer className={footerShellClasses}>
       <div className="mx-auto max-w-(--container-max) px-6 pg-phone:px-4">
         <div className="grid grid-cols-[1.4fr_1fr_1fr_1fr] gap-8 pg-phone:grid-cols-[minmax(0,1fr)] pg-phone:gap-6 pg-tablet:grid-cols-[1fr_1fr]">
           <div>
