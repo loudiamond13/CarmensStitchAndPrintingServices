@@ -17,19 +17,29 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 public sealed class UploadSlotsCoverageTests
 {
     [Fact]
-    public void EveryActionWithTheImageUploadRateLimitAlsoCarriesTheUploadSlot()
+    public void EveryActionThatTakesAFileCarriesBothTheImageUploadRateLimitAndTheUploadSlot()
     {
         var uploadActions = typeof(OrderImagesController).Assembly.GetTypes()
             .Where(type => typeof(ControllerBase).IsAssignableFrom(type))
-            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
-            .Where(method => method.GetCustomAttribute<EnableRateLimitingAttribute>()?.PolicyName == RateLimitPolicies.ImageUpload)
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+            .Where(method => method.GetParameters().Any(parameter => parameter.ParameterType == typeof(IFormFile) || parameter.ParameterType == typeof(IFormFileCollection)))
             .ToList();
 
         uploadActions.Count.ShouldBe(5, "the order photo, the gallery upload and replace, the product line photo and the share picture");
-        uploadActions.Where(method => method.GetCustomAttribute<UploadSlotAttribute>() is null)
-            .Select(method => $"{method.DeclaringType!.Name}.{method.Name}")
-            .ShouldBeEmpty("every photo upload action takes a slot");
+        uploadActions.Where(method => !Has<EnableRateLimitingAttribute>(method, attribute => attribute.PolicyName == RateLimitPolicies.ImageUpload))
+            .Select(Name)
+            .ShouldBeEmpty("every file upload action carries the image upload rate limit");
+        uploadActions.Where(method => !Has<UploadSlotAttribute>(method, _ => true))
+            .Select(Name)
+            .ShouldBeEmpty("every file upload action takes a slot");
     }
+
+    private static string Name(MethodInfo method) => $"{method.DeclaringType!.Name}.{method.Name}";
+
+    // The attribute may sit on the action or on its controller class.
+    private static bool Has<T>(MethodInfo method, Func<T, bool> matches)
+        where T : Attribute =>
+        method.GetCustomAttributes<T>(inherit: true).Concat(method.DeclaringType!.GetCustomAttributes<T>(inherit: true)).Any(matches);
 
     [Fact]
     public async Task AnEndpointWithTheSlotMetadataIsHeldToTheCapWhateverItsName()
