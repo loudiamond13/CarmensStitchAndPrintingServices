@@ -596,6 +596,8 @@ export interface ProductLinesBackend {
   puts: { id: string; body: ProductLineBody }[];
   moves: { id: string; direction: string | null; key: string | null }[];
   hides: string[];
+  /** The Idempotency-Key of every hide call, in order. */
+  hideKeys: (string | null)[];
   shows: string[];
   deletes: string[];
 }
@@ -632,6 +634,7 @@ export function productLinesBackend(
     puts: [],
     moves: [],
     hides: [],
+    hideKeys: [],
     shows: [],
     deletes: [],
   };
@@ -733,9 +736,10 @@ export function productLinesBackend(
       }
       return new HttpResponse(null, { status: 204 });
     }),
-    http.post('*/api/v1/product-lines/:id/hide', async ({ params }) => {
+    http.post('*/api/v1/product-lines/:id/hide', async ({ request, params }) => {
       const id = String(params.id);
       backend.hides.push(id);
+      backend.hideKeys.push(request.headers.get('Idempotency-Key'));
       const answer = await options.onHide?.(id, backend);
       if (answer !== undefined) {
         return answer;
@@ -945,6 +949,8 @@ export interface TestimonialsBackend {
   puts: { id: string; body: TestimonialBody }[];
   moves: { id: string; direction: string | null; key: string | null }[];
   hides: string[];
+  /** The Idempotency-Key of every hide call, in order. */
+  hideKeys: (string | null)[];
   shows: string[];
   deletes: string[];
 }
@@ -978,6 +984,7 @@ export function testimonialsBackend(
     puts: [],
     moves: [],
     hides: [],
+    hideKeys: [],
     shows: [],
     deletes: [],
   };
@@ -1055,9 +1062,10 @@ export function testimonialsBackend(
       }
       return new HttpResponse(null, { status: 204 });
     }),
-    http.post('*/api/v1/testimonials/:id/hide', async ({ params }) => {
+    http.post('*/api/v1/testimonials/:id/hide', async ({ request, params }) => {
       const id = String(params.id);
       backend.hides.push(id);
+      backend.hideKeys.push(request.headers.get('Idempotency-Key'));
       const answer = await options.onHide?.(id, backend);
       if (answer !== undefined) {
         return answer;
@@ -1234,6 +1242,8 @@ export interface GalleryItemsBackend {
   photos: { id: string; key: string | null }[];
   moves: { id: string; direction: string | null; lineId: string | null | undefined; key: string | null }[];
   hides: string[];
+  /** The Idempotency-Key of every hide call, in order. */
+  hideKeys: (string | null)[];
   shows: string[];
   deletes: string[];
   /** The row the next add makes (it joins the top). */
@@ -1266,6 +1276,7 @@ export function galleryItemsBackend(
     photos: [],
     moves: [],
     hides: [],
+    hideKeys: [],
     shows: [],
     deletes: [],
     nextUpload: galleryItem('6b2e8f30-0000-4000-8000-000000000101', 'upload', {
@@ -1382,9 +1393,10 @@ export function galleryItemsBackend(
       }
       return new HttpResponse(null, { status: 204 });
     }),
-    http.post('*/api/v1/gallery-items/:id/hide', async ({ params }) => {
+    http.post('*/api/v1/gallery-items/:id/hide', async ({ request, params }) => {
       const id = String(params.id);
       backend.hides.push(id);
+      backend.hideKeys.push(request.headers.get('Idempotency-Key'));
       const answer = await options.onHide?.(id, backend);
       if (answer !== undefined) {
         return answer;

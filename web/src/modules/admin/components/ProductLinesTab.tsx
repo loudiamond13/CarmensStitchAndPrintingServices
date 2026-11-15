@@ -300,7 +300,12 @@ export function ProductLinesTab() {
   const focused = useRef<object | null>(null);
 
   /** A refused or failed immediate action: a danger toast with the shared error line, and the list read again when it may have gone through. */
-  const reportFailure = (line: ProductLineListItem, control: 'up' | 'down' | 'toggle', error: unknown): void => {
+  const reportFailure = (
+    line: ProductLineListItem,
+    control: 'up' | 'down' | 'toggle',
+    error: unknown,
+    indexBefore: number,
+  ): void => {
     setActing(null);
     const title =
       control === 'toggle'
@@ -310,12 +315,23 @@ export function ProductLinesTab() {
     if (copy !== null) {
       toast.show({ tone: 'danger', title, message: errorLine(copy) });
     }
-    if (mayHaveSaved(error) || (isHttpError(error) && error.status === 404)) {
-      // Once the list shows what happened, the same press is a new intent, so it gets a new Idempotency-Key.
+    const action = control === 'toggle' ? toggle : move;
+    if (isHttpError(error) && error.status === 404) {
+      // A final answer: the line is gone, so the same press is a new intent and gets a new Idempotency-Key.
+      action.reset();
+      void query.refetch();
+    } else if (mayHaveSaved(error)) {
+      // The answer may have been lost while the server is still working on it, so the key is dropped only once the list shows what the
+      // action did. Until then a repeat press keeps the key and is replayed, or refused as still running.
       void query.refetch().then((result) => {
-        if (!result.isError) {
-          move.reset();
-          toggle.reset();
+        if (result.isError || result.data === undefined) {
+          return;
+        }
+        const after = result.data.findIndex((item) => item.id === line.id);
+        const tookEffect =
+          control === 'toggle' ? result.data[after]?.isActive === !line.isActive : after !== indexBefore;
+        if (tookEffect) {
+          action.reset();
         }
       });
     }
@@ -330,7 +346,7 @@ export function ProductLinesTab() {
         ? await toggle.submit({ id: line.id, shown: !line.isActive })
         : await move.submit({ id: line.id, direction: control satisfies MoveDirection });
     if (!outcome.ok) {
-      reportFailure(line, control, outcome.error);
+      reportFailure(line, control, outcome.error, index);
       return;
     }
     if (control === 'toggle') {

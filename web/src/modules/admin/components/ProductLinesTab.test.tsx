@@ -437,6 +437,52 @@ describe('Move up and Move down (S3, D-51)', () => {
     });
     expect(backend.moves[sent]?.key).not.toBe(firstKey);
   });
+
+  it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = productLinesBackend(undefined, { onMove: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Move Moto and Riding Jerseys up'));
+    expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.listGets).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Move Moto and Riding Jerseys up'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(2);
+    });
+    expect(backend.moves[1]?.key).toBe(backend.moves[0]?.key);
+  });
+
+  it('a lost move does not drop the key of a Hide whose answer was lost too', async () => {
+    const backend = productLinesBackend(undefined, {
+      onHide: () => problemAnswer(500),
+      onMove: () => problemAnswer(500),
+    });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Hide Polo Shirts'));
+    expect(await screen.findByText("Couldn't hide Polo Shirts")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.listGets).toBeGreaterThanOrEqual(2);
+    });
+    await user.click(action('Move Moto and Riding Jerseys up'));
+    expect(await screen.findByText("Couldn't move Moto and Riding Jerseys")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.listGets).toBeGreaterThanOrEqual(3);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Hide Polo Shirts'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
 });
 
 describe('Hide and Show (S3, D-08, PUB-03)', () => {
@@ -463,6 +509,25 @@ describe('Hide and Show (S3, D-08, PUB-03)', () => {
       'Hidden',
       'Shown',
     ]);
+  });
+
+  it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = productLinesBackend(undefined, { onHide: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Hide Polo Shirts'));
+    expect(await screen.findByText("Couldn't hide Polo Shirts")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.listGets).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Hide Polo Shirts'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
   });
 
   it('shows a hidden line again with its toast and keeps focus on the toggle, now Hide', async () => {

@@ -467,9 +467,47 @@ describe('Move up and Move down (S5, D-51)', () => {
     });
     expect(backend.moves[sent]?.key).not.toBe(firstKey);
   });
+
+  it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = testimonialsBackend(undefined, { onMove: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Move testimonial from Ben Santos up'));
+    expect(await screen.findByText("Couldn't move the testimonial from Ben Santos")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Move testimonial from Ben Santos up'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(2);
+    });
+    expect(backend.moves[1]?.key).toBe(backend.moves[0]?.key);
+  });
 });
 
 describe('Hide and Show (S5, PUB-03)', () => {
+  it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = testimonialsBackend(undefined, { onHide: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Hide testimonial from Ana Reyes'));
+    expect(await screen.findByText("Couldn't hide the testimonial from Ana Reyes")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Hide testimonial from Ana Reyes'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
+
   it('hides a testimonial at once: the toast, the public data cleared, the badge Hidden and focus staying on the toggle, now Show', async () => {
     const backend = testimonialsBackend();
     const user = userEvent.setup();

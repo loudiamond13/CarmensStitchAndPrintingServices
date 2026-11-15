@@ -659,6 +659,44 @@ describe('the row actions (GAL-03, D-15, D-27)', () => {
     expect(backend.moves[sent]?.key).not.toBe(firstKey);
   });
 
+  it('keeps the same Idempotency-Key for the same move while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = galleryItemsBackend(undefined, { onMove: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Move Sample Barangay Riders down'));
+    expect(await screen.findByText("Couldn't move Sample Barangay Riders")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets.length).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Move Sample Barangay Riders down'));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(2);
+    });
+    expect(backend.moves[1]?.key).toBe(backend.moves[0]?.key);
+  });
+
+  it('keeps the same Idempotency-Key for a repeated Hide while the list read again does not show it yet, because it may still be running on the server', async () => {
+    const backend = galleryItemsBackend(undefined, { onHide: () => problemAnswer(500) });
+    const user = userEvent.setup();
+    await openTab();
+
+    await user.click(action('Hide Sample Old Hoopers'));
+    expect(await screen.findByText("Couldn't hide Sample Old Hoopers")).toBeVisible();
+    await waitFor(() => {
+      expect(backend.gets.length).toBeGreaterThanOrEqual(2);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await user.click(action('Hide Sample Old Hoopers'));
+
+    await waitFor(() => {
+      expect(backend.hideKeys).toHaveLength(2);
+    });
+    expect(backend.hideKeys[1]).toBe(backend.hideKeys[0]);
+  });
+
   it('a hide that finds the upload gone says so and reads the list again', async () => {
     const backend = galleryItemsBackend(undefined, {
       onHide: () => problemAnswer(404, { code: 'gallery-items.not-found' }),

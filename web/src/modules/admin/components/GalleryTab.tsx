@@ -340,7 +340,7 @@ export function GalleryTab() {
   };
 
   /** A refused or failed immediate action: a danger toast with the shared error line, and the list read again when it may have gone through. */
-  const reportFailure = (item: GalleryItem, control: Control, error: unknown): void => {
+  const reportFailure = (item: GalleryItem, control: Control, error: unknown, placeBefore: number): void => {
     setActing(null);
     const title =
       control === 'toggle'
@@ -350,12 +350,24 @@ export function GalleryTab() {
     if (copy !== null) {
       toast.show({ tone: 'danger', title, message: errorLine(copy) });
     }
-    if (mayHaveSaved(error) || (isHttpError(error) && error.status === 404)) {
-      // Once the list shows what happened, the same press is a new intent, so it gets a new Idempotency-Key.
+    const action = control === 'toggle' ? toggle : move;
+    if (isHttpError(error) && error.status === 404) {
+      // A final answer: the item is gone, so the same press is a new intent and gets a new Idempotency-Key.
+      action.reset();
+      void query.refetch();
+    } else if (mayHaveSaved(error)) {
+      // The answer may have been lost while the server is still working on it, so the key is dropped only once the list shows what the
+      // action did. Until then a repeat press keeps the key and is replayed, or refused as still running.
       void query.refetch().then((result) => {
-        if (!result.isError) {
-          move.reset();
-          toggle.reset();
+        if (result.isError || result.data === undefined) {
+          return;
+        }
+        const index = result.data.rows.findIndex((candidate) => candidate.id === item.id);
+        const placeAfter = index < 0 ? -1 : (values.page - 1) * values.size + index;
+        const tookEffect =
+          control === 'toggle' ? result.data.rows[index]?.isShown === !item.isShown : placeAfter !== placeBefore;
+        if (tookEffect) {
+          action.reset();
         }
       });
     }
@@ -370,7 +382,7 @@ export function GalleryTab() {
         ? await toggle.submit({ id: item.id, shown: !item.isShown })
         : await move.submit({ id: item.id, direction: control, lineId: values.line });
     if (!outcome.ok) {
-      reportFailure(item, control, outcome.error);
+      reportFailure(item, control, outcome.error, placeOf(item));
       return;
     }
     if (control === 'toggle') {
