@@ -383,6 +383,62 @@ public sealed class PublicCacheInvalidationTests(CspsDatabase database) : IClass
     }
 
     [Fact]
+    public async Task RestoringAnOrderDeletedWhileStillShownClearsThePublicCache()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        var orderId = await rig.ShowOrderAsync("Legacy Restore Team", [10], (800, 600));
+        await MarkDeletedInPlaceAsync(rig, orderId);
+        var counter = new CountingPublicCache();
+        await using var factory = rig.Factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<Csps.Application.Ports.IPublicContentCache>();
+            services.AddSingleton<Csps.Application.Ports.IPublicContentCache>(counter);
+        }));
+        using var client = factory.CreateClient();
+
+        using var restored = await OrderFixtures.RestoreAsync(client, rig.Manager.AccessToken, orderId);
+
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        counter.Count.ShouldBeGreaterThan(0, "the restore removes the left-over gallery entry, which is a public change");
+    }
+
+    [Fact]
+    public async Task RestoringAnOrderDeletedWhileStillShownLeavesNoStaleItemInTheCachedPublicGallery()
+    {
+        await using var rig = await PublicGalleryRig.StartAsync(database);
+        var orderId = await rig.ShowOrderAsync("Legacy Restore Team", [10], (800, 600));
+        (await TeamsAsync(rig)).ShouldBe(["Legacy Restore Team"]);
+        await MarkDeletedInPlaceAsync(rig, orderId);
+        using var client = rig.Factory.CreateClient();
+
+        using var restored = await OrderFixtures.RestoreAsync(client, rig.Manager.AccessToken, orderId);
+
+        restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await TeamsAsync(rig)).ShouldBeEmpty("the restore took the order off the website, so the next public read must not list it");
+    }
+
+    // The state a delete saved before D-P11-BL-29 left behind: the order is deleted but still shown, and no interceptor ran.
+    private static async Task MarkDeletedInPlaceAsync(PublicGalleryRig rig, Guid orderId)
+    {
+        await using var context = rig.Database.CreateContext();
+        var deletedAt = TimeProvider.System.GetUtcNow();
+        var deletedBy = rig.Manager.UserId;
+        var changed = await context.Orders
+            .Where(order => order.Id == orderId)
+            .ExecuteUpdateAsync(set => set.SetProperty(order => order.DeletedAtUtc, deletedAt).SetProperty(order => order.DeletedById, deletedBy), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+    }
+
+    private static async Task<List<string>> TeamsAsync(PublicGalleryRig rig)
+    {
+        var (document, _) = await rig.GalleryAsync();
+        using (document)
+        {
+            return [.. document.RootElement.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("team").GetString()!)];
+        }
+    }
+
+    [Fact]
     public async Task TheSameWritesToAnOrderThatWasNeverShownDoNotClearThePublicCache()
     {
         var clears = await RunOrderWritesAsync(shown: false);
