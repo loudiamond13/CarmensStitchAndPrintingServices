@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -212,20 +212,52 @@ describe('SiteHeader phone drawer (D-31 O-3)', () => {
 });
 
 // D-131: on phones the drawer slides down and fades in, and on close stays mounted (closed, inert) until its own exit
-// animation ends. jsdom runs no animation, so the computed animation name of a closed element is mocked.
-describe('SiteHeader phone drawer motion (D-131)', () => {
+// animation ends; D-132: SiteHeader does this itself, with a 400 ms fallback. jsdom runs no animation, so the computed
+// animation name of a closed element is mocked.
+describe('SiteHeader phone drawer motion (D-131, D-132)', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  function animateClosedElements(): void {
+  function animateClosedElements(name = 'csp-site-drawer-out'): void {
     const real = window.getComputedStyle.bind(window);
     vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) =>
       element.getAttribute('data-state') === 'closed'
-        ? ({ animationName: 'csp-site-drawer-out' } as CSSStyleDeclaration)
+        ? ({ animationName: name } as CSSStyleDeclaration)
         : real(element, pseudo),
     );
   }
+
+  it('leaves after the 400 ms fallback when its exit never reports an end', () => {
+    animateClosedElements();
+    vi.useFakeTimers();
+    render(inRouter(<SiteHeader />));
+    fireEvent.click(burger());
+    const nav = mobileNav();
+
+    fireEvent.click(burger());
+    act(() => {
+      vi.advanceTimersByTime(399);
+    });
+    expect(nav.isConnected).toBe(true);
+    expect(nav.getAttribute('data-state')).toBe('closed');
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(nav.isConnected).toBe(false);
+  });
+
+  it('closes at once when nothing animates (reduced motion)', () => {
+    animateClosedElements('none');
+    render(inRouter(<SiteHeader />));
+    fireEvent.click(burger());
+    fireEvent.click(burger());
+
+    expect(screen.queryByRole('navigation', { name: 'Mobile' })).toBeNull();
+    expect(burger().getAttribute('aria-expanded')).toBe('false');
+  });
 
   function mobileNav(): HTMLElement {
     return screen.getByRole('navigation', { name: 'Mobile' });
