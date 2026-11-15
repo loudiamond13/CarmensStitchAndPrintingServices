@@ -128,11 +128,11 @@ describe('sniffImageType', () => {
 
 describe('planDownscale', () => {
   it('shrinks a 4000 x 3000 photo to a 2000 px long side keeping its proportions', () => {
-    expect(planDownscale(4000, 3000)).toEqual({ width: 2000, height: 1500, scaled: true });
+    expect(planDownscale(4000, 3000)).toEqual({ width: 2000, height: 1500 });
   });
 
-  it('leaves a photo within 2000 px as it is', () => {
-    expect(planDownscale(1800, 1200)).toEqual({ width: 1800, height: 1200, scaled: false });
+  it('keeps the size of a photo within 2000 px', () => {
+    expect(planDownscale(1800, 1200)).toEqual({ width: 1800, height: 1200 });
   });
 });
 
