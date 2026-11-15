@@ -5,6 +5,7 @@ using Csps.Domain.Identity;
 using Csps.Server.Composition;
 using Csps.Server.IntegrationTests.Content;
 using Csps.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Server.IntegrationTests.Testing;
@@ -350,6 +351,26 @@ public sealed class TestingSiteContentTests(CspsDatabase database) : IClassFixtu
         second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         once.ShouldBe(["Sample Old Hoopers|14|Dri-fit mesh, V-neck|True", "Sample Barangay Riders|||True"]);
         twice.ShouldBe(once);
+    }
+
+    [Theory]
+    [InlineData("CSPS_Dev_Copy")]
+    [InlineData("CSPS_E2E_Copy")]
+    [InlineData("CSPS_Test_not-a-guid")]
+    [InlineData("Csps_Unlisted_Guard")]
+    public async Task APostOnADatabaseOutsideTheTestListIsRefusedInPlainWordsAndNeverNamesTheDatabase(string databaseName)
+    {
+        Assert.SkipUnless(BuildFlavor.HasTestingFeatures, "Release builds have no Testing routes.");
+        var builder = new SqlConnectionStringBuilder(database.ConnectionString) { InitialCatalog = databaseName };
+        await using var factory = CspsApiFactory.ForDatabase(builder.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.PostAsync(new Uri(Route, UriKind.Relative), content: null, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldContain("only runs on");
+        body.ShouldNotContain(databaseName);
     }
 
     private async Task<List<string>> UploadFactsAsync()

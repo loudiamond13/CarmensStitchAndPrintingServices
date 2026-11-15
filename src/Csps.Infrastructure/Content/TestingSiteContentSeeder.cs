@@ -106,11 +106,19 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         "demo-shop@csps.test",
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
-    /// <summary>Sets the demo settings, replaces the phone list with the two demo numbers and sets the demo week.</summary>
+    /// <summary>Gets a value indicating whether the reset may run on the connected database (<see cref="TestingDatabaseGuard"/>).</summary>
+    public bool IsDatabaseAllowed => TestingDatabaseGuard.Allows(context);
+
+    /// <summary>Sets the demo settings, replaces the phone list with the two demo numbers and sets the demo week. It throws on any database the guard refuses.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes when the demo content is saved.</returns>
     public async Task ResetAsync(CancellationToken cancellationToken)
     {
+        if (!TestingDatabaseGuard.Allows(context))
+        {
+            throw new InvalidOperationException(TestingDatabaseGuard.Refusal);
+        }
+
         // One reset at a time: the matrix test calls this route from several callers at once.
         await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
