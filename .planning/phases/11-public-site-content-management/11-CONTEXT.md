@@ -1,5 +1,5 @@
 # Phase 11: Public Site & Content Management - Context
-*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-13T01:46:00-06:00*
+*Created: 2026-11-11T08:30:00-06:00 · Updated: 2026-11-15T00:12:00-06:00*
 
 **Gathered:** 2026-11-11
 **Status:** Ready for planning
@@ -101,6 +101,7 @@ All rulings below: owner, 2026-11-11, in this discussion.
 - **D-122 (page head encoding, plan 11-02 deviation 4):** keep the narrower Latin-1-range HTML encoder in `PublicHeadWriter` instead of `HtmlEncoder.Default`, so titles such as "Products · CSPS" read exactly as written. The five markup characters (`<` `>` `&` `'` `"`) are still escaped, and a test covers that. (owner, 2026-11-11)
 - **D-123 (plan 11-38 Task 2, go-live data gap):** option A, "fill in right after". Business Info and the opening hours are entered as the first steps of the go-live checklist. No prefill migration. Plan 11-38 applies this and skips its checkpoint. (owner, 2026-11-11)
 - **D-124 (plan 11-36 Task 3, font step, answered ahead of the measurement):** if any public page LCP is still over 2000 ms after Tasks 1 and 2, try font subsetting as a follow-up /gsd-quick, with the usual package check and the owner's yes before any tool is added. No change to the look. If every page is at or under 2000 ms, the step is not needed. Plan 11-36 applies this and skips its checkpoint. (owner, 2026-11-11)
+- **D-125 (third code review, IN-3-03, e2e lock timing):** option 1. The site content lock wait in `web/e2e/site-content-lock.ts` drops from 7 to 6 minutes, so a lock-taking test keeps 2 of its 8 minute budget for setup and fails with the clear lock message, not a generic timeout. The test budgets stay at 8 minutes. `web/scripts/e2e-lock-timeouts.test.ts` checks the 2 minute margin. Applied in `eb986cf7`. (owner, 2026-11-15)
 
 ### Go-live (plan 11-38)
 - **Deploy gap applied (D-123):** plan 11-38 Task 2 was already answered by D-123 (option A, "fill in right after", owner, 2026-11-11), so no new D-number was needed and the checkpoint was skipped. `docs/operations/go-live-public-site.md` puts Business Info and the opening hours first after the deploy, and no prefill migration was written. The checklist also holds the Cloudinary setup step (D-44, P11-BL-21), the line review and prices (D-06, D-40) and the live checks, including one shared link in the Facebook Sharing Debugger (P11-BL-40 item 4). (applied 2026-11-13)

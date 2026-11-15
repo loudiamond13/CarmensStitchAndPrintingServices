@@ -1,16 +1,16 @@
 ---
 phase: 11-public-site-content-management
 created: 2026-11-13T07:20:00-06:00
-updated: 2026-11-14T23:59:00-06:00
+updated: 2026-11-15T00:12:00-06:00
 review_path: .planning/phases/11-public-site-content-management/11-REVIEW.md
 iteration: 1
 review_pass: 3
 findings_in_scope: 9
-fixed: 8
+fixed: 9
 skipped: 0
-owner: 1
+owner: 0
 deferred: 0
-status: partial
+status: all_fixed
 second_pass:
   findings_in_scope: 11
   fixed: 11
@@ -30,7 +30,7 @@ first_pass:
 
 # Phase 11: Code review fix report
 
-*Created: 2026-11-13T07:20:00-06:00 · Updated: 2026-11-14T23:59:00-06:00*
+*Created: 2026-11-13T07:20:00-06:00 · Updated: 2026-11-15T00:12:00-06:00*
 
 This file holds three passes. The third pass (1 warning and 8 info items from the third review) is first. The second pass (11 warnings from the second review) follows, then the first pass (48 findings), both unchanged.
 
@@ -45,9 +45,9 @@ This file holds three passes. The third pass (1 warning and 8 info items from th
 
 | Outcome | Count | Findings |
 |---|---|---|
-| Fixed | 8 | WR-3-01, IN-3-01, IN-3-02, IN-3-04, IN-3-05, IN-3-06, IN-3-07, IN-3-08 |
+| Fixed | 9 | WR-3-01, IN-3-01, IN-3-02, IN-3-03, IN-3-04, IN-3-05, IN-3-06, IN-3-07, IN-3-08 |
 | Skipped | 0 | |
-| Owner item (question for you) | 1 | IN-3-03 |
+| Owner item (question for you) | 0 | |
 | Deferred | 0 | |
 | Total in scope | 9 | |
 
@@ -60,7 +60,7 @@ No package was added or bumped. No schema change, migration, trigger or inline S
 | WR-3-01 | Fixed | `af453d1b` | `ChangingAProductLineTitleShowsOnTheNextLinesReadWithANewETagAndTheOldETagGetsNo304` now starts with `database.ResetAsync()` and `ProductLineSeeding.RestoreSixAsync(database)`, like its neighbours. **No red was seen:** the failure depends on the order tests run in, and I could not make it fail in three whole-class runs before the change (14 of 14 each time). After the change the whole class passes, 14 of 14. The fix removes the cause the review named (the first line depends on what an earlier test left). |
 | IN-3-01 | Fixed | `1de20ee8` | `TestingDatabaseGuard` now uses a case-sensitive pattern ending in `\z`, with the guid part spelled out as 8-4-4-4-12 lowercase hex: `^(CSPS_E2E\|CSPS_Test_<8-4-4-4-12 hex>)\z`. `csps_e2e`, capitals in the guid, a final newline and 36 hyphens are all refused now. A comment says the per-test form must match `TestDatabaseName` in `tests/Csps.Testing`. |
 | IN-3-02 | Fixed | `1de20ee8` (same commit) | New `TestingDatabaseGuardTests` in `tests/Csps.Infrastructure.IntegrationTests/Content/` (Debug builds only, no database needed). Two accepted names (`CSPS_E2E` and a lowercase-guid `CSPS_Test_` name) and 14 refused ones (`CSPS_Dev`, `CSPS_Legacy_Restore`, `BetsLLC_Dev`, `BetsLLC_E2E`, `CSPS_E2E_Copy`, `csps_e2e`, `CSPS_E2E` plus a newline, the guid in capitals, in lowercase `csps_test_`, with a newline, with 36 hyphens, `CSPS_Test_not-a-guid`, empty and null). I put it in the Infrastructure test project because that project references the guard directly. Red: written first, 6 of 16 failed on the old pattern (the capitals, newline and hyphen cases). Green: 16 of 16. |
-| IN-3-03 | **Owner item** | none | See the question below. |
+| IN-3-03 | Fixed after the owner's answer (D-125, spec not run) | `eb986cf7` | The owner chose option 1. The site content lock wait in `web/e2e/site-content-lock.ts` is now 6 minutes, so setup keeps 2 of the 8 minute budget. A new vitest check reads the wait from the lock file and fails if less than 2 minutes are left. Red: it failed on the 7 minute wait. Green: the two vitest scripts 7 of 7. eslint, Prettier and `npm run typecheck` clean. Comments in `contact.spec.ts` and `site-content-lock.ts` and the e2e guide now say 6 minutes. |
 | IN-3-04 | Fixed (spec not run) | `99e05c68` | `public.spec.ts` and `fixture-selftest.spec.ts` no longer have the file-wide 480 s timeout. Their `beforeEach` adds 8 minutes to the test timeout only while `isDemoSeeded()` is false (new export in `site-content-lock.ts`), so only the first test of a worker gets the long budget. `web/scripts/e2e-lock-timeouts.test.ts` accepts this form for a file that calls `ensureDemoSiteContent` and rejects a hook with no extension or an extension under 8 minutes (one new test). Red: not shown for the old specs, because the old file-wide form also passes the check; the new test covers the new form, with a hook that adds 60 s failing. Green: the two vitest scripts 6 of 6. The two specs were typechecked and linted only. I did not restore the old 90 s and 120 s per-test caps, because the review did not ask for them. |
 | IN-3-05 | Fixed | `16732b9b` | In the three tab test files, the "keeps the same key" tests (move and Hide in each tab, plus the Products "lost move does not drop a lost Hide's key" test) no longer sleep 50 ms. The backend renames another row during the failed call, and the test waits until that new name shows in the table before it presses again. The new name only reaches the screen after the tab has handled the read-again result (the handler runs as a microtask when the fetch ends, and React draws the data a timer later), so a wrong early reset can no longer slip past. Added one positive Hide test per tab: a lost Hide that the list then shows as already done, then the line or row is shown again by someone else and a failed move on another row makes the tab read the list, then Hide is pressed again and must send a new key. (Pressing Show right after would not prove anything, because changed data already gets a new key.) Mutation checks, run on each tab file and reverted: with the early-reset change (`reset()` before the read-again result is checked), 3 tests failed in Products, 2 in Testimonials and 2 in Gallery; with the toggle comparison forced to false, the new positive Hide test failed in all three tabs (1 failure each). Green: the three tab files and `src/test`, 15 files, 354 of 354. |
 | IN-3-06 | Fixed | `945c75bf` | `UploadSlotsCoverageTests` now finds a file in a direct parameter, an array or generic argument (`List<IFormFile>`, `IEnumerable<IFormFile>`), and in the properties of our own form model types (cycles guarded, primitives and `string` skipped). The count of 5 stays. A new theory of 12 rows tests the finder itself (direct, collection, array, list, enumerable, a model with a file property, a model with a list of files, a self-referencing model with none, `string`, `int`, `CancellationToken`, `List<string>`). Green: 15 of 15 in the class. No red (the finder and its tests were written together). |
@@ -68,6 +68,8 @@ No package was added or bumped. No schema change, migration, trigger or inline S
 | IN-3-08 | Fixed | `6757cd1b` | `docs/web/e2e.md` (shared site content section) now names `ensureDemoSiteContent` (once-per-worker seed under the lock, for specs that only read public pages), the 8-minute rule (extension for the first test, `test.setTimeout(480_000)` for tests that take the lock, and the vitest check) and `deleteOrderQuietly` (best-effort cleanup in `finally`). `updated:` bumped, `created:` untouched. |
 
 ### Owner item: IN-3-03, the 8 minute test budget has little room over the 7 minute lock wait
+
+**Answered:** option 1, lower the wait to 6 minutes (D-125, owner, 2026-11-15). Applied in `eb986cf7`.
 
 **What it is:** a lock-taking order test first signs in, creates an order and uploads a photo (this can wait up to 4 minutes for the photo host lock), and only then waits up to 7 minutes for the site content lock. If both locks are busy near their limits, setup plus the wait can go past 8 minutes, so the test stops with a generic "Test timeout" and not the clear "site content lock was not free" message. It is rare, and a lock that slow fails the test either way. Every way to fix it changes how long tests may wait, so it is your call. I changed nothing.
 
