@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect } from './fixtures.ts';
+import { expect, test } from './fixtures.ts';
 import { manilaDate } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
 import { gradientScript } from './photo-scripts.ts';
@@ -166,4 +166,17 @@ export async function deleteOrderThroughApi(page: Page, id: string): Promise<voi
     headers: { 'X-CSPS-CSRF': '1', Authorization: `Bearer ${await apiToken(page)}` },
   });
   expect(deleted.status(), `DELETE /api/v1/orders/${id}`).toBe(204);
+}
+
+/**
+ * Deletes an order for cleanup in a `finally`. A failure (a lost session, a closed page) is recorded as a `cleanup` annotation of the
+ * test and not thrown, so it cannot replace the failure the test is reporting.
+ */
+export async function deleteOrderQuietly(page: Page, id: string): Promise<void> {
+  try {
+    await deleteOrderThroughApi(page, id);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    test.info().annotations.push({ type: 'cleanup', description: `Order ${id} was not deleted: ${reason}` });
+  }
 }

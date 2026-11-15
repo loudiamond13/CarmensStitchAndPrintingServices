@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
-import { deleteOrderThroughApi, drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
+import { deleteOrderQuietly, drawJpegs, openOrder, seedOrder, tiles, uploadAndWait } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, type StaffRole } from './testing-api.ts';
 
@@ -107,7 +107,7 @@ test('@order-public-website an Admin ticks the customer OK, shows an order from 
 
       expect(await publicGalleryTeams(request)).toContain(order.team);
     } finally {
-      await deleteOrderThroughApi(page, order.id);
+      await deleteOrderQuietly(page, order.id);
     }
   });
 });
@@ -152,7 +152,7 @@ test('@order-public-website a Manager takes a shown order off the website: the g
       // The public gallery no longer lists the order on its next read.
       expect(await publicGalleryTeams(request)).not.toContain(order.team);
     } finally {
-      await deleteOrderThroughApi(page, order.id);
+      await deleteOrderQuietly(page, order.id);
     }
   });
 });
@@ -345,7 +345,7 @@ test('@order-form-public an Admin creates an order with the customer OK and Show
       await expect(saved).toContainText('E2E Form Public Team');
     } finally {
       if (id !== null) {
-        await deleteOrderThroughApi(page, id);
+        await deleteOrderQuietly(page, id);
       }
     }
   });
@@ -363,7 +363,7 @@ test('@order-form-public a Manager edits a shown order, changes Name shown, save
     try {
       await editShownOrder(page, request, order);
     } finally {
-      await deleteOrderThroughApi(page, order.id);
+      await deleteOrderQuietly(page, order.id);
     }
   });
 });

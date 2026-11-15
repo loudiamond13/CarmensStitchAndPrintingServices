@@ -9,7 +9,7 @@ import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { NO_SIDEWAYS_SCROLL, press } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
-import { apiToken, deleteOrderThroughApi, drawJpeg, openOrder, seedOrder } from './photos.ts';
+import { apiToken, deleteOrderQuietly, drawJpeg, openOrder, seedOrder } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { settle } from './sweep.ts';
 import { createStaff, seedDemoSiteContent } from './testing-api.ts';
@@ -298,13 +298,10 @@ for (const theme of THEMES) {
         expect(failures).toEqual([]);
       } finally {
         // A deleted order leaves the public gallery whatever its flags are (11-23), so no shown demo is left behind.
-        // The demo reset runs even when a delete throws.
-        try {
-          await deleteOrderThroughApi(page, plain.id);
-          await deleteOrderThroughApi(page, cancelled.id);
-        } finally {
-          await seedDemoSiteContent(request);
-        }
+        // Each delete is best effort and independent, and the demo reset runs after both.
+        await deleteOrderQuietly(page, plain.id);
+        await deleteOrderQuietly(page, cancelled.id);
+        await seedDemoSiteContent(request);
       }
     });
   });
