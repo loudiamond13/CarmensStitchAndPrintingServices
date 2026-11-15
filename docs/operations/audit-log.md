@@ -1,6 +1,6 @@
 ---
 created: 2026-10-07T12:06:23-05:00
-updated: 2026-11-09T23:12:00-06:00
+updated: 2026-11-14T22:13:24-06:00
 ---
 
 # Audit log: append-only design and retention purge
@@ -166,8 +166,8 @@ transaction as the change.
 | `order.changed` | The order date, the due date or customer details or notes change | `Order` id | `orderDate=<old>><new>` and `dueDate=<old>><new>` for the dates that changed (the old due date is empty for an imported order that had none); then `fields=` naming the changed customer details and notes, never their text |
 | `order.status-changed` | The order moves to another status | `Order` id | `status=<from>><to>` |
 | `order.reopened` | A completed or canceled order is reopened | `Order` id | `status=<from>><to>` |
-| `order.deleted` | An order is deleted into the bin | `Order` id | `number=<n>;status=<status>;total=<amount>;paid=<amount>;balance=<amount>` |
-| `order.restored` | A deleted order is restored | `Order` id | The same snapshot as `order.deleted` |
+| `order.deleted` | An order is deleted into the bin. A shown order is taken off the website in the same save and also writes `order.taken-off-website` after it (D-P11-BL-29) | `Order` id | `number=<n>;status=<status>;total=<amount>;paid=<amount>;balance=<amount>` |
+| `order.restored` | A deleted order is restored. A restore never shows the order again; one deleted while still shown is taken off and also writes `order.taken-off-website` after it | `Order` id | The same snapshot as `order.deleted` |
 | `order.permanently-deleted` | A deleted order is removed for good (D-29) | `Order` id | `number=<n>;status=<status>;subtotal=<amount>;discount=<amount>;total=<amount>;paid=<amount>;refunded=<amount>;balance=<amount>;expenses=<amount>;receivers=<ids>;payers=<ids>;refunders=<ids>`, the three lists comma-joined user ids, each person once, in the order first recorded. The detail holds at most 400 characters, so with many people the longest list is cut and ends with `+N` for the N ids left out. Never customer details or notes |
 | `order-item.added` | An item is added | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>` |
 | `order-item.changed` | An item is saved with different values | `Order` id | `item=<item id>;productType=<id>;quantity=<n>;unitPrice=<amount>`, with `old>new` on the pairs that changed, then `fields=description,sizeVariant` naming the text fields that changed |

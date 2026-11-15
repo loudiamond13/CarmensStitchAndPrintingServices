@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-12T23:30:00-06:00
+updated: 2026-11-14T22:13:24-06:00
 ---
 
 # The orders API
@@ -264,8 +264,8 @@ write that is not Manager only (D-16). It works on a Completed order, because th
 | What staff do | What happens to the website |
 |---|---|
 | Cancel the order (`POST /orders/{id}/status`, `cancelled`) | The order is taken off at once: `shownOnWebsite` turns false, its gallery entry is removed, and one `order.taken-off-website` entry follows the `order.status-changed` entry in the same save. The customer's OK stays. A reopen does not put it back; staff show it again on purpose. |
-| Delete the order (`DELETE /orders/{id}`) | The order is off the public site at once, because a deleted order is never read for it and the public cache is cleared. The stored settings are not changed. |
-| Restore the order (`POST /orders/{id}/restore`) | The order keeps the website settings it had when it was deleted, so one that was shown is shown again. This is the current behaviour and it waits for an owner ruling (parked as P11-BL-29). |
+| Delete the order (`DELETE /orders/{id}`) | The order is taken off at once: `shownOnWebsite` turns false, its gallery entry is removed and the public cache is cleared. The customer's OK stays. An order that was shown writes one `order.taken-off-website` entry after `order.deleted`, in the same save. |
+| Restore the order (`POST /orders/{id}/restore`) | A restore never puts the order back on the website (D-P11-BL-29); staff show it again on purpose. The customer's OK stays. An order deleted before that ruling and still shown is taken off by the restore: its leftover gallery entry is removed, the public cache is cleared and one `order.taken-off-website` entry follows `order.restored`. |
 | Delete the order for good (`DELETE /orders/{id}/permanent`) | The order and its gallery entry are gone, and the public cache is cleared after the commit. |
 | Any other write to an order that is shown (items, team name, photos, cover, the public settings, a status move) | The public cache is cleared after the commit, so the public site reads the new values on its next request. |
 
@@ -665,7 +665,8 @@ actor is the staff member who saved. `order.public-consent-recorded` and `order.
 `order.shown-on-website` and `order.taken-off-website` for the shown flag, and `order.public-details-changed` for the line or the name,
 with `number=<n>;fields=line,name` naming what changed and never the name typed. Removing the OK of a shown order writes the removal and
 the take-off. A save that changes nothing, and every refusal, writes nothing.
-A delete writes one `order.deleted` entry and a restore one `order.restored` entry in the same save, each with
+A delete writes one `order.deleted` entry and a restore one `order.restored` entry in the same save. When the order was shown, the same save also
+writes one `order.taken-off-website` entry after it, so a client that counts entries per call sees two. `order.deleted` and `order.restored` each carry
 `number=<n>;status=<key>;total=<amount>;paid=<amount>;balance=<amount>`. A delete for good writes one `order.permanently-deleted`
 entry first, in the same save as the removal: `number`, `status`, `subtotal`, `discount`, `total`, `paid`, `refunded`, `balance` and
 `expenses`, then `receivers`, `payers` and `refunders` as comma-joined user ids (each person once, in the order they were first recorded).
