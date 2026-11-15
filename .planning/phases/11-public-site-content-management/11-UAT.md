@@ -4,20 +4,19 @@ phase: 11-public-site-content-management
 source: [11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 11-04-SUMMARY.md, 11-05-SUMMARY.md, 11-06-SUMMARY.md, 11-07-SUMMARY.md, 11-08-SUMMARY.md, 11-09-SUMMARY.md, 11-10-SUMMARY.md, 11-11-SUMMARY.md, 11-12-SUMMARY.md, 11-13-SUMMARY.md, 11-14-SUMMARY.md, 11-15-SUMMARY.md, 11-16-SUMMARY.md, 11-17-SUMMARY.md, 11-18-SUMMARY.md, 11-19-SUMMARY.md, 11-20-SUMMARY.md, 11-21-SUMMARY.md, 11-22-SUMMARY.md, 11-23-SUMMARY.md, 11-24-SUMMARY.md, 11-25-SUMMARY.md, 11-26-SUMMARY.md, 11-27-SUMMARY.md, 11-28-SUMMARY.md, 11-29-SUMMARY.md, 11-30-SUMMARY.md, 11-31-SUMMARY.md, 11-32-SUMMARY.md, 11-33-SUMMARY.md, 11-34-SUMMARY.md, 11-35-SUMMARY.md, 11-36-SUMMARY.md, 11-37-SUMMARY.md, 11-38-SUMMARY.md]
 started: 2026-11-14T00:05:00-06:00
 created: 2026-11-14T00:05:00-06:00
-updated: 2026-11-14T17:05:39-06:00
+updated: 2026-11-15T01:02:29.358Z
 ---
 
 # Phase 11 UAT: Public Site & Content Management
-*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T17:05:39-06:00*
+*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:02:28-06:00*
 
 All 38 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 13), then look and wording (14 to 16), then gates, rulings and reviews (17 to 20), then live-site steps (21 to 23).
 Tests 24 to 263 are passed by automated tests (coverage blocks); they are not asked.
 The roadmap marks this phase mvp, but the goal is not a user story; as in Phases 1 to 10 no story was invented and the success criteria are the flow.
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-[testing paused: 10 items outstanding, resume at test 14]
+[testing complete]
 
 ## Tests
 
@@ -99,52 +98,63 @@ note: Checked step by step on the API (5115) with view-source: Home, Products, G
 ### 14. Public pages look like the approved designs
 expected: Compare Home (App. E.1), Products (E.2), Gallery and its lightbox (E.3, App. C) and Contact (E.4) with the approved designs on a phone and a desktop. Headings, spacing, cards, pills, the cut bands and the sticky bar look right. Peso text still looks the same.
 covers: 11-08 D6, 11-10 D7, 11-18 D7, 11-25 D10, 11-29 D10, 11-31 D9, 11-36 D4
-result: [pending]
+result: pass
 
 ### 15. Site Content screens look right
 expected: Look over every Site Content tab (Business Info, phones, hours, closures, Products and the line editor, Photos, Testimonials, Gallery, share picture card) beside the Settings and My Profile cards. Sizes, spacing, previews, the status line and the save bar read well in Blush and Espresso.
 covers: 11-12 D10, 11-16 D12, 11-20 D10, 11-22 D9, 11-24 D9, 11-34 D10
-result: [pending]
+result: pass
+note: Owner asked whether the Home hero picture and the product cover photos can be replaced. Hero: no, it is the fixed drawing from the approved design (HeroArt); only the Recent order tag changes. Product covers: yes, each line's Main photo in Site Content > Products (the drawn jersey shows when there is none).
 
 ### 16. Seeded wording reads right
 expected: Read the seeded public page wording (the UI spec text with the long-dash rewrites). It reads right to the shop owner.
 covers: 11-15 D5
-result: [pending]
+result: pass
 
 ### 17. Full Playwright e2e run is green
 expected: Run the full e2e suite (all five projects). It is green, in particular @public-sweep, @link-preview, contact.spec, gallery.spec and the site-content specs.
 covers: VERIFICATION human item 1, 11-37
-result: [pending]
+result: pass
+note: Owner chose the Phase 11 specs only (2026-11-14), not the full suite. Run 1, all projects: 519 passed, 18 failed, 3 skipped (55.9 min). All 18 passed when re-run alone with 2 workers (1.9 min). Recorded flakes, not hidden: Firefox cancelled font download (2), site content lock wait (3), 30 s timeouts on Contact in WebKit, pixel and iphone (11), WebKit @home tile click (P11-BL-58), Firefox @site-content-products Check your email heading (1). WebKit @contact-hours took 30.0 s on the re-run, right at its limit. The full suite (P11-BL-57) is still to run before ship.
 
 ### 18. Page size and speed rulings
 expected: Contact stays within its 150 KB budget (OI-1), and you rule on P11-BL-42 (performance score at 0.94 on some runs) and P11-BL-43 (font subsetting follow-up). LCP is 2.1 to 2.6 s against 2.0 s (waived, report-only by D-29).
 covers: 11-22 D10, 11-36 D7
-result: [pending]
+result: pass
+note: P11-BL-42 was already ruled (D-P11-BL-42, 2026-11-13: keep 0.95, re-run a 0.94 CI run). Owner passed with P11-BL-43 (font subsetting) left open as a follow-up in 999.7; LCP stays waived by D-29.
 
 ### 19. Privacy and safety prohibitions hold
 expected: Review the judgment-tier prohibitions in 11-VERIFICATION.md (43 rows): no new trigger or raw SQL for the closure overlap rule, content and gallery photos are not stored under the orders folder and their addresses are not logged, only the redrawn (EXIF and location free) image is uploaded. Each is confirmed or a finding is raised.
 covers: 11-13 D10, 11-19 D8, 11-22 D8, 11-28 D9, 11-34 D9, VERIFICATION human item 7
-result: [pending]
+result: issue
+reported: "F1 A, F2 B" (owner rulings on the independent review of the 43 prohibitions: 39 hold; F1 prepareImage sends the original file, metadata included, when a photo is not shrunk or is an unreadable HEIC, web/src/utils/images.ts:196-207 and :221-232, ruled D-P11-BL-65: always redraw except an unreadable HEIC; F2 bracket check only on Business Info, ruled D-P11-BL-66: keep; F3 useLightboxHistory re-navigates with the raw search, same-origin, no action; F4 live Cloudinary setup unprovable from code, see test 21)
+severity: minor
 
 ### 20. Go-live checklist reads right
 expected: Read docs/operations/go-live-public-site.md. The steps are in the order you want: backup, migration script, deploy, Business Info and hours first, Cloudinary setup, share picture, closures, line review and prices, gallery and testimonials, then the Sharing Debugger, robots.txt, sitemap.xml and App:PublicBaseUrl. What visitors see before the first Business Info save follows D-123.
 covers: 11-38 D4, 11-38 D5
-result: [pending]
+result: pass
 
 ### 21. Cloudinary named sizes on the live account
 expected: After the deploy, run the Cloudinary setup command once on the live account. The 21 new named sizes exist (34 in all, the 13 old ones unchanged), and a product photo, a gallery photo and the csps_share_1200 picture load on the live site.
 covers: 11-19 D6, 11-30 D11, VERIFICATION human item 2
-result: [pending]
+result: blocked
+blocked_by: release-build
+reason: "Not done yet: Phase 11 is not deployed, so the live Cloudinary setup has not been run (owner, 2026-11-14). Go-live checklist step."
 
 ### 22. Real content entered before cutover
 expected: On the live site enter Business Info, hours, phones, the Messenger link, the six line prices and the default share picture. Home, Products and Contact show them, Open now is right for Manila time, and Home and Contact carry an og:image.
 covers: VERIFICATION human item 3
-result: [pending]
+result: blocked
+blocked_by: release-build
+reason: "phase 11 isnt live yet" (owner, 2026-11-14). Go-live checklist step.
 
 ### 23. Facebook Sharing Debugger on the live site
 expected: Paste /, /products, /gallery and /contact into the Facebook Sharing Debugger. Each shows its own title, description and picture, and a new share picture replaces the old one.
 covers: 11-30 D10, VERIFICATION human item 4
-result: [pending]
+result: blocked
+blocked_by: release-build
+reason: "phase 11 isnt live yet" (owner, 2026-11-14). Go-live checklist step.
 
 ### 24. 11-01 D1: The npm audit gate keeps passing through 2026-12-14 with the owner-extended glob and minim
 expected: The npm audit gate keeps passing through 2026-12-14 with the owner-extended glob and minimatch exceptions, and fails after that date
@@ -1589,11 +1599,11 @@ coverage_id: 11-38-D3
 ## Summary
 
 total: 263
-passed: 250
-issues: 3
-pending: 10
+passed: 256
+issues: 4
+pending: 0
 skipped: 0
-blocked: 0
+blocked: 3
 
 ## Gaps
 
@@ -1619,5 +1629,13 @@ blocked: 0
   reason: "User reported: the picture uploads but doesnt show either (Link preview picture card says Saved but shows the empty placeholder; gallery item TEST THIS shows the empty placeholder on /gallery)"
   severity: major
   test: 7
+  artifacts: []  # Filled by diagnosis
+  missing: []    # Filled by diagnosis
+- gap_id: G-11-19
+  truth: "Every upload is redrawn in the browser before it is sent, so a photo's location and other metadata never leave the phone; only a HEIC the browser cannot open goes as it is (D-P11-BL-65)"
+  status: failed
+  reason: "User reported: F1 A, F2 B (review F1: prepareImage sends the original file when no shrink is needed or a HEIC cannot be decoded; the server strip keeps stored photos clean)"
+  severity: minor
+  test: 19
   artifacts: []  # Filled by diagnosis
   missing: []    # Filled by diagnosis
