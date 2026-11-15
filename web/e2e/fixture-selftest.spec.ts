@@ -6,6 +6,13 @@
 // Nothing here uses test.fail(), which could hide a real failure.
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
 import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe, test } from './fixtures.ts';
+import { ensureDemoSiteContent } from './site-content-lock.ts';
+
+// Home lists the demo shown orders, so the demo content is put in place first (once per worker, under the site content lock).
+test.describe.configure({ timeout: 480_000 });
+test.beforeEach(async ({ request }) => {
+  await ensureDemoSiteContent(request);
+});
 
 const DELIBERATE = 'e2e fixture: deliberate console error';
 
@@ -178,7 +185,6 @@ test('@fixture a scoped axe check ignores a finding outside its scope and still 
 test('@fixture the axe check takes seconds, not minutes, on a page with thousands of passing nodes', async ({
   page,
 }) => {
-  test.setTimeout(120_000);
   await page.goto('/');
   await page.evaluate(INSERT_LONG_PICKER);
 

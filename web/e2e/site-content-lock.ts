@@ -4,7 +4,9 @@
 // projects and workers. It is the photo host lock with its own lock directory, so the two never wait on each other.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { APIRequestContext } from '@playwright/test';
 import { createPhotoHostLock } from './photo-host-lock.ts';
+import { seedDemoSiteContent } from './testing-api.ts';
 
 const shared = createPhotoHostLock({
   directory: path.join(fileURLToPath(new URL('..', import.meta.url)), '.locks', 'site-content.lock'),
@@ -19,4 +21,19 @@ const shared = createPhotoHostLock({
 /** Runs `work` while no other test reads or changes the shared public site content. */
 export function withSiteContentLock<T>(work: () => Promise<T>): Promise<T> {
   return shared.withLock(work);
+}
+
+let demoSeeded = false;
+
+/**
+ * Puts the demo site content in place, under the lock, the first time a worker calls it. A spec that only loads public pages calls it
+ * from `beforeEach`: the host keeps demo photo files in memory, so shown orders a run left in the database answer 404 for their photos
+ * until a reset stores new files. The spec needs 8 minutes per test, because the lock can take 7 to get.
+ */
+export async function ensureDemoSiteContent(request: APIRequestContext): Promise<void> {
+  if (demoSeeded) {
+    return;
+  }
+  await withSiteContentLock(() => seedDemoSiteContent(request));
+  demoSeeded = true;
 }

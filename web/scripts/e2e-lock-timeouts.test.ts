@@ -11,11 +11,15 @@ const e2eDirectory = path.join(fileURLToPath(new URL('..', import.meta.url)), 'e
 
 const number = (text: string): number => Number(text.replaceAll('_', ''));
 
-/** The test blocks of a spec file that call `withSiteContentLock` and have a test timeout under 8 minutes. */
+/** The test blocks of a spec file that take the site content lock and have a test timeout under 8 minutes. */
 function shortLockTests(source: string): string[] {
   const fileTimeout = /test\.describe\.configure\(\{\s*timeout:\s*([\d_]+)/.exec(source);
   if (fileTimeout?.[1] !== undefined && number(fileTimeout[1]) >= MIN_TIMEOUT_MS) {
     return [];
+  }
+  // The shared seed in a hook takes the lock for every test of the file, so only a file-wide timeout covers it.
+  if (source.includes('ensureDemoSiteContent(')) {
+    return ['(a hook calls ensureDemoSiteContent and the file has no file-wide timeout of 8 minutes)'];
   }
   const blocks = source.split(/^\s*test(?:\.describe(?:\.serial|\.parallel)?)?\(/m).slice(1);
   return blocks
@@ -47,5 +51,11 @@ describe('e2e specs that take the site content lock', () => {
     expect(shortLockTests(short)).toHaveLength(1);
     expect(shortLockTests(long)).toEqual([]);
     expect(shortLockTests(wide)).toEqual([]);
+    expect(shortLockTests('test.beforeEach(async () => { await ensureDemoSiteContent(request); });')).toHaveLength(1);
+    expect(
+      shortLockTests(
+        'test.describe.configure({ timeout: 480_000 }); test.beforeEach(async () => { await ensureDemoSiteContent(request); });',
+      ),
+    ).toEqual([]);
   });
 });
