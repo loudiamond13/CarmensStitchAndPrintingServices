@@ -224,6 +224,7 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
         for (var round = 0; round < 10; round++)
         {
             var line = await rig.AddAsync(LineBody.Shorts with { Title = $"Race {round}", ShortName = $"Race {round}" });
+            var photosBefore = await CountPhotosAsync();
             var (uploaded, deleted) = await ConcurrentRequests.SendTogetherAsync(
                 () => rig.UploadPhotoAsync(line.Id, "main", Photo),
                 () => rig.DeleteAsync(line.Id));
@@ -235,12 +236,27 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
                     (HttpStatusCode.NotFound, HttpStatusCode.NoContent));
             }
 
+            // The foreign key already stops a photo from naming a gone line, so check the end state against the answers instead.
             await using var context = database.CreateContext();
-            var orphans = await context.ProductLinePhotos
-                .Where(photo => !context.ProductLines.Any(existing => existing.Id == photo.LineId))
-                .CountAsync(TestContext.Current.CancellationToken);
-            orphans.ShouldBe(0);
+            var lineExists = await context.ProductLines.AnyAsync(existing => existing.Id == line.Id, TestContext.Current.CancellationToken);
+            var photosAfter = await CountPhotosAsync();
+            if (uploaded.StatusCode == HttpStatusCode.OK)
+            {
+                lineExists.ShouldBeTrue("a stored photo means the delete was refused");
+                photosAfter.ShouldBe(photosBefore + 1);
+            }
+            else
+            {
+                lineExists.ShouldBeFalse("a refused upload means the delete went through");
+                photosAfter.ShouldBe(photosBefore);
+            }
         }
+    }
+
+    private async Task<int> CountPhotosAsync()
+    {
+        await using var context = database.CreateContext();
+        return await context.ProductLinePhotos.CountAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<string> StoredIdAsync(string slot)

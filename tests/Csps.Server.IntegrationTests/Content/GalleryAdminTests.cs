@@ -436,6 +436,7 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
         for (var round = 0; round < RaceRounds; round++)
         {
             var lineId = await rig.AddLineAsync($"Race {round}");
+            var uploadsBefore = await CountUploadsAsync(rig);
             var (uploaded, deleted) = await ConcurrentRequests.SendTogetherAsync(
                 () => rig.UploadAsync(UploadForm.Riders with { LineId = lineId }, Photo),
                 () => rig.DeleteLineAsync(lineId));
@@ -447,7 +448,7 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
                     (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
             }
 
-            await NoUploadPointsAtAMissingLineAsync(rig);
+            await UploadRaceEndStateAgreesWithTheAnswersAsync(rig, lineId, uploaded.StatusCode, uploadsBefore);
         }
 
         for (var round = 0; round < RaceRounds; round++)
@@ -465,7 +466,7 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
                     (HttpStatusCode.BadRequest, HttpStatusCode.NoContent));
             }
 
-            await NoUploadPointsAtAMissingLineAsync(rig);
+            await EditRaceEndStateAgreesWithTheAnswersAsync(rig, existing.Id, lineId, edited.StatusCode);
             if (edited.StatusCode == HttpStatusCode.OK)
             {
                 // Put the upload back on its first line so the next round can move it again.
@@ -476,14 +477,48 @@ public sealed class GalleryAdminTests(CspsDatabase database) : IClassFixture<Csp
         }
     }
 
-    // The end state of a race: no upload names a line that is gone.
-    private static async Task NoUploadPointsAtAMissingLineAsync(GalleryAdminRig rig)
+    private static async Task<int> CountUploadsAsync(GalleryAdminRig rig)
     {
         await using var context = rig.Database.CreateContext();
-        var orphans = await context.GalleryEntries
-            .Where(entry => entry.ProductLineId != null && !context.ProductLines.Any(line => line.Id == entry.ProductLineId))
-            .CountAsync(TestContext.Current.CancellationToken);
-        orphans.ShouldBe(0);
+        return await context.GalleryEntries.CountAsync(entry => entry.Kind == GalleryEntryKind.Upload, TestContext.Current.CancellationToken);
+    }
+
+    // The foreign key already stops an upload from naming a gone line, so this checks the end state against the answers instead:
+    // a created upload means the delete was refused and the line is still there; a refused upload means the line is gone and no row was added.
+    private static async Task UploadRaceEndStateAgreesWithTheAnswersAsync(GalleryAdminRig rig, Guid lineId, HttpStatusCode uploadStatus, int uploadsBefore)
+    {
+        await using var context = rig.Database.CreateContext();
+        var lineExists = await context.ProductLines.AnyAsync(line => line.Id == lineId, TestContext.Current.CancellationToken);
+        var uploadsAfter = await CountUploadsAsync(rig);
+        if (uploadStatus == HttpStatusCode.Created)
+        {
+            lineExists.ShouldBeTrue("a created upload means the delete was refused");
+            (await context.GalleryEntries.AnyAsync(entry => entry.ProductLineId == lineId, TestContext.Current.CancellationToken)).ShouldBeTrue();
+            uploadsAfter.ShouldBe(uploadsBefore + 1);
+        }
+        else
+        {
+            lineExists.ShouldBeFalse("a refused upload means the delete went through");
+            uploadsAfter.ShouldBe(uploadsBefore);
+        }
+    }
+
+    // An edit that moved the upload to the line means the delete was refused; a refused edit leaves the upload on its old line and the line gone.
+    private static async Task EditRaceEndStateAgreesWithTheAnswersAsync(GalleryAdminRig rig, Guid entryId, Guid lineId, HttpStatusCode editStatus)
+    {
+        await using var context = rig.Database.CreateContext();
+        var lineExists = await context.ProductLines.AnyAsync(line => line.Id == lineId, TestContext.Current.CancellationToken);
+        var entryLine = await context.GalleryEntries.Where(entry => entry.Id == entryId).Select(entry => entry.ProductLineId).SingleAsync(TestContext.Current.CancellationToken);
+        if (editStatus == HttpStatusCode.OK)
+        {
+            lineExists.ShouldBeTrue("an edit onto the line means the delete was refused");
+            entryLine.ShouldBe(lineId);
+        }
+        else
+        {
+            lineExists.ShouldBeFalse("a refused edit means the delete went through");
+            entryLine.ShouldBe(GallerySeeding.LineId("moto"));
+        }
     }
 
     [Fact]
