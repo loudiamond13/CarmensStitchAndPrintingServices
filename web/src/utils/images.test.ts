@@ -9,7 +9,7 @@ import {
   type PrepareRules,
 } from '@/utils/images';
 
-// prepareImage over fake browser parts (IMG-05, D-18). The bytes are synthetic; no real photo is used.
+// prepareImage over fake browser parts (IMG-05, D-18, D-P11-BL-65). The bytes are synthetic; no real photo is used.
 
 const RULES: PrepareRules = { maxBytes: 10 * 1024 * 1024, maxPixels: 25_000_000, maxSide: 12_000 };
 
@@ -154,16 +154,53 @@ describe('prepareImage', () => {
     expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
-  it('returns a 1800 x 1200 JPEG as the same File object with a preview', async () => {
-    const fake = fakeParts({ head: JPEG_HEAD, width: 1800, height: 1200 });
+  it('redraws a 1800 x 1200 JPEG at its own size into a new file, not the picked File (D-P11-BL-65)', async () => {
+    const redrawn = new Blob([new Uint8Array(400)], { type: 'image/jpeg' });
+    const fake = fakeParts({ head: JPEG_HEAD, width: 1800, height: 1200, encoded: () => redrawn });
     const file = fileOf('small.jpg');
     const result = await prepareImage(file, RULES, fake.parts);
 
-    expect(result).toMatchObject({ ok: true, width: 1800, height: 1200, previewUnavailable: false });
-    expect(result.ok && result.file).toBe(file);
+    expect(result).toMatchObject({
+      ok: true,
+      name: 'small.jpg',
+      type: 'image/jpeg',
+      width: 1800,
+      height: 1200,
+      previewUnavailable: false,
+    });
+    expect(result.ok && result.file).toBe(redrawn);
+    expect(result.ok && result.file).not.toBe(file);
     expect(result.ok && result.preview).toBe('data:image/jpeg;base64,AAAA');
-    expect(fake.encode).not.toHaveBeenCalled();
+    expect(fake.encode).toHaveBeenCalledTimes(1);
+    expect(fake.encode).toHaveBeenCalledWith(fake.bitmap, 1800, 1200, 'image/jpeg', 0.85);
     expect(fake.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a small PNG as a PNG when it is redrawn, so its transparency stays (D-P11-BL-65)', async () => {
+    const fake = fakeParts({ head: PNG_HEAD, width: 800, height: 600 });
+    const file = fileOf('logo.png', 1024, 'image/png');
+    const result = await prepareImage(file, RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, name: 'logo.png', type: 'image/png', width: 800, height: 600 });
+    expect(result.ok && result.file).not.toBe(file);
+    expect(fake.encode).toHaveBeenCalledTimes(1);
+    expect(fake.encode).toHaveBeenCalledWith(fake.bitmap, 800, 600, 'image/png', 0.85);
+  });
+
+  it('redraws a small WebP as a JPEG when the browser cannot make WebP', async () => {
+    const fake = fakeParts({
+      head: WEBP_HEAD,
+      width: 1200,
+      height: 900,
+      encoded: (type) => new Blob([new Uint8Array(500)], { type: type === 'image/webp' ? 'image/png' : type }),
+    });
+    const file = fileOf('shot.webp', 1024, 'image/webp');
+    const result = await prepareImage(file, RULES, fake.parts);
+
+    expect(result).toMatchObject({ ok: true, name: 'shot.jpg', type: 'image/jpeg', width: 1200, height: 900 });
+    expect(result.ok && result.file).not.toBe(file);
+    expect(fake.encode).toHaveBeenCalledTimes(2);
+    expect(fake.encode).toHaveBeenLastCalledWith(fake.bitmap, 1200, 900, 'image/jpeg', 0.85);
   });
 
   it('turns a 3000 x 4000 PNG into a 1500 x 2000 PNG', async () => {
@@ -203,13 +240,14 @@ describe('prepareImage', () => {
     expect(result).toMatchObject({ ok: true, name: 'IMG_0002.jpg', type: 'image/jpeg', width: 2000, height: 1500 });
   });
 
-  it('judges a file by its bytes: a heic header in a file named photo.png is heic', async () => {
+  it('judges a file by its bytes: a small heic named photo.png that decodes is redrawn as a JPEG', async () => {
     const fake = fakeParts({ head: ftyp('heic'), width: 1000, height: 800 });
     const file = fileOf('photo.png', 1024, 'image/png');
     const result = await prepareImage(file, RULES, fake.parts);
 
-    expect(result).toMatchObject({ ok: true, type: 'image/heic', name: 'photo.png' });
-    expect(result.ok && result.file).toBe(file);
+    expect(result).toMatchObject({ ok: true, type: 'image/jpeg', name: 'photo.jpg', width: 1000, height: 800 });
+    expect(result.ok && result.file).not.toBe(file);
+    expect(fake.encode).toHaveBeenCalledWith(fake.bitmap, 1000, 800, 'image/jpeg', 0.85);
   });
 
   it('refuses an svg named photo.jpg without decoding it', async () => {
@@ -228,7 +266,7 @@ describe('prepareImage', () => {
     expect(result).toEqual({ ok: false, reason: 'type' });
   });
 
-  it('sends a heic the browser cannot decode as it is, with no preview, when it is within the size', async () => {
+  it('sends a heic the browser cannot decode as it is, the only file not redrawn (D-P11-BL-65), when it is within the size', async () => {
     const fake = fakeParts({ head: ftyp('heic'), decodeFails: true });
     const file = fileOf('IMG_0003.heic', 2048, 'image/heic');
     const result = await prepareImage(file, RULES, fake.parts);
@@ -243,6 +281,8 @@ describe('prepareImage', () => {
       preview: null,
       previewUnavailable: true,
     });
+    expect(result.ok && result.file).toBe(file);
+    expect(fake.encode).not.toHaveBeenCalled();
   });
 
   it('refuses a heic the browser cannot decode when it is over the size', async () => {
@@ -307,11 +347,12 @@ describe('prepareImage', () => {
     expect(fake.encode).not.toHaveBeenCalled();
   });
 
-  it('refuses an untouched photo over the side limit', async () => {
+  it('refuses a photo within 2000 px whose side is over the side limit, before redrawing it', async () => {
     const fake = fakeParts({ head: JPEG_HEAD, width: 1800, height: 1000 });
     const result = await prepareImage(fileOf('wide.jpg'), { ...RULES, maxSide: 1500 }, fake.parts);
 
     expect(result).toEqual({ ok: false, reason: 'pixels' });
+    expect(fake.encode).not.toHaveBeenCalled();
   });
 
   it('accepts an original at the 100 MP memory ceiling', async () => {
@@ -343,11 +384,32 @@ describe('prepareImage', () => {
     expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses a small photo that is over the size, as it is sent unchanged', async () => {
+  it('accepts a small photo whose picked file is over the size when the redrawn file is within it', async () => {
     const fake = fakeParts({ head: JPEG_HEAD, width: 1000, height: 800 });
     const result = await prepareImage(fileOf('heavy.jpg', 3000), { ...RULES, maxBytes: 2999 }, fake.parts);
 
+    expect(result).toMatchObject({ ok: true, name: 'heavy.jpg', type: 'image/jpeg', width: 1000, height: 800 });
+    expect(result.ok && result.file.size).toBe(500);
+  });
+
+  it('refuses a small photo whose redrawn file is over the size, and closes the bitmap', async () => {
+    const fake = fakeParts({
+      head: JPEG_HEAD,
+      width: 1000,
+      height: 800,
+      encoded: (type) => new Blob([new Uint8Array(3000)], { type }),
+    });
+    const result = await prepareImage(fileOf('heavy.jpg', 1024), { ...RULES, maxBytes: 2999 }, fake.parts);
+
     expect(result).toEqual({ ok: false, reason: 'size' });
+    expect(fake.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a small photo as unreadable when the encoder gives nothing, and closes the bitmap', async () => {
+    const fake = fakeParts({ head: JPEG_HEAD, width: 1000, height: 800, encoded: () => null });
+    const result = await prepareImage(fileOf('a.jpg'), RULES, fake.parts);
+
+    expect(result).toEqual({ ok: false, reason: 'unreadable' });
     expect(fake.close).toHaveBeenCalledTimes(1);
   });
 
