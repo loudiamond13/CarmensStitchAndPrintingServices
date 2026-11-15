@@ -34,8 +34,8 @@ public sealed class SharePictureEndpointTests(CspsDatabase database) : IClassFix
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
         using var answer = JsonDocument.Parse(text);
-        answer.RootElement.GetProperty("src320").GetString().ShouldEndWith("size=csps_share_320");
-        answer.RootElement.GetProperty("src640").GetString().ShouldEndWith("size=csps_share_640");
+        answer.RootElement.GetProperty("src320").GetString().ShouldEndWith("size=csps_sharec_320");
+        answer.RootElement.GetProperty("src640").GetString().ShouldEndWith("size=csps_sharec_640");
         (answer.RootElement.GetProperty("width").GetInt32(), answer.RootElement.GetProperty("height").GetInt32()).ShouldBe((1200, 630));
 
         var upload = storage.Uploads.Where(recorded => recorded.AssetFolder.Contains("/content/share/", StringComparison.Ordinal)).ShouldHaveSingleItem();
@@ -127,8 +127,8 @@ public sealed class SharePictureEndpointTests(CspsDatabase database) : IClassFix
         using (var withPicture = await rig.SettingsAsync(admin))
         {
             var picture = withPicture.RootElement.GetProperty("sharePicture");
-            picture.GetProperty("src320").GetString().ShouldEndWith("size=csps_share_320");
-            picture.GetProperty("src640").GetString().ShouldEndWith("size=csps_share_640");
+            picture.GetProperty("src320").GetString().ShouldEndWith("size=csps_sharec_320");
+            picture.GetProperty("src640").GetString().ShouldEndWith("size=csps_sharec_640");
             (picture.GetProperty("width").GetInt32(), picture.GetProperty("height").GetInt32()).ShouldBe((1600, 840));
         }
 

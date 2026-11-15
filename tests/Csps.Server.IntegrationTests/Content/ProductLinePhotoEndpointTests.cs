@@ -41,6 +41,8 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
         answer.RootElement.GetProperty("slot").GetString().ShouldBe("main");
         answer.RootElement.GetProperty("width").GetInt32().ShouldBe(640);
         answer.RootElement.GetProperty("height").GetInt32().ShouldBe(480);
+        answer.RootElement.GetProperty("src").GetString().ShouldNotBeNull().ShouldEndWith("?size=csps_catc_320");
+        answer.RootElement.GetProperty("srcSet").GetString().ShouldNotBeNull().ShouldEndWith("?size=csps_catc_320 320w");
 
         var upload = storage.Uploads.Where(recorded => recorded.AssetFolder == $"csps-test/content/lines/{Basketball:D}").ShouldHaveSingleItem();
         Regex.IsMatch(upload.PublicId, $"^csps-test/content/lines/{Basketball:D}/[a-z2-7]{{26}}$").ShouldBeTrue(upload.PublicId);
@@ -65,6 +67,11 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
                 .GetProperty("photos").GetProperty("back");
             back.ValueKind.ShouldBe(JsonValueKind.Null);
         }
+
+        using var publicClient = rig.Factory.CreateClient();
+        using var home = JsonDocument.Parse(await publicClient.GetStringAsync(new Uri("/api/v1/public/home", UriKind.Relative), TestContext.Current.CancellationToken));
+        home.RootElement.GetProperty("lines").EnumerateArray().First(line => line.GetProperty("key").GetString() == "basketball")
+            .GetProperty("cardPhoto").GetProperty("src").GetString().ShouldNotBeNull().ShouldEndWith("?size=csps_catc_320");
     }
 
     [Fact]
@@ -152,7 +159,7 @@ public sealed class ProductLinePhotoEndpointTests(CspsDatabase database) : IClas
 
         removed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         before.ShouldNotContain("og:image\"");
-        during.ShouldContain($"content=\"https://localhost/api/testing/images/{lastSegment}?size=csps_share_1200\"");
+        during.ShouldContain($"content=\"https://localhost/api/testing/images/{lastSegment}?size=csps_sharec_1200\"");
         during.ShouldContain("content=\"summary_large_image\"");
         after.ShouldNotContain("og:image\"");
         after.ShouldContain("content=\"summary\"");

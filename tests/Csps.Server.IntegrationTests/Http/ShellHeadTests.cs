@@ -407,7 +407,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
             var body = await GetBodyAsync(client, "/products");
 
             var name = Meta(body, "property", "og:site_name").ShouldNotBeNull();
-            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_sharec_1200");
             Meta(body, "property", "og:image:width").ShouldBe("1200");
             Meta(body, "property", "og:image:height").ShouldBe("630");
             Meta(body, "property", "og:image:alt").ShouldBe(name);
@@ -465,7 +465,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
             var body = await GetBodyAsync(client, "/gallery");
 
             var name = Meta(body, "property", "og:site_name").ShouldNotBeNull();
-            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_share_1200");
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_sharec_1200");
             Meta(body, "property", "og:image:width").ShouldBe("1200");
             Meta(body, "property", "og:image:height").ShouldBe("630");
             Meta(body, "property", "og:image:alt").ShouldBe(name);
@@ -489,12 +489,12 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
         var failing = await GetBodyAsync(client, "/gallery");
         reader.GalleryFailure = null;
-        reader.GalleryShareImageUrl = "/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200";
+        reader.GalleryShareImageUrl = "/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_sharec_1200";
         var recovered = await GetBodyAsync(client, "/gallery");
 
         Meta(failing, "property", "og:site_name").ShouldBe("Sample Shop");
         Meta(failing, "property", "og:image").ShouldBeNull();
-        Meta(recovered, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+        Meta(recovered, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_sharec_1200");
     }
 
     [Fact]
@@ -546,7 +546,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         uploaded.StatusCode.ShouldBe(HttpStatusCode.OK, await uploaded.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         var storage = rig.Factory.Services.GetRequiredService<TestingImageStorage>();
         var publicId = storage.Uploads.Single(recorded => recorded.AssetFolder.Contains("/content/share/", StringComparison.Ordinal)).PublicId;
-        var address = $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_share_1200";
+        var address = $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_sharec_1200";
         using var client = rig.Factory.CreateClient();
         var name = Meta(await GetBodyAsync(client, "/"), "property", "og:site_name").ShouldNotBeNull();
 
@@ -599,7 +599,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
             var products = await GetBodyAsync(client, "/products");
             var home = await GetBodyAsync(client, "/");
 
-            Meta(products, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_share_1200");
+            Meta(products, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/abcdefghijklmnopqrstuvwxyz?size=csps_sharec_1200");
             Meta(home, "property", "og:image").ShouldBe(DefaultAddress(rig));
         }
         finally
@@ -634,7 +634,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
             using var client = rig.Factory.CreateClient();
             var body = await GetBodyAsync(client, "/gallery");
 
-            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_share_1200");
+            Meta(body, "property", "og:image").ShouldBe($"{Origin}/api/testing/images/{coverId[(coverId.LastIndexOf('/') + 1)..]}?size=csps_sharec_1200");
             Meta(body, "property", "og:image").ShouldNotBe(DefaultAddress(rig));
         }
         finally
@@ -669,7 +669,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     {
         var publicId = rig.Factory.Services.GetRequiredService<TestingImageStorage>().Uploads
             .Last(recorded => recorded.AssetFolder.Contains("/content/share/", StringComparison.Ordinal)).PublicId;
-        return $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_share_1200";
+        return $"{Origin}/api/testing/images/{publicId[(publicId.LastIndexOf('/') + 1)..]}?size=csps_sharec_1200";
     }
 
     private static readonly Guid BasketballId = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;

@@ -43,7 +43,7 @@ internal static class PublicHeadWriter
 
     private const string LineBreak = "\n    ";
 
-    // The size of the link preview picture, the csps_share_1200 named size.
+    // The size of the link preview picture, the csps_sharec_1200 named size.
     private const string ShareWidth = "1200";
     private const string ShareHeight = "630";
 

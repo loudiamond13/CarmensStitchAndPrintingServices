@@ -76,8 +76,8 @@ public sealed class PublicHomeEndpointTests(CspsDatabase database) : IClassFixtu
             newest.GetProperty("pieces").GetInt32().ShouldBe(21);
             newest.GetProperty("placeholderArt").GetString().ShouldBe("basketball");
             var photo = newest.GetProperty("photo");
-            photo.GetProperty("src").GetString().ShouldNotBeNull().ShouldContain("size=csps_strip_");
-            photo.GetProperty("srcSet").GetString().ShouldNotBeNull().ShouldContain("csps_strip_240");
+            photo.GetProperty("src").GetString().ShouldNotBeNull().ShouldContain("size=csps_stripc_");
+            photo.GetProperty("srcSet").GetString().ShouldNotBeNull().ShouldContain("csps_stripc_240");
             photo.GetProperty("width").GetInt32().ShouldBe(800);
             photo.GetProperty("height").GetInt32().ShouldBe(600);
             recent[1].GetProperty("lineKey").GetString().ShouldBe("volleyball");
