@@ -7,12 +7,12 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-13T12:12:00-06:00"
-updated: "2026-11-13T12:15:00-06:00"
+updated: "2026-11-15T00:41:00-06:00"
 ---
 
 # Phase 11: Security
 
-Per-phase security contract: threat register, accepted risks and audit trail. Built from the `<threat_model>` block of all 38 plans (register written at plan time), then each mitigation was checked against the code at HEAD by three auditors (plans 01 to 13, 14 to 26, 27 to 38).
+Per-phase security contract: threat register, accepted risks and audit trail. Built from the `<threat_model>` block of all 39 plans (register written at plan time), then each mitigation was checked against the code at HEAD by three auditors (plans 01 to 13, 14 to 26, 27 to 38). Gap plan 11-39 was checked on 2026-11-15 by the orchestrator.
 
 ## Trust Boundaries
 
@@ -121,7 +121,12 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 | T-11-90 | 37 | Tampering | CSP regressions | medium | mitigate | CLOSED | fixtures.ts securitypolicyviolation guard auto for every test; link-preview.spec.ts:169-185 |
 | T-11-91 | 38 | Tampering | dev seed target | high | mitigate | CLOSED | DevSeedTargetGuard unchanged; checked before any connection (Program.cs:28-32) |
 | T-11-92 | 38 | Information disclosure | go-live doc in public repo | medium | mitigate | CLOSED | no host/account/email/path; gitleaks clean |
-| T-11-SC | 01-38 | Tampering | npm and NuGet installs (supply chain) | high | mitigate | CLOSED | Directory.Packages.props, web/package.json and the lockfile are unchanged since febeb63d; the only .csproj change adds two test fixture links |
+| T-11-93 | 39 | Information disclosure | prepareImage, a decodable photo within 2000 px | medium | mitigate | CLOSED | images.ts:207-231 returns the encoded blob, never the picked File; images.test.ts:157-243 (64/64 run); server ImageMetadataStripper in all 4 upload handlers |
+| T-11-94 | 39 | Information disclosure | a HEIC the browser cannot decode | low | accept | CLOSED (accepted, D-P11-BL-65) | images.ts:191-205 only pass-through; images.test.ts:269 pins it; server strips before storage |
+| T-11-95 | 39 | Denial of service | redrawing every photo on a phone | low | mitigate | CLOSED | 100 MP ceiling and maxPixels/maxSide checked before encode; bitmap closed in finally; images.test.ts:302-436 |
+| T-11-96 | 39 | Tampering | server upload rules | low | accept | CLOSED (accepted) | plan 11-39 changed only web/src/utils/images.ts and its test |
+| T-11-97 | 39 | Information disclosure | commits to the public repo | low | mitigate | CLOSED | synthetic bytes in tests; gitleaks over 3435461b^..HEAD (44 commits): no leaks |
+| T-11-SC | 01-39 | Tampering | npm and NuGet installs (supply chain) | high | mitigate | CLOSED | Directory.Packages.props, web/package.json and the lockfile are unchanged since febeb63d; the only .csproj change adds two test fixture links |
 
 *Status: open, closed, or open below the block_on threshold (non-blocking). Severity: critical > high > medium > low; only open threats at or above `high` count toward threats_open.*
 
@@ -133,14 +138,16 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 | AR-11-02 | T-11-09 | Hours text is plain text rendered by React, so it is escaped; no HTML path exists. | plan 11-05 register | 2026-11-11 |
 | AR-11-03 | T-11-73 | A gallery upload has no per-photo consent record; the modal shows the consent note and the Manager is responsible. | owner (D-10) | 2026-11-11 |
 | AR-11-04 | T-11-80 | Lightbox history state holds only a flag on the same URL; the only exit target is the literal `/contact`. | plan 11-31 register | 2026-11-12 |
+| AR-11-05 | T-11-94 | A HEIC the browser cannot decode goes as it is over HTTPS to this project's own API, which strips its metadata before storage. | owner (D-P11-BL-65) | 2026-11-14 |
+| AR-11-06 | T-11-96 | The server upload rules did not change; the client change only narrows what is sent. | plan 11-39 register | 2026-11-14 |
 
 ## Related Items (not counted as threats)
 
 - **WR-A-01** (code review): the domain does not re-check the link, email and postal rules. T-11-19 holds because the only production caller validates first. Fixed in 2d503631: the domain now holds the same rules, so this is closed.
 - **IN-A-05** (code review, deferred): two opening-hours saves in the same instant can both read before either commits. T-11-27's version check is present; taking the site-content lock in the hours handler would close the window.
 - **P11-BL-51**: consent has no database CHECK constraint (owner item). T-11-57 and T-11-83 hold in the validator and the domain.
-- **P11-BL-53**: the Testing site-content reset route has no database-name guard (owner item). It is compiled only in Debug builds (`CSPS_TESTING`).
-- **P11-BL-29**: restoring a deleted shown order makes it public again (owner item, before ship).
+- **P11-BL-53**: the Testing site-content reset route had no database-name guard. Fixed in 56a2347f (WR-A2-02) and made case-sensitive in 1de20ee8 (IN-3-01): it refuses any database but the test ones. It is still compiled only in Debug builds (`CSPS_TESTING`).
+- **P11-BL-29**: restoring a deleted shown order made it public again. Fixed in 2c7298aa and 7cd52e75: a delete turns Show off, and a restore keeps it off; f60d76cd tests that a restore clears the public cache.
 - Three new anonymous or Staff read routes have no register row of their own (`GET /api/v1/public/home`, `GET /api/v1/public/gallery`, `GET /api/v1/product-lines/options`). Each is rate limited or Staff-only, has a matrix row, and is covered by `PublicPrivacyTests`.
 
 ## Evidence Notes
@@ -148,6 +155,7 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 - Auditor for plans 01 to 13 ran: server integration (ShellPage, Seo, SiteSettingsWrite, OpeningHours, ShopClosure, PublicSite) 92 of 92; domain (PhilippinePhone, SiteLinks, OpenStatus) 204 of 204; vitest (budget, audit-policy, siteContentSchemas) 426 of 426.
 - Auditor for plans 14 to 26 ran no tests (another test run was using the same build output); its test evidence is that each named test exists and asserts the claim.
 - Auditor for plans 27 to 38 ran vitest (useGalleryCategory, publicWebsiteSchemas, useGalleryTabParams) 38 of 38; e2e evidence is static.
+- Gap plan 11-39 check (2026-11-15): vitest images.test.ts 64 of 64; gitleaks over 44 commits, no leaks; Directory.Packages.props, web/package.json and the lockfile unchanged since febeb63d.
 - Full-suite results for the phase are in `11-REVIEW-FIX.md` and `11-E2E-PHASE-END.md`.
 
 ## Security Audit Trail
@@ -155,6 +163,7 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-11-13 | 93 | 93 | 0 | gsd-security-auditor x3 (sonnet), merged by orchestrator |
+| 2026-11-15 | 98 | 98 | 0 | orchestrator (L1 check of plan 11-39, T-11-93 to T-11-97) |
 
 ## Sign-Off
 
@@ -163,4 +172,4 @@ Per-phase security contract: threat register, accepted risks and audit trail. Bu
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified by audit 2026-11-13; owner review pending.
+**Approval:** verified by audit 2026-11-13, re-verified 2026-11-15 with plan 11-39; owner review pending.
