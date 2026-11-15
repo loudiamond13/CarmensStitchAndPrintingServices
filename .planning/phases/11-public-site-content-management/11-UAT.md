@@ -4,11 +4,11 @@ phase: 11-public-site-content-management
 source: [11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 11-04-SUMMARY.md, 11-05-SUMMARY.md, 11-06-SUMMARY.md, 11-07-SUMMARY.md, 11-08-SUMMARY.md, 11-09-SUMMARY.md, 11-10-SUMMARY.md, 11-11-SUMMARY.md, 11-12-SUMMARY.md, 11-13-SUMMARY.md, 11-14-SUMMARY.md, 11-15-SUMMARY.md, 11-16-SUMMARY.md, 11-17-SUMMARY.md, 11-18-SUMMARY.md, 11-19-SUMMARY.md, 11-20-SUMMARY.md, 11-21-SUMMARY.md, 11-22-SUMMARY.md, 11-23-SUMMARY.md, 11-24-SUMMARY.md, 11-25-SUMMARY.md, 11-26-SUMMARY.md, 11-27-SUMMARY.md, 11-28-SUMMARY.md, 11-29-SUMMARY.md, 11-30-SUMMARY.md, 11-31-SUMMARY.md, 11-32-SUMMARY.md, 11-33-SUMMARY.md, 11-34-SUMMARY.md, 11-35-SUMMARY.md, 11-36-SUMMARY.md, 11-37-SUMMARY.md, 11-38-SUMMARY.md]
 started: 2026-11-14T00:05:00-06:00
 created: 2026-11-14T00:05:00-06:00
-updated: 2026-11-14T19:45:00-06:00
+updated: 2026-11-14T19:50:00-06:00
 ---
 
 # Phase 11 UAT: Public Site & Content Management
-*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:45:00-06:00*
+*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-14T19:50:00-06:00*
 
 All 38 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 13), then look and wording (14 to 16), then gates, rulings and reviews (17 to 20), then live-site steps (21 to 23).
 Tests 24 to 263 are passed by automated tests (coverage blocks); they are not asked.
@@ -1684,3 +1684,4 @@ blocked: 3
     - "Redraw every decodable photo before upload, even when no shrink is needed (D-P11-BL-65); keep the undecodable-HEIC pass-through and the server strip"
     - "Test first: a decodable photo within size comes back as a new redrawn file, not the picked File"
   debug_session: "independent review of the 43 prohibitions, UAT test 19 (finding F1, checked against the code)"
+  fix_plan: "11-39-PLAN.md"
