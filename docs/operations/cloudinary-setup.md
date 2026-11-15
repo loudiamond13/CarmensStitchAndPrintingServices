@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-12T09:35:00-06:00
+updated: 2026-11-15T11:08:17-06:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -145,8 +145,8 @@ The steps for the key, the schedule and a red run are in `docs/operations/mainte
 ## Phase 11 sizes: run the setup command once after the Phase 11 deploy (D-44)
 
 Phase 11 puts real photos on the public pages: the product lines, the gallery and the link preview picture. They need 21 more named
-sizes. The numbers earlier on this page (13 sizes, "13 exist") are the Phase 9 count. With Phase 11 the account holds 34 sizes, so the
-last line of the setup command reads `34 exist` once the new ones are in.
+sizes. The numbers earlier on this page (13 sizes, "13 exist") are the Phase 9 count. With Phase 11 and the centre-cut sizes of D-130
+(next section) the account holds 49 sizes, so the last line of the setup command reads `49 exist` once all of them are in.
 
 Do this once, after the Phase 11 deploy and before you add the first public photo. The public photos need these sizes: without them a
 public photo does not load, because strict mode refuses any size that is not named.
@@ -158,16 +158,16 @@ public photo does not load, because strict mode refuses any size that is not nam
    dotnet run --project tools/Csps.CloudinarySetup -- --check
    ```
 
-   You should see `13 exist, 21 missing`.
+   You should see `13 exist, 36 missing`: the 21 Phase 11 sizes plus the 15 centre-cut sizes.
 3. Create the missing sizes. Run the same command without `--check`:
 
    ```powershell
    dotnet run --project tools/Csps.CloudinarySetup
    ```
 
-   It creates only the 21 that are missing and allows them under strict mode. It never changes or deletes one of the 13 that live
+   It creates only the sizes that are missing and allows them under strict mode. It never changes or deletes one of the 13 that live
    order photos already use. It is safe to run again.
-4. Run `--check` once more. The last line must say `34 exist`. If it does not, do not go on.
+4. Run `--check` once more. The last line must say `49 exist`. If it does not, do not go on.
 
 The 21 new sizes, by use:
 
@@ -180,8 +180,44 @@ The 21 new sizes, by use:
 | Link preview picture (1200 x 630, JPEG) | `csps_share_1200` |
 | Link preview previews in the admin screen (1.91:1) | `csps_share_320`, `csps_share_640` |
 
+Since D-130 the site no longer uses the 15 smart-crop sizes in this table: the category card, strip, product small cell and both link
+preview rows. It uses their centre-cut twins in the next section. The old ones stay in the account so addresses already handed out
+keep working. Only the width-limited row is still in use.
+
 This costs nothing beyond the free plan's normal use: a named size is a saved recipe, and Cloudinary only makes a copy when a photo is
 first asked for in that size. The command never prints your keys or your cloud name.
 
 Photos that Managers add to product lines are kept in their own folder, `{root}/content/`, apart from the order photos in
 `{root}/orders/`. The monthly cleanup looks at both folders and queues any old file that no photo row names.
+
+## Centre-cut public sizes (D-130)
+
+The owner chose centred crops for the public site. The smart crop picks what it thinks is the main subject, and on a wide promo poster
+it moved the Home category card window onto the shirts, which cut off the logo and the phone number. A centre cut always shows the
+middle of the photo, the same way every time.
+
+A size that live photos use is never changed, so the centre cut comes as 15 new names. Each is a `c_fill,g_center` fill of the same
+box and format as its smart-crop twin above.
+
+| Use | Names |
+|---|---|
+| Category cards on Home (4:5) | `csps_catc_320`, `csps_catc_480`, `csps_catc_640`, `csps_catc_800`, `csps_catc_960` |
+| Recent work strip (4:5) | `csps_stripc_240`, `csps_stripc_480`, `csps_stripc_720`, `csps_stripc_1060` |
+| Product small cells (1:1) | `csps_psqc_200`, `csps_psqc_400`, `csps_psqc_720` |
+| Link preview picture (1200 x 630, JPEG) | `csps_sharec_1200` |
+| Link preview previews in the admin screen (1.91:1) | `csps_sharec_320`, `csps_sharec_640` |
+
+**Run the setup command before you deploy this change.** Until the sizes exist, strict mode refuses the new names and the public
+photos do not load.
+
+Your account already holds 34 sizes. Then:
+
+1. Make sure the three keys are in place, as in "Set up the photo sizes" above.
+2. Look first: `dotnet run --project tools/Csps.CloudinarySetup -- --check`. It must say `34 exist, 15 missing`.
+3. Create them: `dotnet run --project tools/Csps.CloudinarySetup`. It creates the 15 and says `34 exist, 15 created`.
+4. Run `--check` again. The last line must say `49 exist`.
+5. If any size says `different`, stop and tell Claude. Do not deploy.
+6. Deploy.
+
+Photos already uploaded need no re-upload: each address is the stored photo plus the size name, so after the deploy they show centre
+cut. Admin order photos keep the smart crop. This costs nothing beyond the free plan, the same as the other sizes.

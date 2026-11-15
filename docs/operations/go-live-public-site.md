@@ -1,6 +1,6 @@
 ---
 created: 2026-11-13T01:45:00-06:00
-updated: 2026-11-13T01:45:00-06:00
+updated: 2026-11-15T11:08:17-06:00
 ---
 
 # Go-live checklist: the public site (Phase 11)
@@ -58,15 +58,15 @@ On the **Hours & Closures** tab, set the opening and closing time for each day, 
 
 ### 6. Run the Cloudinary setup command once (D-44, P11-BL-21)
 
-Phase 11 needs 21 more named picture sizes in your Cloudinary account. Run the setup command once, after the deploy and before you add the first public photo:
+Phase 11 needs 21 more named picture sizes in your Cloudinary account, and D-130 adds 15 centre-cut ones. Run the setup command before the deploy that carries D-130, and before you add the first public photo:
 
 1. Make sure your three Cloudinary keys are in the place you run it from (see [cloudinary-setup.md](cloudinary-setup.md)).
-2. Look first. This changes nothing: `dotnet run --project tools/Csps.CloudinarySetup -- --check`. It should say `13 exist, 21 missing`.
+2. Look first. This changes nothing: `dotnet run --project tools/Csps.CloudinarySetup -- --check`. It should say `13 exist, 36 missing`, or `34 exist, 15 missing` if you already ran it for Phase 11.
 3. Create the missing sizes: `dotnet run --project tools/Csps.CloudinarySetup`. It only adds sizes that are missing.
-4. Run `--check` again. The last line must say `34 exist`. If it does not, stop and tell Claude.
+4. Run `--check` again. The last line must say `49 exist`. If it does not, stop and tell Claude.
 5. Check a photo: add or open one public photo, then load the public page that shows it and see that the picture loads.
 
-The full steps and the list of sizes are in "Phase 11 sizes" in [cloudinary-setup.md](cloudinary-setup.md). The parked item is P11-BL-21 in [the Phase 11 owner backlog](../../.planning/phases/999.7-owner-items-parked-during-phase-11-execution/DECISIONS.md).
+The full steps and the list of sizes are in "Phase 11 sizes" and "Centre-cut public sizes (D-130)" in [cloudinary-setup.md](cloudinary-setup.md). The parked item is P11-BL-21 in [the Phase 11 owner backlog](../../.planning/phases/999.7-owner-items-parked-during-phase-11-execution/DECISIONS.md).
 
 ### 7. The link preview picture
 

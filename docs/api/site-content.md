@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-13T13:00:00-06:00
+updated: 2026-11-15T11:08:17-06:00
 ---
 
 # The site content API
@@ -172,8 +172,8 @@ a picture change.
 
 ```json
 {
-  "src320": "https://res.cloudinary.com/example/image/private/t_csps_share_320/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
-  "src640": "https://res.cloudinary.com/example/image/private/t_csps_share_640/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
+  "src320": "https://res.cloudinary.com/example/image/private/t_csps_sharec_320/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
+  "src640": "https://res.cloudinary.com/example/image/private/t_csps_sharec_640/v1/csps/content/share/00000000-0000-0000-0000-000000000001/abcdefghijklmnopqrstuvwxyz",
   "width": 1600,
   "height": 840
 }
@@ -188,7 +188,7 @@ with the code `site-settings.share-picture-not-found`.
 
 ### Where the picture shows
 
-- **Home, Contact and the 404 page** carry it in their head: `og:image` at the 1200 x 630 size (`csps_share_1200`), `og:image:width`
+- **Home, Contact and the 404 page** carry it in their head: `og:image` at the 1200 x 630 size (`csps_sharec_1200`), `og:image:width`
   `1200`, `og:image:height` `630`, `og:image:alt` the business name, and `twitter:card` `summary_large_image`.
 - **Products and Gallery** use their own photo when they have one (the first shown line's main photo, the cover of the top gallery
   item) and the default picture when they have not.
@@ -473,7 +473,7 @@ Nothing calls the storage to delete during the request.
 ```json
 {
   "slot": "main",
-  "src": "https://res.cloudinary.com/example/image/private/t_csps_cat_640/v1/csps/content/lines/3a48a1d6-c812-4481-a6be-d7d7412484a0/abcdefghijklmnopqrstuvwxyz",
+  "src": "https://res.cloudinary.com/example/image/private/t_csps_catc_640/v1/csps/content/lines/3a48a1d6-c812-4481-a6be-d7d7412484a0/abcdefghijklmnopqrstuvwxyz",
   "srcSet": "... 320w, ... 480w, ... 640w",
   "width": 1600,
   "height": 1200
@@ -485,13 +485,15 @@ Nothing calls the storage to delete during the request.
 
 ### Where the photos show
 
+Every public fill size cuts from the centre of the photo (D-130). The 44 px list thumb and the gallery thumbs keep the smart crop.
+
 - `GET /api/v1/product-lines` fills `mainPhotoThumb` with the 44 px square address of the main photo, and `photoCount` counts the slots in use.
 - `GET /api/v1/product-lines/{id}` has a `photos` object with `main`, `back` and `fabric`; a slot with no photo is `null`.
 - `GET /api/v1/public/product-lines` fills `photos.main` (the large product cell sizes, 400 to 1280 wide), `photos.back` and `photos.fabric`
   (the square sizes, 200 to 720 wide) for shown lines only, each with `src`, `srcSet`, `width` and `height`. A slot with no photo is `null`
   and the page draws the placeholder.
 - The Products page head uses the first shown line's main photo as the link preview picture: `og:image` at the 1200 x 630 size
-  (`csps_share_1200`), `og:image:width` `1200`, `og:image:height` `630`, `og:image:alt` the business name, and `twitter:card`
+  (`csps_sharec_1200`), `og:image:width` `1200`, `og:image:height` `630`, `og:image:alt` the business name, and `twitter:card`
   `summary_large_image`. When that line has no main photo the picture tags are left out and `twitter:card` is `summary`.
 
 ### Rules that hold together
