@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { PUBLIC_COPY } from '../copy';
 import { PageHead } from './PageHead';
 
 const HEADLINE = { plain: 'Every kit,', accent: 'your way.' } as const;
@@ -36,14 +37,15 @@ describe('PageHead (UI-SPEC Component Inventory, App. E.2)', () => {
 
   it('shows a breadcrumb nav with a Home link and the current page when a crumb is given', () => {
     renderHead({ crumb: 'Products' });
-    const nav = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(PUBLIC_COPY.crumbs.label).toBe('Breadcrumb');
+    const nav = screen.getByRole('navigation', { name: PUBLIC_COPY.crumbs.label });
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(within(nav).getByText('Products')).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows no breadcrumb when no crumb is given', () => {
     renderHead();
-    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: PUBLIC_COPY.crumbs.label })).not.toBeInTheDocument();
   });
 
   it('shows the buttons it is given in a row', () => {

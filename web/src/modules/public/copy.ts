@@ -49,7 +49,7 @@ export const PUBLIC_COPY = {
     contact: 'Message us on Messenger or call the shop. See our hours, address and map.',
     notFound: "This page couldn't be found.",
   },
-  crumbs: { home: 'Home', products: 'Products', gallery: 'Gallery', contact: 'Contact' },
+  crumbs: { label: 'Breadcrumb', home: 'Home', products: 'Products', gallery: 'Gallery', contact: 'Contact' },
   // The shared actions: every "Get a Quote" goes to /contact (D-19).
   actions: { getQuote: 'Get a Quote', viewWork: 'View Our Work', messageUs: 'Message Us' },
   home: {

@@ -155,3 +155,9 @@ describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
     expect(css).toContain('--spacing-tagline:320px');
   });
 });
+
+describe('public copy (11-UI-REVIEW N-01)', () => {
+  it('names nothing with a string-literal aria-label in public TSX: labels come from the copy module', () => {
+    expect(hitsOf(/aria-label=(?:"|\{\s*['"`])/, (name) => name.endsWith('.tsx'))).toEqual([]);
+  });
+});

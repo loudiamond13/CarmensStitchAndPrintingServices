@@ -37,7 +37,7 @@ export function PageHead({ eyebrow, headline, crumb, lead, actions, flat = false
     <section className={clsx(pageHeadClasses, flat ? pageHeadFlatBottomClasses : pageHeadBottomClasses)}>
       <div className={pageHeadWrapClasses}>
         {crumb !== undefined && (
-          <nav className={crumbsClasses} aria-label="Breadcrumb">
+          <nav className={crumbsClasses} aria-label={PUBLIC_COPY.crumbs.label}>
             <UiLink to="/" className={crumbLinkClasses}>
               {PUBLIC_COPY.crumbs.home}
             </UiLink>
