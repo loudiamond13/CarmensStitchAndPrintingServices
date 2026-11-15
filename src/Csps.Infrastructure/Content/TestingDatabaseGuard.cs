@@ -29,7 +29,8 @@ public static partial class TestingDatabaseGuard
     /// <returns>True for <c>CSPS_E2E</c> and <c>CSPS_Test_&lt;guid&gt;</c>.</returns>
     public static bool IsAllowedName(string? name) => !string.IsNullOrEmpty(name) && Allowed().IsMatch(name);
 
-    [GeneratedRegex("^(CSPS_E2E|CSPS_Test_[0-9a-f-]{36})$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    // Case-sensitive and anchored with \z. The per-test form must match TestDatabaseName in tests/Csps.Testing.
+    [GeneratedRegex("^(CSPS_E2E|CSPS_Test_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\z", RegexOptions.CultureInvariant)]
     private static partial Regex Allowed();
 }
 #endif
