@@ -118,8 +118,13 @@ export const siteBurgerClasses = tw(
   'ml-auto inline-grid size-11 cursor-pointer place-items-center rounded-sm border-0 bg-transparent text-ink hover:bg-surface-2 pg-md-up:hidden',
 );
 
-/** `.csp-site-drawer`: the phone drawer under the header. */
-export const siteDrawerClasses = tw('flex flex-col gap-2 border-t border-line px-4 pt-2 pb-6 pg-md-up:hidden');
+/**
+ * `.csp-site-drawer`: the phone drawer under the header. D-131: it slides down and fades in, and back up on close (theme
+ * keyframes, `data-state` from SiteHeader; none under reduced motion).
+ */
+export const siteDrawerClasses = tw(
+  'flex animate-csp-site-drawer-in flex-col gap-2 border-t border-line px-4 pt-2 pb-6 data-[state=closed]:pointer-events-none data-[state=closed]:animate-csp-site-drawer-out motion-reduce:animate-none motion-reduce:data-[state=closed]:animate-none pg-md-up:hidden',
+);
 
 /**
  * `.csp-site-dlink` and `.is-on` (`--accent-ink`), read from `aria-current="page"`; D-31 O-3 adds the italic as the

@@ -86,6 +86,11 @@
   --animate-csp-drawer-out: csp-drawer-out 0.2s ease forwards;
   --animate-csp-pop-in: csp-pop-in 0.15s ease;
   --animate-csp-pop-out: csp-pop-out 0.15s ease forwards;
+  /* D-131: the public phone menu, 0.45 s in and 0.3 s out, transform and opacity only. */
+  --animate-csp-site-drawer-in: csp-site-drawer-in 0.45s ease-out;
+  --animate-csp-site-drawer-out: csp-site-drawer-out 0.3s ease-in forwards;
+  --animate-csp-site-link-in: csp-site-link-in 0.3s ease-out both;
+  --animate-csp-burger-turn: csp-burger-turn 0.2s ease-out;
   --animate-csp-shimmer: csp-shimmer 1.4s ease-in-out infinite;
 
   /* Copied from App. B unchanged. */
@@ -156,6 +161,31 @@
     }
     to {
       background-position: -100% 0;
+    }
+  }
+  /* D-131: the public phone menu. */
+  @keyframes csp-site-drawer-in {
+    from {
+      opacity: 0;
+      transform: translateY(-16px);
+    }
+  }
+  @keyframes csp-site-drawer-out {
+    to {
+      opacity: 0;
+      transform: translateY(-16px);
+    }
+  }
+  @keyframes csp-site-link-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+  }
+  @keyframes csp-burger-turn {
+    from {
+      opacity: 0;
+      transform: rotate(-90deg);
     }
   }
 }

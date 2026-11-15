@@ -5,11 +5,14 @@
 // rulings applied:
 //   - D-03 the current link is bold (700) as its second cue, besides the ink colour and the orange underline;
 //   - D-31 O-3 the current drawer link carries `aria-current="page"` too, and turns italic as its second cue.
+//   - D-131 on phones the drawer slides down and fades in, and on close stays mounted (inert) until its exit ends
+//     (usePresence); nothing moves under reduced motion.
 // The SiteHeader renders its own Logo, so it passes it the header context (the App. C phone tagline, UI-SPEC rule 7a).
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, UiLink } from '@/components/actions';
 import { Icon, Logo } from '@/components/brand';
+import { usePresence } from '@/hooks/usePresence';
 import {
   siteBurgerClasses,
   siteCtaClasses,
@@ -50,6 +53,7 @@ export interface SiteHeaderProps {
 
 export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
+  const { mounted, state, ref: presenceRef } = usePresence(open);
   const navigate = useNavigate();
   // SPEC-DEVIATION: UI-SPEC Layout Contract "Get a Quote navigates to /contact". App. D.3 leaves the action to an
   // optional onQuote; without one the button now goes to /contact. It stays App. D.3's <button> (no element change, D-08),
@@ -95,8 +99,14 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
           <Icon name={open ? 'x' : 'menu'} size={22} />
         </button>
       </div>
-      {open && (
-        <nav className={siteDrawerClasses} aria-label="Mobile">
+      {mounted && (
+        <nav
+          ref={presenceRef}
+          className={siteDrawerClasses}
+          aria-label="Mobile"
+          data-state={state}
+          inert={open ? undefined : true}
+        >
           {links.map((link) => (
             // SPEC-DEVIATION: D-31 O-3 the current drawer link gets aria-current="page" (App. D.3 marks it by class
             // only), which also drives its italic second cue.
