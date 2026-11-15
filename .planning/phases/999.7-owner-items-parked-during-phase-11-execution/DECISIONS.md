@@ -1,6 +1,6 @@
 # Owner items parked during Phase 11 execution
 
-*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-14T19:30:00-06:00*
+*Created: 2026-11-11T22:44:28-06:00 · Updated: 2026-11-14T21:45:54-06:00*
 
 The owner went away during the Phase 11 run (2026-11-11) and asked for the run to finish with a code review and a security review. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner.
 
@@ -684,6 +684,15 @@ prepareImage (web/src/utils/images.ts) redraws only when a photo needs shrinking
 
 - **A:** extend the check to every field the public site shows.
 - **B (chosen):** leave it on Business Info, as plan 11-09 built it.
+
+## P11-BL-67 · Messenger button in the phone Contact bar (quick 261114-t04 finding)
+
+**Status:** decided: A (owner, 2026-11-14) · **Blocks:** nothing.
+
+**Ruling D-P11-BL-67 (owner, 2026-11-14):** give the bar's Messenger button the same 48px button shape as "Call us" (UI spec `.s-mbar`: both buttons 48px tall), so every bar is as tall as `--spacing-contact-bar`. This is an approved look change. A gate in `public-look.node.test.ts` keeps the two shapes in step.
+
+- **A (chosen):** give it the button shape.
+- **B:** leave it as colours only.
 
 ## Flakes seen in the post-merge gates (for the record, no decision needed)
 

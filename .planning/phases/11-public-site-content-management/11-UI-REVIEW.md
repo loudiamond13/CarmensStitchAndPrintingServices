@@ -1,6 +1,6 @@
 ---
 created: 2026-11-13T10:00:00-06:00
-updated: 2026-11-14T21:20:00-06:00
+updated: 2026-11-14T21:46:02-06:00
 ---
 
 # Phase 11: UI Review (re-audit)
@@ -109,6 +109,7 @@ Scope: this pass read the full public copy files (`copy.ts`, `hoursCopy.ts`) aga
 |---|---|---|---|
 | N-01 | Fixed | 83594c4c | `PUBLIC_COPY.crumbs.label` is `'Breadcrumb'`, `PageHead` reads it, so the spoken name is unchanged. `public-look.node.test.ts` fails on any string-literal `aria-label` in public TSX. |
 | N-02 | Fixed | a5a6cb5e, 1c0bdba6 | Theme tokens `--spacing-contact-bar` (77px) and `--spacing-tagline` (320px). Footer phone padding is 96px, or the bar plus the safe area when taller. The Contact scroll padding reads the token. The look gates fail on bare px padding or margin in the public module, on a px max width in the footer, and on a hand-typed bar height, and they pin the token to the bar's parts. No visible change while the inset is 0 (D-P11-BL-61). |
+| N-02 follow-up | Fixed | 62ff24d4 | The bar's Messenger button had colours only. It now has the same 48px button shape as "Call us", so a Messenger-only bar is as tall as the token. Approved look change, D-P11-BL-67. A gate keeps the two bar buttons' shapes in step. |
 
 Informational only: `PublicLayoutCheckPage.tsx:19` English literals (dev-only route, D-20).
 
