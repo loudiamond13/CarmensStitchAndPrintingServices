@@ -1,6 +1,6 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-11-05T06:55:00-06:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-11-15T21:10:00-06:00*
 
 ## What This Is
 
@@ -181,8 +181,8 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-6 | Can Admins delete orders? | Yes (PRD and UI spec agree) | Orders phase |
 | OD-7 | Reusable `Customer` entity vs customer fields on each order | The UI spec puts the fields on the order. The PRD recommends a reusable entity. Decide before the Orders phase | Orders phase |
 | OD-9 | Order image delivery: public or authenticated Cloudinary | PRD recommends authenticated | Order images phase |
-| OD-10 | Retention: orders and financial records, analytics (13 mo), audit log (2 yr) | — | Consent/analytics + hardening |
-| OD-11 | Legal jurisdiction and reviewer | The Philippines is likely, under the Data Privacy Act of 2012 (RA 10173) | Legal pages phase |
+| OD-10 | Retention: orders and financial records, analytics (13 mo), audit log (2 yr) | **Ruled (owner, 2026-11-15; 12 D-01 to D-07):** orders and money records kept forever; unconverted inquiries purged after 6 months; raw analytics 13 months, daily counts 3 years; consent records 13 months; audit log stays 8 months (D-32), so the "2 yr" here is superseded | ✓ Owner decided (2026-11-15) |
+| OD-11 | Legal jurisdiction and reviewer | The Philippines is likely, under the Data Privacy Act of 2012 (RA 10173). **Ruled (owner, 2026-11-15; 12 D-08 to D-15):** Philippines only (RA 10173); the owner reviews and approves the text, a lawyer review is optional later; controller name, address and contact email come from site settings; the DPO is named by role | ✓ Owner decided (2026-11-15) |
 | OD-12 | System sender email/domain; SPF/DKIM/DMARC feasibility | Footer placeholder `[hello@yourdomain.ph]` | Auth phase (email) |
 | OD-13 | OpenAPI in production: Managers only, or disabled | — | Foundation / hardening |
 | OD-14 | UI-spec items that conflict with WCAG | See C-16 below | Every UI phase |
