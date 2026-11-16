@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-15T21:19:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-15T21:52:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -65,6 +65,14 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-33:** **"Visits" replaces "Sessions"** on the Visitor Stats page and in the CSV header (`Date,Unique visitors,Visits,Page views`). This amends the wording of D-25. (OQ-5 A, owner, 2026-11-15)
 - **D-34:** **The cookie bar's third button is "Cookie Settings"** (not "Customize"), the same name as the settings window and the footer button. (owner, 2026-11-15, on the UI checker's advice)
 - **D-35:** **The "Clear your cookies and data?" dialog's dismiss button is "Keep My Data"**, for this dialog only; the shared ConfirmDialog default "Cancel" stays. (owner, 2026-11-15)
+
+### Research rulings (owner, 2026-11-15, answered in chat; 12-RESEARCH Open Questions 1 to 6)
+- **D-36:** **The maintenance run stays monthly.** The Privacy Policy and Cookie Policy wording changes from "Kept for 13 months" to "Kept for about 13 months; removed at the next monthly cleanup". The same wording style applies to every retention line that a monthly job enforces (D-03, D-05). No weekly cron line is added. (OQ 1 B, owner, 2026-11-15)
+- **D-37:** **A visit with no referrer from the Facebook, Messenger or Instagram in-app browser is recorded under that app's name** (from the User-Agent the server already sees), not as "Direct". This extends D-28. Nothing extra is collected from the phone. (OQ 2 A, owner, 2026-11-15)
+- **D-38:** **`web-vitals` 6.2.3 is approved** (Apache-2.0, no advisories, 41 days old on 2026-11-15, no install scripts, no dependencies). It is loaded only after "Visitor stats" consent, in its own chunk. Exact version pinned. The research findings in 12-RESEARCH § Package Legitimacy Audit are the recorded check. (OQ 3 A, owner, 2026-11-15)
+- **D-39:** **The site publishes `/.well-known/gpc.json`** stating that it honors GPC, matching D-20. (OQ 4 A, owner, 2026-11-15)
+- **D-40:** **The Privacy Policy's "Who else handles your data" list is:** the web host, Cloudinary (photos), the email sender, and Google (the Contact map, only when allowed). (OQ 5, owner, 2026-11-15)
+- **D-41:** **Three defaults accepted as written** (12-RESEARCH A6 to A8): turning visitor stats off stops collection and expires the visitor id but keeps past rows (Clear is what deletes them); the GPC signal alone creates no consent record, and the GPC flag is stored on any decision made under it; Clear runs `localStorage.clear()`, which also resets a staff member's admin theme and orders view in that browser, and the daily totals with no visitor id stay (the Cookie Policy says so). (OQ 6, owner, 2026-11-15)
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.
