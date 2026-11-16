@@ -1,14 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 11-public-site-content-management
 source: [11-01-SUMMARY.md, 11-02-SUMMARY.md, 11-03-SUMMARY.md, 11-04-SUMMARY.md, 11-05-SUMMARY.md, 11-06-SUMMARY.md, 11-07-SUMMARY.md, 11-08-SUMMARY.md, 11-09-SUMMARY.md, 11-10-SUMMARY.md, 11-11-SUMMARY.md, 11-12-SUMMARY.md, 11-13-SUMMARY.md, 11-14-SUMMARY.md, 11-15-SUMMARY.md, 11-16-SUMMARY.md, 11-17-SUMMARY.md, 11-18-SUMMARY.md, 11-19-SUMMARY.md, 11-20-SUMMARY.md, 11-21-SUMMARY.md, 11-22-SUMMARY.md, 11-23-SUMMARY.md, 11-24-SUMMARY.md, 11-25-SUMMARY.md, 11-26-SUMMARY.md, 11-27-SUMMARY.md, 11-28-SUMMARY.md, 11-29-SUMMARY.md, 11-30-SUMMARY.md, 11-31-SUMMARY.md, 11-32-SUMMARY.md, 11-33-SUMMARY.md, 11-34-SUMMARY.md, 11-35-SUMMARY.md, 11-36-SUMMARY.md, 11-37-SUMMARY.md, 11-38-SUMMARY.md]
 started: 2026-11-14T00:05:00-06:00
 created: 2026-11-14T00:05:00-06:00
-updated: 2026-11-15T07:30:00-06:00
+updated: 2026-11-15T15:50:00-06:00
 ---
 
 # Phase 11 UAT: Public Site & Content Management
-*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-15T07:30:00-06:00*
+*Created: 2026-11-14T00:05:00-06:00 · Updated: 2026-11-15T15:50:00-06:00*
 
 All 38 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 13), then look and wording (14 to 16), then gates, rulings and reviews (17 to 20), then live-site steps (21 to 23).
 Tests 24 to 263 are passed by automated tests (coverage blocks); they are not asked.
@@ -146,26 +146,23 @@ result: pass
 ### 21. Cloudinary named sizes on the live account
 expected: After the deploy, run the Cloudinary setup command once on the live account. The 21 new named sizes exist (34 in all, the 13 old ones unchanged), and a product photo, a gallery photo and the csps_share_1200 picture load on the live site.
 covers: 11-19 D6, 11-30 D11, VERIFICATION human item 2
-result: blocked
-blocked_by: release-build
-reason: "Not done yet: Phase 11 is not deployed, so the live Cloudinary setup has not been run (owner, 2026-11-14). Go-live checklist step."
-deferred_by: "D-127 (owner, 2026-11-15): done after the deploy, not a ship blocker"
+result: pass
+first_result: blocked
+note: "Owner ran the setup on the live account after the D-130 deploy: 34 exist, 15 created (49 in all, none different). The product line main photos and the csps_sharec_1200 link preview picture load on the live site (200). The gallery photo part is moved to Phase 12 by D-133 (owner, 2026-11-15)."
 
 ### 22. Real content entered before cutover
 expected: On the live site enter Business Info, hours, phones, the Messenger link, the six line prices and the default share picture. Home, Products and Contact show them, Open now is right for Manila time, and Home and Contact carry an og:image.
 covers: VERIFICATION human item 3
-result: blocked
-blocked_by: release-build
-reason: "phase 11 isnt live yet" (owner, 2026-11-14). Go-live checklist step.
-deferred_by: "D-127 (owner, 2026-11-15): done after the deploy, not a ship blocker"
+result: pass
+first_result: blocked
+note: "Checked live 2026-11-15: Business Info, the main phone, the address, the Messenger link and the opening hours are saved; Open now reads correctly for Manila; Home, Products, Gallery and Contact carry an og:image with the large card. Line prices are left as \"Message us for a price\" until the owner adds them (D-06, D-40)."
 
 ### 23. Facebook Sharing Debugger on the live site
 expected: Paste /, /products, /gallery and /contact into the Facebook Sharing Debugger. Each shows its own title, description and picture, and a new share picture replaces the old one.
 covers: 11-30 D10, VERIFICATION human item 4
-result: blocked
-blocked_by: release-build
-reason: "phase 11 isnt live yet" (owner, 2026-11-14). Go-live checklist step.
-deferred_by: "D-127 (owner, 2026-11-15): done after the deploy, not a ship blocker"
+result: pass
+first_result: blocked
+note: "Owner ran the Facebook Sharing Debugger on /, /products, /gallery and /contact (owner, 2026-11-15)."
 
 ### 24. 11-01 D1: The npm audit gate keeps passing through 2026-12-14 with the owner-extended glob and minim
 expected: The npm audit gate keeps passing through 2026-12-14 with the owner-extended glob and minimatch exceptions, and fails after that date
@@ -1610,11 +1607,11 @@ coverage_id: 11-38-D3
 ## Summary
 
 total: 263
-passed: 260
+passed: 263
 issues: 0
 pending: 0
 skipped: 0
-blocked: 3
+blocked: 0
 
 ## Gaps
 
