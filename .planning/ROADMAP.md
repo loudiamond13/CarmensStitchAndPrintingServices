@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-14T20:19:16-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-15T15:50:00-06:00*
 
 ## Overview
 
@@ -1269,6 +1269,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08, ANL-09, LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05
+**Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21).
 **Success Criteria** (what must be TRUE):
   1. **Consent banner:**
      - On a first visit, visitors see Accept all and Reject all with equal prominence, plus Customize. Nothing non-essential is set before they choose.
