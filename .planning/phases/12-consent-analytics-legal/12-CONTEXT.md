@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-15T21:05:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-15T21:19:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -52,10 +52,19 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 ### Visitor stats page (C-17: spec-gap screen)
 - **D-23:** **"Visitor stats" is its own admin page with its own menu item, for Managers only.** It is not on the dashboard. Admin users are denied, and the authorization-matrix test covers it.
 - **D-24:** **It opens on the last 30 days.** Presets: Last 7 days, Last 30 days, This month, Last month, This year, plus custom dates. The range is in the URL (WEB-10), and days follow the business calendar (`Asia/Manila`, `IBusinessCalendar`).
-- **D-25:** **The CSV export is one row per day:** date, unique visitors, sessions, page views. A day with no data shows zeros.
+- **D-25:** **The CSV export is one row per day:** date, unique visitors, sessions, page views. A day with no data shows zeros. (Wording amended by D-33: "Visits" instead of "sessions".)
 - **D-26:** **Web Vitals are shown in plain words with a color and an icon:** "Loading speed" (LCP), "Layout shifting" (CLS), "Response to taps" (INP), each rated Good, Needs work or Poor by Google's thresholds, with the number in small text. Color is never the only signal (WCAG).
 - **D-27:** **Ranges older than 13 months:** page views, top pages and the device/browser split come from the daily counts. Unique visitors and sessions show "Not available for dates over 13 months ago" (an `EmptyValue`-style marker, not a dash, OR-4). A range that crosses the 13-month line says which part is partial.
 - **D-28:** **Referrers are grouped into friendly names** for known sites: Facebook (m., l., lm., www.facebook.com), Messenger, Instagram and Google. Other referrers show their host. Visits with no referrer are listed as "Direct". The grouping happens when the referrer is stored, so the daily counts use the same names.
+
+### UI-SPEC rulings (owner, 2026-11-15, answered in chat; 12-UI-SPEC OQ-1 to OQ-5 and two copy items)
+- **D-29:** **The privacy contact email shows on the four legal pages only** (Privacy Policy, Cookie Policy, Terms of Use, Accessibility Statement), as an "Email:" link. It stays off the footer, Contact, JSON-LD and every other public page. This is a narrow exception to Phase 11 D-25, which otherwise stands. (OQ-1 A, owner, 2026-11-15)
+- **D-30:** **On the Contact page on phones, the Messenger and Call bar is hidden until the visitor answers the cookie bar**, then it comes back. Only one bar sits at the bottom at a time. (OQ-2 A, owner, 2026-11-15)
+- **D-31:** **"Clear my cookies & data" resets the saved choice to visitor stats off and map off**, logged as a new decision. The cookie bar does not ask again. (OQ-3 A, owner, 2026-11-15)
+- **D-32:** **Three icons are added to `icons.ts` from the installed lucide-react 1.53.0:** `chart-column` (Visitor Stats menu item), `circle-x` ("Poor" speed rating) and `download` (Export CSV). No new package. (OQ-4 A, owner, 2026-11-15)
+- **D-33:** **"Visits" replaces "Sessions"** on the Visitor Stats page and in the CSV header (`Date,Unique visitors,Visits,Page views`). This amends the wording of D-25. (OQ-5 A, owner, 2026-11-15)
+- **D-34:** **The cookie bar's third button is "Cookie Settings"** (not "Customize"), the same name as the settings window and the footer button. (owner, 2026-11-15, on the UI checker's advice)
+- **D-35:** **The "Clear your cookies and data?" dialog's dismiss button is "Keep My Data"**, for this dialog only; the shared ConfirmDialog default "Cancel" stays. (owner, 2026-11-15)
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.
