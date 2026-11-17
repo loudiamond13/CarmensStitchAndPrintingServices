@@ -8,7 +8,7 @@ import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
 import { manilaBusinessDay } from '../consentRules';
 import { consentCookieText, writeBrowserCookie } from '../consentSave';
-import { createConsentStore, resetConsentStore, useConsent } from './useConsent';
+import { consentStore, createConsentStore, resetConsentStore, useConsent } from './useConsent';
 
 const TODAY = '2026-11-17';
 
@@ -498,6 +498,59 @@ describe('Always show maps (D-18)', () => {
   });
 });
 
+describe('whether the saved choice still counts (CS1 saved line)', () => {
+  it('is false with no cookie and true for a current choice', async () => {
+    setConsent({ cookie: null });
+    const none = renderHook(() => useConsent());
+    expect(none.result.current.current).toBe(false);
+    none.unmount();
+
+    setConsent({ cookie: consentCookie({ stats: true }) });
+    const saved = renderHook(() => useConsent());
+    await waitFor(() => {
+      expect(saved.result.current.current).toBe(true);
+    });
+  });
+
+  it('is false for a choice made under an older Cookie Policy version, and for one 12 months old', async () => {
+    setConsent({ cookie: consentCookie({ policyVersion: '0.0' }) });
+    const old = renderHook(() => useConsent());
+    await waitFor(() => {
+      expect(old.result.current.cookie).not.toBeNull();
+    });
+    expect(old.result.current.current).toBe(false);
+    old.unmount();
+
+    setConsent({ cookie: consentCookie({ decidedOn: '2025-11-17' }), today: () => TODAY });
+    const year = renderHook(() => useConsent());
+    await waitFor(() => {
+      expect(year.result.current.cookie).not.toBeNull();
+    });
+    expect(year.result.current.current).toBe(false);
+  });
+});
+
+describe('the saved announcement (ANL-07, A11Y-02)', () => {
+  it('changes its text on a repeat save, so a screen reader reads it again', async () => {
+    consentProbe();
+    setConsent();
+    const { result } = renderHook(() => useConsent());
+
+    await act(async () => {
+      await result.current.save({ stats: false, map: false }, 'settings');
+    });
+    const first = result.current.announcement;
+    await act(async () => {
+      await result.current.save({ stats: true, map: false }, 'settings');
+    });
+    const second = result.current.announcement;
+
+    expect(first).toBe('Your cookie choice is saved.');
+    expect(second).not.toBe(first);
+    expect(second?.trim()).toBe('Your cookie choice is saved.');
+  });
+});
+
 describe('the settings window state', () => {
   it('opens, closes, and gives focus back to the control that opened it', () => {
     setConsent({ cookie: null });
@@ -542,5 +595,39 @@ describe('the settings window state', () => {
       result.current.closeSettings();
     });
     expect(result.current.settingsOpen).toBe(false);
+  });
+
+  it('is loading from the first open until the window reports ready, and not again on a later open', () => {
+    setConsent({ cookie: null });
+    const { result } = renderHook(() => useConsent());
+    expect(result.current.settingsLoading).toBe(false);
+
+    act(() => {
+      result.current.openSettings();
+    });
+    expect(result.current.settingsLoading).toBe(true);
+
+    act(() => {
+      result.current.settingsReady();
+    });
+    expect(result.current.settingsLoading).toBe(false);
+
+    act(() => {
+      result.current.closeSettings();
+      result.current.openSettings();
+    });
+    expect(result.current.settingsOpen).toBe(true);
+    expect(result.current.settingsLoading).toBe(false);
+  });
+
+  it('tells nobody when the window reports ready and nothing was waiting', () => {
+    setConsent({ cookie: null });
+    const changed = vi.fn();
+    const stop = consentStore.subscribe(changed);
+
+    consentStore.settingsReady();
+
+    stop();
+    expect(changed).not.toHaveBeenCalled();
   });
 });

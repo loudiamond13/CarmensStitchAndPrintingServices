@@ -82,11 +82,15 @@ describe('PublicLayout landmarks and page root (A11Y-01, D-14)', () => {
     expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
   });
 
-  it('labels the two navs distinctly: "Main", and "Mobile" once the menu is open', async () => {
+  it('labels the navs distinctly: "Main", the footer\'s "Legal" (ANL-03), and "Mobile" once the menu is open', async () => {
     await renderAt('/');
-    expect(screen.getAllByRole('navigation').map((nav) => nav.getAttribute('aria-label'))).toEqual(['Main']);
+    expect(screen.getAllByRole('navigation').map((nav) => nav.getAttribute('aria-label'))).toEqual(['Main', 'Legal']);
     await userEvent.click(screen.getByRole('button', { name: 'Menu' }));
-    expect(screen.getAllByRole('navigation').map((nav) => nav.getAttribute('aria-label'))).toEqual(['Main', 'Mobile']);
+    expect(screen.getAllByRole('navigation').map((nav) => nav.getAttribute('aria-label'))).toEqual([
+      'Main',
+      'Mobile',
+      'Legal',
+    ]);
   });
 
   it('is the Blush page root, always light, with the header, main and footer in that order', async () => {

@@ -1,5 +1,6 @@
 // The public footer from the stored shop facts (PUB-02, D-25, D-33, D-42).
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -15,6 +16,7 @@ import {
   type PublicSiteFixture,
 } from '@/test/publicFixtures';
 import { server } from '@/test/msw';
+import { consentStore } from '../hooks/useConsent';
 import FooterHours from './FooterHours';
 import { SiteFooter } from './SiteFooter';
 
@@ -258,5 +260,161 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
     const { container } = renderBase();
 
     await expectNoAxeViolations(container);
+  });
+});
+
+const LEGAL_ITEMS = ['Privacy Policy', 'Cookie Policy', 'Terms of Use', 'Accessibility Statement', 'Cookie Settings'];
+
+function drawAt(variant: 'full' | 'base', path = '/') {
+  putBootBlock(demoSite);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <SiteFooter variant={variant} />
+    </MemoryRouter>,
+  );
+}
+
+function legalNav(): HTMLElement {
+  return screen.getByRole('navigation', { name: 'Legal' });
+}
+
+describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL-05, UI-SPEC FT)', (variant) => {
+  it('lists the four legal pages and Cookie Settings, in that order, as links to the legal paths and one button', () => {
+    drawAt(variant);
+    const items = within(legalNav()).getAllByRole('listitem');
+
+    expect(items.map((item) => item.textContent)).toEqual(LEGAL_ITEMS);
+    expect(
+      within(legalNav())
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/privacy', '/cookies', '/terms', '/accessibility']);
+    expect(within(legalNav()).getAllByRole('button')).toHaveLength(1);
+  });
+
+  it.each([
+    ['/privacy', 'Privacy Policy'],
+    ['/cookies', 'Cookie Policy'],
+    ['/terms', 'Terms of Use'],
+    ['/accessibility', 'Accessibility Statement'],
+  ])('marks only the link of %s as the current page', (path, name) => {
+    drawAt(variant, path);
+    const current = within(legalNav())
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+      .map((link) => link.textContent);
+
+    expect(current).toEqual([name]);
+  });
+
+  it('marks no link on another page', () => {
+    drawAt(variant, '/products');
+
+    expect(legalNav().querySelector('[aria-current]')).toBeNull();
+  });
+
+  it('gives each item a 44px height, Small 14px text and 16px by 8px gaps that wrap, so 320px never scrolls sideways', () => {
+    drawAt(variant);
+    const list = within(legalNav()).getByRole('list');
+
+    expect(list.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-wrap', 'gap-x-4', 'gap-y-2']));
+    for (const control of [...within(legalNav()).getAllByRole('link'), ...within(legalNav()).getAllByRole('button')]) {
+      expect(control.className.split(' ')).toEqual(
+        expect.arrayContaining(['inline-flex', 'min-h-11', 'items-center', 'text-14', 'text-ink-subtle']),
+      );
+    }
+  });
+
+  it('renders at once and stays when the shop facts cannot be read', async () => {
+    server.use(siteFailureHandler(404));
+    render(
+      <MemoryRouter>
+        <SiteFooter variant={variant} />
+      </MemoryRouter>,
+    );
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(5);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/©/)).not.toBeInTheDocument();
+    });
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(5);
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = drawAt(variant, '/cookies');
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('SiteFooter Legal row placement (UI-SPEC FT)', () => {
+  it('sits after the dashed rule and above the copyright line in the full footer', () => {
+    drawAt('full');
+    const rule = legalNav().parentElement;
+    const copyright = screen.getByText('© 2026 Sample Shop. All rights reserved.');
+
+    expect(rule?.className.split(' ')).toEqual(expect.arrayContaining(['border-t-2', 'border-dashed']));
+    expect(legalNav().compareDocumentPosition(copyright)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(legalNav().className.split(' ')).toContain('mb-2');
+  });
+
+  it('sits under the one-row base, 8px below it', () => {
+    drawAt('base');
+    const copyright = screen.getByText('© 2026 Sample Shop');
+
+    expect(copyright.compareDocumentPosition(legalNav())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(legalNav().className.split(' ')).toContain('mt-2');
+  });
+});
+
+describe('SiteFooter Legal row, Cookie Settings (ANL-03)', () => {
+  it.each([
+    ['full', renderFullFrom],
+    [
+      'base',
+      (site: PublicSiteFixture) => {
+        putBootBlock(site);
+        return renderBase();
+      },
+    ],
+  ])('ends the %s footer with a nav named "Legal" that holds the Cookie Settings button', (_name, draw) => {
+    draw(demoSite);
+    const nav = within(screen.getByRole('contentinfo')).getByRole('navigation', { name: 'Legal' });
+
+    expect(within(nav).getByRole('button', { name: 'Cookie Settings' })).toHaveAttribute('type', 'button');
+  });
+
+  it('opens the window from the button and shows the button pending until the window says it is ready', async () => {
+    const user = userEvent.setup();
+    putBootBlock(demoSite);
+    renderBase();
+    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
+      name: 'Cookie Settings',
+    });
+
+    await user.click(button);
+
+    expect(consentStore.getSnapshot().settingsOpen).toBe(true);
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveFocus();
+  });
+
+  it('ignores a press while the button is pending, and keeps focus on it', async () => {
+    const user = userEvent.setup();
+    putBootBlock(demoSite);
+    renderBase();
+    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
+      name: 'Cookie Settings',
+    });
+    await user.click(button);
+    const changed = vi.fn();
+    const stop = consentStore.subscribe(changed);
+
+    await user.click(button);
+
+    stop();
+    expect(changed).not.toHaveBeenCalled();
+    expect(button).toHaveFocus();
   });
 });

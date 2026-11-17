@@ -35,6 +35,8 @@ export function businessToday(inputs: Pick<ConsentRuleInputs, 'today'>): string 
 
 export interface DerivedConsent {
   cookie: ConsentCookie | null;
+  /** The cookie counts today: this policy version, not dated in the future, under 12 months old. */
+  current: boolean;
   needsChoice: boolean;
   statsAllowed: boolean;
   mapAllowed: boolean;
@@ -47,6 +49,7 @@ export function deriveConsent(raw: string | undefined, inputs: ConsentRuleInputs
   const current = cookie !== null && isCurrentChoice(cookie, checks);
   return {
     cookie,
+    current,
     needsChoice: needsChoice(cookie, { ...checks, gpc: inputs.gpc }),
     statsAllowed: !inputs.gpc && current && cookie.stats === true,
     mapAllowed: current && cookie.map,
