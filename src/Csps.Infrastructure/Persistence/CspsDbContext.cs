@@ -109,6 +109,18 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The anonymous page-view counts: one row per business day and page key, with no visitor information (ANL-06).</summary>
     public DbSet<DailyPageCount> DailyPageCounts => Set<DailyPageCount>();
 
+    /// <summary>The visits of visitors who allowed stats: hashed visitor id, source, device, browser, OS and a salted address hash (ANL-05).</summary>
+    public DbSet<AnalyticsVisit> AnalyticsVisits => Set<AnalyticsVisit>();
+
+    /// <summary>The page views of those visits (ANL-05).</summary>
+    public DbSet<AnalyticsPageView> AnalyticsPageViews => Set<AnalyticsPageView>();
+
+    /// <summary>The Core Web Vitals samples of those visits (ANL-05, D-26).</summary>
+    public DbSet<AnalyticsVitalSample> AnalyticsVitalSamples => Set<AnalyticsVitalSample>();
+
+    /// <summary>The random salt of each business day, deleted after two days (ANL-05, D-07).</summary>
+    public DbSet<AnalyticsSalt> AnalyticsSalts => Set<AnalyticsSalt>();
+
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

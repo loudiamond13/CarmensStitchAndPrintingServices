@@ -80,6 +80,7 @@ public sealed class RateLimitTests(CspsDatabase database) : IClassFixture<CspsDa
         { "GET", "/api/v1/public/privacy-contact", 600 },
         { "POST", "/api/v1/analytics/consent", 30 },
         { "POST", "/api/v1/analytics/page-views", 120 },
+        { "POST", "/api/v1/analytics/vitals", 120 },
     };
 
     [Theory]

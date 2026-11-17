@@ -19,6 +19,8 @@ public static class AnalyticsApplicationRegistration
         services.AddScoped<IValidator<RecordConsentRequest>, RecordConsentRequestValidator>();
         services.AddScoped<CollectPageViewHandler>();
         services.AddScoped<IValidator<PageViewRequest>, PageViewRequestValidator>();
+        services.AddScoped<CollectVitalsHandler>();
+        services.AddScoped<IValidator<VitalsRequest>, VitalsRequestValidator>();
         services.AddSingleton<IPublicPageResolver, PublicPageResolver>();
         return services;
     }
