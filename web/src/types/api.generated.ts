@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/api/v1/analytics/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deletes the analytics rows tied to this browser's visitor id, expires that cookie and records a reset decision (stats off, map off).
+         *     The visitor is chosen only by the HttpOnly cookie: the call has no id in its address or body (CWE-639), and the answer is the same
+         *     whether or not a cookie was sent or anything was deleted.
+         */
+        post: operations["ClearVisitorData"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/consent": {
         parameters: {
             query?: never;
@@ -6255,6 +6276,44 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ClearVisitorData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentDecisionResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     RecordConsent: {
         parameters: {
             query?: never;

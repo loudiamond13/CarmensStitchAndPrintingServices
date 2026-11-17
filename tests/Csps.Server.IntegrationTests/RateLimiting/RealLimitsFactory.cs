@@ -55,6 +55,7 @@ internal sealed class RealLimitsFactory : CspsApiFactory
         builder.UseSetting("RateLimits:PublicRead:PermitLimit", "600");
         builder.UseSetting("RateLimits:Consent:PermitLimit", "30");
         builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", "120");
+        builder.UseSetting("RateLimits:AnalyticsClear:PermitLimit", "5");
 
         if (RemoteIpFromHeader)
         {

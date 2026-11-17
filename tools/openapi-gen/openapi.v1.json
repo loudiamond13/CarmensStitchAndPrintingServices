@@ -8489,6 +8489,47 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/analytics/clear": {
+      "post": {
+        "operationId": "ClearVisitorData",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentDecisionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Deletes the analytics rows tied to this browser's visitor id, expires that cookie and records a reset decision (stats off, map off).\nThe visitor is chosen only by the HttpOnly cookie: the call has no id in its address or body (CWE-639), and the answer is the same\nwhether or not a cookie was sent or anything was deleted.",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
     "/api/v1/analytics/consent": {
       "post": {
         "operationId": "RecordConsent",
