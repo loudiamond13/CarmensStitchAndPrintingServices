@@ -28,6 +28,7 @@ import { SiteFooter } from '@/modules/public/components/SiteFooter';
 import { useConsent } from '@/modules/public/hooks/useConsent';
 import { usePageViewBeacon } from '@/modules/public/hooks/usePageViewBeacon';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
+import { useSpeedReport } from '@/modules/public/hooks/useSpeedReport';
 import type { PublicOutletContext } from '@/modules/public/outletContext';
 import { tw } from '@/ui/tw';
 
@@ -69,6 +70,7 @@ export function PublicLayout() {
     void resendPending();
   }, [pathname, resendPending]);
   usePageViewBeacon(pathname);
+  useSpeedReport(pathname);
   const link = currentSiteLink(pathname);
   const onContact = link === 'Contact';
   // SPEC-DEVIATION: D-30 the phone Contact bar is not rendered while the cookie bar shows, so only one bar sits at the bottom; it comes back after a choice.

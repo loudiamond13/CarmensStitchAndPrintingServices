@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-03T09:00:00-06:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-17T10:20:00-06:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -96,6 +96,19 @@ Order photos are stored in the shop's own Cloudinary account. The owner approved
 - **One project only.** Only `Csps.Infrastructure` refers to it. A test (`LayerTests`) fails if `Csps.Application` or `Csps.Domain` ever do.
 - **One helper library.** It needs Newtonsoft.Json (MIT), which the project already ships. The test and tool projects resolve it at the lowest version Cloudinary allows (13.0.3, no known problem); the app itself keeps 13.0.4.
 
+## Phase 12 package: web-vitals for page speed (approved 2026-11-15)
+
+The stats page can show how fast the site feels on visitors' own phones. The owner approved the one package below on **2026-11-15** (decision D-38, open question 3, answer A), before anything was installed. It is recorded under `approvals` in `docs/dependencies.json`.
+
+| Package | What it does for the shop | License |
+|---------|---------------------------|---------|
+| web-vitals 6.2.3 | Google's own small library. It reads how fast the main picture appears (LCP), how much the page jumps while loading (CLS) and how quickly the page answers a tap (INP). | Apache-2.0 |
+
+- **Free.** Apache-2.0 is on the allowed list: free to use in a business. We only keep the author's notice in `web/THIRD-PARTY-NOTICES.txt`.
+- **Old enough and clean.** Version 6.2.3 was published on 2026-10-05, so it was 43 days old when it was installed on 2026-11-17. It is the latest version. It is not deprecated, has no install script and needs no other package. The npm advisory list had nothing for it, and the npm audit after the install names no web-vitals advisory.
+- **Only with a yes.** It loads only after the visitor allows "Visitor stats", in its own file, so it is never part of the first download. Before a choice, after Reject All and under Global Privacy Control, the browser never asks for it and nothing is sent.
+- **Nothing third party runs.** The code is bundled into the site's own files, so the strict content security policy does not change.
+
 ## A bundled list of common passwords (approved 2026-10-14)
 
 When a new password is saved, CSPS asks a free breach-check service whether that password has leaked before. If the service cannot be reached, staff must not be locked out of changing their password, so the app falls back to a small list that ships inside it: the 10,000 most common passwords (the SecLists "10k-most-common" list).
@@ -145,7 +158,7 @@ The web app in `web/` and the API type generator in `tools/openapi-gen/` use pac
 
 - **Every npm pin has an entry.** `docs/dependencies.json` lists each package named in `web/package.json` and `tools/openapi-gen/package.json`: the normal packages, the development packages and the `overrides` (versions we force for a package that another package pulls in). An npm entry has `"kind": "npm"` and names its folder in `manifest` (`web` or `tools/openapi-gen`). The same package can sit in both folders at different versions. TypeScript does: 7.0.2 and 6.0.2 in `web/`, 5.9.3 in `tools/openapi-gen/`. zod is listed both as a normal package and as an override at the same version (4.6.7), like axe-core, so every copy in the tree, including the one chromium-bidi asks for, is 4.6.7. The test counts the two as one pin (D-65).
 - **Exact versions only.** A range such as `^1.2.0` would let npm pick a newer version on its own, so the automated check fails on any range. An alias such as `"typescript": "npm:@typescript/typescript6@6.0.2"` is checked as the real package it installs (`@typescript/typescript6` 6.0.2).
-- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react, react-hook-form, zod, @hookform/resolvers and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
+- **What reaches the visitor's browser** is only the `runtime` and `font` packages: React, React Router, TanStack Query, nuqs, clsx, lucide-react, react-hook-form, zod, @hookform/resolvers, web-vitals (only after a visitor-stats yes) and the two @fontsource fonts. Everything marked `build`, `test` or `tool` stays on the developer machine and the build server.
 - **Cool-down exceptions are written down.** Five npm versions were adopted before they were 14 days old, each with the owner's approval and its reason in `coolDown`: vite 8.3.3 (it fixes three security problems, D-25), lucide-react 1.53.0 (the owner waived the wait for the icon package, D-11 and D-34), source-map-js 1.2.2 and http-cache-semantics 4.3.0 (security fixes for packages that other packages pull in, approved 2026-10-07), and zod 4.6.7 (a security fix, D-63, installed on 2026-10-26, a few hours before it turned 14 days old).
 - **nuqs is installed.** It was approved on 2026-10-07 and installed in Phase 2 at 2.10.1. A newer 2.10.2 came out on 2026-10-08, so it is not 14 days old until 2026-10-22, and switching to it needs the owner's OK.
 
