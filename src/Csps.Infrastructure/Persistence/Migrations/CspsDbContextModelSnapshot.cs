@@ -196,6 +196,27 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("ConsentRecords", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyDeviceCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<byte>("Dimension")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Visits")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "Dimension", "Name");
+
+                    b.ToTable("DailyDeviceCounts", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.Analytics.DailyPageCount", b =>
                 {
                     b.Property<DateOnly>("BusinessDay")
@@ -212,6 +233,24 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasKey("BusinessDay", "PageKey");
 
                     b.ToTable("DailyPageCounts", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyReferrerCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Referrer")
+                        .HasMaxLength(253)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(253)");
+
+                    b.Property<int>("Visits")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "Referrer");
+
+                    b.ToTable("DailyReferrerCounts", (string)null);
                 });
 
             modelBuilder.Entity("Csps.Domain.Auditing.AuditEntry", b =>

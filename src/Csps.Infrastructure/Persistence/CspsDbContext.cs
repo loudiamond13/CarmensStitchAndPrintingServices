@@ -109,6 +109,12 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The anonymous page-view counts: one row per business day and page key, with no visitor information (ANL-06).</summary>
     public DbSet<DailyPageCount> DailyPageCounts => Set<DailyPageCount>();
 
+    /// <summary>The rolled-up visit counts per business day and source, kept after the raw visits age out (ANL-09).</summary>
+    public DbSet<DailyReferrerCount> DailyReferrerCounts => Set<DailyReferrerCount>();
+
+    /// <summary>The rolled-up visit counts per business day and device class or browser (ANL-09).</summary>
+    public DbSet<DailyDeviceCount> DailyDeviceCounts => Set<DailyDeviceCount>();
+
     /// <summary>The visits of visitors who allowed stats: hashed visitor id, source, device, browser, OS and a salted address hash (ANL-05).</summary>
     public DbSet<AnalyticsVisit> AnalyticsVisits => Set<AnalyticsVisit>();
 
