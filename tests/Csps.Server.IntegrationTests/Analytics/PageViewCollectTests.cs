@@ -3,6 +3,7 @@ using System.Net;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
@@ -181,6 +182,84 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         var lines = factory.Sink.Events.Select(logEvent => logEvent.RenderMessage(CultureInfo.InvariantCulture) + " " + string.Join(' ', logEvent.Properties.Values.Select(value => value.ToString())) + " " + logEvent.Exception).ToList();
         lines.ShouldNotBeEmpty();
         lines.ShouldAllBe(line => !line.Contains(Marker, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AStaffMemberSignedInInTheSameBrowserIsNotCountedNotEvenAnonymously()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        await AuthClient.SignInFullyAsync(client, staff);
+
+        using var response = await PostAsync(client, PathBody("/gallery"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AfterSignOutTheSameBrowserIsCountedAgain()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AuthClient.CreateClient(factory);
+        var staff = await AuthClient.CreateStaffAsync(factory);
+        await AuthClient.SignInFullyAsync(client, staff);
+        using var signOut = await AuthClient.SignOutAsync(client);
+        signOut.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        using var response = await PostAsync(client, PathBody("/gallery"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldHaveSingleItem().Views.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("anything")]
+    public async Task TheStaffMarkerCookieAloneStopsTheCountWhateverItsValue(string value)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = NewPost(PathBody("/gallery"));
+        request.Headers.Add("Cookie", $"{AnalyticsCookies.StaffCookieName}={value}");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ABearerTokenAloneStopsTheCount()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = NewPost(PathBody("/gallery"));
+        request.Headers.TryAddWithoutValidation("Authorization", "Bearer not-a-real-token");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ASignedInStaffRequestWithABadBodyIsStill400()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = NewPost("{}");
+        request.Headers.Add("Cookie", $"{AnalyticsCookies.StaffCookieName}=1");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";

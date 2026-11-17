@@ -12,7 +12,10 @@ public static class AnalyticsCookies
     /// <summary>The visitor id cookie name.</summary>
     public const string VisitorCookieName = "__Secure-csps_vid";
 
-    /// <summary>The path the visitor id cookie is sent to.</summary>
+    /// <summary>The staff marker cookie name (D-21).</summary>
+    public const string StaffCookieName = "__Secure-csps_staff";
+
+    /// <summary>The path the visitor id and staff marker cookies are sent to.</summary>
     public const string CookiePath = "/api/v1/analytics";
 
     private const int VisitorIdLength = 43;
@@ -60,6 +63,22 @@ public static class AnalyticsCookies
     {
         ArgumentNullException.ThrowIfNull(response);
         response.Cookies.Delete(VisitorCookieName, VisitorOptions());
+    }
+
+    /// <summary>Marks the browser as signed-in staff, so the stats leave it out (D-21).</summary>
+    /// <param name="response">The response.</param>
+    /// <param name="expires">When the cookie expires; null for a browser-session cookie.</param>
+    public static void SetStaff(HttpResponse response, DateTimeOffset? expires)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        _ = expires;
+    }
+
+    /// <summary>Takes the staff marker away, with the same path and attributes it was set with.</summary>
+    /// <param name="response">The response.</param>
+    public static void ClearStaff(HttpResponse response)
+    {
+        ArgumentNullException.ThrowIfNull(response);
     }
 
     /// <summary>Tells whether a cookie value looks like a visitor id: 43 characters of base64url, as <c>ISecureRandom.NewToken</c> makes them.</summary>

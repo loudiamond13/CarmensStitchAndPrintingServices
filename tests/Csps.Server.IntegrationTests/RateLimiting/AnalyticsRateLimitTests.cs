@@ -13,6 +13,7 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int PerMinute = 30;
+    private const int CollectPerMinute = 120;
     private const string Route = "/api/v1/analytics/consent";
 
     [Fact]
@@ -104,6 +105,86 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
 
         failure.Message.ShouldContain("RateLimits:Consent:PermitLimit must be at least 1.");
+    }
+
+    [Fact]
+    public async Task The121stPageViewInAMinuteFromOneAddressGets429AndAnotherAddressIsUnaffected()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString) { RemoteIpFromHeader = true };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        for (var attempt = 1; attempt <= CollectPerMinute; attempt++)
+        {
+            using var inside = await PostPageViewAsync(client, "203.0.113.70");
+            inside.StatusCode.ShouldBe(HttpStatusCode.NoContent, $"page view {attempt} is inside the limit");
+        }
+
+        using var rejected = await PostPageViewAsync(client, "203.0.113.70");
+        using var other = await PostPageViewAsync(client, "203.0.113.71");
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("rate-limited");
+        rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
+        other.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        context.DailyPageCounts.Sum(row => row.Views).ShouldBe(CollectPerMinute + 1);
+    }
+
+    [Fact]
+    public async Task ThePageViewLimitCanBeChangedInConfiguration()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:AnalyticsCollect:PermitLimit"] = "2" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        using var first = await PostPageViewAsync(client, "203.0.113.72");
+        using var second = await PostPageViewAsync(client, "203.0.113.72");
+        using var third = await PostPageViewAsync(client, "203.0.113.72");
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        third.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public void ThePageViewDefaultIs120AMinuteInTheAnalyticsCollectSection()
+    {
+        var rule = AnalyticsCollectRateLimit.Default();
+
+        (rule.PermitLimit, rule.Window).ShouldBe((120, TimeSpan.FromMinutes(1)));
+        AnalyticsCollectRateLimit.Validate(rule).ShouldBeEmpty();
+        AnalyticsCollectRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsCollect");
+        RateLimitPolicies.AnalyticsCollect.ShouldBe("analytics-collect");
+    }
+
+    [Fact]
+    public void AnUnusablePageViewLimitIsNamedAndNeverEchoed()
+    {
+        var problems = AnalyticsCollectRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+
+        problems.ShouldBe(["RateLimits:AnalyticsCollect:PermitLimit must be at least 1.", "RateLimits:AnalyticsCollect:Window must be at least 6 seconds."]);
+    }
+
+    [Fact]
+    public async Task AHostWithAnUnusablePageViewLimitDoesNotStartAndNamesTheSetting()
+    {
+        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { ["RateLimits:AnalyticsCollect:PermitLimit"] = "0" });
+
+        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
+
+        failure.Message.ShouldContain("RateLimits:AnalyticsCollect:PermitLimit must be at least 1.");
+    }
+
+    private static async Task<HttpResponseMessage> PostPageViewAsync(HttpClient client, string address)
+    {
+        using var request = PageViewCollectTests.NewPost(PageViewCollectTests.PathBody("/gallery"));
+        request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string address)
