@@ -15,10 +15,8 @@ export interface AnalyticsService {
 
 export function createAnalyticsService(client: HttpClient): AnalyticsService {
   return {
-    pageView: () => {
-      void client;
-      return Promise.resolve();
-    },
+    pageView: (body, options) =>
+      client.post<undefined>('/analytics/page-views', body, { keepalive: options?.keepalive }),
   };
 }
 
