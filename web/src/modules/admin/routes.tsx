@@ -1,5 +1,6 @@
-// The admin route trees (research Pattern 1 and 14b; UI-SPEC Layout Contract "Admin layout"; D-20 reversed in Phase 4).
-//   - `adminRoutes` ships in every build, behind the session guard. The `/admin` layout route's loader is the guard
+// The admin route table (research Pattern 1 and 14b; UI-SPEC Layout Contract "Admin layout"; D-20 reversed in Phase 4).
+//   - `adminRoutes` ships in every build, behind the session guard. The router loads this module on the first navigation
+//     under /admin (D-42), so the public entry carries no admin route list. The `/admin` layout route's loader is the guard
 //     (requireSessionLoader): it boots the session from the refresh cookie once, or redirects to /admin/login with a safe
 //     return path. If the layout itself fails, AdminRootErrorBoundary shows the admin error screen in a page root of its
 //     own.
@@ -11,26 +12,12 @@
 //     AuthLayout branch beside the guarded layout, never under it; each route's loader sends a live session to /admin.
 //   - An unknown `/admin/...` address is the splat route inside the shell (D-89), not the public 404 page.
 //   - `/admin/components` is the Component Showcase for Managers (D-30..D-33), a lazy chunk of its own.
-//   - `devRoutes` exists only where router.tsx adds it (`__DEV_ROUTES__`): the same Component Showcase at /dev/components,
-//     inside the same AdminLayout with a placeholder user (Pitfall 11), and /dev/public, the real PublicLayout around a
-//     column of fields for the e2e focus checks. It holds no /admin entry, so no build shows a fake signed-in user at the
-//     dashboard (T-10-10). Nothing there ships.
+//   - The dev-only table (the /dev previews) lives in ./devRoutes.tsx.
 // Every lazy loader goes through lazyRoute() (plan 02-29). The loaders are created at module load, so they carry
 // `@__PURE__` marks: an unused tree is then dropped whole, and its dynamic imports never become chunks.
 import type { LoaderFunction, RouteObject } from 'react-router';
 import { AdminRootErrorBoundary, AdminRouteErrorBoundary } from '@/core/routes/ErrorBoundary';
 import { lazyRoute } from '@/core/routes/lazyRoute';
-
-/** The placeholder user of the dev routes, loaded on demand so no admin navigation code joins the public entry. */
-const devUser: LoaderFunction = async () => (await import('@/modules/admin/sections')).DEV_USER;
-
-const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/layouts/PublicLayout')).PublicLayout,
-}));
-
-const publicCheckPage = /* @__PURE__ */ lazyRoute(async () => ({
-  Component: (await import('@/modules/public/pages/PublicLayoutCheckPage')).PublicLayoutCheckPage,
-}));
 
 const adminLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/layouts/AdminLayout')).default,
@@ -240,27 +227,5 @@ export const adminRoutes: RouteObject[] = [
         ],
       },
     ],
-  },
-];
-
-export const devRoutes: RouteObject[] = [
-  {
-    path: 'dev',
-    ErrorBoundary: AdminRootErrorBoundary,
-    lazy: adminLayout,
-    loader: devUser,
-    children: [
-      {
-        path: 'components',
-        ErrorBoundary: AdminRouteErrorBoundary,
-        lazy: showcasePage,
-      },
-    ],
-  },
-  {
-    path: 'dev/public',
-    ErrorBoundary: AdminRootErrorBoundary,
-    lazy: publicLayout,
-    children: [{ index: true, lazy: publicCheckPage }],
   },
 ];
