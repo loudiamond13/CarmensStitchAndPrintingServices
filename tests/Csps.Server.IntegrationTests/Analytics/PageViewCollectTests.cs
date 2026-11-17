@@ -478,7 +478,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
-    internal const string Vid ="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
+    internal const string Vid = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 
     internal static string ConsentValue(bool? stats, DateOnly day) =>
         new ConsentCookie(Guid.Parse("0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), LegalPages.CookiePolicyVersion, stats, true, day, false).Format();
@@ -493,7 +493,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
-    internal static string PathBody(string path) =>$"{{\"path\":\"{path}\"}}";
+    internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";
 
     internal static HttpClient NewClient(WebApplicationFactory<Program> factory) =>
         factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
