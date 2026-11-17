@@ -15,6 +15,8 @@ public sealed class GetVisitorStatsHandlerTests
 {
     // 00:30 in the fixed UTC+8 zone on 2026-11-16, while the UTC day is still 2026-11-15. The cut is 2025-10-16.
     private static readonly DateTimeOffset ManilaMidnight = new(2026, 11, 15, 16, 30, 0, TimeSpan.Zero);
+    // 12:00 in Manila on 2026-11-15. The cut is 2025-10-15.
+    private static readonly DateTimeOffset Noon = new(2026, 11, 15, 4, 0, 0, TimeSpan.Zero);
     private static readonly TimeZoneInfo Manila = TimeZoneInfo.CreateCustomTimeZone("Manila", TimeSpan.FromHours(8), "Manila", "Manila");
 
     [Theory]
@@ -81,14 +83,65 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Totals.ShouldBe(new VisitorTotalsDto(7, 9, 120, null));
     }
 
+    [Fact]
+    public async Task ARangeEndingTheDayBeforeTheCutHasNoVisitFiguresAndKeepsThePageViews()
+    {
+        var harness = new Harness(new VisitorTotals(0, 0, 50), Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2024-01-01", "2025-10-14"), TestContext.Current.CancellationToken);
+
+        result.Value.CutDate.ShouldBe("2025-10-15");
+        result.Value.Totals.ShouldBe(new VisitorTotalsDto(null, null, 50, null));
+    }
+
+    [Fact]
+    public async Task ARangeCrossingTheCutCountsFromTheCutAndSaysSo()
+    {
+        var harness = new Harness(new VisitorTotals(12, 15, 300), Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-10-01", "2026-11-15"), TestContext.Current.CancellationToken);
+
+        result.Value.Totals.ShouldBe(new VisitorTotalsDto(12, 15, 300, "2025-10-15"));
+    }
+
+    [Fact]
+    public async Task ARangeThatStartsOnTheCutDayCountsThatDayAsRawAndNeedsNoNote()
+    {
+        var harness = new Harness(new VisitorTotals(1, 1, 4), Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-10-15", "2025-10-15"), TestContext.Current.CancellationToken);
+
+        result.Value.Totals.ShouldBe(new VisitorTotalsDto(1, 1, 4, null));
+    }
+
+    [Fact]
+    public async Task ARangeAllAfterTheCutHasNoNote()
+    {
+        var harness = new Harness(new VisitorTotals(3, 4, 5), Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("last-30-days"), TestContext.Current.CancellationToken);
+
+        result.Value.Totals.ShouldBe(new VisitorTotalsDto(3, 4, 5, null));
+    }
+
+    [Fact]
+    public async Task AnEmptyMonthInsideThirteenMonthsAnswersZerosNotNulls()
+    {
+        var harness = new Harness(new VisitorTotals(0, 0, 0), Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2026-09-01", "2026-09-30"), TestContext.Current.CancellationToken);
+
+        result.Value.Totals.ShouldBe(new VisitorTotalsDto(0, 0, 0, null));
+    }
+
     private sealed class Harness
     {
-        public Harness(VisitorTotals? totals = null)
+        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null)
         {
             Reader = Substitute.For<IVisitorStatsReader>();
             Reader.ReadTotalsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(totals ?? new VisitorTotals(0, 0, 0)));
-            var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, ManilaMidnight));
+            var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, now ?? ManilaMidnight));
             Handler = new GetVisitorStatsHandler(Reader, calendar, new VisitorStatsRequestValidator(calendar));
         }
 

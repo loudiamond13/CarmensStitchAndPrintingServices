@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Csps.Application.Security;
 using Csps.Domain.Analytics;
 using Csps.Server.IntegrationTests.Auth;
@@ -21,6 +22,8 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
 
     // 12:00 in Manila on 2026-11-15. The cut is 2025-10-15 and the floor is 2023-11-15.
     private static readonly DateTimeOffset Noon = new(2026, 11, 15, 4, 0, 0, TimeSpan.Zero);
+
+    private static readonly string[] ForbiddenWords = ["hash", "visitorid", "visitid", "timestamp", "startedat", "lastseen", "session"];
 
     [Fact]
     public async Task AManagerReadsTheLastThirtyDaysByDefaultWithExactTotals()
@@ -119,6 +122,93 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         (await ReadAsync(custom)).GetProperty("range").GetString().ShouldBe("custom");
         unknown.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await ReadAsync(unknown)).GetProperty("range").GetString().ShouldBe("last-30-days");
+    }
+
+    [Fact]
+    public async Task ARangeWhollyBeforeTheCutAnswersNoVisitFiguresAndTheStoredPageViews()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedViewsAsync(new DateOnly(2025, 6, 1), PageKeys.Home, 8);
+        await rig.SeedVisitAsync(1, new DateOnly(2025, 10, 14));
+
+        using var response = await rig.GetAsync("range=custom&from=2025-01-01&to=2025-10-14", rig.Manager.AccessToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var totals = (await ReadAsync(response)).GetProperty("totals");
+        IsNullOrMissing(totals, "uniqueVisitors").ShouldBeTrue();
+        IsNullOrMissing(totals, "visits").ShouldBeTrue();
+        IsNullOrMissing(totals, "countedFrom").ShouldBeTrue();
+        totals.GetProperty("pageViews").GetInt32().ShouldBe(8);
+    }
+
+    [Fact]
+    public async Task ARangeCrossingTheCutCountsVisitsFromTheCutDayAndSaysSo()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedVisitAsync(1, new DateOnly(2025, 10, 14));
+        await rig.SeedVisitAsync(2, new DateOnly(2025, 10, 15));
+        await rig.SeedVisitAsync(2, new DateOnly(2026, 3, 1));
+        await rig.SeedViewsAsync(new DateOnly(2025, 10, 10), PageKeys.Home, 6);
+
+        using var response = await rig.GetAsync("range=custom&from=2025-10-01&to=2026-11-15", rig.Manager.AccessToken);
+
+        var totals = (await ReadAsync(response)).GetProperty("totals");
+        totals.GetProperty("visits").GetInt32().ShouldBe(2);
+        totals.GetProperty("uniqueVisitors").GetInt32().ShouldBe(1);
+        totals.GetProperty("pageViews").GetInt32().ShouldBe(6);
+        totals.GetProperty("countedFrom").GetString().ShouldBe("2025-10-15");
+    }
+
+    [Fact]
+    public async Task AnEmptyMonthInsideThirteenMonthsAnswersZerosNotNulls()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+
+        using var response = await rig.GetAsync("range=custom&from=2026-09-01&to=2026-09-30", rig.Manager.AccessToken);
+
+        var totals = (await ReadAsync(response)).GetProperty("totals");
+        totals.GetProperty("uniqueVisitors").GetInt32().ShouldBe(0);
+        totals.GetProperty("visits").GetInt32().ShouldBe(0);
+        totals.GetProperty("pageViews").GetInt32().ShouldBe(0);
+        IsNullOrMissing(totals, "countedFrom").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TheAnswerHoldsOnlyTotalsNeverAHashAnIdOrATime()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedVisitAsync(1, new DateOnly(2026, 11, 14));
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 14), PageKeys.Home, 2);
+
+        using var response = await rig.GetAsync(string.Empty, rig.Manager.AccessToken);
+
+        var names = new List<string>();
+        CollectNames(await ReadAsync(response), names);
+        string[] allowed = ["range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom"];
+        names.Except(allowed).ShouldBeEmpty("later plans extend this list on purpose, one reviewed name at a time");
+        names.ShouldNotContain(name => ForbiddenWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)));
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Regex.IsMatch(body, "[0-9a-fA-F]{32}").ShouldBeFalse("no hash is ever returned");
+        Regex.IsMatch(body, @"\d{2}:\d{2}").ShouldBeFalse("no time of day is ever returned");
+    }
+
+    private static void CollectNames(JsonElement element, List<string> names)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                names.Add(property.Name);
+                CollectNames(property.Value, names);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+            {
+                CollectNames(item, names);
+            }
+        }
     }
 
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response)
