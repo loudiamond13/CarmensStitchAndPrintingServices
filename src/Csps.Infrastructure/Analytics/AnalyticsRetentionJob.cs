@@ -29,6 +29,10 @@ internal sealed partial class AnalyticsRetentionJob(
 
     internal const string ConsentLabel = "Old cookie choices removed";
 
+    internal const string DailyLabel = "Old daily visitor totals removed";
+
+    internal const string SaltLabel = "Old address salts removed";
+
     internal const string JobName = "analytics-retention";
 
     internal const int BatchSize = 500;
@@ -58,6 +62,8 @@ internal sealed partial class AnalyticsRetentionJob(
             (RolledUpLabel, "The visitor days could not be rolled up.", () => RollUpAsync(today, budget, cancellationToken)),
             (RawLabel, "The old visit records could not be removed.", () => PurgeRawVisitsAsync(today, budget, cancellationToken)),
             (ConsentLabel, "The old cookie choices could not be removed.", () => PurgeConsentAsync(now, budget, cancellationToken)),
+            (DailyLabel, "The old daily visitor totals could not be removed.", () => PurgeDailyTotalsAsync(today, budget, cancellationToken)),
+            (SaltLabel, "The old address salts could not be removed.", () => PurgeSaltsAsync(today, budget, cancellationToken)),
         };
         foreach (var (label, failedText, work) in rules)
         {
@@ -201,6 +207,48 @@ internal sealed partial class AnalyticsRetentionJob(
                 token => context.ConsentRecords
                     .Where(record => record.DecidedAtUtc < cut)
                     .OrderBy(record => record.DecidedAtUtc)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+            ],
+            budget,
+            cancellationToken);
+    }
+
+    // Removes the daily page, referrer and device totals older than the daily floor (D-04).
+    private Task<(long Count, bool More)> PurgeDailyTotalsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
+    {
+        var floor = AnalyticsRetention.DailyFloor(today);
+        return DrainAsync(
+            [
+                token => context.DailyPageCounts
+                    .Where(row => row.BusinessDay < floor)
+                    .OrderBy(row => row.BusinessDay)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+                token => context.DailyReferrerCounts
+                    .Where(row => row.BusinessDay < floor)
+                    .OrderBy(row => row.BusinessDay)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+                token => context.DailyDeviceCounts
+                    .Where(row => row.BusinessDay < floor)
+                    .OrderBy(row => row.BusinessDay)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+            ],
+            budget,
+            cancellationToken);
+    }
+
+    // Removes salts older than yesterday, so an old address hash can never be recomputed (D-07).
+    private Task<(long Count, bool More)> PurgeSaltsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
+    {
+        var yesterday = today.AddDays(-1);
+        return DrainAsync(
+            [
+                token => context.AnalyticsSalts
+                    .Where(salt => salt.BusinessDay < yesterday)
+                    .OrderBy(salt => salt.BusinessDay)
                     .Take(BatchSize)
                     .ExecuteDeleteAsync(token),
             ],

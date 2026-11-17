@@ -407,7 +407,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await using var context = database.CreateContext();
         (await context.DailyPageCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
         (await context.DailyReferrerCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
-        (await context.DailyDeviceCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
+        (await context.DailyDeviceCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept, kept]);
     }
 
     [Fact]
