@@ -23,7 +23,7 @@ export interface ConsentService {
 
 export function createConsentService(client: HttpClient): ConsentService {
   return {
-    record: () => Promise.reject(new Error('not built')),
+    record: (body, signal) => client.post<ConsentDecision>('/analytics/consent', body, { signal }),
   };
 }
 

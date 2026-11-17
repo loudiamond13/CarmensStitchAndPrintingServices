@@ -1,4 +1,24 @@
-// The mount point for the cookie bar (ANL-01).
+// The mount point for the cookie bar (ANL-01, PERF-01). It is in the public first download and holds only the store read:
+// the bar loads as its own chunk, and only while a choice is needed, so a visitor who has chosen never downloads it. It
+// also holds the visually hidden polite status that says the choice is saved (A11Y-02). Plan 12-13 mounts the settings
+// window here as well.
+import { lazy, Suspense } from 'react';
+import { useConsent } from '../hooks/useConsent';
+
+const ConsentBar = lazy(() => import('./ConsentBar').then((module) => ({ default: module.ConsentBar })));
+
 export function ConsentSlot() {
-  return null;
+  const { needsChoice, announcement } = useConsent();
+  return (
+    <>
+      {needsChoice && (
+        <Suspense fallback={null}>
+          <ConsentBar />
+        </Suspense>
+      )}
+      <div role="status" className="sr-only">
+        {announcement}
+      </div>
+    </>
+  );
 }

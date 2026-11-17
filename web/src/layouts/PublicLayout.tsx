@@ -21,6 +21,7 @@ import { SkipLink } from '@/components/entry/SkipLink';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation/SiteHeader';
+import { ConsentSlot } from '@/modules/public/components/ConsentSlot';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicOutletContext } from '@/modules/public/outletContext';
@@ -64,6 +65,7 @@ export function PublicLayout() {
     <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
+        <ConsentSlot />
         <SiteHeader active={link} />
         <main
           id="main"

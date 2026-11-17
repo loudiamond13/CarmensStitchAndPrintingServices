@@ -19,7 +19,7 @@ describe('consentService.record', () => {
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe('/api/v1/analytics/consent');
-    expect(fake.calls[0]?.body).toEqual(body);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual(body);
   });
 
   it('rejects with an HttpError that carries the 409 code when the policy changed', async () => {
