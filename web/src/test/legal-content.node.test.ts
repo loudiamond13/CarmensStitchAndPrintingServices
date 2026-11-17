@@ -55,6 +55,9 @@ function blockProblems(where: string, block: LegalBlock): string[] {
         ...(item.term.trim() === '' ? [`${where}: empty term`] : []),
         ...(LONG_DASH.test(item.term) ? [`${where}: long dash in "${item.term}"`] : []),
         ...inlineProblems(`${where} term "${item.term}"`, item.parts),
+        ...(item.more ?? []).flatMap((parts, index) =>
+          inlineProblems(`${where} term "${item.term}" line ${String(index + 2)}`, parts),
+        ),
       ]);
     case 'h3':
       return [
@@ -63,6 +66,8 @@ function blockProblems(where: string, block: LegalBlock): string[] {
       ];
     case 'facts':
       return block.show.length === 0 ? [`${where}: facts block shows nothing`] : [];
+    case 'cookie-settings':
+      return [];
   }
 }
 
@@ -187,6 +192,38 @@ describe('legalTextProblems (the guard itself)', () => {
       ]),
     );
     expect(good).toEqual([]);
+  });
+
+  it('passes a cookie-settings block, which holds no text of its own', () => {
+    expect(
+      legalTextProblems(
+        sample([{ id: 'one', heading: 'One', blocks: [para('Press the button.'), { kind: 'cookie-settings' }] }]),
+      ),
+    ).toEqual([]);
+  });
+
+  it('checks the extra description lines of a term too', () => {
+    const en = String.fromCharCode(0x2013);
+    const bad = legalTextProblems(
+      sample([
+        {
+          id: 'one',
+          heading: 'One',
+          blocks: [
+            {
+              kind: 'dl',
+              items: [
+                { term: 'T', parts: ['A.'], more: [['B.'], [`C ${en} d`, { text: 'x', href: 'ftp://example.test' }]] },
+              ],
+            },
+          ],
+        },
+      ]),
+    );
+    expect(bad).toEqual([
+      'section "one" block 0 term "T" line 3 part 0: long dash',
+      'section "one" block 0 term "T" line 3 part 1: href "ftp://example.test" is not /, mailto:, tel: or https://',
+    ]);
   });
 
   it('fails a long dash in a heading and in running text', () => {

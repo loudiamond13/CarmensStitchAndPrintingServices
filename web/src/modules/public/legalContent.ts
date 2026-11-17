@@ -10,10 +10,17 @@ export type LegalBlock =
   | { readonly kind: 'ul'; readonly items: readonly (readonly LegalInline[])[] }
   | {
       readonly kind: 'dl';
-      readonly items: readonly { readonly term: string; readonly parts: readonly LegalInline[] }[];
+      readonly items: readonly {
+        readonly term: string;
+        readonly parts: readonly LegalInline[];
+        /** Further description lines after the first, each its own `dd`. */
+        readonly more?: readonly (readonly LegalInline[])[];
+      }[];
     }
   | { readonly kind: 'h3'; readonly text: string }
-  | { readonly kind: 'facts'; readonly show: readonly ('business' | 'dpo' | 'contact')[] };
+  | { readonly kind: 'facts'; readonly show: readonly ('business' | 'dpo' | 'contact')[] }
+  /** The secondary "Change Cookie Settings" button, which opens the Cookie Settings window (LEGAL-02). */
+  | { readonly kind: 'cookie-settings' };
 
 export interface LegalSectionData {
   /** Kebab-case; the table of contents links to `#{id}`. */
