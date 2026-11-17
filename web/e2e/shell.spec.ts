@@ -57,7 +57,8 @@ async function openAt(page: Page, path: string, width: number, height: number): 
   await page.setViewportSize({ width, height });
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toBeVisible();
+  // The showcase takes about 7 s to show in WebKit, and the load event fires earlier since D-42.
+  await expect(page.locator('h1')).toBeVisible({ timeout: 20_000 });
   await page.evaluate('document.fonts.ready.then(() => true)');
 }
 
@@ -281,7 +282,8 @@ for (const path of SWEEP_PATHS) {
       await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
       if (!opened) {
         await page.goto(path);
-        await expect(page.locator('main')).toBeVisible();
+        // The showcase takes about 7 s to show in WebKit, and the load event fires earlier since D-42.
+        await expect(page.locator('main')).toBeVisible({ timeout: 20_000 });
         await page.evaluate('document.fonts.ready.then(() => true)');
         opened = true;
       }
