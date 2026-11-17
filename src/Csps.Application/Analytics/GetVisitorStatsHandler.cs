@@ -40,12 +40,20 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var cut = AnalyticsRetention.RawCut(today);
 
         var totals = await reader.ReadTotalsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
+
+        // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
+        var wholeRangeIsOld = to < cut;
+        var crossesTheCut = from < cut && !wholeRangeIsOld;
         return Result.Success(new VisitorStatsResponse(
             name,
             Format(from),
             Format(to),
             Format(cut),
-            new VisitorTotalsDto(totals.UniqueVisitors, totals.Visits, totals.PageViews, null)));
+            new VisitorTotalsDto(
+                wholeRangeIsOld ? null : totals.UniqueVisitors,
+                wholeRangeIsOld ? null : totals.Visits,
+                totals.PageViews,
+                crossesTheCut ? Format(cut) : null)));
     }
 
     private static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)
