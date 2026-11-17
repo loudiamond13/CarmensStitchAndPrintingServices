@@ -4,3 +4,8 @@
 export function focusMain(): void {
   document.getElementById('main')?.focus({ preventScroll: true });
 }
+
+/** Focuses main when the bar is not asking, else as soon as a choice closes it. */
+export function focusMainWhenChosen(): void {
+  // Stub: the real rule comes with the next commit.
+}

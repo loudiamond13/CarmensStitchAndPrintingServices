@@ -4,16 +4,42 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { consentProbe, setConsent } from '@/test/consentFixtures';
+import { expectNoAxeViolations } from '@/test/axe';
+import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
 import { demoSite, putBootBlock } from '@/test/publicFixtures';
 import { parseConsentCookie } from '../consentCookie';
+import { consentStore } from '../hooks/useConsent';
 import { ConsentSlot } from './ConsentSlot';
 import { SiteFooter } from './SiteFooter';
 
-// The window is a lazy chunk; the first transform of its parts can take longer than a test waits, so load it first.
+// The window and the bar are lazy chunks; the first transform of their parts can take longer than a test waits, so load them first.
 beforeAll(async () => {
   await import('./CookieSettingsDialog');
+  await import('./ConsentBar');
 }, 30_000);
+
+const TODAY = '2026-11-17';
+const SAVED_LINE =
+  "You chose on Nov 15, 2026. We'll ask again after 12 months, or sooner if our Cookie Policy changes.";
+
+/** A choice made on 15 Nov 2026 that still counts on the fixed "today". */
+function setSaved(overrides: Parameters<typeof consentCookie>[0] = {}, gpc = false) {
+  return setConsent({ cookie: consentCookie({ decidedOn: '2026-11-15', ...overrides }), gpc, today: () => TODAY });
+}
+
+function box(dialog: HTMLElement, name: string): HTMLElement {
+  return within(dialog).getByRole('checkbox', { name });
+}
+
+function footerOf(dialog: HTMLElement): HTMLElement {
+  const footer = dialog.querySelector('footer');
+  if (footer === null) throw new Error('The window has no footer.');
+  return footer;
+}
+
+function cookieBar(): HTMLElement {
+  return screen.getByRole('region', { name: 'Cookie choices' });
+}
 
 function renderPage() {
   putBootBlock(demoSite);
@@ -68,5 +94,287 @@ describe('Cookie Settings from the footer (ANL-03, D-17)', () => {
       expect(footerButton()).toHaveFocus();
     });
     expect(container.querySelector('[data-consent-status]')).toHaveTextContent('Your cookie choice is saved.');
+  });
+
+  it('saves Reject All from the window as source "settings", closes it and returns focus to the button', async () => {
+    const probe = consentProbe();
+    const jar = setSaved({ stats: true, map: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reject All' }));
+
+    expect(parseConsentCookie(jar.value)).toMatchObject({ stats: false, map: false });
+    await waitFor(() => {
+      expect(probe.requests[0]?.body).toMatchObject({ stats: false, map: false, source: 'settings' });
+    });
+    await waitFor(() => {
+      expect(footerButton()).toHaveFocus();
+    });
+  });
+
+  it('is no longer pending once the window has opened', async () => {
+    setConsent();
+    renderPage();
+    await openWindow();
+
+    expect(consentStore.getSnapshot().settingsLoading).toBe(false);
+    expect(footerButton()).not.toHaveAttribute('aria-busy');
+  });
+});
+
+describe('the window body (CS1 body, D-36)', () => {
+  it('shows the description, a Cookie Policy link that closes the window, and the Necessary row without a box', async () => {
+    setConsent();
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(
+      within(dialog).getByText(
+        'Choose which cookies this site may use. You can change this at any time from Cookie Settings at the bottom of every page.',
+      ),
+    ).toBeInTheDocument();
+    const necessary = within(dialog).getByText('Necessary');
+    expect(necessary).toBeInTheDocument();
+    expect(within(dialog).getByText('Always on')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Keeps the site working: your cookie choice and staff sign-in. These don't track you."),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByRole('checkbox', { name: 'Necessary' })).not.toBeInTheDocument();
+    expect(within(within(dialog).getByRole('group', { name: 'Your choices' })).getAllByRole('checkbox')).toHaveLength(
+      2,
+    );
+
+    const link = within(dialog).getByRole('link', { name: 'Read the Cookie Policy' });
+    expect(link).toHaveAttribute('href', '/cookies');
+    await userEvent.click(link);
+    expect(consentStore.getSnapshot().settingsOpen).toBe(false);
+  });
+
+  it('words the Visitor stats and Google map hints as D-36 and the UI spec say', async () => {
+    setConsent();
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(
+      within(dialog).getByText(
+        'Counts visits, pages, where visitors came from and how fast pages load. No ads. Records are kept for about 13 months.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Shows the shop map from Google on the Contact page. Google may set its own cookies.'),
+    ).toBeInTheDocument();
+  });
+
+  it('starts both boxes unticked, with no saved-choice line and no GPC note, when nothing is saved', async () => {
+    setConsent({ cookie: null });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+    expect(within(dialog).queryByText(/You chose on/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/asked us not to track you/)).not.toBeInTheDocument();
+  });
+
+  it('shows the saved choice in the boxes and the en-PH date line', async () => {
+    setSaved({ stats: true, map: false });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(box(dialog, 'Visitor stats')).toBeChecked();
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+    expect(within(dialog).getByText(SAVED_LINE)).toBeInTheDocument();
+  });
+
+  it('shows a saved map-only-on choice with Visitor stats off', async () => {
+    setSaved({ stats: false, map: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).toBeChecked();
+  });
+
+  it('lets the visitor tick a box on top of a saved choice and leaves the other box alone', async () => {
+    setSaved({ stats: false, map: false });
+    renderPage();
+    const dialog = await openWindow();
+
+    await userEvent.click(box(dialog, 'Google map'));
+
+    expect(box(dialog, 'Google map')).toBeChecked();
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+  });
+
+  it('shows Reject All, Accept All and one primary Save Choices in the footer, in that order', async () => {
+    setConsent();
+    renderPage();
+    const dialog = await openWindow();
+    const buttons = within(footerOf(dialog)).getAllByRole('button');
+
+    expect(buttons.map((button) => button.textContent)).toEqual(['Reject All', 'Accept All', 'Save Choices']);
+    expect(buttons.filter((button) => button.className.includes('bg-primary')).map((b) => b.textContent)).toEqual([
+      'Save Choices',
+    ]);
+  });
+});
+
+describe('Global Privacy Control (D-20)', () => {
+  it('shows the note, locks Visitor stats off with its own hint, and keeps the Google map box working', async () => {
+    setConsent({ cookie: null, gpc: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(
+      within(dialog).getByText('Your browser asked us not to track you, so visitor stats stay off.'),
+    ).toBeVisible();
+    const stats = box(dialog, 'Visitor stats');
+    expect(stats).toHaveAttribute('aria-disabled', 'true');
+    expect(stats).not.toBeChecked();
+    expect(within(dialog).getByText('Off, because your browser asked us not to track you.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Counts visits, pages/)).not.toBeInTheDocument();
+
+    await userEvent.click(stats);
+    expect(stats).not.toBeChecked();
+    await userEvent.click(box(dialog, 'Google map'));
+    expect(box(dialog, 'Google map')).toBeChecked();
+  });
+
+  it('shows only Save Choices in the footer', async () => {
+    setConsent({ cookie: null, gpc: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(
+      within(footerOf(dialog))
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Save Choices']);
+  });
+
+  it('saves Visitor stats off and the ticked map, and never shows a saved stats tick', async () => {
+    const probe = consentProbe();
+    setSaved({ stats: true, map: true }, true);
+    renderPage();
+    const dialog = await openWindow();
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).toBeChecked();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save Choices' }));
+
+    await waitFor(() => {
+      expect(probe.requests[0]?.body).toMatchObject({ stats: false, map: true, source: 'settings' });
+    });
+  });
+});
+
+describe('opened from the cookie bar (D-34, ANL-01)', () => {
+  async function openFromBar(): Promise<HTMLElement> {
+    renderPage();
+    await userEvent.click(within(cookieBar()).getByRole('button', { name: 'Cookie Settings' }));
+    return screen.findByRole('dialog', { name: 'Cookie Settings' });
+  }
+
+  it('starts with nothing ticked and no saved line on a first visit', async () => {
+    setConsent({ cookie: null });
+    const dialog = await openFromBar();
+
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+    expect(within(dialog).queryByText(/You chose on/)).not.toBeInTheDocument();
+  });
+
+  it('starts with nothing ticked when the old choice no longer counts (a new Cookie Policy version)', async () => {
+    setConsent({ cookie: consentCookie({ policyVersion: '0.0', stats: true, map: true }) });
+    const dialog = await openFromBar();
+
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+    expect(within(dialog).queryByText(/You chose on/)).not.toBeInTheDocument();
+  });
+
+  it('starts with nothing ticked after a map-only save, while the bar still asks', async () => {
+    setConsent({ cookie: consentCookie({ stats: null, map: true }) });
+    const dialog = await openFromBar();
+
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+  });
+
+  it('keeps the bar and returns focus to its Cookie Settings button when closed without saving', async () => {
+    const jar = setConsent({ cookie: null });
+    const probe = consentProbe();
+    await openFromBar();
+
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+    expect(cookieBar()).toBeInTheDocument();
+    expect(within(cookieBar()).getByRole('button', { name: 'Cookie Settings' })).toHaveFocus();
+    expect(jar.writes).toEqual([]);
+    expect(probe.requests).toEqual([]);
+  });
+
+  it('closes the window and the bar on Save Choices, moves focus to main and announces it', async () => {
+    const jar = setConsent({ cookie: null });
+    const probe = consentProbe();
+    const dialog = await openFromBar();
+
+    await userEvent.click(box(dialog, 'Google map'));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save Choices' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toHaveFocus();
+    });
+    expect(parseConsentCookie(jar.value)).toMatchObject({ stats: false, map: true });
+    await waitFor(() => {
+      expect(probe.requests[0]?.body).toMatchObject({ source: 'settings' });
+    });
+    expect(document.querySelector('[data-consent-status]')).toHaveTextContent('Your cookie choice is saved.');
+  });
+
+  it('closes both and focuses main on Accept All from the window', async () => {
+    const jar = setConsent({ cookie: null });
+    consentProbe();
+    const dialog = await openFromBar();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Accept All' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('main')).toHaveFocus();
+    });
+    expect(parseConsentCookie(jar.value)).toMatchObject({ stats: true, map: true });
+    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+  });
+});
+
+describe('the window at 320px and its accessibility (UI-SPEC long-text, A11Y)', () => {
+  it('lets the hints wrap under their boxes and the footer buttons wrap and fill the row on a phone', async () => {
+    setConsent();
+    renderPage();
+    const dialog = await openWindow();
+    const group = within(dialog).getByRole('group', { name: 'Your choices' });
+    const footer = footerOf(dialog);
+
+    expect(group.className.split(' ')).toContain('min-w-0');
+    expect(footer.className.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'vp-lt-sm:*:flex-1']));
+  });
+
+  it.each([
+    ['no saved choice', () => setConsent({ cookie: null })],
+    ['a saved choice', () => setSaved({ stats: true, map: false })],
+    ['Global Privacy Control', () => setConsent({ cookie: null, gpc: true })],
+  ])('has no axe violations with %s', async (_name, arrange) => {
+    arrange();
+    const { container } = renderPage();
+    await openWindow();
+
+    await expectNoAxeViolations(container);
   });
 });
