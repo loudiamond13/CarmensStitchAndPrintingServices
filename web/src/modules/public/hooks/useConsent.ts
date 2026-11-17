@@ -79,6 +79,8 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let rulesLoading = false;
   let settingsOpen = false;
   let serverGpc = false;
+  // The choice written this page, kept in memory too, so a browser that will not store the cookie still closes the bar for this page.
+  let held: string | undefined;
   let memory: SendMemory = freshMemory();
   let settingsOpener: HTMLElement | undefined;
   let announcement: string | null = null;
@@ -99,8 +101,10 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     return { ...shared, ...rules.deriveConsent(raw, { ...options, gpc }) };
   }
 
+  const read = (): string | undefined => options.readCookie() ?? held;
+
   function update(): void {
-    const raw = options.readCookie();
+    const raw = read();
     state = compute(raw);
     if (raw !== undefined && rules === undefined && !rulesLoading) {
       rulesLoading = true;
@@ -126,6 +130,10 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
 
   const host: SaveHost = {
     options: () => options,
+    read,
+    hold: (value) => {
+      held = value;
+    },
     memory: () => memory,
     announce: (line) => {
       announcement = line;
@@ -152,6 +160,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       settingsOpener = undefined;
       announcement = null;
       serverGpc = false;
+      held = undefined;
       memory = freshMemory();
       refresh();
     },
@@ -180,7 +189,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     },
     resendPending: async () => {
       // A pending cookie ends in _p, so a visitor with none loads nothing here.
-      if (options.readCookie()?.endsWith('_p') !== true) return;
+      if (read()?.endsWith('_p') !== true) return;
       await (await loadSave()).resendChoice(host);
     },
   };

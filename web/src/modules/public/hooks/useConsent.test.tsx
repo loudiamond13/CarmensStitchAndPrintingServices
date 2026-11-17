@@ -8,7 +8,7 @@ import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
 import { manilaBusinessDay } from '../consentRules';
 import { consentCookieText } from '../consentSave';
-import { createConsentStore, useConsent } from './useConsent';
+import { createConsentStore, resetConsentStore, useConsent } from './useConsent';
 
 const TODAY = '2026-11-17';
 
@@ -137,6 +137,32 @@ describe('Accept All (D-17, ANL-07)', () => {
     const again = renderHook(() => useConsent());
     await again.result.current.rejectAll('bar');
     expect(probe.requests[1]?.body).toMatchObject({ consentId: FAKE_CONSENT_ID });
+  });
+});
+
+describe('a browser that will not keep the cookie (ANL-01, no nagging)', () => {
+  it('still applies the choice on this page: the bar closes and does not come back', async () => {
+    const probe = consentProbe();
+    const writes: (string | null)[] = [];
+    resetConsentStore({
+      readCookie: () => undefined,
+      writeCookie: (value) => {
+        writes.push(value);
+      },
+      gpc: false,
+    });
+    const { result } = renderHook(() => useConsent());
+    expect(result.current.needsChoice).toBe(true);
+
+    await result.current.acceptAll('bar');
+
+    await waitFor(() => {
+      expect(result.current.statsAllowed).toBe(true);
+    });
+    expect(result.current.needsChoice).toBe(false);
+    expect(result.current.mapAllowed).toBe(true);
+    expect(writes).toHaveLength(1);
+    expect(probe.requests).toHaveLength(1);
   });
 });
 

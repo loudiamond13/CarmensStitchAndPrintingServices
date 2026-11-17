@@ -324,7 +324,7 @@ describe('PublicLayout cookie bar (ANL-01, D-16, D-17)', () => {
     });
     expect(probe.requests).toHaveLength(1);
     expect(screen.getByRole('main')).toHaveFocus();
-    expect(screen.getByRole('status')).toHaveTextContent('Your cookie choice is saved.');
+    expect(document.querySelector('[data-consent-status]')).toHaveTextContent('Your cookie choice is saved.');
   });
 
   it('shows no bar and sends no request when a current choice is saved', async () => {

@@ -17,7 +17,8 @@ export function ConsentSlot() {
           <ConsentBar />
         </Suspense>
       )}
-      <div role="status" className="sr-only">
+      {/* A polite live region that is always there, so a screen reader hears the change. It is not role="status": pages name their own status lines by that role. */}
+      <div aria-live="polite" data-consent-status className="sr-only">
         {announcement}
       </div>
     </>

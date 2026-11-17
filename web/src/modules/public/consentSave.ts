@@ -31,6 +31,9 @@ export interface SendMemory {
 /** What the store lends the save path: its settings, its memory and the few things a save may change. */
 export interface SaveHost {
   options: () => ConsentStoreOptions;
+  /** The saved cookie text: the browser's, else the choice held in memory for this page. */
+  read: () => string | undefined;
+  hold: (value: string | undefined) => void;
   memory: () => SendMemory;
   announce: (line: string | null) => void;
   /** The server saw Global Privacy Control (D-20): stats stay off and the bar stays away. */
@@ -71,12 +74,15 @@ async function send(host: SaveHost, body: ConsentRecordBody): Promise<void> {
   try {
     const service = await (host.options().loadService ?? loadConsentService)();
     const answer = await service.record(body);
-    memory.answeredValue = host.options().readCookie();
+    memory.answeredValue = host.read();
     if (answer.gpc) host.markGpc();
   } catch (error) {
     if (isPolicyConflict(error)) {
       const options = host.options();
-      if (parseConsentCookie(options.readCookie())?.pending === true) (options.writeCookie ?? writeBrowserCookie)(null);
+      if (parseConsentCookie(host.read())?.pending === true) {
+        (options.writeCookie ?? writeBrowserCookie)(null);
+        host.hold(undefined);
+      }
       host.announce(null);
     }
     // Any other failure: the choice already applies in this browser and is sent again on a later page view.
@@ -93,7 +99,7 @@ export async function commitChoice(
   announce: string | null,
 ): Promise<void> {
   const options = host.options();
-  const prior = parseConsentCookie(options.readCookie());
+  const prior = parseConsentCookie(host.read());
   const stats = options.gpc && choice.stats === true ? false : choice.stats;
   const decision: ConsentCookie = {
     consentId: prior?.consentId ?? (options.newConsentId ?? randomConsentId)(),
@@ -103,7 +109,9 @@ export async function commitChoice(
     decidedOn: businessToday(options),
     pending: true,
   };
-  (options.writeCookie ?? writeBrowserCookie)(formatConsentCookie(decision));
+  const value = formatConsentCookie(decision);
+  (options.writeCookie ?? writeBrowserCookie)(value);
+  host.hold(value);
   host.memory().lastSource = source;
   if (announce !== null) host.announce(announce);
   host.refresh();
@@ -118,7 +126,7 @@ export async function commitChoice(
 
 /** Sends a provisional choice once more, unless one is on its way or the server already answered for this cookie. */
 export async function resendChoice(host: SaveHost): Promise<void> {
-  const raw = host.options().readCookie();
+  const raw = host.read();
   const cookie = parseConsentCookie(raw);
   const memory = host.memory();
   if (cookie?.pending !== true || memory.inFlight || raw === memory.answeredValue) return;
@@ -134,7 +142,7 @@ export async function resendChoice(host: SaveHost): Promise<void> {
 /** The map part only (D-18): the stats part stays as it was while it still counts, else unchosen. */
 export function mapOnlyChoice(host: SaveHost): ConsentChoice {
   const options = host.options();
-  const cookie = parseConsentCookie(options.readCookie());
+  const cookie = parseConsentCookie(host.read());
   const checks = { currentVersion: policyVersion(options), today: businessToday(options) };
   const current = cookie !== null && isCurrentChoice(cookie, checks);
   return { stats: current ? cookie.stats : null, map: true };
