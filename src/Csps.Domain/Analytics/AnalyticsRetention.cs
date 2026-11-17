@@ -4,29 +4,29 @@ namespace Csps.Domain.Analytics;
 public static class AnalyticsRetention
 {
     /// <summary>Months a raw visit is kept (D-03).</summary>
-    public const int RawMonths = 0;
+    public const int RawMonths = 13;
 
     /// <summary>Months a consent record is kept after it was given (D-04).</summary>
-    public const int ConsentMonths = 0;
+    public const int ConsentMonths = 13;
 
     /// <summary>Years the daily roll-ups are kept (D-05).</summary>
-    public const int DailyYears = 0;
+    public const int DailyYears = 3;
 
     /// <summary>Months a consent choice lasts before the visitor is asked again.</summary>
-    public const int ConsentLifetimeMonths = 0;
+    public const int ConsentLifetimeMonths = 12;
 
     /// <summary>Minutes of silence that end a visit (D-07).</summary>
-    public const int SessionMinutes = 0;
+    public const int SessionMinutes = 30;
 
     /// <summary>Days a visitor-hash salt lives before it is replaced (D-07).</summary>
-    public const int SaltDays = 0;
+    public const int SaltDays = 2;
 
     /// <summary>Raw visits dated before this business date are deleted.</summary>
-    public static DateOnly RawCut(DateOnly today) => throw new NotImplementedException();
+    public static DateOnly RawCut(DateOnly today) => today.AddMonths(-RawMonths);
 
     /// <summary>Daily roll-ups dated before this business date are deleted.</summary>
-    public static DateOnly DailyFloor(DateOnly today) => throw new NotImplementedException();
+    public static DateOnly DailyFloor(DateOnly today) => today.AddYears(-DailyYears);
 
     /// <summary>Consent records given before this moment are deleted.</summary>
-    public static DateTimeOffset ConsentPurgeBefore(DateTimeOffset utcNow) => throw new NotImplementedException();
+    public static DateTimeOffset ConsentPurgeBefore(DateTimeOffset utcNow) => utcNow.AddMonths(-ConsentMonths);
 }

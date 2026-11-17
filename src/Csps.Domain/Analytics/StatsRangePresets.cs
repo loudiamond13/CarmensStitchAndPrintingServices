@@ -25,8 +25,24 @@ public static class StatsRangePresets
     public const string Default = LastThirtyDays;
 
     /// <summary>The five named presets.</summary>
-    public static IReadOnlyList<string> Names { get; } = [];
+    public static IReadOnlyList<string> Names { get; } = [LastSevenDays, LastThirtyDays, ThisMonth, LastMonth, ThisYear];
 
     /// <summary>Resolves a preset against the business today; an unknown, empty or custom name gives the default.</summary>
-    public static (DateOnly From, DateOnly To) Resolve(string? name, DateOnly today) => throw new NotImplementedException();
+    public static (DateOnly From, DateOnly To) Resolve(string? name, DateOnly today)
+    {
+        switch (name)
+        {
+            case LastSevenDays:
+                return (today.AddDays(-6), today);
+            case ThisMonth:
+                return (new DateOnly(today.Year, today.Month, 1), today);
+            case LastMonth:
+                var lastDay = new DateOnly(today.Year, today.Month, 1).AddDays(-1);
+                return (new DateOnly(lastDay.Year, lastDay.Month, 1), lastDay);
+            case ThisYear:
+                return (new DateOnly(today.Year, 1, 1), today);
+            default:
+                return (today.AddDays(-29), today);
+        }
+    }
 }
