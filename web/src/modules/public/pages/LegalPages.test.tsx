@@ -64,3 +64,36 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01, LEGAL-05, D-14)', { timeout: 
     expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
   });
 });
+
+const PAGES = [
+  { path: '/privacy', crumb: 'Privacy Policy', eyebrow: 'Your privacy', h1: 'Privacy policy.', accent: 'policy.' },
+  { path: '/cookies', crumb: 'Cookie Policy', eyebrow: 'Your privacy', h1: 'Cookie policy.', accent: 'policy.' },
+  { path: '/terms', crumb: 'Terms of Use', eyebrow: 'Using this site', h1: 'Terms of use.', accent: 'use.' },
+  {
+    path: '/accessibility',
+    crumb: 'Accessibility Statement',
+    eyebrow: 'For everyone',
+    h1: 'Accessibility statement.',
+    accent: 'statement.',
+  },
+] as const;
+
+describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout: 20_000 }, (page) => {
+  it('shows the DRAFT notice, "Home / crumb", the eyebrow, one h1 with its accent word and the version line', async () => {
+    await renderLegal(page.path, page.h1);
+    expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(within(crumbs).getByText(page.crumb)).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText(page.eyebrow)).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]?.querySelector('em')).toHaveTextContent(page.accent);
+    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+  });
+
+  it('sets the document title the server sends', async () => {
+    await renderLegal(page.path, page.h1);
+    expect(document.title).toBe(`${page.crumb} · CSPS`);
+  });
+});

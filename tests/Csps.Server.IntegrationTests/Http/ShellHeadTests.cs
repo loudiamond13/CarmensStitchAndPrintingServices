@@ -906,6 +906,9 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
     [Theory]
     [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
+    [InlineData("/cookies", "Cookie Policy · CSPS", "Which cookies this site uses, why, and how to change your choice at any time.")]
+    [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
+    [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
     public async Task ALegalPageSendsItsTitleAndLeadAndIsKeptOutOfSearchResultsWhileDraft(string path, string title, string lead)
     {
         await using var factory = FactoryFor(Site(tagline: "Sample tagline"));

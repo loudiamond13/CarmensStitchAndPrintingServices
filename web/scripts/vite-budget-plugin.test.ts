@@ -218,6 +218,10 @@ describe('budgetPlugin (PERF-01)', () => {
       'products',
       'gallery',
       'contact',
+      'privacy',
+      'cookies',
+      'terms',
+      'accessibility',
       'notFound',
     ]);
     expect(Object.values(summary.publicRoutes as Record<string, number>).every((bytes) => bytes > 0)).toBe(true);
