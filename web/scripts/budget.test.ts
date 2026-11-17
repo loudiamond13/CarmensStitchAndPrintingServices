@@ -62,8 +62,8 @@ const PAGE_NAMES = [
   'notFound',
 ] as const;
 const HOME_PAGE = PAGE_MODULES.home;
-const LEGAL_NAMES = ["privacy", "cookies", "terms", "accessibility"] as const;
-const LOADER_CHUNK = "assets/legalLoaders-N1.js";
+const LEGAL_NAMES = ['privacy', 'cookies', 'terms', 'accessibility'] as const;
+const LOADER_CHUNK = 'assets/legalLoaders-N1.js';
 const LOADER_MODULE = 'src/modules/public/legalLoaders.ts';
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
