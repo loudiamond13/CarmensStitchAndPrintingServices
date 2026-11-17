@@ -547,4 +547,74 @@ describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
     });
     expect(probe.requests[0]?.body).toEqual({ path: '/gallery' });
   });
+
+  it('still renders /contact normally and logs nothing when the beacon is answered with 500', async () => {
+    const probe = pageViewProbe(500);
+
+    await renderAt('/contact');
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('main')).toBeInTheDocument();
+  });
+
+  it('still renders normally and logs nothing when the beacon is answered with 429', async () => {
+    const probe = pageViewProbe(429);
+
+    await renderAt('/contact');
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    expect(screen.getByRole('main')).toBeInTheDocument();
+  });
+
+  it('sends one view for / and one for /products when the visitor follows the header link', async () => {
+    const probe = pageViewProbe();
+    await renderAt('/');
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+
+    await userEvent.click(within(mainNav()).getByRole('link', { name: 'Products' }));
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(2);
+    });
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/' }, { path: '/products' }]);
+  });
+
+  it('on a first visit holds the landing view until Reject All, then sends it once', async () => {
+    setConsent({ cookie: null });
+    consentProbe();
+    const probe = pageViewProbe();
+    await renderAt('/gallery?q=jersey');
+    await screen.findByRole('button', { name: 'Reject All' });
+    expect(probe.requests).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reject All' }));
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    expect(probe.requests[0]?.body).toEqual({ path: '/gallery' });
+  });
+
+  it('does not count a /dev path or an /admin path', async () => {
+    const probe = pageViewProbe();
+    const router = createMemoryRouter(
+      [{ path: '/', Component: PublicLayout, children: [{ path: '*', element: <h1>Check page</h1> }] }],
+      { initialEntries: ['/dev/public'] },
+    );
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1 });
+    await act(async () => {
+      await router.navigate('/admin/orders');
+    });
+    await new Promise<void>((resolve) => setTimeout(resolve, 60));
+
+    expect(probe.requests).toHaveLength(0);
+  });
 });
