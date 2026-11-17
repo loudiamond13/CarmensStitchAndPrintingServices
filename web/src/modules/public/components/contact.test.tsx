@@ -1,11 +1,13 @@
 // The Contact parts (UI-SPEC C1; PUB-02, PUB-06, D-17, D-18, D-20, D-23): ContactNowCard, BigContactButton, PhoneListCard,
 // MapCard and ContactBar, each from the stored shop facts.
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
 import { closedWeek, demoSite, mixedWeek, siteWithoutOptionals, siteWithThreePhones } from '@/test/publicFixtures';
+import { consentStore } from '../hooks/useConsent';
 import { BigContactButton } from './BigContactButton';
 import CallHoursNote from './CallHoursNote';
 import { ContactBar } from './ContactBar';
@@ -247,6 +249,117 @@ describe('MapCard (D-20)', () => {
 
     // jsdom has no frame to talk to, so axe checks the card without the frame; the frame's title is asserted above and the
     // Playwright page check runs axe over the real frame.
+    container.querySelector('iframe')?.remove();
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('MapCard with map consent (D-18, 11 D-20)', () => {
+  const MAP_LINE = 'The map is from Google. You can turn it off in';
+
+  it('loads the frame at once with no Show Map, the label card under the frame, and the Cookie Settings line', () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    const frame = container.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', 'https://www.google.com/maps/embed?pb=cspsdemo');
+    expect(screen.queryByRole('button', { name: 'Show Map' })).not.toBeInTheDocument();
+    expect(screen.queryByText('The map loads from Google when you tap Show Map.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'Map placeholder showing the shop location' })).not.toBeInTheDocument();
+    const label = container.querySelector('[data-map-label]');
+    expect(label).not.toBeNull();
+    expect(container.querySelector('[data-map-box]')?.contains(label)).toBe(false);
+    expect(screen.getByText(new RegExp(`^${MAP_LINE}`))).toHaveTextContent(`${MAP_LINE} Cookie Settings.`);
+    expect(screen.queryByRole('button', { name: 'Always show maps?' })).not.toBeInTheDocument();
+  });
+
+  it('does not move focus into the frame when it loads on its own', () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    const frame = container.querySelector('iframe');
+    expect(frame).not.toBeNull();
+    expect(frame).not.toHaveFocus();
+  });
+
+  it('opens the Cookie Settings window from the Cookie Settings button', async () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    inRouter(<MapCard site={demoSite} />);
+    expect(consentStore.getSnapshot().settingsOpen).toBe(false);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cookie Settings' }));
+
+    expect(consentStore.getSnapshot().settingsOpen).toBe(true);
+    consentStore.closeSettings();
+  });
+
+  it('keeps Show Map and the Phase 11 line, and loads nothing, when the saved choice has the map off', () => {
+    setConsent({ cookie: consentCookie({ map: false }) });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+    expect(screen.getByText('The map loads from Google when you tap Show Map.')).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(MAP_LINE))).not.toBeInTheDocument();
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  it('loads nothing before any choice is made', () => {
+    setConsent({ cookie: null });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+  });
+
+  it('loads the frame at once when a choice made in the bar or the window turns the map on, and unloads it when turned off', async () => {
+    consentProbe();
+    setConsent({ cookie: null });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+    expect(container.querySelector('iframe')).toBeNull();
+
+    await act(async () => {
+      await consentStore.acceptAll('bar');
+    });
+    expect(container.querySelector('iframe')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Cookie Settings' })).toBeInTheDocument();
+
+    await act(async () => {
+      await consentStore.rejectAll('settings');
+    });
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+  });
+
+  it('keeps the 16:10 box and Directions while the map is loaded by consent', () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(container.querySelector('[data-map-box]')?.className).toContain('aspect-[16/10]');
+    expect(screen.getByRole('link', { name: /^Directions/ })).toBeInTheDocument();
+  });
+
+  it('shows the drawn map with its label card in place while the facts load, even with map consent', () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    const { container } = inRouter(<MapCard site={undefined} />);
+
+    expect(screen.getByRole('img', { name: 'Map placeholder showing the shop location' })).toBeInTheDocument();
+    expect(container.querySelector('[data-map-box] [data-map-label]')?.className).toContain('absolute');
+    expect(screen.queryByText(new RegExp(MAP_LINE))).not.toBeInTheDocument();
+  });
+
+  it('with no embed link shows no Show Map, no consent line and no Always show maps', () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    inRouter(<MapCard site={{ ...demoSite, mapEmbedUrl: null }} />);
+
+    expect(screen.queryByRole('button', { name: 'Show Map' })).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(MAP_LINE))).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Always show maps?' })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations with the map allowed', async () => {
+    setConsent({ cookie: consentCookie({ map: true }) });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
     container.querySelector('iframe')?.remove();
     await expectNoAxeViolations(container);
   });
