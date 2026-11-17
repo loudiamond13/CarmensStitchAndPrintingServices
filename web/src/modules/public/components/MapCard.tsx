@@ -21,6 +21,7 @@ import type { PublicSite } from '../services/siteService';
 import { streetAndTown } from '../siteFacts';
 import {
   mapActionsClasses,
+  mapAlwaysLinkClasses,
   mapBoxClasses,
   mapCardClasses,
   mapDirectionsClasses,
@@ -51,15 +52,25 @@ export interface MapCardProps {
 }
 
 export function MapCard({ site }: MapCardProps) {
-  const { mapAllowed, openSettings, settingsLoading } = useConsent();
+  const { mapAllowed, allowMaps, openSettings, settingsLoading } = useConsent();
   const [tapped, setTapped] = useState(false);
+  // "Always show maps?" was pressed; the map choice is saved once mapAllowed turns true.
+  const [asked, setAsked] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
+  const status = useRef<HTMLParagraphElement>(null);
+  const confirmed = asked && mapAllowed;
   // Focus moves into the frame only after the visitor's own tap, never when consent loads it.
   useEffect(() => {
     if (tapped) {
       frame.current?.focus();
     }
   }, [tapped]);
+  // The pressed link is replaced by the status line, so focus moves there instead of being lost.
+  useEffect(() => {
+    if (confirmed) {
+      status.current?.focus();
+    }
+  }, [confirmed]);
 
   const address = site === undefined ? '' : streetAndTown(site.address);
   const embed = site?.mapEmbedUrl?.startsWith(EMBED_PREFIX) === true ? site.mapEmbedUrl : null;
@@ -84,6 +95,7 @@ export function MapCard({ site }: MapCardProps) {
               size="sm"
               icon="map-pin"
               onClick={() => {
+                setAsked(false);
                 setTapped(true);
               }}
             >
@@ -152,7 +164,28 @@ export function MapCard({ site }: MapCardProps) {
       </div>
       {offerMap && <p className={smallMutedClasses}>{MAP.privacy}</p>}
       {showFrame && label}
-      {showFrame && mapAllowed && (
+      {showFrame && (confirmed || (tapped && !mapAllowed)) && (
+        <p ref={status} role="status" tabIndex={-1} className={smallMutedClasses}>
+          {confirmed ? (
+            CARD.saved
+          ) : (
+            <button
+              type="button"
+              className={mapAlwaysLinkClasses}
+              onClick={() => {
+                setAsked(true);
+                // The frame then follows the saved choice, so turning maps off later unloads it.
+                void allowMaps().then(() => {
+                  setTapped(false);
+                });
+              }}
+            >
+              {CARD.always}
+            </button>
+          )}
+        </p>
+      )}
+      {showFrame && mapAllowed && !asked && (
         <p className={smallMutedClasses}>
           {CARD.allowed}{' '}
           <button
