@@ -1018,6 +1018,8 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-03 / 12-04 commit sign-off lines:** the 12-04 executor signed its commits with a different model name in the Co-Authored-By line than the one you asked for. Only the trailer text differs. Not rewritten (that would rewrite history); say if you want it changed.
 - [ ] **12-03 possible stray npx download:** one lint command ran from the wrong folder and npx offered to fetch `eslint@10.15.0` into its own cache. No project file or lockfile changed; later runs used the installed eslint. Whether the download happened cannot be told from the cache. If it did, it is only in the npm cache (`npm cache clean --force` clears it).
 - [ ] **12-04 "today" date preset:** the web client has a `today` preset that the server preset list does not; the server reads `today` as last 30 days. Decide in the stats plans (12-21 / 12-23) whether the page offers "Today".
+- [ ] **12-31 / 12-09 clock slack (low priority):** with D-43 a consent cookie dated after today is refused. The consent bar uses the Asia/Manila business day as today (passed to the 12-09 run), so a phone in a time zone behind Manila is fine. A phone whose own clock is wrong may be asked again; that is the cautious reading of D-43. Recommended: keep as is. The other choice is a one-day allowance.
+- [x] **Wave 1 post-merge gate (2026-11-16):** build 0 warnings; Domain 2202, Architecture 290, Application 3042 passed; Server 2866 of 2867, the one failure was the 12-06 privacy-contact row missing from `RateLimitTests.LimitedEndpoints`, fixed and re-run (44 of 44); web lint, types clean, 10829 tests passed, production build ok. `build:budget` is over 150 KB until plan 12-31 (D-42).
 
 ### Blockers/Concerns
 
