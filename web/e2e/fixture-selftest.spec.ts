@@ -5,7 +5,15 @@
 // two prove the D-71 re-check: a target only a sticky bar partly covers passes once scrolled clear, one still covered fails.
 // Nothing here uses test.fail(), which could hide a real failure.
 // Page scripts are strings: the e2e TypeScript program has no DOM types, and Playwright evaluates them outside the CSP.
-import { assertNoFindings, expect, expectNoAxeViolations, listFindings, pageAxe, test } from './fixtures.ts';
+import {
+  assertNoFindings,
+  decidedConsentValue,
+  expect,
+  expectNoAxeViolations,
+  listFindings,
+  pageAxe,
+  test,
+} from './fixtures.ts';
 import { ensureDemoSiteContent, isDemoSeeded } from './site-content-lock.ts';
 
 // Home lists the demo shown orders, so the demo content is put in place first (once per worker, under the site content lock).
@@ -354,4 +362,70 @@ test('@fixture a second page of the same context is guarded too', async ({ page,
   expect(() => {
     assertNoFindings(record);
   }).toThrow(DELIBERATE);
+});
+
+// Pitfall 9, ANL-01: every context starts with a decided Reject All cookie, so the cookie bar stays away from the specs that are
+// not about it; `consent: 'none'` starts with no saved choice, for the bar's own specs.
+test.describe('@fixture default consent cookie', () => {
+  test('a context starts with a decided Reject All cookie for the E2E origin, and the home page shows no bar', async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    const cookie = (await context.cookies()).find((entry) => entry.name === '__Host-csps_consent');
+    expect(cookie?.value).toBe(decidedConsentValue());
+    expect(cookie?.value).toMatch(/^1_[0-9a-f]{32}_\d+\.\d+_0_0_\d{8}$/);
+    expect(cookie?.secure).toBe(true);
+    expect(cookie?.path).toBe('/');
+    expect(cookie?.domain).toBe(new URL(baseURL ?? 'https://localhost:5199').hostname);
+
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
+  });
+
+  test.describe('with consent none', () => {
+    test.use({ consent: 'none' });
+
+    test('a context starts with no consent cookie, and the home page shows the bar', async ({ page, context }) => {
+      expect((await context.cookies()).some((entry) => entry.name === '__Host-csps_consent')).toBe(false);
+
+      await page.goto('/');
+      await expect(page.getByRole('region', { name: 'Cookie choices' })).toBeVisible();
+    });
+
+    // The bar is position: fixed inside a page root that is a size container, so it must still sit on the viewport's bottom
+    // edge, stay within --spacing-consent-bar and never make the page scroll sideways, at the narrowest width too.
+    for (const width of [1280, 320]) {
+      test(`the bar sits on the bottom edge, within its height token, with no sideways scroll at ${String(width)}px`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: 700 });
+        await page.goto('/');
+        const bar = page.getByRole('region', { name: 'Cookie choices' });
+        await expect(bar).toBeVisible();
+
+        const measured = await page.evaluate<{
+          bottom: number;
+          height: number;
+          token: number;
+          sideways: boolean;
+        }>(`(() => {
+          const rect = document.querySelector('[data-consent-bar]').getBoundingClientRect();
+          const token = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--spacing-consent-bar'));
+          return {
+            bottom: Math.round(rect.bottom),
+            height: rect.height,
+            token,
+            sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+          };
+        })()`);
+
+        expect(measured.bottom).toBe(700);
+        expect(measured.token).toBe(width > 767 ? 92 : 204);
+        expect(measured.height).toBeLessThanOrEqual(measured.token);
+        expect(measured.sideways).toBe(false);
+      });
+    }
+  });
 });

@@ -33,6 +33,10 @@
   --spacing: 4px;
   /* The phone Contact bar's height above the safe area (1px rule, 12px top, 48px button, 16px bottom), pinned to contact.recipe.ts by public-look.node.test.ts. */
   --spacing-contact-bar: 77px;
+  /* --spacing-consent-bar is the cookie bar's height above the safe area: 92px from 768px up (16 above, three text lines of 20, 16 below).
+     Pinned to consent.recipe.ts by consent-look.node.test.ts. At 767px and below PublicLayout sets --spacing-consent-bar to 204px,
+     because this file may hold no media rule. */
+  --spacing-consent-bar: 92px;
   /* The footer tagline's max width. */
   --spacing-tagline: 320px;
   --breakpoint-sm: 640px;

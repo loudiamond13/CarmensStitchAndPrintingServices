@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-16T22:35:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T02:20:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -129,6 +129,21 @@ Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), Aft
 Every public row drops by 2.4 to 2.6 KB. Admin JS goes up by about 1.5 to 1.6 KB because the route table is now its own chunk, which every `/admin` visit loads first, and the budget counts it (`src/modules/admin/routes.tsx` is in the admin rows above). Admin JS is still well under 250 KB.
 
 **Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily.
+
+## Cookie bar (Phase 12, plan 12-09)
+
+The cookie bar adds to the public first download only the consent store (`hooks/useConsent.ts`), the cookie reader (`consentJar.ts`) and `ConsentSlot`. Everything else loads as its own chunk, and only when it is needed:
+
+| Chunk | Holds | Loads when |
+|---|---|---|
+| `ConsentBar` | the bar, its buttons and words | a choice is needed (no saved choice, an old version, over 12 months) |
+| `consentRules` | the cookie codec, the version, day and 12-month checks, the Asia/Manila day | a cookie exists, or a choice is made |
+| `consentSave` | the provisional cookie write and the send | the bar loads, or a choice is made |
+| `consentService` | the typed call over the shared HTTP client | a choice is sent |
+
+A first visit loads the bar, and with it the save path and the rules, so a click applies at once. A returning visitor loads the rules chunk once per page load (from cache after the first), and a stale saved choice shows the bar once it arrives; until then the saved choice is trusted, so nobody sees a flash.
+
+The first build, with the codec, the Cookie Policy table and the save path all in the entry, put Contact at 150.43 KB (over). `consentPolicy.ts` holds the policy version alone, so `legalPages.ts` stays out of the first download. Figures are in the plan 12-09 summary.
 
 ## Fonts and compression (Phase 11)
 

@@ -1,6 +1,7 @@
-// The saved cookie choice (ANL-07). Plain functions only: this file ships in the public first download.
+// The saved cookie choice (ANL-07). Plain functions only. The cookie name and the reader live in consentJar.ts (the
+// public first download takes only those); they are re-exported here, so this file stays the one place to import from.
 
-export const CONSENT_COOKIE_NAME = '__Host-csps_consent';
+export { CONSENT_COOKIE_NAME, readConsentCookie } from './consentJar';
 
 export interface ConsentCookie {
   consentId: string;
@@ -47,16 +48,6 @@ export function formatConsentCookie(cookie: ConsentCookie): string {
   const map = cookie.map ? '1' : '0';
   const suffix = cookie.pending ? '_p' : '';
   return `1_${cookie.consentId}_${cookie.policyVersion}_${stats}_${map}_${cookie.decidedOn.replaceAll('-', '')}${suffix}`;
-}
-
-/** The consent cookie value from a `document.cookie` string, or undefined when there is none. */
-export function readConsentCookie(documentCookie: string): string | undefined {
-  for (const pair of documentCookie.split(';')) {
-    const text = pair.trimStart();
-    const equals = text.indexOf('=');
-    if (equals > 0 && text.slice(0, equals) === CONSENT_COOKIE_NAME) return text.slice(equals + 1);
-  }
-  return undefined;
 }
 
 type Day = readonly [year: number, month: number, day: number];
