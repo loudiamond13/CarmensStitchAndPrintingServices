@@ -1,5 +1,6 @@
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
+using Csps.Infrastructure.Analytics;
 using Csps.Infrastructure.Images;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,6 +21,7 @@ public static class MaintenanceRegistration
         services.AddScoped<IMaintenanceCursors, MaintenanceCursors>();
         services.AddScoped<IImageInventory, ImageInventory>();
         services.AddScoped<IMaintenanceJob, PurgeExpiredRecordsJob>();
+        services.AddScoped<IMaintenanceJob, AnalyticsRetentionJob>();
         return services;
     }
 }
