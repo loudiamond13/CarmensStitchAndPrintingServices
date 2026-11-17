@@ -1,0 +1,15 @@
+{
+  "note": "Cases for the consent cookie codec and the re-ask rule (ANL-01, ANL-07, D-18, D-20, D-22). Read by the .NET domain tests and by the web Vitest suite. The consent ids are made-up hex.",
+  "cookieName": "__Host-csps_consent",
+  "valid": [
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_0.1_1_1_20261115",
+      "consentId": "0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51",
+      "policyVersion": "0.1",
+      "stats": true,
+      "map": true,
+      "decidedOn": "2026-11-15",
+      "pending": false
+    }
+  ]
+}
