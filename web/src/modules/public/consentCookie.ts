@@ -13,27 +13,48 @@ export interface ConsentCookie {
   pending: boolean;
 }
 
+const MAX_LENGTH = 100;
+
+// Strict on purpose: the cookie is writable by any script, so anything off-format is "no choice".
+const PATTERN = /^1_([0-9a-f]{32})_(\d+\.\d+)_([01-])_([01])_(\d{4})(\d{2})(\d{2})(_p)?$/;
+
+function isRealDay(year: number, month: number, day: number): boolean {
+  if (year < 1) return false;
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 export function parseConsentCookie(value: string | undefined): ConsentCookie | null {
-  if (!value) return null;
-  const parts = value.split('_');
-  if (parts.length !== 6 || parts[0] !== '1') return null;
-  const [, consentId = '', policyVersion = '', stats = '', map = '', day = ''] = parts;
+  if (!value || value.length > MAX_LENGTH) return null;
+  const match = PATTERN.exec(value);
+  if (!match) return null;
+  const [, consentId = '', policyVersion = '', stats = '', map = '', year = '', month = '', day = '', pending = ''] =
+    match;
+  if (!isRealDay(Number(year), Number(month), Number(day))) return null;
   return {
     consentId,
     policyVersion,
-    stats: stats === '1',
+    stats: stats === '-' ? null : stats === '1',
     map: map === '1',
-    decidedOn: `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`,
-    pending: false,
+    decidedOn: `${year}-${month}-${day}`,
+    pending: pending !== '',
   };
 }
 
 export function formatConsentCookie(cookie: ConsentCookie): string {
-  const stats = cookie.stats === true ? '1' : '0';
+  const stats = cookie.stats === null ? '-' : cookie.stats ? '1' : '0';
   const map = cookie.map ? '1' : '0';
-  return `1_${cookie.consentId}_${cookie.policyVersion}_${stats}_${map}_${cookie.decidedOn.replaceAll('-', '')}`;
+  const suffix = cookie.pending ? '_p' : '';
+  return `1_${cookie.consentId}_${cookie.policyVersion}_${stats}_${map}_${cookie.decidedOn.replaceAll('-', '')}${suffix}`;
 }
 
+/** The consent cookie value from a `document.cookie` string, or undefined when there is none. */
 export function readConsentCookie(documentCookie: string): string | undefined {
-  return documentCookie.length < 0 ? documentCookie : undefined;
+  for (const pair of documentCookie.split(';')) {
+    const text = pair.trimStart();
+    const equals = text.indexOf('=');
+    if (equals > 0 && text.slice(0, equals) === CONSENT_COOKIE_NAME) return text.slice(equals + 1);
+  }
+  return undefined;
 }

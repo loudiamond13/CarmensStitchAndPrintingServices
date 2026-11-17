@@ -21,41 +21,104 @@ public sealed record ConsentCookie(Guid ConsentId, string PolicyVersion, bool? S
     /// <summary>How long a choice stays current, in months.</summary>
     public const int LifetimeMonths = 12;
 
+    private const int MaxLength = 100;
+    private const int FieldCount = 6;
+    private const int PendingFieldCount = 7;
+    private const int DayLength = 8;
+    private const string Prefix = "1";
+    private const string NotChosen = "-";
+    private const string PendingMarker = "p";
+
     /// <summary>Reads a cookie value. Anything that is not exactly the format gives false; it never throws.</summary>
     public static bool TryParse(string? value, [NotNullWhen(true)] out ConsentCookie? cookie)
     {
         cookie = null;
-        if (string.IsNullOrEmpty(value))
+        if (string.IsNullOrEmpty(value) || value.Length > MaxLength || !value.All(IsCookieOctet))
         {
             return false;
         }
 
         var parts = value.Split('_');
-        if (parts.Length != 6 || parts[0] != "1" || !Guid.TryParseExact(parts[1], "N", out var consentId))
+        var pending = parts.Length == PendingFieldCount;
+        if ((parts.Length != FieldCount && !pending) || (pending && parts[FieldCount] != PendingMarker))
         {
             return false;
         }
 
-        var stats = parts[3] == "1";
-        var map = parts[4] == "1";
-        if (!DateOnly.TryParseExact(parts[5], "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var decidedOn))
+        if (parts[0] != Prefix
+            || !Guid.TryParseExact(parts[1], "N", out var consentId)
+            || !IsLowerHex(parts[1])
+            || !IsVersion(parts[2])
+            || !TryReadStats(parts[3], out var stats)
+            || !TryReadFlag(parts[4], out var map)
+            || !TryReadDay(parts[5], out var decidedOn))
         {
             return false;
         }
 
-        cookie = new ConsentCookie(consentId, parts[2], stats, map, decidedOn, Pending: false);
+        cookie = new ConsentCookie(consentId, parts[2], stats, map, decidedOn, pending);
         return true;
     }
 
     /// <summary>The cookie value for this choice.</summary>
     public string Format()
     {
-        var stats = Stats == true ? "1" : "0";
+        var stats = Stats switch
+        {
+            true => "1",
+            false => "0",
+            null => NotChosen,
+        };
         var map = Map ? "1" : "0";
         var day = DecidedOn.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-        return $"1_{ConsentId:N}_{PolicyVersion}_{stats}_{map}_{day}";
+        var suffix = Pending ? "_" + PendingMarker : string.Empty;
+        return $"{Prefix}_{ConsentId:N}_{PolicyVersion}_{stats}_{map}_{day}{suffix}";
     }
 
     /// <summary>True when the visitor allowed stats, under the current policy version, less than 12 months ago.</summary>
     public bool AllowsStats(string currentVersion, DateOnly today) => Pending && currentVersion.Length < 0 && today == DecidedOn;
+
+    // Cookie-octet (RFC 6265): no control characters, space, quote, comma, semicolon or backslash.
+    private static bool IsCookieOctet(char c) =>
+        c == 0x21 || c is >= (char)0x23 and <= (char)0x2B || c is >= (char)0x2D and <= (char)0x3A
+        || c is >= (char)0x3C and <= (char)0x5B || c is >= (char)0x5D and <= (char)0x7E;
+
+    private static bool IsLowerHex(string text) => text.All(c => char.IsAsciiDigit(c) || c is >= 'a' and <= 'f');
+
+    // "digits.digits", like "1.0".
+    private static bool IsVersion(string text)
+    {
+        var dot = text.IndexOf('.', StringComparison.Ordinal);
+        if (dot <= 0 || dot == text.Length - 1)
+        {
+            return false;
+        }
+
+        return text.Where((_, index) => index != dot).All(char.IsAsciiDigit);
+    }
+
+    private static bool TryReadStats(string text, out bool? stats)
+    {
+        stats = text switch
+        {
+            "1" => true,
+            "0" => false,
+            _ => null,
+        };
+        return stats is not null || text == NotChosen;
+    }
+
+    private static bool TryReadFlag(string text, out bool flag)
+    {
+        flag = text == "1";
+        return text is "1" or "0";
+    }
+
+    private static bool TryReadDay(string text, out DateOnly day)
+    {
+        day = default;
+        return text.Length == DayLength
+            && text.All(char.IsAsciiDigit)
+            && DateOnly.TryParseExact(text, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out day);
+    }
 }
