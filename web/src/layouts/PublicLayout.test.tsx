@@ -375,6 +375,82 @@ describe('PublicLayout cookie bar (ANL-01, D-16, D-17)', () => {
   });
 });
 
+const CONSENT_PAD =
+  '[:root:has(&)]:scroll-pb-[calc(var(--spacing-consent-bar)+var(--space-6)+env(safe-area-inset-bottom))]';
+const CONSENT_PAD_PHONE = 'vp-lt-md:[:root:has(&)]:[--spacing-consent-bar:204px]';
+const CONTACT_PAD =
+  'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(var(--spacing-contact-bar)+var(--space-6)+env(safe-area-inset-bottom))]';
+
+describe('PublicLayout while the cookie bar shows (WCAG 2.4.11, D-30)', () => {
+  it('gives the page a bottom scroll padding for the bar on every public page, and the 204px phone height', async () => {
+    setConsent({ cookie: null });
+    for (const path of ['/', '/products', '/gallery', '/nope']) {
+      const { unmount } = await renderAt(path);
+      await screen.findByRole('region', { name: 'Cookie choices' });
+      expect(screen.getByRole('main').className.split(' ')).toEqual(
+        expect.arrayContaining([CONSENT_PAD, CONSENT_PAD_PHONE]),
+      );
+      unmount();
+    }
+  });
+
+  it('pads the page root at the bottom by the bar and the safe area, so the footer can scroll clear of it', async () => {
+    setConsent({ cookie: null });
+    const { container } = await renderAt('/');
+    await screen.findByRole('region', { name: 'Cookie choices' });
+    expect(container.firstElementChild?.className.split(' ')).toContain(
+      'pb-[calc(var(--spacing-consent-bar)+env(safe-area-inset-bottom))]',
+    );
+  });
+
+  it('adds none of it when no choice is needed', async () => {
+    const { container } = await renderAt('/');
+    expect(screen.getByRole('main').className).not.toContain('--spacing-consent-bar');
+    expect(container.firstElementChild?.className).not.toContain('--spacing-consent-bar');
+  });
+
+  it('shows no phone Contact bar on /contact and keeps the bar padding instead of the Contact padding', async () => {
+    putBootBlock(demoSite);
+    setConsent({ cookie: null });
+    const { container } = await renderAt('/contact');
+    await screen.findByRole('region', { name: 'Cookie choices' });
+
+    expect(container.querySelector('[data-contact-bar]')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
+    const classes = screen.getByRole('main').className.split(' ');
+    expect(classes).toContain(CONSENT_PAD);
+    expect(classes).not.toContain(CONTACT_PAD);
+  });
+
+  it('brings the phone Contact bar and its padding back once a choice is made', async () => {
+    putBootBlock(demoSite);
+    consentProbe();
+    setConsent({ cookie: null });
+    const { container } = await renderAt('/contact');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Reject All' }));
+
+    expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
+    expect(container.querySelector('[data-contact-bar]')).not.toBeNull();
+    const classes = screen.getByRole('main').className.split(' ');
+    expect(classes).toContain(CONTACT_PAD);
+    expect(classes).not.toContain(CONSENT_PAD);
+  });
+
+  it('shows the Contact bar as before when a choice is already saved', async () => {
+    putBootBlock(demoSite);
+    await renderAt('/contact');
+    expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the bar open', async () => {
+    setConsent({ cookie: null });
+    const { container } = await renderAt('/products');
+    await screen.findByRole('region', { name: 'Cookie choices' });
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('PublicLayout route chunks (UI consideration: loading)', () => {
   it('keeps the header and footer while a route chunk loads, and marks main busy until it lands', async () => {
     let finish: (value: { Component: () => ReactNode }) => void = () => undefined;
