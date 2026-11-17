@@ -142,6 +142,8 @@ public static class AuthorizationMatrix
         new("DELETE", "/api/v1/gallery-items/{id:guid}","/api/v1/gallery-items/e84b0c27-6d91-4a53-b7f2-1c5d9e3a8f06", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
+        // A visitor's cookie decision (ANL-07): anonymous, with the anti-CSRF header. With no body every caller meets the same 400 field errors.
+        new("POST", "/api/v1/analytics/consent", "/api/v1/analytics/consent", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
         new("POST", "/api/v1/auth/two-factor/verify", "/api/v1/auth/two-factor/verify", Anonymous: 401, Admin: 401, Manager: 401),
         new("POST", "/api/v1/auth/two-factor/resend", "/api/v1/auth/two-factor/resend", Anonymous: 401, Admin: 401, Manager: 401),
@@ -387,6 +389,7 @@ public static class AuthorizationMatrix
             "GET /health",
             "HEAD /health",
             "POST /api/v1/auth/sign-in",
+            "POST /api/v1/analytics/consent",
             "POST /api/v1/auth/two-factor/verify",
             "POST /api/v1/auth/two-factor/resend",
             "POST /api/v1/auth/refresh",
