@@ -2093,6 +2093,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/privacy-contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the shop's Contact email for the four legal pages only (D-13, D-29): `email`, or null when none is stored. It is a
+         *     separate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is
+         *     never stored by a browser or a cache.
+         */
+        get: operations["GetPrivacyContact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/product-lines": {
         parameters: {
             query?: never;
@@ -4785,6 +4806,14 @@ export interface components {
             label: null | string;
             /** @description The number as typed; a Philippine mobile or landline number. */
             number: null | string;
+        };
+        /**
+         * @description The contact email the four legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts
+         *     that every page embeds.
+         */
+        PrivacyContactDto: {
+            /** @description The shop's Contact email from the site settings; null when none is stored. */
+            email: null | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -13229,6 +13258,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenStatusDto"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPrivacyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyContactDto"];
                 };
             };
             /** @description Too Many Requests */

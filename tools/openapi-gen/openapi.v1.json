@@ -4912,6 +4912,22 @@
         ],
         "type": "object"
       },
+      "PrivacyContactDto": {
+        "description": "The contact email the four legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts\nthat every page embeds.",
+        "properties": {
+          "email": {
+            "description": "The shop's Contact email from the site settings; null when none is stored.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
       "ProblemDetails": {
         "properties": {
           "detail": {
@@ -18536,6 +18552,37 @@
           }
         },
         "summary": "Says whether the shop is open now, worked out by the server in business time (PUB-05, D-22): `isOpen`, `closesAt` (\"HH:mm\")\nwhen open, `closedToday`, `todayClosureNote` and `nextOpening` (`date`, `day` 1 to 7, `opensAt` and\n`when` of \"today\", \"tomorrow\" or \"weekday\") when closed and the shop opens within 38 days (the longest closure and a week). The answer is public and may be\nkept for 60 seconds (`Cache-Control: public, max-age=60`); it has no ETag.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
+    "/api/v1/public/privacy-contact": {
+      "get": {
+        "operationId": "GetPrivacyContact",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyContactDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the shop's Contact email for the four legal pages only (D-13, D-29): `email`, or null when none is stored. It is a\nseparate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is\nnever stored by a browser or a cache.",
         "tags": [
           "PublicSite"
         ]
