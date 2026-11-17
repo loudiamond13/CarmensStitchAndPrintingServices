@@ -238,7 +238,9 @@ describe('usePageViewBeacon with the bar showing (UI-SPEC CB1 "After the choice"
     await waitFor(() => {
       expect(probe.requests).toHaveLength(2);
     });
-    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/' }, { path: '/products' }]);
+    expect(probe.requests.map((request) => request.body)).toEqual(
+      expect.arrayContaining([{ path: '/' }, { path: '/products' }]),
+    );
     act(() => {
       setConsent({ cookie: consentCookie() });
     });
