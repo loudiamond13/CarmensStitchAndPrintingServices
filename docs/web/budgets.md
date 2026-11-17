@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T04:15:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T10:30:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -217,6 +217,35 @@ The tightest row is Privacy. Plans 12-13 (the Cookie Settings window and the foo
 | R3 | A public icon registry, so the icon chunk (about 80 icons, many admin-only) stops loading with the entry on every page | about 3 to 4 KB on every public row | Estimated | Changes the `Icon` API (C-10), so it is an owner call |
 
 **The limit to watch.** The entry is now one file: 366.74 KB raw in the production build and 366.88 KB in the budget build (117.7 KB gzip). Vite warns above 500 KB raw, and that warning would break the zero-warnings rule. There are about 133 KB raw left before it.
+
+## Speed reader (Phase 12, plan 12-16, ANL-05, D-38)
+
+`web-vitals` 6.2.3 loads only after a "Visitor stats" yes, through `import('../speedReport')` in `hooks/useSpeedReport.ts`. Only `speedReport.ts` imports it, so it sits in its own lazy chunk and no public route counts it.
+
+| Chunk | Holds | Size | Loads when |
+|---|---|---|---|
+| `speedReport-<hash>.js` | `web-vitals` (`onLCP`, `onCLS`, `onINP`) and `startSpeedReport` | 8.04 KB raw, 3.09 KB gzip | visitor stats are allowed (a saved yes, or a yes saved later in the page load) |
+
+`artifacts/budget/budget.budget.json` lists no `speedReport` or web-vitals file in any public or admin route, so the chunk adds nothing to a first download. The hook itself (`useSpeedReport.ts`, called once in `PublicLayout`) is in the first download and cost about 0.8 KB gzip on every public page, measured by building with and without the call.
+
+Figures, gzip -9, 1 KB = 1000 B, from `npm run build:budget` (the build CI runs). Before is this plan's base with the hook not called; After is this plan.
+
+| Measure | Before | After | Room to 150 KB |
+|---|---|---|---|
+| Home | 146.73 KB | 147.53 KB | 2.47 KB |
+| Products | 143.43 KB | 144.24 KB | 5.76 KB |
+| Gallery | 144.77 KB | 145.58 KB | 4.42 KB |
+| Contact | 146.80 KB | 147.60 KB | 2.40 KB |
+| Privacy | 148.26 KB | 149.07 KB | **0.93 KB** |
+| Cookies | 146.20 KB | 147.00 KB | 3.00 KB |
+| Terms | 147.38 KB | 148.18 KB | 1.82 KB |
+| Accessibility | 146.93 KB | 147.74 KB | 2.26 KB |
+| Not found | 139.49 KB | 140.30 KB | 9.70 KB |
+| Admin JS | 220.75 KB | 220.69 KB | 29.31 KB |
+
+`npm run build` (production, after): Home 147.45 KB, Products 144.15 KB, Gallery 145.50 KB, Contact 147.51 KB, Privacy 148.99 KB, Cookies 146.92 KB, Terms 148.10 KB, Accessibility 147.66 KB, Not found 140.22 KB, Admin JS 218.79 KB, CSS 20.42 KB. Every public row is under 150 KB and the limit is unchanged.
+
+**The tightest row is Privacy, with 0.93 KB left.** The wave 4 note recorded 148.78 KB for it; a build of this plan's base measured 148.26 KB, so the 0.8 KB here is the hook alone. Any later plan that adds to the public first download must fit in what is left or load lazily.
 
 ## Fonts and compression (Phase 11)
 
