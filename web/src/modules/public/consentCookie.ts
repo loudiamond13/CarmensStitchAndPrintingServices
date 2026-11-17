@@ -90,8 +90,23 @@ function isBefore(a: Day, b: Day): boolean {
 }
 
 /**
- * True when the bar must ask: no cookie, a new policy version, a choice 12 months old, or a map-only save (D-18).
- * Never true when the browser sends GPC (D-20). `today` is a YYYY-MM-DD business day; no clock is read here.
+ * True while the saved choice counts: the current policy version (D-22), a decision day that is not after today (D-43:
+ * a cookie dated in the future is no choice, so it cannot stretch its own life) and less than 12 months old (ANL-07).
+ * `today` is the Asia/Manila business day as YYYY-MM-DD, the day the server stamps through IBusinessCalendar, so a
+ * cookie the server set today is current. No clock is read here. An unreadable day gives false.
+ */
+export function isCurrentChoice(cookie: ConsentCookie, options: { currentVersion: string; today: string }): boolean {
+  if (cookie.policyVersion !== options.currentVersion) return false;
+  const decided = readDay(cookie.decidedOn);
+  const today = readDay(options.today);
+  if (decided === null || today === null) return false;
+  if (isBefore(today, decided)) return false;
+  return isBefore(today, addMonths(decided, LIFETIME_MONTHS));
+}
+
+/**
+ * True when the bar must ask: no cookie, a map-only save (D-18), or a choice that is not current (see isCurrentChoice:
+ * new policy version, future decision day, 12 months old). Never true when the browser sends GPC (D-20).
  */
 export function needsChoice(
   cookie: ConsentCookie | null,
@@ -99,9 +114,6 @@ export function needsChoice(
 ): boolean {
   if (options.gpc) return false;
   if (cookie === null) return true;
-  if (cookie.stats === null || cookie.policyVersion !== options.currentVersion) return true;
-  const decided = readDay(cookie.decidedOn);
-  const today = readDay(options.today);
-  if (decided === null || today === null) return true;
-  return !isBefore(today, addMonths(decided, LIFETIME_MONTHS));
+  if (cookie.stats === null) return true;
+  return !isCurrentChoice(cookie, options);
 }
