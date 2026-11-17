@@ -215,7 +215,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     private static MaintenanceLine Line(MaintenanceJobReport report, string label) => report.Lines.Single(line => line.Label == label);
 
     private static AnalyticsRetentionJob NewJob(Csps.Infrastructure.Persistence.CspsDbContext context, FakeTimeProvider clock) =>
-        new(context, new ManilaCalendar(clock), new MaintenanceCursors(context, clock), clock, NullLogger<AnalyticsRetentionJob>.Instance);
+        new(context, new ManilaCalendar(clock), new MaintenanceCursors(context, clock), NullLogger<AnalyticsRetentionJob>.Instance);
 
     private async Task<MaintenanceJobReport> RunAsync(FakeTimeProvider clock, IInterceptor? hook = null, MaintenanceBudget? budget = null)
     {
