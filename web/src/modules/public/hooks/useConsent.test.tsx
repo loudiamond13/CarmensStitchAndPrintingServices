@@ -7,7 +7,7 @@ import { consentCookie, consentProbe, demoDecision, FAKE_CONSENT_ID, setConsent 
 import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
 import { manilaBusinessDay } from '../consentRules';
-import { consentCookieText } from '../consentSave';
+import { consentCookieText, writeBrowserCookie } from '../consentSave';
 import { createConsentStore, resetConsentStore, useConsent } from './useConsent';
 
 const TODAY = '2026-11-17';
@@ -191,6 +191,127 @@ describe('the provisional cookie text', () => {
 
   it('removes the cookie with Max-Age=0 and an empty value', () => {
     expect(consentCookieText(null)).toBe('__Host-csps_consent=; Path=/; Secure; SameSite=Lax; Max-Age=0');
+  });
+
+  it('is written to document.cookie by the browser writer', () => {
+    const write = vi.spyOn(document, 'cookie', 'set').mockImplementation(() => undefined);
+    writeBrowserCookie('1_x');
+    writeBrowserCookie(null);
+    expect(write).toHaveBeenNthCalledWith(1, consentCookieText('1_x'));
+    expect(write).toHaveBeenNthCalledWith(2, consentCookieText(null));
+  });
+});
+
+describe('a store made without a cookie writer uses the browser (ANL-01)', () => {
+  const conflict = (code: string) => Object.assign(new Error('Conflict'), { status: 409, code });
+  const POLICY_CHANGED_ERROR = conflict('consent.policy-changed');
+
+  it('writes the provisional cookie to document.cookie when a choice is made', async () => {
+    const write = vi.spyOn(document, 'cookie', 'set').mockImplementation(() => undefined);
+    const record = vi.fn(() => Promise.resolve(demoDecision));
+    const store = createConsentStore({
+      readCookie: () => undefined,
+      gpc: false,
+      today: () => TODAY,
+      loadService: () => Promise.resolve({ record }),
+    });
+    await store.acceptAll('bar');
+    expect(write).toHaveBeenCalledTimes(1);
+    const text = String(write.mock.calls[0]?.[0]);
+    expect(text).toMatch(/^__Host-csps_consent=.+; Path=\/; Secure; SameSite=Lax; Max-Age=31536000$/);
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the provisional cookie from document.cookie when the server says the policy changed', async () => {
+    const write = vi.spyOn(document, 'cookie', 'set').mockImplementation(() => undefined);
+    const store = createConsentStore({
+      readCookie: () => undefined,
+      gpc: false,
+      today: () => TODAY,
+      loadService: () => Promise.resolve({ record: () => Promise.reject(POLICY_CHANGED_ERROR) }),
+    });
+    await store.acceptAll('bar');
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenLastCalledWith(consentCookieText(null));
+    expect(store.getSnapshot().needsChoice).toBe(true);
+  });
+
+  it('keeps a cookie that is no longer provisional when the policy conflict arrives', async () => {
+    let value: string | undefined;
+    const writeCookie = vi.fn((next: string | null) => {
+      value = next ?? undefined;
+    });
+    const store = createConsentStore({
+      readCookie: () => value,
+      writeCookie,
+      gpc: false,
+      today: () => TODAY,
+      loadService: () =>
+        Promise.resolve({
+          record: () => {
+            value = formatConsentCookie(consentCookie({ stats: true, map: true, decidedOn: TODAY }));
+            return Promise.reject(POLICY_CHANGED_ERROR);
+          },
+        }),
+    });
+    await store.acceptAll('bar');
+    expect(writeCookie).toHaveBeenCalledTimes(1);
+    expect(parseConsentCookie(value)).toMatchObject({ pending: false, stats: true });
+    expect(store.getSnapshot().announcement).toBeNull();
+  });
+
+  it('does not remove the cookie for a conflict that is not the policy change', async () => {
+    const write = vi.spyOn(document, 'cookie', 'set').mockImplementation(() => undefined);
+    const store = createConsentStore({
+      readCookie: () => undefined,
+      gpc: false,
+      today: () => TODAY,
+      loadService: () => Promise.resolve({ record: () => Promise.reject(conflict('other')) }),
+    });
+    await store.acceptAll('bar');
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot().needsChoice).toBe(false);
+  });
+
+  it.each([
+    ['a text', 'boom'],
+    ['null', null],
+  ])('treats a send that fails with %s as an ordinary failure: the pending choice stays', async (_name, thrown) => {
+    let value: string | undefined;
+    const store = createConsentStore({
+      readCookie: () => value,
+      writeCookie: (next) => {
+        value = next ?? undefined;
+      },
+      gpc: false,
+      today: () => TODAY,
+      loadService: () => Promise.resolve({ record: () => Promise.reject(thrown as unknown as Error) }),
+    });
+    await store.rejectAll('bar');
+    expect(parseConsentCookie(value)).toMatchObject({ stats: false, map: false, pending: true });
+    expect(store.getSnapshot().needsChoice).toBe(false);
+  });
+});
+
+describe('Save with a chosen mix (settings window)', () => {
+  it('writes and posts exactly the chosen stats and map parts, and announces the save', async () => {
+    const probe = consentProbe();
+    const jar = setConsent({ cookie: null });
+    const { result } = renderHook(() => useConsent());
+
+    await result.current.save({ stats: true, map: false }, 'settings');
+
+    expect(parseConsentCookie(jar.value)).toMatchObject({ stats: true, map: false, pending: true });
+    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: true, map: false, source: 'settings' });
+    expect(result.current.needsChoice).toBe(false);
+    expect(result.current.announcement).toBe('Your cookie choice is saved.');
+  });
+});
+
+describe('manilaBusinessDay with a formatter that gives no parts', () => {
+  it('returns separators only instead of throwing', () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([]);
+    expect(manilaBusinessDay(new Date('2026-11-17T00:00:00Z'))).toBe('--');
   });
 });
 
@@ -395,5 +516,31 @@ describe('the settings window state', () => {
     expect(result.current.settingsOpen).toBe(false);
     expect(opener).toHaveFocus();
     opener.remove();
+  });
+
+  it('closes without error when the control that opened it has left the page', () => {
+    setConsent({ cookie: null });
+    const opener = document.createElement('button');
+    document.body.append(opener);
+    const { result } = renderHook(() => useConsent());
+    act(() => {
+      result.current.openSettings(opener);
+    });
+    opener.remove();
+
+    act(() => {
+      result.current.closeSettings();
+    });
+    expect(result.current.settingsOpen).toBe(false);
+    expect(opener).not.toHaveFocus();
+  });
+
+  it('closes without error when it was never opened from a control', () => {
+    setConsent({ cookie: null });
+    const { result } = renderHook(() => useConsent());
+    act(() => {
+      result.current.closeSettings();
+    });
+    expect(result.current.settingsOpen).toBe(false);
   });
 });

@@ -187,6 +187,21 @@ describe('isCurrentChoice (D-22, D-43, ANL-07)', () => {
     expect(isCurrentChoice(cookie('9999-12-30'), { currentVersion: '1.0', today: '9999-12-30' })).toBe(true);
   });
 
+  it('ends a choice made on 29 February on 28 February a year later', () => {
+    const decided = cookie('2024-02-29');
+    expect(isCurrentChoice(decided, { currentVersion: '1.0', today: '2025-02-27' })).toBe(true);
+    expect(isCurrentChoice(decided, { currentVersion: '1.0', today: '2025-02-28' })).toBe(false);
+  });
+
+  it('counts February as 28 days in a century year that is not a leap year, and as a leap year in a 400 year', () => {
+    const century = cookie('2099-02-28');
+    expect(isCurrentChoice(century, { currentVersion: '1.0', today: '2100-02-27' })).toBe(true);
+    expect(isCurrentChoice(century, { currentVersion: '1.0', today: '2100-02-28' })).toBe(false);
+    const fourHundred = cookie('1999-02-28');
+    expect(isCurrentChoice(fourHundred, { currentVersion: '1.0', today: '2000-02-27' })).toBe(true);
+    expect(isCurrentChoice(fourHundred, { currentVersion: '1.0', today: '2000-02-28' })).toBe(false);
+  });
+
   it('judges a pending choice by the same rule', () => {
     expect(isCurrentChoice({ ...cookie('2026-11-16'), pending: true }, options)).toBe(false);
     expect(isCurrentChoice({ ...cookie('2026-11-14'), pending: true }, options)).toBe(true);

@@ -5,6 +5,7 @@ import { MemoryRouter, createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
+import { inStrictMode } from '@/test/strictMode';
 import { LegalPage } from '../components/LegalPage';
 import { LEGAL_PAGES } from '../legalPages';
 
@@ -97,6 +98,16 @@ describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout
   it('sets the document title the server sends', async () => {
     await renderLegal(page.path, page.h1);
     expect(document.title).toBe(`${page.crumb} · CSPS`);
+  });
+
+  it('shows the same head under StrictMode, whether the render is cached or fresh', async () => {
+    await inStrictMode(async () => {
+      await renderLegal(page.path, page.h1);
+      expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+      expect(document.title).toBe(`${page.crumb} · CSPS`);
+    });
   });
 });
 
