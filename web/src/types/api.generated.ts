@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/analytics/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logs one decision and saves the choice cookie. */
+        post: operations["RecordConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-log": {
         parameters: {
             query?: never;
@@ -3182,6 +3199,21 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description The state after a decision, as the server stored it (ANL-07). The browser shows this, not what it sent. */
+        ConsentDecisionResponse: {
+            /** @description The consent chain id. */
+            consentId: string;
+            /** @description The business day of the decision, as `yyyy-MM-dd`. */
+            decidedOn: string;
+            /** @description True when the browser sent the Global Privacy Control signal. */
+            gpc: boolean;
+            /** @description True when the map is allowed. */
+            map: boolean;
+            /** @description The policy version the decision was made under. */
+            policyVersion: string;
+            /** @description True or false when chosen, null when not chosen. */
+            stats: null | boolean;
+        };
         /**
          * @description The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is
          *     ignored: who recorded the expense and when come from the token and the clock (SEC-08).
@@ -5339,6 +5371,25 @@ export interface components {
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
         };
+        /**
+         * @description One cookie decision as the browser sends it (ANL-07). Stats is null for a map-only save (D-18). The browser never sends the GPC signal
+         *     in the body: the server reads the `Sec-GPC` header (D-20).
+         */
+        RecordConsentRequest: {
+            /** @description The consent chain id from the saved cookie, or null on a first decision. */
+            consentId?: null | string;
+            /**
+             * @description True when the visitor allowed the Google map.
+             * @default false
+             */
+            map: boolean;
+            /** @description The cookie policy version the visitor saw, like `1.0`. */
+            policyVersion?: null | string;
+            /** @description Where the choice was made: `bar`, `settings` or `map-link`. */
+            source?: null | string;
+            /** @description True or false when the visitor chose, null when not chosen. */
+            stats?: null | boolean;
+        };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
             /** @description The current password as typed. */
@@ -6137,6 +6188,69 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    RecordConsent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["RecordConsentRequest"];
+                "application/json": null | components["schemas"]["RecordConsentRequest"];
+                "text/json": null | components["schemas"]["RecordConsentRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentDecisionResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListAuditLog: {
         parameters: {
             query?: {

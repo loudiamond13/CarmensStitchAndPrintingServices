@@ -109,6 +109,8 @@ export default defineConfig({
       RateLimits__Auth__Refresh__PermitLimit: noThrottle,
       // The photo journeys of all projects upload from this one address too (30 per 10 minutes in production, IMG-02).
       RateLimits__Images__PermitLimit: noThrottle,
+      // The consent journeys of all projects press the cookie bar from this one address too (30 a minute in production, ANL-07).
+      RateLimits__Consent__PermitLimit: noThrottle,
     },
   },
 });

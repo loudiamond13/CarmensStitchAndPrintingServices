@@ -105,6 +105,44 @@ public sealed class SeoEndpointTests
         document.Descendants(ns + "lastmod").ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task TheGpcStatementSaysTheSiteHonorsTheSignalAsJson()
+    {
+        await using var factory = new ShellTestFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/.well-known/gpc.json", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBe("{\"gpc\":true,\"lastUpdate\":\"2026-11-15\"}");
+    }
+
+    [Fact]
+    public async Task TheGpcStatementHeadGetsTheHeadersWithNoBody()
+    {
+        await using var factory = new ShellTestFactory();
+        using var client = factory.CreateClient();
+        using var request = ApiRequests.Create(HttpMethod.Head, "/.well-known/gpc.json");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/json");
+        (await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheGpcStatementMustBeRevalidatedByCaches()
+    {
+        await using var factory = new ShellTestFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/.well-known/gpc.json", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.Headers.CacheControl.ShouldNotBeNull().NoCache.ShouldBeTrue();
+    }
+
     [Theory]
     [InlineData("/robots.txt")]
     [InlineData("/sitemap.xml")]

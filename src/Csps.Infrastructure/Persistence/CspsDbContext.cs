@@ -1,3 +1,4 @@
+using Csps.Domain.Analytics;
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Expenses;
@@ -101,6 +102,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The database lock rows: 67 standing locks and short-lived idempotency claims (D-50).</summary>
     public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
+
+    /// <summary>The cookie decisions kept as proof of consent: one row per decision, never edited, kept 13 months (ANL-07, D-05).</summary>
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
