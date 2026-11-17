@@ -986,6 +986,47 @@
         ],
         "type": "object"
       },
+      "ConsentDecisionResponse": {
+        "description": "The state after a decision, as the server stored it (ANL-07). The browser shows this, not what it sent.",
+        "properties": {
+          "consentId": {
+            "description": "The consent chain id.",
+            "type": "string"
+          },
+          "decidedOn": {
+            "description": "The business day of the decision, as `yyyy-MM-dd`.",
+            "type": "string"
+          },
+          "gpc": {
+            "description": "True when the browser sent the Global Privacy Control signal.",
+            "type": "boolean"
+          },
+          "map": {
+            "description": "True when the map is allowed.",
+            "type": "boolean"
+          },
+          "policyVersion": {
+            "description": "The policy version the decision was made under.",
+            "type": "string"
+          },
+          "stats": {
+            "description": "True or false when chosen, null when not chosen.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "required": [
+          "consentId",
+          "policyVersion",
+          "stats",
+          "map",
+          "gpc",
+          "decidedOn"
+        ],
+        "type": "object"
+      },
       "CreateCompanyExpenseRequest": {
         "description": "The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is\nignored: who recorded the expense and when come from the token and the clock (SEC-08).",
         "properties": {
@@ -6349,6 +6390,45 @@
         ],
         "type": "object"
       },
+      "RecordConsentRequest": {
+        "description": "One cookie decision as the browser sends it (ANL-07). Stats is null for a map-only save (D-18). The browser never sends the GPC signal\nin the body: the server reads the `Sec-GPC` header (D-20).",
+        "properties": {
+          "consentId": {
+            "description": "The consent chain id from the saved cookie, or null on a first decision.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "map": {
+            "default": false,
+            "description": "True when the visitor allowed the Google map.",
+            "type": "boolean"
+          },
+          "policyVersion": {
+            "description": "The cookie policy version the visitor saw, like `1.0`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "description": "Where the choice was made: `bar`, `settings` or `map-link`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stats": {
+            "description": "True or false when the visitor chose, null when not chosen.",
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "RequestEmailChangeRequest": {
         "description": "The My Profile change-email form: the new sign-in email and the current password (PROF-02).",
         "properties": {
@@ -8346,6 +8426,98 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/analytics/consent": {
+      "post": {
+        "operationId": "RecordConsent",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecordConsentRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecordConsentRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RecordConsentRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentDecisionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Logs one decision and saves the choice cookie.",
+        "tags": [
+          "Consent"
+        ]
+      }
+    },
     "/api/v1/audit-log": {
       "get": {
         "operationId": "ListAuditLog",
@@ -21490,6 +21662,9 @@
     },
     {
       "name": "CompanyExpenses"
+    },
+    {
+      "name": "Consent"
     },
     {
       "name": "Dashboard"

@@ -47,6 +47,52 @@ public sealed class ConsentRecord
     /// <param name="source">Where the decision was made.</param>
     /// <param name="decidedAtUtc">The server time of the decision.</param>
     /// <returns>The new, unsaved record.</returns>
-    public static ConsentRecord Decide(Guid consentId, string policyVersion, bool? stats, bool map, bool gpc, ConsentSource source, DateTimeOffset decidedAtUtc) =>
-        new();
+    /// <exception cref="ArgumentException">The chain id is empty, the policy version is not digits, a dot and digits within the column length, or stats are on under GPC.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">The source is not a named one.</exception>
+    public static ConsentRecord Decide(Guid consentId, string policyVersion, bool? stats, bool map, bool gpc, ConsentSource source, DateTimeOffset decidedAtUtc)
+    {
+        if (consentId == Guid.Empty)
+        {
+            throw new ArgumentException("The consent chain id is empty.", nameof(consentId));
+        }
+
+        if (!IsVersion(policyVersion))
+        {
+            throw new ArgumentException("The policy version must be digits, a dot and digits, like 1.0.", nameof(policyVersion));
+        }
+
+        if (gpc && stats == true)
+        {
+            throw new ArgumentException("Visitor stats cannot be on when the browser sent the GPC signal.", nameof(stats));
+        }
+
+        if (!Enum.IsDefined(source))
+        {
+            throw new ArgumentOutOfRangeException(nameof(source), source, "Unknown consent source.");
+        }
+
+        return new ConsentRecord
+        {
+            Id = Guid.CreateVersion7(decidedAtUtc),
+            ConsentId = consentId,
+            PolicyVersion = policyVersion,
+            Stats = stats,
+            Map = map,
+            Gpc = gpc,
+            Source = source,
+            DecidedAtUtc = decidedAtUtc,
+        };
+    }
+
+    // "digits.digits" within the column length, like "1.0".
+    private static bool IsVersion(string? text)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length > PolicyVersionMaxLength)
+        {
+            return false;
+        }
+
+        var dot = text.IndexOf('.', StringComparison.Ordinal);
+        return dot > 0 && dot < text.Length - 1 && text.Where((_, index) => index != dot).All(char.IsAsciiDigit);
+    }
 }

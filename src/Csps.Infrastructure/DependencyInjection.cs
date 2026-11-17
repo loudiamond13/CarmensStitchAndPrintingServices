@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Infrastructure.Analytics;
 using Csps.Infrastructure.Auditing;
 using Csps.Infrastructure.Content;
 using Csps.Infrastructure.Dashboard;
@@ -98,6 +99,7 @@ public static class DependencyInjection
         services.AddCspsEmail(configuration, environment);
         services.AddCspsImages(configuration, environment);
         services.AddCspsMaintenance();
+        services.AddCspsAnalytics();
         services.AddCspsPasswordChecks(environment);
 
         // The key ring in the database, encrypted with the DataProtection certificate (SEC-04, D-15).

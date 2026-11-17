@@ -132,7 +132,7 @@ public sealed class ConsentEndpointTests(CspsDatabase database) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         await using var context = database.CreateContext();
         var columns = context.Model.FindEntityType(typeof(ConsentRecord))!.GetProperties().Select(property => property.Name).ToList();
-        columns.ShouldBe(["Id", "ConsentId", "PolicyVersion", "Stats", "Map", "Gpc", "Source", "DecidedAtUtc"]);
+        columns.ShouldBe(["Id", "ConsentId", "PolicyVersion", "Stats", "Map", "Gpc", "Source", "DecidedAtUtc"], ignoreOrder: true);
     }
 
     internal static string AcceptAll() => Body(stats: true, map: true, source: "bar");

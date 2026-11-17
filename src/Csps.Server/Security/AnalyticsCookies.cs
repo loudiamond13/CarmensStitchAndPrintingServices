@@ -14,4 +14,27 @@ public static class AnalyticsCookies
 
     /// <summary>The path the visitor id cookie is sent to.</summary>
     public const string CookiePath = "/api/v1/analytics";
+
+    /// <summary>
+    /// Sets the consent cookie from the server so Safari keeps it for the full 12 months: Path=/, Secure, SameSite=Lax and not HttpOnly,
+    /// because the page reads it to decide what to load.
+    /// </summary>
+    /// <param name="response">The response.</param>
+    /// <param name="value">The cookie value, made by the consent cookie codec.</param>
+    /// <param name="expires">When the cookie expires.</param>
+    public static void SetConsent(HttpResponse response, string value, DateTimeOffset expires)
+    {
+        ArgumentNullException.ThrowIfNull(response);
+        ArgumentException.ThrowIfNullOrEmpty(value);
+
+        response.Cookies.Append(ConsentCookieName, value, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+            Path = "/",
+            Expires = expires,
+            IsEssential = true,
+        });
+    }
 }
