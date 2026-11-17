@@ -36,6 +36,8 @@ export interface RequestConfig {
    * and no onUnauthorized. For sign-in, 2FA verify and the refresh call itself (LIB-WR-03).
    */
   readonly skipAuthRefresh?: boolean | undefined;
+  /** Lets the request finish after the page is hidden or closed (fetch `keepalive`). Off unless set. */
+  readonly keepalive?: boolean | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;
@@ -255,6 +257,7 @@ interface Outgoing {
   readonly headers: Headers;
   readonly body: string | FormData | undefined;
   readonly signal: AbortSignal;
+  readonly keepalive: boolean;
 }
 
 function abortError(): DOMException {
@@ -284,6 +287,7 @@ async function sendWithFetch(fetchImpl: FetchFunction, outgoing: Outgoing): Prom
     body: outgoing.body ?? null,
     signal: outgoing.signal,
     credentials: 'same-origin',
+    ...(outgoing.keepalive ? { keepalive: true } : {}),
   });
   return {
     status: response.status,
@@ -439,7 +443,8 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
       timeout.abort();
     }, requestConfig.timeoutMs ?? timeoutMs);
     const signal = AbortSignal.any(caller === undefined ? [timeout.signal] : [caller, timeout.signal]);
-    const outgoing: Outgoing = { url, method: prepared.method, headers: prepared.headers, body, signal };
+    const keepalive = requestConfig.keepalive === true;
+    const outgoing: Outgoing = { url, method: prepared.method, headers: prepared.headers, body, signal, keepalive };
     const { onUploadProgress } = requestConfig;
     try {
       const raw =

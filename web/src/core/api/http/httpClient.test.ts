@@ -35,6 +35,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('createHttpClient: keepalive', () => {
+  it('passes keepalive: true to fetch only when the request sets it', async () => {
+    const fake = createFakeFetch([{ status: 204 }, { status: 204 }, { status: 204 }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    await client.post('/analytics/page-views', { path: '/' }, { keepalive: true });
+    await client.post('/analytics/page-views', { path: '/' });
+    await client.post('/analytics/page-views', { path: '/' }, { keepalive: false });
+
+    expect(fake.calls[0]?.init.keepalive).toBe(true);
+    expect(fake.calls[1]?.init).not.toHaveProperty('keepalive');
+    expect(fake.calls[2]?.init).not.toHaveProperty('keepalive');
+  });
+});
+
 describe('createHttpClient: GET round trip', () => {
   it('GETs baseURL + path with same-origin credentials and Accept JSON, and resolves to the parsed body', async () => {
     const fake = createFakeFetch([{ status: 200, body: settings }]);
