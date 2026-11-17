@@ -47,7 +47,6 @@ describe('parseConsentCookie and formatConsentCookie', () => {
   it.each(cases.valid.map((c) => c.value))('formats the shared valid case %s back to the same text', (value) => {
     const cookie = parseConsentCookie(value);
 
-    expect(cookie).not.toBeNull();
-    expect(formatConsentCookie(cookie as NonNullable<typeof cookie>)).toBe(value);
+    expect(cookie === null ? null : formatConsentCookie(cookie)).toBe(value);
   });
 });

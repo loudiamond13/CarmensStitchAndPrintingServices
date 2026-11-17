@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace Csps.Domain.Analytics;
 
@@ -24,11 +25,36 @@ public sealed record ConsentCookie(Guid ConsentId, string PolicyVersion, bool? S
     public static bool TryParse(string? value, [NotNullWhen(true)] out ConsentCookie? cookie)
     {
         cookie = null;
-        return false;
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        var parts = value.Split('_');
+        if (parts.Length != 6 || parts[0] != "1" || !Guid.TryParseExact(parts[1], "N", out var consentId))
+        {
+            return false;
+        }
+
+        var stats = parts[3] == "1";
+        var map = parts[4] == "1";
+        if (!DateOnly.TryParseExact(parts[5], "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var decidedOn))
+        {
+            return false;
+        }
+
+        cookie = new ConsentCookie(consentId, parts[2], stats, map, decidedOn, Pending: false);
+        return true;
     }
 
     /// <summary>The cookie value for this choice.</summary>
-    public string Format() => Pending ? "p" : string.Empty;
+    public string Format()
+    {
+        var stats = Stats == true ? "1" : "0";
+        var map = Map ? "1" : "0";
+        var day = DecidedOn.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        return $"1_{ConsentId:N}_{PolicyVersion}_{stats}_{map}_{day}";
+    }
 
     /// <summary>True when the visitor allowed stats, under the current policy version, less than 12 months ago.</summary>
     public bool AllowsStats(string currentVersion, DateOnly today) => Pending && currentVersion.Length < 0 && today == DecidedOn;

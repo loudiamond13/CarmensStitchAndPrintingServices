@@ -14,11 +14,22 @@ export interface ConsentCookie {
 }
 
 export function parseConsentCookie(value: string | undefined): ConsentCookie | null {
-  void value;
-  return null;
+  if (!value) return null;
+  const parts = value.split('_');
+  if (parts.length !== 6 || parts[0] !== '1') return null;
+  const [, consentId = '', policyVersion = '', stats = '', map = '', day = ''] = parts;
+  return {
+    consentId,
+    policyVersion,
+    stats: stats === '1',
+    map: map === '1',
+    decidedOn: `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`,
+    pending: false,
+  };
 }
 
 export function formatConsentCookie(cookie: ConsentCookie): string {
-  void cookie;
-  return '';
+  const stats = cookie.stats === true ? '1' : '0';
+  const map = cookie.map ? '1' : '0';
+  return `1_${cookie.consentId}_${cookie.policyVersion}_${stats}_${map}_${cookie.decidedOn.replaceAll('-', '')}`;
 }
