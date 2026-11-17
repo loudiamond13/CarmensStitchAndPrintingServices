@@ -1,8 +1,10 @@
 // SPEC-GAP: LegalSection (UI-SPEC L1 item 2; LEGAL-05, D-10): one section of a legal text, with `aria-labelledby` its h2 and each
-// block kind of legalContent.ts. Text renders as React text only, never raw HTML (T-12-16); an external link always opens in a new
+// block kind of legalContent.ts (the cookie-settings block is the button that opens Cookie Settings). Text renders as React text only, never raw HTML (T-12-16); an external link always opens in a new
 // tab with rel="noopener noreferrer" and the hidden suffix (T-12-17). Deep imports only (PERF-01).
+import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { useConsent } from '../hooks/useConsent';
 import type { LegalBlock, LegalInline, LegalSectionData } from '../legalContent';
 import { LEGAL_COPY } from '../legalCopy';
 import { LegalFacts } from './LegalFacts';
@@ -17,6 +19,8 @@ import {
   sectionHeadingClasses,
   termListClasses,
 } from './legal.recipe';
+
+const COOKIE_SETTINGS_LABEL = 'Change Cookie Settings';
 
 /** The id of a section's h2, the name of the section. */
 export function sectionHeadingId(id: string): string {
@@ -91,7 +95,27 @@ function Block({ block }: { block: LegalBlock }) {
       return <h3 className={labelClasses}>{block.text}</h3>;
     case 'facts':
       return <LegalFacts show={block.show} />;
+    case 'cookie-settings':
+      return <CookieSettingsButton />;
   }
+}
+
+/** The button that opens the Cookie Settings window from the page; the window gives focus back to it on close. */
+function CookieSettingsButton() {
+  const { openSettings, settingsLoading } = useConsent();
+  return (
+    <div>
+      <Button
+        variant="secondary"
+        pending={settingsLoading}
+        onClick={(event) => {
+          openSettings(event.currentTarget);
+        }}
+      >
+        {COOKIE_SETTINGS_LABEL}
+      </Button>
+    </div>
+  );
 }
 
 export interface LegalSectionProps {

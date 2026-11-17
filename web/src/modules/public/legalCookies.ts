@@ -122,5 +122,129 @@ export const COOKIES_TEXT: LegalText = {
         },
       ],
     },
+    {
+      id: 'your-choices',
+      heading: 'Your choices',
+      blocks: [
+        {
+          kind: 'p',
+          parts: [
+            'The first time you visit, we ask which optional cookies you allow. You can change your choice at any time.',
+          ],
+        },
+        {
+          kind: 'ul',
+          items: [
+            ['Visitor stats: allow or refuse. If you refuse, we only count the page and the day.'],
+            ['Google map: allow or refuse. If you refuse, the map loads only when you tap Show Map.'],
+            ['Necessary cookies stay on, because the site needs them.'],
+          ],
+        },
+        { kind: 'p', parts: ['We ask again after 12 months, or sooner if this policy changes.'] },
+        {
+          kind: 'p',
+          parts: [
+            'You can also block or delete cookies in your browser settings. If you block the necessary cookies, we cannot remember your choice, and staff cannot sign in.',
+          ],
+        },
+        {
+          kind: 'p',
+          parts: [
+            'To change your choice now, press the button below, or use Cookie Settings at the bottom of any page.',
+          ],
+        },
+        { kind: 'cookie-settings' },
+      ],
+    },
+    {
+      id: 'global-privacy-control',
+      heading: 'Global Privacy Control',
+      blocks: [
+        {
+          kind: 'p',
+          parts: ['Global Privacy Control (GPC) is a browser setting that tells websites not to track you.'],
+        },
+        {
+          kind: 'p',
+          parts: [
+            'If your browser sends GPC, we read it as a no to visitor stats. We show no cookie bar. You can still allow the Google map in Cookie Settings.',
+          ],
+        },
+        {
+          kind: 'p',
+          parts: [
+            'We say that we honor GPC in ',
+            { text: 'our GPC statement', href: '/.well-known/gpc.json', external: true },
+            '.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'clear-your-cookies-and-data',
+      heading: 'Clear your cookies and data',
+      blocks: [
+        {
+          kind: 'p',
+          parts: ['Cookie Settings has a Clear My Cookies & Data button. When you press it and confirm:'],
+        },
+        {
+          kind: 'ul',
+          items: [
+            [
+              "It deletes this site's cookies and saved settings in this browser, and the visit records linked to them on our server.",
+            ],
+            ['It turns visitor stats and the Google map off, and the cookie bar does not ask again.'],
+            ["It also resets a staff member's admin theme and orders view in that browser."],
+          ],
+        },
+        {
+          kind: 'p',
+          parts: ['It leaves the daily totals. They have no visitor id, so they cannot be linked to you.'],
+        },
+        {
+          kind: 'p',
+          parts: ["It cannot clear Google's own cookies. To remove those, use your browser settings."],
+        },
+        { kind: 'p', parts: ['If you never press it, we keep these:'] },
+        {
+          kind: 'dl',
+          items: [
+            {
+              term: 'Visit records linked to a visitor id',
+              parts: ['Kept for about 13 months; removed at the next monthly cleanup.'],
+            },
+            {
+              term: 'Your cookie choice',
+              parts: ['Kept for about 13 months; removed at the next monthly cleanup.'],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'changes-to-this-policy',
+      heading: 'Changes to this policy',
+      blocks: [
+        {
+          kind: 'p',
+          parts: [
+            'When we change this policy, we publish a new version with a reviewed release. Every visitor is then asked for their choice again.',
+          ],
+        },
+        {
+          kind: 'p',
+          parts: ['The version and the date of the last update are shown at the top of this page.'],
+        },
+      ],
+    },
+    {
+      id: 'contact-us',
+      heading: 'Contact us',
+      blocks: [
+        { kind: 'p', parts: ['If you have a question about cookies, contact us:'] },
+        { kind: 'facts', show: ['contact'] },
+      ],
+    },
   ],
 };
