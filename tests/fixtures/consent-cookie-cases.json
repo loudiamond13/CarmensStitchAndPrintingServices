@@ -1,5 +1,5 @@
 {
-  "note": "Cases for the consent cookie codec and the re-ask rule (ANL-01, ANL-07, D-18, D-20, D-22). Read by the .NET domain tests and by the web Vitest suite. The consent ids are made-up hex. A 100 character value is valid and a 101 character value is not.",
+  "note": "Cases for the consent cookie codec and the re-ask rule (ANL-01, ANL-07, D-18, D-20, D-22, D-43). Read by the .NET domain tests and by the web Vitest suite. The consent ids are made-up hex. A 100 character value is valid and a 101 character value is not. D-43: a decision day later than today is no choice, so the visitor is asked again and stats stay off, unless the browser sends GPC (D-20).",
   "cookieName": "__Host-csps_consent",
   "valid": [
     {
@@ -192,6 +192,48 @@
       "currentVersion": "1.0",
       "today": "2026-11-15",
       "gpc": false,
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261116",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "gpc": false,
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_0_0_20261116",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "gpc": false,
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261116_p",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "gpc": false,
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20270101",
+      "currentVersion": "1.0",
+      "today": "2026-12-31",
+      "gpc": false,
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_99991230",
+      "currentVersion": "1.0",
+      "today": "9999-12-30",
+      "gpc": false,
+      "expected": false
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261116",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "gpc": true,
       "expected": false
     },
     {
@@ -295,6 +337,36 @@
       "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_99991231",
       "currentVersion": "1.0",
       "today": "2026-11-15",
+      "expected": false
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261116",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "expected": false
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261116_p",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "expected": false
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20270101",
+      "currentVersion": "1.0",
+      "today": "2026-12-31",
+      "expected": false
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_20261115",
+      "currentVersion": "1.0",
+      "today": "2026-11-15",
+      "expected": true
+    },
+    {
+      "value": "1_0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51_1.0_1_1_99991230",
+      "currentVersion": "1.0",
+      "today": "9999-12-30",
       "expected": true
     }
   ]
