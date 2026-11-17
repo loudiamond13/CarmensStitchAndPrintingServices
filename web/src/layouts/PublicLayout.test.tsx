@@ -6,6 +6,7 @@ import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { consentCookie, consentProbe, FAKE_CONSENT_ID, setConsent } from '@/test/consentFixtures';
+import { pageViewProbe } from '@/test/msw';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
@@ -532,5 +533,18 @@ describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => 
 
     const { container } = await renderAt('/products');
     expect(container.firstElementChild).toHaveAttribute('data-fill', 'viewport');
+  });
+});
+
+describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
+  it('sends one view with the path only for /gallery?q=jersey#top when a choice is saved', async () => {
+    const probe = pageViewProbe();
+
+    await renderAt('/gallery?q=jersey#top');
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    expect(probe.requests[0]?.body).toEqual({ path: '/gallery' });
   });
 });

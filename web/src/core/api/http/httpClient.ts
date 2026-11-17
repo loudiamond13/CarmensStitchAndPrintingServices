@@ -36,6 +36,8 @@ export interface RequestConfig {
    * and no onUnauthorized. For sign-in, 2FA verify and the refresh call itself (LIB-WR-03).
    */
   readonly skipAuthRefresh?: boolean | undefined;
+  /** Lets the request finish after the page is hidden or closed (fetch `keepalive`). Off unless set. */
+  readonly keepalive?: boolean | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;

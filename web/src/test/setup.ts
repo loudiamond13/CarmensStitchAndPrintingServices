@@ -4,7 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
 import { consentRulesLoaded, setConsent } from './consentFixtures';
-import { server } from './msw';
+import { pageViewHandler, server } from './msw';
 import {
   demoGallery,
   demoHome,
@@ -70,6 +70,7 @@ if (typeof window !== 'undefined') {
       homeHandler(demoHome),
       galleryHandler(demoGallery),
       privacyContactHandler(),
+      pageViewHandler(),
     );
   });
   // Every test starts with a decided Reject All in an in-memory jar, so no page test sees the cookie bar; a test for a
