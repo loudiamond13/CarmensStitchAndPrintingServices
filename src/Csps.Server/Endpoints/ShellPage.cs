@@ -3,7 +3,6 @@ using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Content;
 using Csps.Application.Ports;
-using Csps.Domain.Content;
 using Csps.Infrastructure.Email;
 using Csps.Server.Http;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -126,6 +125,7 @@ internal sealed partial class ShellRenderer(
     IOptions<AppLinksOptions> links,
     IWebHostEnvironment environment,
     IPublicContentReader reader,
+    ILegalPageCatalog legalPages,
     HybridCache cache,
     ILogger<ShellRenderer> logger)
 {
@@ -224,6 +224,9 @@ internal sealed partial class ShellRenderer(
 
         var origin = links.Value.PublicBaseUrl.TrimEnd('/');
 
+        // A legal page the owner has not approved asks search engines to skip it (LEGAL-05, T-12-10).
+        var noIndex = match.Kind == PublicRouteKind.Page && legalPages.IsDraft(match.CanonicalPath!);
+
         // The Products page also carries the product lines and the Home page the Home data. When they cannot be read, the page keeps the
         // site data and the head is not cached, so the next visit tries again.
         string? linesJson = null;
@@ -235,7 +238,7 @@ internal sealed partial class ShellRenderer(
             var lines = await ReadLinesAsync(context).ConfigureAwait(false);
             if (lines is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage, noIndex);
             }
 
             linesJson = lines.Json.Json;
@@ -247,7 +250,7 @@ internal sealed partial class ShellRenderer(
             var gallery = await ReadGalleryAsync(context).ConfigureAwait(false);
             if (gallery is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage, noIndex);
             }
 
             shareImage = AbsoluteAddress(origin, gallery.ShareImageUrl) ?? siteImage;
@@ -257,7 +260,7 @@ internal sealed partial class ShellRenderer(
             var home = await ReadHomeAsync(context).ConfigureAwait(false);
             if (home is null)
             {
-                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage);
+                return ShapedHead(snapshot, match, origin, linesJson: null, shareImage: siteImage, homeJson: null, siteImage, noIndex);
             }
 
             homeJson = home.Json.Json;
@@ -272,8 +275,8 @@ internal sealed partial class ShellRenderer(
         var key = $"csps:shell:{(match.Kind == PublicRouteKind.Page ? match.Page!.Value.ToString().ToLowerInvariant() : NotFoundKey)}:v1";
         return await cache.GetOrCreateAsync(
             key,
-            (snapshot, match, origin, linesJson, shareImage, homeJson, siteImage),
-            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage, state.homeJson, state.siteImage)),
+            (snapshot, match, origin, linesJson, shareImage, homeJson, siteImage, noIndex),
+            static (state, _) => ValueTask.FromResult(ShapedHead(state.snapshot, state.match, state.origin, state.linesJson, state.shareImage, state.homeJson, state.siteImage, state.noIndex)),
             HeadCacheOptions,
             Tags,
             context.RequestAborted).ConfigureAwait(false);
@@ -283,7 +286,7 @@ internal sealed partial class ShellRenderer(
     private static string? AbsoluteAddress(string origin, string? address) =>
         address is { Length: > 0 } && address[0] == '/' ? origin + address : address;
 
-    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage, string? homeJson, string? siteImage)
+    private static string ShapedHead(PublicSiteSnapshot snapshot, PublicRouteMatch match, string origin, string? linesJson, string? shareImage, string? homeJson, string? siteImage, bool noIndex)
     {
         var boot = PublicHeadWriter.BootData(snapshot.Json.Json, linesJson, homeJson);
         if (match.Kind == PublicRouteKind.NotFound)
@@ -301,7 +304,7 @@ internal sealed partial class ShellRenderer(
                 page.Description,
                 origin + match.CanonicalPath,
                 site.BusinessName,
-                NoIndex: LegalPages.ByPath(match.CanonicalPath!) is { Approved: false },
+                NoIndex: noIndex,
                 JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin, siteImage),
                 BootJson: boot,
                 ShareImageUrl: shareImage));

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Security;
 using System.Text;
 using Csps.Application.Ports;
-using Csps.Domain.Content;
 using Csps.Infrastructure.Email;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -58,13 +57,14 @@ public static partial class SeoEndpoints
 
     private static async Task<string> SitemapAsync(HttpContext context, string origin)
     {
+        var legalPages = context.RequestServices.GetRequiredService<ILegalPageCatalog>();
         var lastModified = await LastModifiedAsync(context).ConfigureAwait(false);
         var xml = new StringBuilder()
             .Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
             .Append("<urlset xmlns=\"").Append(SitemapNamespace).Append("\">\n");
         foreach (var pagePath in PublicRouteTable.PagePaths)
         {
-            if (LegalPages.ByPath(pagePath) is { Approved: false })
+            if (legalPages.IsDraft(pagePath))
             {
                 continue;
             }

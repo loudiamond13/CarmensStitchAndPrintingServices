@@ -38,6 +38,7 @@ public static class SpaRegistration
         services.Configure<BrotliCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
         services.Configure<GzipCompressionProviderOptions>(static options => options.Level = CompressionLevel.Optimal);
 
+        services.AddSingleton<ILegalPageCatalog, LegalPageCatalog>();
         services.AddSingleton<ShellTemplate>();
         services.AddSingleton<ShellRenderer>();
 
