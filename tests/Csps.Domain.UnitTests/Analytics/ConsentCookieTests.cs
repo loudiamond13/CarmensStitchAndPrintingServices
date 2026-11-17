@@ -48,6 +48,21 @@ public sealed class ConsentCookieTests
         }
     }
 
+    /// <summary>Every allowsStats case in the shared file.</summary>
+    public static TheoryData<string, string, DateOnly, bool> AllowsStatsCases
+    {
+        get
+        {
+            var data = new TheoryData<string, string, DateOnly, bool>();
+            foreach (var c in Cases.Value.AllowsStats)
+            {
+                data.Add(c.Value, c.CurrentVersion, c.Today, c.Expected);
+            }
+
+            return data;
+        }
+    }
+
     [Fact]
     public void TheCookieNameIsThePinnedOneOfTheSharedFile()
     {
@@ -109,6 +124,32 @@ public sealed class ConsentCookieTests
         Cases.Value.Valid.ShouldContain(c => c.Pending);
     }
 
+    [Theory]
+    [MemberData(nameof(AllowsStatsCases))]
+    public void AllowsStatsFollowsTheSharedCase(string value, string currentVersion, DateOnly today, bool expected)
+    {
+        ConsentCookie.TryParse(value, out var cookie).ShouldBeTrue();
+
+        cookie.ShouldNotBeNull();
+        cookie.AllowsStats(currentVersion, today).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void TheLifetimeIsTwelveMonths()
+    {
+        ConsentCookie.LifetimeMonths.ShouldBe(12);
+    }
+
+    [Fact]
+    public void TheSharedFileHoldsTheReAskCasesTheWebSideReads()
+    {
+        Cases.Value.NeedsChoice.ShouldContain(c => c.Gpc);
+        Cases.Value.NeedsChoice.ShouldContain(c => c.Value == null);
+        Cases.Value.NeedsChoice.ShouldContain(c => c.Today == new DateOnly(2026, 11, 14) && !c.Expected);
+        Cases.Value.AllowsStats.ShouldContain(c => c.Expected);
+        Cases.Value.AllowsStats.ShouldContain(c => !c.Expected);
+    }
+
     private static CaseFile Load()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "consent-cookie-cases.json");
@@ -116,7 +157,17 @@ public sealed class ConsentCookieTests
             ?? throw new InvalidOperationException("The consent cookie case file is empty.");
     }
 
-    private sealed record CaseFile(string Note, string CookieName, List<ValidCase> Valid, List<string> Invalid);
+    private sealed record CaseFile(
+        string Note,
+        string CookieName,
+        List<ValidCase> Valid,
+        List<string> Invalid,
+        List<NeedsChoiceCase> NeedsChoice,
+        List<AllowsStatsCase> AllowsStats);
+
+    private sealed record NeedsChoiceCase(string? Value, string CurrentVersion, DateOnly Today, bool Gpc, bool Expected);
+
+    private sealed record AllowsStatsCase(string Value, string CurrentVersion, DateOnly Today, bool Expected);
 
     private sealed record ValidCase(
         string Value,

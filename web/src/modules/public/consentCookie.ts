@@ -58,3 +58,10 @@ export function readConsentCookie(documentCookie: string): string | undefined {
   }
   return undefined;
 }
+
+export function needsChoice(
+  cookie: ConsentCookie | null,
+  options: { currentVersion: string; today: string; gpc: boolean },
+): boolean {
+  return !options.gpc && cookie === null;
+}

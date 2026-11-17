@@ -2,7 +2,13 @@
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CONSENT_COOKIE_NAME, formatConsentCookie, parseConsentCookie, readConsentCookie } from './consentCookie';
+import {
+  CONSENT_COOKIE_NAME,
+  formatConsentCookie,
+  needsChoice,
+  parseConsentCookie,
+  readConsentCookie,
+} from './consentCookie';
 
 // The cookie codec (ANL-07). The cases are the file the .NET tests read too (tests/fixtures/consent-cookie-cases.json).
 
@@ -16,10 +22,19 @@ interface ValidCase {
   pending: boolean;
 }
 
+interface NeedsChoiceCase {
+  value: string | null;
+  currentVersion: string;
+  today: string;
+  gpc: boolean;
+  expected: boolean;
+}
+
 interface CookieCases {
   cookieName: string;
   valid: ValidCase[];
   invalid: string[];
+  needsChoice: NeedsChoiceCase[];
 }
 
 const cases = JSON.parse(
@@ -93,5 +108,30 @@ describe('readConsentCookie', () => {
   it('does not match a cookie whose name only ends or starts with the name', () => {
     expect(readConsentCookie(`x${CONSENT_COOKIE_NAME}=${value}`)).toBeUndefined();
     expect(readConsentCookie(`${CONSENT_COOKIE_NAME}_x=${value}`)).toBeUndefined();
+  });
+});
+
+describe('needsChoice', () => {
+  it.each(cases.needsChoice.map((c) => [`${String(c.value)} on ${c.today} (gpc ${String(c.gpc)})`, c] as const))(
+    'follows the shared case %s',
+    (_label, c) => {
+      const cookie = parseConsentCookie(c.value ?? undefined);
+
+      expect(needsChoice(cookie, { currentVersion: c.currentVersion, today: c.today, gpc: c.gpc })).toBe(c.expected);
+    },
+  );
+
+  it('is true for no cookie', () => {
+    expect(needsChoice(null, { currentVersion: '1.0', today: '2026-11-15', gpc: false })).toBe(true);
+  });
+
+  it('is never true under GPC', () => {
+    expect(needsChoice(null, { currentVersion: '1.0', today: '2026-11-15', gpc: true })).toBe(false);
+  });
+
+  it('keeps the re-ask cases in the shared file', () => {
+    expect(cases.needsChoice.some((c) => c.gpc)).toBe(true);
+    expect(cases.needsChoice.some((c) => c.value === null)).toBe(true);
+    expect(cases.needsChoice.some((c) => c.today === '2026-11-14' && !c.expected)).toBe(true);
   });
 });
