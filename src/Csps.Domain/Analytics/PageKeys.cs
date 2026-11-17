@@ -1,35 +1,35 @@
 namespace Csps.Domain.Analytics;
 
-/// <summary>The page key stored for each public page.</summary>
+/// <summary>The page key stored for each public page. Only these names ever reach the page counts.</summary>
 public static class PageKeys
 {
     /// <summary>The longest page key.</summary>
     public const int MaxLength = 32;
 
     /// <summary>The home page.</summary>
-    public const string Home = "";
+    public const string Home = "home";
 
     /// <summary>The products page.</summary>
-    public const string Products = "";
+    public const string Products = "products";
 
     /// <summary>The gallery page.</summary>
-    public const string Gallery = "";
+    public const string Gallery = "gallery";
 
     /// <summary>The contact page.</summary>
-    public const string Contact = "";
+    public const string Contact = "contact";
 
     /// <summary>The privacy policy.</summary>
-    public const string Privacy = "";
+    public const string Privacy = "privacy";
 
     /// <summary>The cookie policy.</summary>
-    public const string Cookies = "";
+    public const string Cookies = "cookies";
 
     /// <summary>The terms page.</summary>
-    public const string Terms = "";
+    public const string Terms = "terms";
 
     /// <summary>The accessibility statement.</summary>
-    public const string Accessibility = "";
+    public const string Accessibility = "accessibility";
 
     /// <summary>A path that is not a known page.</summary>
-    public const string NotFound = "";
+    public const string NotFound = "not-found";
 }
