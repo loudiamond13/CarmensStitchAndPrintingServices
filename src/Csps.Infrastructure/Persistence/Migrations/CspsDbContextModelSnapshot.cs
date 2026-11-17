@@ -58,6 +58,24 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("ConsentRecords", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyPageCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PageKey")
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "PageKey");
+
+                    b.ToTable("DailyPageCounts", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")

@@ -39,8 +39,8 @@ public static class AuthCookies
     }
 
     /// <summary>
-    /// Sets the refresh cookie. With an expiry it lasts that long ("Keep me signed in"); without one it is a
-    /// browser-session cookie that goes when the browser closes (D-03).
+    /// Sets the refresh cookie and the staff marker beside it. With an expiry both last that long ("Keep me signed in"); without one they are
+    /// browser-session cookies that go when the browser closes (D-03).
     /// </summary>
     /// <param name="response">The response.</param>
     /// <param name="token">The raw refresh token. A secret.</param>
@@ -53,14 +53,18 @@ public static class AuthCookies
         var options = Options();
         options.Expires = expiresAt;
         response.Cookies.Append(RefreshCookieName, token, options);
+
+        // The staff marker lives and dies with the refresh cookie, so the stats can tell staff from visitors (D-21).
+        AnalyticsCookies.SetStaff(response, expiresAt);
     }
 
-    /// <summary>Clears the refresh cookie.</summary>
+    /// <summary>Clears the refresh cookie and the staff marker that goes with it.</summary>
     /// <param name="response">The response.</param>
     public static void ClearRefresh(HttpResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
         response.Cookies.Delete(RefreshCookieName, Options());
+        AnalyticsCookies.ClearStaff(response);
     }
 
     private static CookieOptions Options() => new()

@@ -144,6 +144,9 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
         // A visitor's cookie decision (ANL-07): anonymous, with the anti-CSRF header. With no body every caller meets the same 400 field errors.
         new("POST", "/api/v1/analytics/consent", "/api/v1/analytics/consent", Anonymous: 400, Admin: 400, Manager: 400),
+        // A page view beacon (ANL-06): anonymous, with the anti-CSRF header. With no body every caller meets the same 400 for the missing path;
+        // the body check comes before the staff check, so a signed-in caller is not told apart.
+        new("POST", "/api/v1/analytics/page-views", "/api/v1/analytics/page-views", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
         new("POST", "/api/v1/auth/two-factor/verify", "/api/v1/auth/two-factor/verify", Anonymous: 401, Admin: 401, Manager: 401),
         new("POST", "/api/v1/auth/two-factor/resend", "/api/v1/auth/two-factor/resend", Anonymous: 401, Admin: 401, Manager: 401),
@@ -394,6 +397,7 @@ public static class AuthorizationMatrix
             "HEAD /health",
             "POST /api/v1/auth/sign-in",
             "POST /api/v1/analytics/consent",
+            "POST /api/v1/analytics/page-views",
             "POST /api/v1/auth/two-factor/verify",
             "POST /api/v1/auth/two-factor/resend",
             "POST /api/v1/auth/refresh",

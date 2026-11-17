@@ -4924,6 +4924,26 @@
         ],
         "type": "object"
       },
+      "PageViewRequest": {
+        "description": "One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`\nand never stores it as sent. The referrer host is the host name of `document.referrer`, sent on the first view of a page load only.",
+        "properties": {
+          "path": {
+            "description": "The page path, starting with a slash.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "referrerHost": {
+            "description": "The referrer's host name, or null.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "PhoneEntry": {
         "description": "One phone number of the Business Info form.",
         "properties": {
@@ -8525,6 +8545,94 @@
         "summary": "Logs one decision and saves the choice cookie.",
         "tags": [
           "Consent"
+        ]
+      }
+    },
+    "/api/v1/analytics/page-views": {
+      "post": {
+        "operationId": "RecordPageView",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Counts one public page view for the business day, anonymously.",
+        "tags": [
+          "Analytics"
         ]
       }
     },
@@ -21664,6 +21772,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "Analytics"
+    },
     {
       "name": "AuditLog"
     },
