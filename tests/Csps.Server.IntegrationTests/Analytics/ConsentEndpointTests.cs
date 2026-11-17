@@ -276,6 +276,150 @@ public sealed class ConsentEndpointTests(CspsDatabase database) : IClassFixture<
         records[1].Id.ShouldNotBe(records[0].Id);
     }
 
+    [Fact]
+    public async Task StatsOnIssuesAPrivateVisitorIdThatOnlyTheAnalyticsApiSees()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, AcceptAll());
+
+        var record = (await ReadRecordsAsync()).ShouldHaveSingleItem();
+        var cookie = SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldNotBeNull();
+        var token = ValueOf(cookie);
+        token.Length.ShouldBe(43);
+        token.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_').ShouldBeTrue("the id is base64url");
+        var attributes = cookie.ToLowerInvariant();
+        attributes.ShouldContain("; path=/api/v1/analytics");
+        attributes.ShouldContain("; secure");
+        attributes.ShouldContain("; samesite=strict");
+        attributes.ShouldContain("; httponly");
+        ExpiresOf(cookie).ShouldBe(record.DecidedAtUtc.AddMonths(12), TimeSpan.FromSeconds(2));
+    }
+
+    [Fact]
+    public async Task TwoFirstDecisionsGetDifferentVisitorIds()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var first = await PostAsync(client, AcceptAll());
+        using var second = await PostAsync(client, AcceptAll());
+
+        ValueOf(SetCookieOf(first, AnalyticsCookies.VisitorCookieName)!).ShouldNotBe(ValueOf(SetCookieOf(second, AnalyticsCookies.VisitorCookieName)!));
+    }
+
+    [Fact]
+    public async Task AVisitorIdAlreadyHeldIsKeptAndNotReplaced()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostWithVisitorAsync(client, AcceptAll(), ExistingVisitor);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("short")]
+    [InlineData("has space and not base64url chars!!!!!!!!!!!!!!!!")]
+    public async Task AMalformedVisitorIdIsReplacedByANewOne(string held)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostWithVisitorAsync(client, AcceptAll(), held);
+
+        var cookie = SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldNotBeNull();
+        ValueOf(cookie).Length.ShouldBe(43);
+    }
+
+    [Fact]
+    public async Task StatsOffExpiresAHeldVisitorIdWithTheSamePathAndAttributes()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostWithVisitorAsync(client, Body(stats: false, map: false, source: "settings"), ExistingVisitor);
+
+        AssertExpired(SetCookieOf(response, AnalyticsCookies.VisitorCookieName));
+    }
+
+    [Fact]
+    public async Task AMapOnlySaveWithNullStatsExpiresAHeldVisitorId()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostWithVisitorAsync(client, Body(stats: null, map: true, source: "map-link"), ExistingVisitor);
+
+        AssertExpired(SetCookieOf(response, AnalyticsCookies.VisitorCookieName));
+    }
+
+    [Fact]
+    public async Task StatsOffWithNoVisitorIdHeldSetsNoVisitorCookie()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, Body(stats: false, map: false, source: "bar"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UnderGpcNoVisitorIdIsIssuedAndAHeldOneIsExpired()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var fresh = await PostWithVisitorAsync(client, AcceptAll(), held: null, gpc: true);
+        using var held = await PostWithVisitorAsync(client, AcceptAll(), ExistingVisitor, gpc: true);
+
+        SetCookieOf(fresh, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+        AssertExpired(SetCookieOf(held, AnalyticsCookies.VisitorCookieName));
+    }
+
+    private static void AssertExpired(string? cookie)
+    {
+        cookie.ShouldNotBeNull();
+        ValueOf(cookie).ShouldBeEmpty();
+        var attributes = cookie.ToLowerInvariant();
+        attributes.ShouldContain("; path=/api/v1/analytics");
+        attributes.ShouldContain("; secure");
+        attributes.ShouldContain("; samesite=strict");
+        attributes.ShouldContain("; httponly");
+        ExpiresOf(cookie).ShouldBeLessThan(TimeProvider.System.GetUtcNow());
+    }
+
+    private static async Task<HttpResponseMessage> PostWithVisitorAsync(HttpClient client, string json, string? held, bool gpc = false)
+    {
+        using var request = NewPost(json);
+        if (held is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", $"{AnalyticsCookies.VisitorCookieName}={held}");
+        }
+
+        if (gpc)
+        {
+            request.Headers.Add("Sec-GPC", "1");
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    private static readonly string ExistingVisitor = new('q', 43);
+
     internal static string AcceptAll() => Body(stats: true, map: true, source: "bar");
 
     internal static string Body(string? consentId = null, string? policyVersion = null, bool? stats = null, bool map = false, string? source = null)

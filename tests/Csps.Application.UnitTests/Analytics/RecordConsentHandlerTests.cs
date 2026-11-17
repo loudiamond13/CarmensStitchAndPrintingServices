@@ -218,6 +218,70 @@ public sealed class RecordConsentHandlerTests
         harness.Unit.Saves.ShouldBe(2);
     }
 
+    [Fact]
+    public async Task StatsOnWithNoGpcAndNoVisitorIdIssuesANewTokenFromTheSecureRandom()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(stats: true, map: true, source: "bar"), Fresh, TestContext.Current.CancellationToken);
+
+        result.Value.Visitor.ShouldBe(VisitorIdAction.Issue);
+        result.Value.VisitorToken.ShouldBe(Harness.Token);
+        harness.Random.Received(1).NewToken();
+    }
+
+    [Fact]
+    public async Task StatsOnWhenTheRequestAlreadyCarriesAVisitorIdKeepsItAndMakesNoNewToken()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(stats: true, map: true, source: "settings"), new ConsentCallContext(false, true), TestContext.Current.CancellationToken);
+
+        result.Value.Visitor.ShouldBe(VisitorIdAction.Keep);
+        result.Value.VisitorToken.ShouldBeNull();
+        harness.Random.DidNotReceive().NewToken();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(null, false)]
+    [InlineData(null, true)]
+    public async Task StatsOffOrNotChosenExpiresTheVisitorIdWhetherOrNotOneIsHeld(bool? stats, bool hasVisitorId)
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(stats: stats, map: true, source: "settings"), new ConsentCallContext(false, hasVisitorId), TestContext.Current.CancellationToken);
+
+        result.Value.Visitor.ShouldBe(VisitorIdAction.Expire);
+        result.Value.VisitorToken.ShouldBeNull();
+        harness.Random.DidNotReceive().NewToken();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnderGpcNoVisitorIdIsIssuedAndAnExistingOneIsExpired(bool hasVisitorId)
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(stats: true, map: true, source: "bar"), new ConsentCallContext(true, hasVisitorId), TestContext.Current.CancellationToken);
+
+        result.Value.Visitor.ShouldBe(VisitorIdAction.Expire);
+        result.Value.VisitorToken.ShouldBeNull();
+        harness.Random.DidNotReceive().NewToken();
+    }
+
+    [Fact]
+    public async Task TheVisitorIdLivesAsLongAsTheConsentCookie()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(stats: true, map: true, source: "bar"), Fresh, TestContext.Current.CancellationToken);
+
+        result.Value.ExpiresAt.ShouldBe(Now.AddMonths(12));
+    }
+
     private static ConsentCallContext Fresh => new(false, false);
 
     private static RecordConsentRequest Request(string? consentId = null, bool? stats = null, bool map = false, string? source = null) =>
@@ -225,6 +289,8 @@ public sealed class RecordConsentHandlerTests
 
     private sealed class Harness
     {
+        public const string Token = "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789-_AbCdE";
+
         public Harness()
         {
             var records = Substitute.For<IConsentRecords>();
@@ -232,6 +298,7 @@ public sealed class RecordConsentHandlerTests
             var calendar = Substitute.For<IBusinessCalendar>();
             calendar.GetClockAsync(Arg.Any<CancellationToken>()).Returns(new BusinessClock(Manila, ZoneSource.Stored, Now));
             Random = Substitute.For<ISecureRandom>();
+            Random.NewToken().Returns(Token);
             Handler = new RecordConsentHandler(records, Unit, calendar, Random, new RecordConsentRequestValidator());
         }
 

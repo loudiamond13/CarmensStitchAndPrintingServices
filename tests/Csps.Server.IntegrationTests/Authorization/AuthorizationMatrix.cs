@@ -375,6 +375,10 @@ public static class AuthorizationMatrix
         new("GET", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
 
+        // The Global Privacy Control statement (D-39): anonymous GET and HEAD, never rate limited.
+        new("GET", "/.well-known/gpc.json", "/.well-known/gpc.json", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/.well-known/gpc.json", "/.well-known/gpc.json", Anonymous: 200, Admin: 200, Manager: 200),
+
         // A missing file is a 404 for everyone (research Pitfall 11). The matrix host runs in the Testing environment,
         // not Development, so the two reserved API-doc prefixes are mapped as 404 fallbacks too (D-29).
         new("*", "{*path:file}", "/missing.js", Anonymous: 404, Admin: 404, Manager: 404),
@@ -417,6 +421,8 @@ public static class AuthorizationMatrix
             "HEAD /robots.txt",
             "GET /sitemap.xml",
             "HEAD /sitemap.xml",
+            "GET /.well-known/gpc.json",
+            "HEAD /.well-known/gpc.json",
             "* {*path:file}",
             "* /openapi/{**path}",
             "* /scalar/{**path}",
