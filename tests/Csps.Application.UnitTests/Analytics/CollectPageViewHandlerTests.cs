@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Analytics;
@@ -334,6 +336,158 @@ public sealed class CollectPageViewHandlerTests
         harness.Visits.ReceivedCalls().ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData("m.facebook.com", "Facebook")]
+    [InlineData("l.facebook.com", "Facebook")]
+    [InlineData("www.google.com.ph", "Google")]
+    [InlineData("News.Example.Org", "news.example.org")]
+    public async Task ANewVisitStoresTheReferrerNameFromTheBeaconHost(string host, string expected)
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/", host), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == expected), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task NoReferrerAndADesktopBrowserIsStoredAsDirect()
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task NoReferrerAndAFacebookInAppHeaderIsStoredAsFacebook()
+    {
+        var harness = new Harness();
+        const string FacebookApp = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP1A) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/126.0.0.0 Mobile Safari/537.36 [FBAN/FB4A;FBAV/450.0.0.0;]";
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(FacebookApp), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(
+            Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Facebook" && visit.Browser == "Facebook in-app" && visit.Device == DeviceKind.Phone),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ARefererFromTheSitesOwnHostIsStoredAsDirect()
+    {
+        var harness = new Harness();
+        var context = Consented() with { SiteHost = "shop.example.test" };
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/", "shop.example.test"), context, TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("https://evil.example/path?x=1")]
+    [InlineData("evil.example/path")]
+    [InlineData("user@evil.example")]
+    public async Task AFullUrlOrAnythingThatIsNotAHostNameIsNeverStored(string value)
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/", value), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheAddressHashIsTheHmacOfTheTruncatedPrefixWithTheDaysSalt()
+    {
+        var harness = new Harness(remoteIp: IPAddress.Parse("192.0.2.10"));
+        var expected = HMACSHA256.HashData(SaltOf(BusinessDay), Encoding.UTF8.GetBytes("192.0.2.0"));
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<CancellationToken>());
+        await harness.Salts.Received(1).ForDayAsync(BusinessDay, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AnIpv6AddressIsCutToItsFirst48BitsBeforeHashing()
+    {
+        var harness = new Harness(remoteIp: IPAddress.Parse("2001:db8:abcd:12::1"));
+        var expected = HMACSHA256.HashData(SaltOf(BusinessDay), Encoding.UTF8.GetBytes("2001:db8:abcd::"));
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TwoAddressesInTheSameBlockOnTheSameDayGiveTheSameHashAndTheNextDayAnotherOne()
+    {
+        var first = await StoredIpHashAsync("192.0.2.10", Now);
+        var second = await StoredIpHashAsync("192.0.2.200", Now);
+        var nextDay = await StoredIpHashAsync("192.0.2.10", Now.AddDays(1));
+
+        first.ShouldNotBeNull();
+        second.ShouldBe(first);
+        nextDay.ShouldNotBeNull();
+        nextDay.ShouldNotBe(first);
+    }
+
+    [Fact]
+    public async Task AnotherBlockGivesAnotherHash()
+    {
+        var first = await StoredIpHashAsync("192.0.2.10", Now);
+        var other = await StoredIpHashAsync("192.0.3.10", Now);
+
+        other.ShouldNotBe(first);
+    }
+
+    [Fact]
+    public async Task WithoutARemoteAddressTheHashIsNullAndNoSaltIsRead()
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash == null), Arg.Any<CancellationToken>());
+        await harness.Salts.DidNotReceive().ForDayAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AViewInAnExistingVisitReadsNoSaltAndStartsNothing()
+    {
+        var harness = new Harness(remoteIp: IPAddress.Parse("192.0.2.10"));
+        harness.Visits.FindCurrentAsync(Arg.Any<byte[]>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(Guid.CreateVersion7());
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/", "m.facebook.com"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Salts.DidNotReceive().ForDayAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
+        await harness.Visits.DidNotReceive().StartAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task NoStoredValueHoldsTheRawAddressTheUserAgentOrTheVisitorId()
+    {
+        var harness = new Harness(remoteIp: IPAddress.Parse("192.0.2.10"));
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/", "m.facebook.com"), Consented(), TestContext.Current.CancellationToken);
+
+        var visit = harness.StartedVisit.ShouldNotBeNull();
+        var texts = new[] { visit.Referrer, visit.Browser, visit.Os, visit.Device.ToString(), Convert.ToHexString(visit.VisitorHash), Convert.ToHexString(visit.IpHash!) };
+        texts.ShouldAllBe(text => !text.Contains("192.0.2", StringComparison.Ordinal) && !text.Contains("Mozilla", StringComparison.Ordinal) && !text.Contains(Token, StringComparison.Ordinal));
+        visit.VisitorHash.ShouldNotBe(Encoding.UTF8.GetBytes(Token));
+    }
+
+    private static async Task<byte[]?> StoredIpHashAsync(string address, DateTimeOffset now)
+    {
+        var harness = new Harness(remoteIp: IPAddress.Parse(address), now: now);
+        await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
+        return harness.StartedVisit.ShouldNotBeNull().IpHash;
+    }
+
+    // A different fixed salt for each business day, so a test can see that the day changes the hash.
+    private static byte[] SaltOf(DateOnly day) => SHA256.HashData(Encoding.UTF8.GetBytes("test-salt-" + day.ToString("O", CultureInfo.InvariantCulture)));
+
     private static string ConsentValue(bool? stats, string? version = null, DateOnly? decidedOn = null) =>
         new ConsentCookie(ConsentChain, version ?? LegalPages.CookiePolicyVersion, stats, true, decidedOn ?? BusinessDay, false).Format();
 
@@ -343,12 +497,17 @@ public sealed class CollectPageViewHandlerTests
 
     private sealed class Harness
     {
-        public Harness(IValidator<PageViewRequest>? validator = null)
+        public Harness(IValidator<PageViewRequest>? validator = null, IPAddress? remoteIp = null, DateTimeOffset? now = null)
         {
+            Salts = Substitute.For<IAnalyticsSalts>();
+            Salts.ForDayAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>()).Returns(call => Task.FromResult(SaltOf(call.Arg<DateOnly>())));
+            RequestContext = Substitute.For<IRequestContext>();
+            RequestContext.RemoteIp.Returns(remoteIp);
             Visits = Substitute.For<IAnalyticsVisits>();
             Visits.StartAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
-                StartedVisitId = call.Arg<AnalyticsVisit>().Id;
+                StartedVisit = call.Arg<AnalyticsVisit>();
+                StartedVisitId = StartedVisit.Id;
                 return Task.FromResult(StartedVisitId);
             });
             Pages = Substitute.For<IPublicPageResolver>();
@@ -360,13 +519,19 @@ public sealed class CollectPageViewHandlerTests
             });
             Counts = Substitute.For<IPageViewCounts>();
             var calendar = Substitute.For<IBusinessCalendar>();
-            calendar.GetClockAsync(Arg.Any<CancellationToken>()).Returns(new BusinessClock(Manila, ZoneSource.Stored, Now));
-            Handler = new CollectPageViewHandler(Pages, Counts, Visits, calendar, validator ?? new PageViewRequestValidator());
+            calendar.GetClockAsync(Arg.Any<CancellationToken>()).Returns(new BusinessClock(Manila, ZoneSource.Stored, now ?? Now));
+            Handler = new CollectPageViewHandler(Pages, Counts, Visits, Salts, RequestContext, calendar, validator ?? new PageViewRequestValidator());
         }
+
+        public IAnalyticsSalts Salts { get; }
+
+        public IRequestContext RequestContext { get; }
 
         public IAnalyticsVisits Visits { get; }
 
         public Guid StartedVisitId { get; private set; }
+
+        public AnalyticsVisit? StartedVisit { get; private set; }
 
         public IPublicPageResolver Pages { get; }
 

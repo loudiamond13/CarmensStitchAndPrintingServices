@@ -17,4 +17,10 @@ public static class VisitorKey
         ArgumentException.ThrowIfNullOrEmpty(token);
         return SHA256.HashData(Encoding.UTF8.GetBytes(token));
     }
+
+    /// <summary>RED stub.</summary>
+    /// <param name="prefix">The truncated address prefix.</param>
+    /// <param name="salt">The day's salt.</param>
+    /// <returns>Nothing yet.</returns>
+    public static byte[]? HashIp(string? prefix, byte[] salt) => prefix is null || salt is null ? null : null;
 }

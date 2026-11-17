@@ -9,9 +9,12 @@ using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Server.IntegrationTests.Analytics;
 
@@ -328,12 +331,159 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
-    internal const string Vid = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
+    [Fact]
+    public async Task APageViewTwentyNineMinutesAfterTheLastReusesTheVisitAndOneThirtyOneMinutesAfterStartsANewOne()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var clock = new FakeTimeProvider(TimeProvider.System.GetUtcNow());
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = NewClient(factory);
+        var cookie = await ConsentedCookieAsync(factory);
+
+        using var first = await PostWithCookieAsync(client, PathBody("/"), cookie);
+        clock.Advance(TimeSpan.FromMinutes(29));
+        using var second = await PostWithCookieAsync(client, PathBody("/gallery"), cookie);
+        await using (var context = database.CreateContext())
+        {
+            (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().PageViews.ShouldBe(2);
+        }
+
+        clock.Advance(TimeSpan.FromMinutes(31));
+        using var third = await PostWithCookieAsync(client, PathBody("/contact"), cookie);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        third.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var check = database.CreateContext();
+        var visits = await check.AnalyticsVisits.AsNoTracking().OrderBy(visit => visit.StartedAtUtc).ToListAsync(TestContext.Current.CancellationToken);
+        visits.Select(visit => visit.PageViews).ShouldBe([2, 1]);
+        (await check.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData("m.facebook.com", DesktopChrome, "Facebook")]
+    [InlineData(null, "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 [FBAN/FB4A;FBAV/450.0.0.0;]", "Facebook")]
+    [InlineData(null, DesktopChrome, "Direct")]
+    [InlineData("localhost", DesktopChrome, "Direct")]
+    [InlineData("www.google.com", DesktopChrome, "Google")]
+    [InlineData("https://evil.example/a?b=1", DesktopChrome, "Direct")]
+    public async Task ANewVisitStoresTheSourceNameNeverTheRawReferrer(string? referrerHost, string userAgent, string expected)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        var cookie = await ConsentedCookieAsync(factory);
+        var body = referrerHost is null ? PathBody("/") : $"{{\"path\":\"/\",\"referrerHost\":\"{referrerHost}\"}}";
+
+        using var response = await PostWithCookieAsync(client, body, cookie, userAgent);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().Referrer.ShouldBe(expected);
+    }
+
+    [Fact]
+    public async Task TwoAddressesInOneBlockShareAnAddressHashTheNextDayHasAnotherAndOnlyOneSaltIsMadePerDay()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var clock = new FakeTimeProvider(TimeProvider.System.GetUtcNow());
+        await using var factory = AuthClient.WithClock(WithRemoteIp(baseFactory), clock);
+        using var client = NewClient(factory);
+
+        using var a = await PostWithAddressAsync(client, "192.0.2.10", 'a');
+        using var b = await PostWithAddressAsync(client, "192.0.2.200", 'b');
+        clock.Advance(TimeSpan.FromHours(24));
+        using var c = await PostWithAddressAsync(client, "192.0.2.10", 'c');
+
+        a.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        b.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        c.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        var visits = await context.AnalyticsVisits.AsNoTracking().OrderBy(visit => visit.StartedAtUtc).ToListAsync(TestContext.Current.CancellationToken);
+        visits.Count.ShouldBe(3);
+        visits.ShouldAllBe(visit => visit.IpHash != null);
+        visits[1].IpHash.ShouldBe(visits[0].IpHash);
+        visits[2].IpHash.ShouldNotBe(visits[0].IpHash);
+        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task TenParallelFirstViewsFromTenVisitorsMakeOneSaltRowForTheDay()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = WithRemoteIp(baseFactory);
+        using var client = NewClient(factory);
+        var consent = ConsentValue(true, await BusinessDayAsync(factory));
+
+        var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(index => Task.Run(
+            async () =>
+            {
+                using var request = NewPost(PathBody("/"));
+                request.Headers.Add("Cookie", $"__Secure-csps_vid={new string((char)('a' + index), 43)}; __Host-csps_consent={consent}");
+                request.Headers.Add(RemoteIpStartupFilter.HeaderName, "192.0.2.10");
+                return (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode;
+            },
+            TestContext.Current.CancellationToken)));
+
+        responses.ShouldAllBe(status => status == HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(10);
+    }
+
+    [Fact]
+    public async Task NoStoredColumnHoldsTheRawAddressTheUserAgentTheReferrerOrTheVisitorId()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = WithRemoteIp(baseFactory);
+        using var client = NewClient(factory);
+        const string Marker = "zq7agent91";
+        using var request = NewPost("{\"path\":\"/gallery?token=zq7query91\",\"referrerHost\":\"m.facebook.com\"}", $"{DesktopChrome} {Marker}");
+        request.Headers.Add("Cookie", await ConsentedCookieAsync(factory));
+        request.Headers.Add(RemoteIpStartupFilter.HeaderName, "192.0.2.10");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        var visit = (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        var salt = (await context.AnalyticsSalts.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        var view = (await context.AnalyticsPageViews.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        string[] forbidden = [Vid, "192.0.2", Marker, "zq7query91", "Mozilla"];
+        string[] texts = [visit.Referrer, visit.Browser, visit.Os, view.PageKey, Convert.ToHexString(visit.VisitorHash), Convert.ToHexString(visit.IpHash!), Convert.ToHexString(salt.Salt)];
+        foreach (var text in texts)
+        {
+            forbidden.ShouldAllBe(value => !text.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        visit.VisitorHash.ShouldNotBe(Encoding.UTF8.GetBytes(Vid));
+        visit.IpHash.ShouldNotBe(Encoding.UTF8.GetBytes("192.0.2.0"));
+        visit.IpHash.ShouldNotBe(visit.VisitorHash);
+        salt.Salt.Length.ShouldBe(32);
+    }
+
+    internal static WebApplicationFactory<Program> WithRemoteIp(WebApplicationFactory<Program> factory) =>
+        factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>()));
+
+    private static async Task<HttpResponseMessage> PostWithAddressAsync(HttpClient client, string address, char vidFill)
+    {
+        var day = DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().AddHours(8).DateTime);
+        using var request = NewPost(PathBody("/"));
+        request.Headers.Add("Cookie", $"__Secure-csps_vid={new string(vidFill, 43)}; __Host-csps_consent={ConsentValue(true, day)}");
+        request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    internal const string Vid ="vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 
     internal static string ConsentValue(bool? stats, DateOnly day) =>
         new ConsentCookie(Guid.Parse("0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), LegalPages.CookiePolicyVersion, stats, true, day, false).Format();
 
-    internal static async Task<string> ConsentedCookieAsync(CspsApiFactory factory) =>
+    internal static async Task<string> ConsentedCookieAsync(WebApplicationFactory<Program> factory) =>
         $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, await BusinessDayAsync(factory))}";
 
     internal static async Task<HttpResponseMessage> PostWithCookieAsync(HttpClient client, string json, string cookie, string? userAgent = DesktopChrome)
@@ -373,7 +523,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
-    internal static async Task<DateOnly> BusinessDayAsync(CspsApiFactory factory)
+    internal static async Task<DateOnly> BusinessDayAsync(WebApplicationFactory<Program> factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var clock = await scope.ServiceProvider.GetRequiredService<IBusinessCalendar>().GetClockAsync(TestContext.Current.CancellationToken);

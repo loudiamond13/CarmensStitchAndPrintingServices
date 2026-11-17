@@ -9,4 +9,5 @@ namespace Csps.Application.Analytics;
 /// <param name="Gpc">True when the browser sent <c>Sec-GPC: 1</c>.</param>
 /// <param name="VisitorToken">The visitor id cookie value, or null.</param>
 /// <param name="ConsentCookie">The consent cookie value, or null.</param>
-public sealed record CollectContext(string? UserAgent, bool IsStaff, bool Gpc, string? VisitorToken, string? ConsentCookie);
+/// <param name="SiteHost">The site's own host name, so a referrer from the site itself counts as no referrer (D-28); null when unknown.</param>
+public sealed record CollectContext(string? UserAgent, bool IsStaff, bool Gpc, string? VisitorToken, string? ConsentCookie, string? SiteHost = null);
