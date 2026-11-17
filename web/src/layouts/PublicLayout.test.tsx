@@ -1,10 +1,11 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
@@ -288,6 +289,50 @@ describe('PublicLayout heading order (D-41 R2-17)', () => {
     for (const title of titles) {
       expect(title.className).toBe('mb-4 font-display text-16 font-bold tracking-[.12em] text-ink-muted uppercase');
     }
+  });
+});
+
+describe('PublicLayout cookie bar (ANL-01, D-16, D-17)', () => {
+  it('shows the bar right after the skip link and before the header on a first visit', async () => {
+    setConsent({ cookie: null });
+    await renderAt('/products');
+
+    const bar = await screen.findByRole('region', { name: 'Cookie choices' });
+    const skip = screen.getByRole('link', { name: 'Skip to main content' });
+    expect(skip.compareDocumentPosition(bar)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(bar.compareDocumentPosition(screen.getByRole('banner'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('sets no cookie and sends no request before a choice', async () => {
+    const probe = consentProbe();
+    const jar = setConsent({ cookie: null });
+    await renderAt('/products');
+    await screen.findByRole('region', { name: 'Cookie choices' });
+    expect(jar.writes).toEqual([]);
+    expect(probe.requests).toEqual([]);
+  });
+
+  it('Accept All closes the bar, saves the choice, moves focus to main and announces it', async () => {
+    const probe = consentProbe();
+    setConsent({ cookie: null });
+    await renderAt('/products');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Accept All' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+    });
+    expect(probe.requests).toHaveLength(1);
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('status')).toHaveTextContent('Your cookie choice is saved.');
+  });
+
+  it('shows no bar and sends no request when a current choice is saved', async () => {
+    const probe = consentProbe();
+    setConsent({ cookie: consentCookie() });
+    await renderAt('/products');
+    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+    expect(probe.requests).toEqual([]);
   });
 });
 

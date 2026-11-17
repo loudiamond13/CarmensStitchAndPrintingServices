@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { installConsoleGuard } from './consoleGuard';
+import { setConsent } from './consentFixtures';
 import { server } from './msw';
 import {
   demoGallery,
@@ -70,6 +71,11 @@ if (typeof window !== 'undefined') {
       galleryHandler(demoGallery),
       privacyContactHandler(),
     );
+  });
+  // Every test starts with a decided Reject All in an in-memory jar, so no page test sees the cookie bar; a test for a
+  // first visit calls setConsent({ cookie: null }).
+  beforeEach(() => {
+    setConsent();
   });
   afterEach(() => {
     server.resetHandlers();
