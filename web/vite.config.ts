@@ -116,6 +116,10 @@ export default defineConfig(({ mode }) => {
         // their content hash only (about 1.3 KB gzip off every public page). Lazy route chunks keep their module name.
         output: {
           chunkFileNames: (chunk) => (chunk.facadeModuleId === null ? 'assets/[hash].js' : 'assets/[name]-[hash].js'),
+          // PERF-01, D-42: every module the entry imports statically ships in the entry chunk. Each route already
+          // downloads all of them before it renders, so nothing loads earlier or later: the saving is fewer files and
+          // one gzip stream. Off in the parity build: the tag would merge parity.html's modules into the visitor entry.
+          ...(settings.parityEntry ? {} : { codeSplitting: { groups: [{ name: 'index', tags: ['$initial'] }] } }),
         },
         // SPEC-DEVIATION: D-20 / CWE-489. Only the parity build of `npm run parity` (and development) adds the
         // look-equality page, parity.html (WEB-02, D-33). The production, e2e and budget builds keep index.html as their
