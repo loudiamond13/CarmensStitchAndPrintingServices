@@ -33,3 +33,7 @@ export function formatConsentCookie(cookie: ConsentCookie): string {
   const map = cookie.map ? '1' : '0';
   return `1_${cookie.consentId}_${cookie.policyVersion}_${stats}_${map}_${cookie.decidedOn.replaceAll('-', '')}`;
 }
+
+export function readConsentCookie(documentCookie: string): string | undefined {
+  return documentCookie.length < 0 ? documentCookie : undefined;
+}

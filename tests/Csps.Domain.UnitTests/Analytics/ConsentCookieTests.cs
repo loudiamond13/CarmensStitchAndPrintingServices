@@ -33,6 +33,21 @@ public sealed class ConsentCookieTests
         }
     }
 
+    /// <summary>Every invalid value in the shared file.</summary>
+    public static TheoryData<string> InvalidValues
+    {
+        get
+        {
+            var data = new TheoryData<string>();
+            foreach (var invalid in Cases.Value.Invalid)
+            {
+                data.Add(invalid);
+            }
+
+            return data;
+        }
+    }
+
     [Fact]
     public void TheCookieNameIsThePinnedOneOfTheSharedFile()
     {
@@ -67,6 +82,33 @@ public sealed class ConsentCookieTests
         cookie.Format().ShouldBe(value);
     }
 
+    [Theory]
+    [MemberData(nameof(InvalidValues))]
+    public void TryParseRefusesTheSharedInvalidCaseWithoutThrowing(string value)
+    {
+        ConsentCookie.TryParse(value, out var cookie).ShouldBeFalse();
+
+        cookie.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TryParseRefusesNull()
+    {
+        ConsentCookie.TryParse(null, out var cookie).ShouldBeFalse();
+
+        cookie.ShouldBeNull();
+    }
+
+    [Fact]
+    public void TheSharedFileHasTheBoundaryCasesOnBothSides()
+    {
+        Cases.Value.Invalid.Count.ShouldBeGreaterThanOrEqualTo(14);
+        Cases.Value.Valid.ShouldContain(c => c.Value.Length == 100);
+        Cases.Value.Invalid.ShouldContain(c => c.Length == 101);
+        Cases.Value.Valid.ShouldContain(c => c.Stats == null);
+        Cases.Value.Valid.ShouldContain(c => c.Pending);
+    }
+
     private static CaseFile Load()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "consent-cookie-cases.json");
@@ -74,7 +116,7 @@ public sealed class ConsentCookieTests
             ?? throw new InvalidOperationException("The consent cookie case file is empty.");
     }
 
-    private sealed record CaseFile(string Note, string CookieName, List<ValidCase> Valid);
+    private sealed record CaseFile(string Note, string CookieName, List<ValidCase> Valid, List<string> Invalid);
 
     private sealed record ValidCase(
         string Value,
