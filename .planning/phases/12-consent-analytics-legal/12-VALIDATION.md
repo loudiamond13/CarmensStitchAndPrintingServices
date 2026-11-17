@@ -6,7 +6,7 @@ status: draft
 nyquist_compliant: true
 wave_0_complete: false
 created: "2026-11-15T21:53:00-06:00"
-updated: "2026-11-16T21:15:00-06:00"
+updated: "2026-11-17T03:40:00-06:00"
 ---
 
 # Phase 12: Validation Strategy
@@ -126,6 +126,9 @@ Filled by the planner from each task's first `<automated>` verify (every task ha
 | 12-31-T1 | 12-31 | 2 | LEGAL-05 (PERF-01, D-42) | T-12-78, T-12-79, T-12-80 | Admin and dev routes work as before, a failed table load shows the admin error screen, and the public first download carries neither route table. | component + build + e2e | `npm --prefix web run test -- --run src/core/routes/router.test.tsx src/modules/admin/routes.test.tsx src/layouts/AdminLayout.test.tsx src/modules/admin/pages/ComponentShowcasePage.test.tsx src/core/routes/ErrorBoundary.test.tsx src/modules/public/pages/NotFoundPage.test.tsx src/modules/public/pages/LegalPages.test.tsx src/test/public-paths.node.test.ts` | ❌ task creates (router.test.tsx) | ⬜ pending |
 | 12-31-T2 | 12-31 | 2 | LEGAL-05 (PERF-01, D-42) | T-12-79, T-12-81 | A static import of the admin table into a public page fails the build; every public row has at least 1.0 KB of room in both builds, on record. | unit + build | `npm --prefix web run test -- --run scripts/budget.test.ts scripts/vite-budget-plugin.test.ts` | ✅ (extend) | ⬜ pending |
 | 12-31-T3 | 12-31 | 2 | ANL-07 (D-43) | T-12-76, T-12-77 | A consent cookie dated after today is no choice on both sides, from the shared fixture. | unit | `dotnet test --project tests/Csps.Domain.UnitTests --filter-class "*ConsentCookieTests"` | ✅ (extend) | ⬜ pending |
+| 12-32-T1 | 12-32 | 4 | LEGAL-01, ANL-01 (PERF-01, D-42) | T-12-82, T-12-83, T-12-85 | Every page loads the same modules in fewer files; no admin, dev or showcase code joins the public entry; every public row is at or under 148.50 KB in both builds. | node + build + e2e | `npm --prefix web run test -- --run src/test/build-config.node.test.ts` | ✅ (extend) | ⬜ pending |
+| 12-32-T2 | 12-32 | 4 | LEGAL-01, ANL-01 (PERF-01, D-42) | T-12-84 | The legal rows count the loader chunk they download first, and a build that loses it fails. | unit + build | `npm --prefix web run test -- --run scripts/budget.test.ts scripts/vite-budget-plugin.test.ts` | ✅ (extend) | ⬜ pending |
+| 12-32-T3 | 12-32 | 4 | LEGAL-01, ANL-01 (PERF-01, D-42) | T-12-86 | The room left on each public row is on record for plans 12-13 and 12-15, and the full gate passes. | docs + full gate | `npm --prefix web run verify` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
