@@ -12,9 +12,10 @@ namespace Csps.Application.Analytics;
 /// </summary>
 /// <param name="pages">Maps a cut path to a page key.</param>
 /// <param name="counts">The daily counter.</param>
+/// <param name="visits">The visit store, used for visitors who allowed stats.</param>
 /// <param name="calendar">The business clock: the day the view belongs to.</param>
 /// <param name="validator">Checks the body.</param>
-public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewCounts counts, IBusinessCalendar calendar, IValidator<PageViewRequest> validator)
+public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewCounts counts, IAnalyticsVisits visits, IBusinessCalendar calendar, IValidator<PageViewRequest> validator)
 {
     /// <summary>Counts one page view, or drops it.</summary>
     /// <param name="request">The body as the browser sent it.</param>
@@ -25,6 +26,7 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(visits);
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)

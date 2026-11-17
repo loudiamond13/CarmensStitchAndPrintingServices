@@ -1,8 +1,10 @@
 using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
+using Csps.Domain.Content;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
@@ -262,7 +264,86 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
-    internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";
+    [Fact]
+    public async Task AVisitorWhoAcceptedStatsOpensTwoPagesAndOneVisitWithTwoPageViewsIsRecorded()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        var cookie = await ConsentedCookieAsync(factory);
+
+        using var first = await PostWithCookieAsync(client, PathBody("/"), cookie);
+        using var second = await PostWithCookieAsync(client, PathBody("/gallery"), cookie);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var context = database.CreateContext();
+        var visit = (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
+        visit.PageViews.ShouldBe(2);
+        visit.VisitorHash.ShouldBe(SHA256.HashData(Encoding.UTF8.GetBytes(Vid)));
+        visit.Referrer.ShouldBe("Direct");
+        visit.Device.ShouldBe(DeviceKind.Computer);
+        visit.Browser.ShouldBe("Chrome");
+        visit.Os.ShouldBe("Windows");
+        visit.LastSeenAtUtc.ShouldBeGreaterThanOrEqualTo(visit.StartedAtUtc);
+        var views = await context.AnalyticsPageViews.AsNoTracking().OrderBy(view => view.Id).ToListAsync(TestContext.Current.CancellationToken);
+        views.Select(view => view.PageKey).ShouldBe(["home", "gallery"]);
+        views.ShouldAllBe(view => view.VisitId == visit.Id);
+        (await ReadRowsAsync()).Sum(row => row.Views).ShouldBe(2);
+    }
+
+    [Theory]
+    [InlineData("no-vid")]
+    [InlineData("rejected")]
+    [InlineData("not-chosen")]
+    [InlineData("gpc")]
+    [InlineData("malformed-vid")]
+    public async Task WithoutTheVidAnAcceptedChoiceAndNoGpcOnlyTheAnonymousCountChanges(string scenario)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        var day = await BusinessDayAsync(factory);
+        var cookie = scenario switch
+        {
+            "no-vid" => $"__Host-csps_consent={ConsentValue(true, day)}",
+            "rejected" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(false, day)}",
+            "not-chosen" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(null, day)}",
+            "malformed-vid" => $"__Secure-csps_vid=short; __Host-csps_consent={ConsentValue(true, day)}",
+            _ => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, day)}",
+        };
+        using var request = NewPost(PathBody("/gallery"));
+        request.Headers.Add("Cookie", cookie);
+        if (scenario == "gpc")
+        {
+            request.Headers.Add("Sec-GPC", "1");
+        }
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldHaveSingleItem().Views.ShouldBe(1);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    internal const string Vid = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
+
+    internal static string ConsentValue(bool? stats, DateOnly day) =>
+        new ConsentCookie(Guid.Parse("0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), LegalPages.CookiePolicyVersion, stats, true, day, false).Format();
+
+    internal static async Task<string> ConsentedCookieAsync(CspsApiFactory factory) =>
+        $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, await BusinessDayAsync(factory))}";
+
+    internal static async Task<HttpResponseMessage> PostWithCookieAsync(HttpClient client, string json, string cookie, string? userAgent = DesktopChrome)
+    {
+        using var request = NewPost(json, userAgent);
+        request.Headers.Add("Cookie", cookie);
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    internal static string PathBody(string path) =>$"{{\"path\":\"{path}\"}}";
 
     internal static HttpClient NewClient(WebApplicationFactory<Program> factory) =>
         factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });

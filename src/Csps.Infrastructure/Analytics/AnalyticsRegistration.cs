@@ -15,6 +15,7 @@ public static class AnalyticsRegistration
 
         services.AddScoped<IConsentRecords, ConsentRecords>();
         services.AddScoped<IPageViewCounts, PageViewCounts>();
+        services.AddScoped<IAnalyticsVisits, AnalyticsVisits>();
         return services;
     }
 }
