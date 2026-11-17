@@ -14,8 +14,9 @@ public enum StatsBucketKind
 public static class StatsBucket
 {
     /// <summary>The longest range, in days, that is still drawn per day.</summary>
-    public const int MaxDayBuckets = 0;
+    public const int MaxDayBuckets = 62;
 
     /// <summary>Day for a range of up to 62 days, Month for anything longer. Both ends count.</summary>
-    public static StatsBucketKind For(DateOnly from, DateOnly to) => throw new NotImplementedException();
+    public static StatsBucketKind For(DateOnly from, DateOnly to) =>
+        to.DayNumber - from.DayNumber + 1 <= MaxDayBuckets ? StatsBucketKind.Day : StatsBucketKind.Month;
 }
