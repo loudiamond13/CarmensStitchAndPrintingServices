@@ -73,6 +73,54 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
+    [Theory]
+    [InlineData("range=custom", "from", "Enter a start date.")]
+    [InlineData("range=custom&from=2026-11-01", "to", "Enter an end date.")]
+    [InlineData("range=custom&from=2026-02-30&to=2026-11-01", "from", "Enter a real date.")]
+    [InlineData("range=custom&from=2026-11-01&to=tomorrow", "to", "Enter a real date.")]
+    [InlineData("range=custom&from=2026-11-10&to=2026-11-09", "from", "The start date must be on or before the end date.")]
+    [InlineData("range=custom&from=2023-11-14&to=2026-11-01", "from", "Choose a date from Nov 15, 2023 to today.")]
+    [InlineData("range=custom&from=2026-11-01&to=2026-11-16", "to", "Choose a date from Nov 15, 2023 to today.")]
+    public async Task ABadCustomRangeIs400WithTheFieldMessage(string query, string field, string message)
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+
+        using var response = await rig.GetAsync(query, rig.Manager.AccessToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ReadAsync(response);
+        problem.GetProperty("errors").GetProperty(field).EnumerateArray().Select(static m => m.GetString()).ShouldBe([message], query);
+    }
+
+    [Fact]
+    public async Task PresetsFollowTheBusinessDayNotTheUtcDayAtManilaMidnight()
+    {
+        // 00:30 in Manila on 2026-11-16 is still 2026-11-15 in UTC.
+        await using var rig = await Rig.StartAsync(database, new DateTimeOffset(2026, 11, 15, 16, 30, 0, TimeSpan.Zero));
+
+        using var thisMonth = await rig.GetAsync("range=this-month", rig.Manager.AccessToken);
+        using var week = await rig.GetAsync("range=last-7-days", rig.Manager.AccessToken);
+
+        var month = await ReadAsync(thisMonth);
+        (month.GetProperty("from").GetString(), month.GetProperty("to").GetString()).ShouldBe(("2026-11-01", "2026-11-16"));
+        var seven = await ReadAsync(week);
+        (seven.GetProperty("from").GetString(), seven.GetProperty("to").GetString()).ShouldBe(("2026-11-10", "2026-11-16"));
+    }
+
+    [Fact]
+    public async Task ACustomRangeAndAnUnknownRangeBothAnswer200()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+
+        using var custom = await rig.GetAsync("range=custom&from=2026-11-01&to=2026-11-15", rig.Manager.AccessToken);
+        using var unknown = await rig.GetAsync("range=bogus&from=junk", rig.Manager.AccessToken);
+
+        custom.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(custom)).GetProperty("range").GetString().ShouldBe("custom");
+        unknown.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadAsync(unknown)).GetProperty("range").GetString().ShouldBe("last-30-days");
+    }
+
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response)
     {
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

@@ -1,8 +1,10 @@
 using System.Globalization;
 using Csps.Application.Audit;
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Domain.Common;
+using FluentValidation;
 
 namespace Csps.Application.Analytics;
 
@@ -12,7 +14,8 @@ namespace Csps.Application.Analytics;
 /// </summary>
 /// <param name="reader">The visitor stats read port.</param>
 /// <param name="calendar">The business calendar.</param>
-public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusinessCalendar calendar)
+/// <param name="validator">Checks the query.</param>
+public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusinessCalendar calendar, IValidator<VisitorStatsRequest> validator)
 {
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -23,6 +26,13 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
     public async Task<Result<VisitorStatsResponse>> HandleAsync(VisitorStatsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            return Result.Failure<VisitorStatsResponse>(
+                ValidationResults.ToError(validation, VisitorStatsRequestValidator.InvalidCode, VisitorStatsRequestValidator.InvalidMessage));
+        }
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var today = clock.Today;

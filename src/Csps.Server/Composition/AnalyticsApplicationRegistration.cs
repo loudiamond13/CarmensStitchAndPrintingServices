@@ -23,6 +23,7 @@ public static class AnalyticsApplicationRegistration
         services.AddScoped<CollectVitalsHandler>();
         services.AddScoped<IValidator<VitalsRequest>, VitalsRequestValidator>();
         services.AddScoped<GetVisitorStatsHandler>();
+        services.AddScoped<IValidator<VisitorStatsRequest>, VisitorStatsRequestValidator>();
         services.AddSingleton<IPublicPageResolver, PublicPageResolver>();
         return services;
     }
