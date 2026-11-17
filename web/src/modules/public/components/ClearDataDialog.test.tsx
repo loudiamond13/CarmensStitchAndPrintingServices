@@ -128,7 +128,7 @@ describe('confirming (D-19, D-31, D-41)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Clear My Data' }));
 
     const pending = await within(dialog).findByRole('button', { name: 'Clearing' });
-    expect(pending).toBeDisabled();
+    expect(pending).toHaveAttribute('aria-busy', 'true');
     await userEvent.keyboard('{Escape}');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Keep My Data' }));
     expect(onCancel).not.toHaveBeenCalled();

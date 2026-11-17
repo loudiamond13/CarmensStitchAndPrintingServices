@@ -359,8 +359,7 @@ describe('opened from the cookie bar (D-34, ANL-01)', () => {
 describe('Clear my cookies & data (CS1 item 5, CS2, ANL-04, D-19, D-31, D-35)', () => {
   const NEW_CHAIN = 'fedcba9876543210fedcba9876543210';
   const CLEAR_TITLE = 'Clear your cookies and data?';
-  const DONE =
-    "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.";
+  const DONE = "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.";
 
   beforeEach(() => {
     localStorage.setItem('csps-admin-theme', 'espresso');
@@ -375,7 +374,9 @@ describe('Clear my cookies & data (CS1 item 5, CS2, ANL-04, D-19, D-31, D-35)', 
   function clearAnswers(jar: ReturnType<typeof setSaved>) {
     server.use(
       http.post('*/api/v1/analytics/clear', () => {
-        jar.value = formatConsentCookie(consentCookie({ consentId: NEW_CHAIN, stats: false, map: false }));
+        jar.value = formatConsentCookie(
+          consentCookie({ consentId: NEW_CHAIN, stats: false, map: false, decidedOn: TODAY }),
+        );
         return HttpResponse.json({ ...demoDecision, consentId: NEW_CHAIN, stats: false, map: false });
       }),
     );

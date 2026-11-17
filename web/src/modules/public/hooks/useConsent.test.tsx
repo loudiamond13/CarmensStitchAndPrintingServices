@@ -12,6 +12,9 @@ import { consentStore, createConsentStore, resetConsentStore, useConsent } from 
 
 const TODAY = '2026-11-17';
 
+/** The save tests never clear, so a service double has nothing to answer. */
+const unusedClear = () => Promise.reject(new Error('clear is not used here'));
+
 describe('manilaBusinessDay (D-43)', () => {
   it.each([
     ['2026-11-16T20:00:00Z', '2026-11-17'],
@@ -213,7 +216,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record }),
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(1);
@@ -228,7 +231,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(POLICY_CHANGED_ERROR) }),
+      loadService: () => Promise.resolve({ record: () => Promise.reject(POLICY_CHANGED_ERROR), clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(2);
@@ -252,6 +255,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
             value = formatConsentCookie(consentCookie({ stats: true, map: true, decidedOn: TODAY }));
             return Promise.reject(POLICY_CHANGED_ERROR);
           },
+          clear: unusedClear,
         }),
     });
     await store.acceptAll('bar');
@@ -266,7 +270,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(conflict('other')) }),
+      loadService: () => Promise.resolve({ record: () => Promise.reject(conflict('other')), clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(1);
@@ -285,7 +289,8 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       },
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(thrown as unknown as Error) }),
+      loadService: () =>
+        Promise.resolve({ record: () => Promise.reject(thrown as unknown as Error), clear: unusedClear }),
     });
     await store.rejectAll('bar');
     expect(parseConsentCookie(value)).toMatchObject({ stats: false, map: false, pending: true });
@@ -389,7 +394,7 @@ describe('a failed save keeps the choice (UI-SPEC error, ANL-07)', () => {
         value = next ?? undefined;
       },
       gpc: false,
-      loadService: () => Promise.resolve({ record }),
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
     });
 
     const saving = store.acceptAll('bar');
@@ -675,7 +680,12 @@ describe('clearData (ANL-04, D-19, D-31, D-41)', () => {
     expect(seen).toEqual([{ local: 'espresso', session: 'cards', csrf: '1', body: '' }]);
     expect(localStorage.length).toBe(0);
     expect(sessionStorage.length).toBe(0);
-    expect(parseConsentCookie(jar.value)).toMatchObject({ consentId: NEW_CHAIN, stats: false, map: false, pending: false });
+    expect(parseConsentCookie(jar.value)).toMatchObject({
+      consentId: NEW_CHAIN,
+      stats: false,
+      map: false,
+      pending: false,
+    });
     expect(jar.writes).toEqual([]);
     expect(result.current).toMatchObject({ statsAllowed: false, mapAllowed: false, needsChoice: false });
   });
@@ -690,7 +700,9 @@ describe('clearData (ANL-04, D-19, D-31, D-41)', () => {
     await waitFor(() => {
       expect(result.current.statsAllowed).toBe(true);
     });
-    server.use(http.post('*/api/v1/analytics/clear', () => HttpResponse.json({ ...demoDecision, stats: false, map: false })));
+    server.use(
+      http.post('*/api/v1/analytics/clear', () => HttpResponse.json({ ...demoDecision, stats: false, map: false })),
+    );
 
     await act(async () => {
       await result.current.clearData();

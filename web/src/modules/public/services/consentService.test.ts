@@ -54,7 +54,7 @@ describe('consentService.clear', () => {
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe('/api/v1/analytics/clear');
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body).toBeNull();
   });
 
   it('rejects with an HttpError that carries the 429 status when the clear limit is hit', async () => {

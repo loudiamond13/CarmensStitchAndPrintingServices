@@ -7,7 +7,9 @@
 //   - Under GPC (D-20) Visitor stats is locked off with its own hint, the Google map box works, and only Save Choices shows.
 //   - A choice closes the window first and is then saved, so the "saved" line is read while the page is live again. When
 //     the bar was showing, focus goes to `main` once the bar has closed; otherwise it goes back to the opener.
-import { useEffect, useState } from 'react';
+//   - The last section clears this site's cookies and data (ANL-04, item 5): its button opens CS2 (ClearDataDialog). After a
+//     clear the window stays open with both boxes unticked, and the live Note says it is done.
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { Checkbox } from '@/components/entry/Checkbox';
@@ -18,7 +20,10 @@ import { formatCalendarDate } from '@/utils/format';
 import { CONSENT_COPY } from '../consentCopy';
 import { focusMainWhenChosen } from '../consentFocus';
 import { useConsent } from '../hooks/useConsent';
+import { ClearDataDialog } from './ClearDataDialog';
 import {
+  clearHeadingClasses,
+  clearSectionClasses,
   descriptionClasses,
   fieldsetClasses,
   legendClasses,
@@ -30,7 +35,7 @@ import {
 // The save path starts loading with the window, so a click applies the choice at once (it is not in the first download).
 void import('../consentSave');
 
-const { window: WINDOW } = CONSENT_COPY;
+const { window: WINDOW, clear: CLEAR } = CONSENT_COPY;
 
 interface Boxes {
   stats: boolean;
@@ -42,6 +47,9 @@ export function CookieSettingsDialog() {
   const { cookie, current, gpc, needsChoice, statsAllowed, mapAllowed } = consent;
   const { save, acceptAll, rejectAll, closeSettings, settingsReady } = consent;
   const [edits, setEdits] = useState<Partial<Boxes>>({});
+  const [clearOpen, setClearOpen] = useState(false);
+  const [cleared, setCleared] = useState(false);
+  const clearButton = useRef<HTMLButtonElement>(null);
   const boxes: Boxes = {
     stats: edits.stats ?? (!needsChoice && statsAllowed),
     map: edits.map ?? (!needsChoice && mapAllowed),
@@ -59,82 +67,122 @@ export function CookieSettingsDialog() {
     if (barWasOpen) focusMainWhenChosen();
   };
 
+  // After a clear both boxes read unticked, as the server stored them (D-31), and focus goes back to the button that asked.
+  const afterClear = () => {
+    setClearOpen(false);
+    setEdits({ stats: false, map: false });
+    setCleared(true);
+    requestAnimationFrame(() => {
+      clearButton.current?.focus();
+    });
+  };
+
   return (
-    <Modal
-      title={WINDOW.title}
-      onClose={closeSettings}
-      footer={
-        <>
-          {!gpc && (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  choose(() => rejectAll('settings'));
-                }}
-              >
-                {CONSENT_COPY.reject}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  choose(() => acceptAll('settings'));
-                }}
-              >
-                {CONSENT_COPY.accept}
-              </Button>
-            </>
-          )}
+    <>
+      <Modal
+        title={WINDOW.title}
+        onClose={closeSettings}
+        footer={
+          <>
+            {!gpc && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    choose(() => rejectAll('settings'));
+                  }}
+                >
+                  {CONSENT_COPY.reject}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    choose(() => acceptAll('settings'));
+                  }}
+                >
+                  {CONSENT_COPY.accept}
+                </Button>
+              </>
+            )}
+            <Button
+              variant="primary"
+              onClick={() => {
+                choose(() => save(boxes, 'settings'));
+              }}
+            >
+              {WINDOW.save}
+            </Button>
+          </>
+        }
+      >
+        <div>
+          <p className={descriptionClasses}>{WINDOW.description}</p>
+          <UiLink to="/cookies" className={windowLinkClasses} onClick={closeSettings}>
+            {WINDOW.policyLink}
+          </UiLink>
+        </div>
+        {savedDate !== null && <p className={smallMutedClasses}>{WINDOW.saved(savedDate)}</p>}
+        {gpc && <Note icon="shield-check">{WINDOW.gpcNote}</Note>}
+        <fieldset className={fieldsetClasses}>
+          <legend className={legendClasses}>{WINDOW.legend}</legend>
+          <div>
+            <p className={necessaryHeadClasses}>
+              {WINDOW.necessary.title}
+              <Badge tone="neutral">{WINDOW.necessary.badge}</Badge>
+            </p>
+            <p className={smallMutedClasses}>{WINDOW.necessary.hint}</p>
+          </div>
+          <div>
+            <Checkbox
+              label={WINDOW.stats.title}
+              hint={gpc ? WINDOW.stats.gpcHint : WINDOW.stats.hint}
+              checked={boxes.stats}
+              ariaDisabled={gpc}
+              onChange={(stats) => {
+                setEdits((previous) => ({ ...previous, stats }));
+              }}
+            />
+          </div>
+          <div>
+            <Checkbox
+              label={WINDOW.map.title}
+              hint={WINDOW.map.hint}
+              checked={boxes.map}
+              onChange={(map) => {
+                setEdits((previous) => ({ ...previous, map }));
+              }}
+            />
+          </div>
+        </fieldset>
+        <section className={clearSectionClasses}>
+          <h3 className={clearHeadingClasses}>{CLEAR.heading}</h3>
+          <p className={smallMutedClasses}>{CLEAR.description}</p>
           <Button
-            variant="primary"
+            ref={clearButton}
+            variant="ghost-danger"
+            icon="eraser"
             onClick={() => {
-              choose(() => save(boxes, 'settings'));
+              setCleared(false);
+              setClearOpen(true);
             }}
           >
-            {WINDOW.save}
+            {CLEAR.button}
           </Button>
-        </>
-      }
-    >
-      <div>
-        <p className={descriptionClasses}>{WINDOW.description}</p>
-        <UiLink to="/cookies" className={windowLinkClasses} onClick={closeSettings}>
-          {WINDOW.policyLink}
-        </UiLink>
-      </div>
-      {savedDate !== null && <p className={smallMutedClasses}>{WINDOW.saved(savedDate)}</p>}
-      {gpc && <Note icon="shield-check">{WINDOW.gpcNote}</Note>}
-      <fieldset className={fieldsetClasses}>
-        <legend className={legendClasses}>{WINDOW.legend}</legend>
-        <div>
-          <p className={necessaryHeadClasses}>
-            {WINDOW.necessary.title}
-            <Badge tone="neutral">{WINDOW.necessary.badge}</Badge>
-          </p>
-          <p className={smallMutedClasses}>{WINDOW.necessary.hint}</p>
-        </div>
-        <div>
-          <Checkbox
-            label={WINDOW.stats.title}
-            hint={gpc ? WINDOW.stats.gpcHint : WINDOW.stats.hint}
-            checked={boxes.stats}
-            ariaDisabled={gpc}
-            onChange={(stats) => {
-              setEdits((previous) => ({ ...previous, stats }));
-            }}
-          />
-        </div>
-        <div>
-          <Checkbox
-            label={WINDOW.map.title}
-            hint={WINDOW.map.hint}
-            checked={boxes.map}
-            onChange={(map) => {
-              setEdits((previous) => ({ ...previous, map }));
-            }}
-          />
-        </div>
-      </fieldset>
-    </Modal>
+          {cleared && (
+            <Note icon="circle-check" live>
+              {CLEAR.done}
+            </Note>
+          )}
+        </section>
+      </Modal>
+      {/* A sibling of the window, not inside it, so its fixed layer is not held by the window's own box. */}
+      <ClearDataDialog
+        open={clearOpen}
+        onCancel={() => {
+          setClearOpen(false);
+        }}
+        onCleared={afterClear}
+      />
+    </>
   );
 }

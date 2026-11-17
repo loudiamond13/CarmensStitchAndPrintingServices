@@ -38,4 +38,23 @@ export const CONSENT_COPY = {
     },
     save: 'Save Choices',
   },
+  // CS1 item 5 and CS2 (UI-SPEC Copywriting "Clear section", "Clear dialog", "Cleared", "Clear failed"; D-31, D-35).
+  clear: {
+    heading: 'Clear my cookies & data',
+    description:
+      "Removes this site's cookies and saved settings from this browser, and deletes the visit records linked to it on our server.",
+    button: 'Clear My Cookies & Data',
+    done: "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.",
+    dialog: {
+      title: 'Clear your cookies and data?',
+      message:
+        "This deletes this site's cookies and saved settings in this browser, and the visit records linked to them on our server. This can't be undone.",
+      confirm: 'Clear My Data',
+      pending: 'Clearing',
+      keep: 'Keep My Data',
+      failed: "Couldn't clear your data. Check your internet connection and try again.",
+      // The words of the server's 429 for this call.
+      rateLimited: 'Too many tries. Wait a minute and try again.',
+    },
+  },
 } as const;

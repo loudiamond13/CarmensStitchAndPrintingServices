@@ -45,5 +45,11 @@ export const necessaryHeadClasses = tw(
 export const fieldsetClasses = tw('m-0 flex min-w-0 flex-col gap-4 border-0 p-0');
 export const legendClasses = tw('mb-4 p-0 text-14 leading-5 font-semibold text-ink');
 
+/** CS1 item 5: the Clear section, 24px below the choices (the body's 20px gap and 4px more) with a 1px `--line` rule on top. */
+export const clearSectionClasses = tw('mt-1 flex min-w-0 flex-col items-start gap-3 border-t border-line pt-5');
+
+/** CS1 item 5: its heading, a Label. */
+export const clearHeadingClasses = tw('m-0 text-14 leading-5 font-semibold text-ink');
+
 /** Cookie Settings: first in the DOM; full width under the two choices on phones. */
 export const settingsClasses = tw('pg-phone:order-last pg-phone:col-span-2 pg-phone:w-full');

@@ -19,11 +19,17 @@ export interface ConsentRecordBody {
 export interface ConsentService {
   /** `POST /api/v1/analytics/consent`: logs the decision; the server sets the consent cookie. */
   record(body: ConsentRecordBody, signal?: AbortSignal): Promise<ConsentDecision>;
+  /**
+   * `POST /api/v1/analytics/clear` (ANL-04): deletes the visit records tied to this browser's visitor id and logs a reset decision.
+   * The visitor is chosen by the HttpOnly cookie alone, so the call has no body; the server sets the new consent cookie.
+   */
+  clear(signal?: AbortSignal): Promise<ConsentDecision>;
 }
 
 export function createConsentService(client: HttpClient): ConsentService {
   return {
     record: (body, signal) => client.post<ConsentDecision>('/analytics/consent', body, { signal }),
+    clear: (signal) => client.post<ConsentDecision>('/analytics/clear', undefined, { signal }),
   };
 }
 

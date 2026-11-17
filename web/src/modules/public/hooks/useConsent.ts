@@ -38,6 +38,12 @@ export interface ConsentState {
   announcement: string | null;
 }
 
+/** How a clear ended: done, refused by the rate limit (429), or any other failure. */
+export type ClearOutcome = 'cleared' | 'failed' | 'rate-limited';
+
+/** The readable cookies this site sets that are not essential, expired by name on a clear. None today: the map's cookies are Google's. */
+const NON_ESSENTIAL_COOKIES: readonly string[] = [];
+
 export interface ConsentChoice {
   stats: boolean | null;
   map: boolean;
@@ -55,6 +61,11 @@ export interface ConsentActions {
   settingsReady: () => void;
   /** Sends a provisional choice again once, when an earlier send failed. */
   resendPending: () => Promise<void>;
+  /**
+   * Clear my cookies and data (ANL-04, D-19, D-31): the server call runs first. Only after it answers 2xx does this browser forget
+   * its storage and non-essential cookies, and the consent cookie the server set (stats off, map off) becomes the choice.
+   */
+  clearData: () => Promise<ClearOutcome>;
 }
 
 export interface ConsentStoreOptions {
@@ -80,6 +91,23 @@ export interface ConsentStore extends ConsentActions {
 type Rules = typeof import('../consentRules');
 
 const freshMemory = (): SendMemory => ({ inFlight: false, answeredValue: undefined, lastSource: 'bar' });
+
+const loadConsentService = (): Promise<ConsentService> =>
+  import('../services/consentService').then((module) => module.consentService);
+
+const isRateLimited = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && (error as { status?: unknown }).status === 429;
+
+/** Forgets what this site keeps in this browser. Storage that cannot be reached (a locked-down browser) holds nothing to forget. */
+function forgetBrowserData(): void {
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch {
+    // Blocked storage has nothing of ours in it.
+  }
+  for (const name of NON_ESSENTIAL_COOKIES) document.cookie = `${name}=; Path=/; Max-Age=0`;
+}
 
 export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let options = initial;
@@ -214,6 +242,20 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       if (read()?.endsWith('_p') !== true) return;
       await (await loadSave()).resendChoice(host);
     },
+    clearData: async () => {
+      try {
+        await (await (options.loadService ?? loadConsentService)()).clear();
+      } catch (error) {
+        return isRateLimited(error) ? 'rate-limited' : 'failed';
+      }
+      // The server answered 2xx and set the reset cookie, so the browser may now forget; the consent cookie is not touched.
+      forgetBrowserData();
+      held = undefined;
+      memory = freshMemory();
+      announcement = null;
+      refresh();
+      return 'cleared';
+    },
   };
 }
 
@@ -237,6 +279,7 @@ const ACTIONS: ConsentActions = {
   closeSettings: consentStore.closeSettings,
   settingsReady: consentStore.settingsReady,
   resendPending: consentStore.resendPending,
+  clearData: consentStore.clearData,
 };
 
 export function useConsent(): ConsentState & ConsentActions {
