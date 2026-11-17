@@ -48,6 +48,34 @@ public sealed class SeoEndpointTests
             [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact"]);
     }
 
+    [Theory]
+    [InlineData("/privacy")]
+    [InlineData("/cookies")]
+    [InlineData("/terms")]
+    [InlineData("/accessibility")]
+    public async Task TheSitemapLeavesOutEveryLegalPageWhileItIsADraft(string path)
+    {
+        await using var factory = new ShellTestFactory();
+        using var client = factory.CreateClient();
+
+        var body = await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        body.ShouldNotContain($"{Origin}{path}<", Case.Sensitive, path);
+    }
+
+    [Fact]
+    public async Task AnApprovedLegalPageIsListedAndTheOtherDraftsStayOut()
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader("Sample Shop"), new ApprovedLegalPages("/terms"));
+        using var client = factory.CreateClient();
+
+        var document = XDocument.Parse(await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken));
+
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "loc")!.Value).ShouldBe(
+            [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/terms"]);
+    }
+
     [Fact]
     public async Task EachSitemapUrlHasTheDateOfTheNewestContentChange()
     {

@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using Csps.Application.Content;
 using Csps.Application.Ports;
+using Csps.Domain.Content;
+using Csps.Server.Endpoints;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -11,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Csps.Server.IntegrationTests.Http;
 
 /// <summary>A test host with no database whose public site facts come from a stub, so the shell's head can be checked on its own.</summary>
-internal sealed class ShellTestFactory(IPublicContentReader reader) : CspsApiFactory
+internal sealed class ShellTestFactory(IPublicContentReader reader, ILegalPageCatalog? legalPages = null) : CspsApiFactory
 {
     /// <summary>The business name the default stub returns.</summary>
     public const string DefaultBusinessName = "Test Shop's Name & Co";
@@ -25,8 +27,22 @@ internal sealed class ShellTestFactory(IPublicContentReader reader) : CspsApiFac
     {
         ArgumentNullException.ThrowIfNull(builder);
         base.ConfigureWebHost(builder);
-        builder.ConfigureTestServices(services => services.AddSingleton(reader));
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddSingleton(reader);
+            if (legalPages is not null)
+            {
+                services.AddSingleton(legalPages);
+            }
+        });
     }
+}
+
+/// <summary>A test-only fact set: the legal pages whose paths are listed are approved, the rest are drafts.</summary>
+internal sealed class ApprovedLegalPages(params string[] approvedPaths) : ILegalPageCatalog
+{
+    public bool IsDraft(string path) =>
+        LegalPages.ByPath(path) is not null && !approvedPaths.Contains(path, StringComparer.Ordinal);
 }
 
 /// <summary>Returns a fixed public site snapshot, or throws the given exception.</summary>

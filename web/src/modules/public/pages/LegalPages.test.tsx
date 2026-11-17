@@ -1,10 +1,12 @@
 // SPEC-GAP: LEGAL-05, D-14. The legal pages open inside the public layout with the DRAFT notice, the crumbs, the eyebrow, the h1
 // with its accent word, the version line and the lead (UI-SPEC L1).
 import { render, screen, within } from '@testing-library/react';
-import { createMemoryRouter } from 'react-router';
+import { MemoryRouter, createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
+import { LegalPage } from '../components/LegalPage';
+import { LEGAL_PAGES } from '../legalPages';
 
 /** The real route tree at a legal path, settled once the h1 is on screen. */
 async function renderLegal(path: string, name: string) {
@@ -95,5 +97,28 @@ describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout
   it('sets the document title the server sends', async () => {
     await renderLegal(page.path, page.h1);
     expect(document.title).toBe(`${page.crumb} · CSPS`);
+  });
+});
+
+describe('LegalPage for an approved page (LEGAL-05, D-14)', () => {
+  it('shows no DRAFT notice and still shows the version line', () => {
+    render(
+      <MemoryRouter>
+        <LegalPage page={{ ...LEGAL_PAGES.terms, approved: true }} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText("It may change before it's approved.")).not.toBeInTheDocument();
+    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Terms of use.' })).toBeInTheDocument();
+  });
+
+  it('shows the notice again for the same page while it is not approved', () => {
+    render(
+      <MemoryRouter>
+        <LegalPage page={LEGAL_PAGES.terms} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
   });
 });

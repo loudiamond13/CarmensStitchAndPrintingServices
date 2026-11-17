@@ -922,6 +922,18 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         Meta(body, "name", "robots").ShouldBe("noindex, nofollow", path);
     }
 
+    [Fact]
+    public async Task ApprovingOneLegalPageRemovesItsNoindexAndLeavesTheOthersMarked()
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(Site(tagline: "Sample tagline")), new ApprovedLegalPages("/terms"));
+        using var client = factory.CreateClient();
+
+        Meta(await GetBodyAsync(client, "/terms"), "name", "robots").ShouldBeNull();
+        Meta(await GetBodyAsync(client, "/privacy"), "name", "robots").ShouldBe("noindex, nofollow");
+        Meta(await GetBodyAsync(client, "/cookies"), "name", "robots").ShouldBe("noindex, nofollow");
+        Meta(await GetBodyAsync(client, "/accessibility"), "name", "robots").ShouldBe("noindex, nofollow");
+    }
+
     [Theory]
     [InlineData("/")]
     [InlineData("/products")]
