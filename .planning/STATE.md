@@ -5,17 +5,17 @@ current_phase_name: Consent, Analytics & Legal
 status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
-last_activity: 2026-11-16
-last_activity_desc: Phase 12 execution started
+last_activity: 2026-11-17
+last_activity_desc: Phase 12 wave 5 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 341
+  completed_plans: 345
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-17T08:30:00-06:00"
+updated: "2026-11-17T11:40:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-16 — Phase 12 execution started
+Last activity: 2026-11-17 — Phase 12 wave 5 (12-16 to 12-19) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1033,9 +1033,17 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-13 footer Legal row fails look-equality (needs your choice):** `npm run parity -- --grep @layouts-public --project chromium` has 6 failed rows because the approved reference footer has no Legal row, and `web/visual/intentional-differences.ts` has no entry kind for an added element. Choose: (A) add an "inserted element" exception kind (recommended: the real footer stays under test), (B) hide the row in the dev preview, or (C) a pixel tolerance.
 - [ ] **12-13 Staff Login target-size finding (check after the parity choice):** the same parity run showed one axe target-size finding on Staff Login at 390 px that single-page probes did not reproduce; it looks like a harness scroll effect.
 - [ ] **UI-SPEC fixes from 12-13 (doc only):** (1) CB1 says Cookie Settings opens with nothing ticked while the bar asks, but its "re-ask" row says it opens on the old choice; the code follows the plan and D-34 (nothing ticked). (2) The Visitor stats hint in the UI-SPEC still says "13 months"; the code says "about 13 months" (D-36).
-- [ ] **Budget room for later public plans:** Privacy has 1.22 KB left. Any later public-page plan must measure against 148.78 KB, not raise the limit (D-42).
+- [ ] **Budget room for later public plans (updated after wave 5):** Privacy 149.60 KB (0.40 KB left), Cookies 149.50, Terms 148.71, Accessibility 148.27, Contact 147.90, Home 147.84. Any later public-page plan (12-20 map card on Contact first) must measure against these, not raise the limit (D-42). 12-16 noted a cheaper send path (move the send logic to a second lazy file, about 0.4 to 0.5 KB, needs a plan change) and 12-17 noted `clearData` could move to a lazy module (about 0.28 KB, needs a plan change); either needs your yes. 12-16 also saw a base build of 148.26 KB for Privacy, not 148.78; not resolved.
 - [x] **12-14 full Server run in the worktree hit LocalDB timeouts under load:** closed by the wave 4 gate (Server 3016 passed on a quiet machine). No action.
 - [ ] **12-13 / 12-15 browsers:** only Chromium E2E ran for 12-13 (30 passed); 12-15 ran `@public` (115 passed). Firefox and WebKit for the new footer and window are still owed before ship.
+- [x] **Wave 5 post-merge gate (2026-11-17; plans 12-16 to 12-19, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3219, Infrastructure 1295 passed; Server 3036 of 3037 and web 11219 of 11220: both failures were the new `analytics-clear` limit missing from `RateLimitTests.LimitedEndpoints` and the owner review host, fixed (8bd1eb8f) and re-run (66 of 66, 119 of 119); web `verify` then exit 0 (11220 tests, branches 90.4%); openapi types match; `build:budget` exit 0 (see the budget row). The main checkout needed `npm ci` for the approved `web-vitals` 6.2.3.
+- [ ] **12-19 / 12-17 Clear wording (your review, plan 12-22):** the Cookie Policy (and the 12-17 Clear dialog) say Clear deletes "this site's cookies", but the code keeps the staff sign-in cookies and re-sets the consent cookie. Choose: (A) keep, (B) say "optional cookies" and note the necessary ones stay (recommended, both texts change), (C) make Clear also sign staff out.
+- [ ] **12-19 "Admin settings in this browser" group (12-22):** it is browser storage listed under Necessary. Recommended: keep as drafted; the other choice is a separate "Staff only" group. The 12-19 SUMMARY lists 8 groups of drafted Cookie Policy lines to check.
+- [ ] **12-18 retention choices (low priority):** (1) a visit written after its Manila day was rolled up is never counted (recommended: accept); (2) a day with no visits writes no rows, so the stats read (12-21) must treat a missing day as zero; (3) "Visits" counts visit rows, not unique visitors. The migration is `20261117155405_AddDailyAnalyticsCounts` (EF timestamp, not the plan's name).
+- [ ] **12-16 CLS on iPhone (FYI):** Safari reports no layout-shift score, so iPhone visitors send loading speed and tap response only.
+- [ ] **12-17 narrow-screen dialog:** the 320 px Clear confirmation is checked only by class names in jsdom; plan 12-24 must check it in Playwright.
+- [ ] **Wave 5 load flakes (recorded):** `ParallelCallersEachGetTheirOwnStatus` 500 twice more in the 12-17 worktree (same row as above); `AdminLayout`, `GalleryPage`, `PublicLayout`, `ProductsPage` and an admin routes test failed under load and passed alone. None failed in the gate.
+- [ ] **Commit trailers (FYI):** 12-16 and 12-19 executors signed most commits `Claude Sonnet 5.5` (the model that ran them); not rewritten.
 
 ### Blockers/Concerns
 
