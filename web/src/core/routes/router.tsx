@@ -16,6 +16,7 @@
 //     loads with the admin chunks, so the public entry carries neither it nor any admin page code (PERF-02).
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { adminRoutes, devRoutes } from '@/modules/admin/routes';
+import type { LegalPageKey } from '@/modules/public/legalPages';
 import { RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
 import { lazyRoute } from './lazyRoute';
 import { ShellFallback } from './ShellFallback';
@@ -32,6 +33,10 @@ export const queryBranch = (children: RouteObject[]): RouteObject => ({
 const publicLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/layouts/PublicLayout')).PublicLayout,
 }));
+
+/** One import for the four legal routes keeps the entry chunk small (PERF-01); legalLoaders.ts holds the page imports. */
+const legalPage = (key: LegalPageKey) =>
+  lazyRoute(async () => ({ Component: await (await import('@/modules/public/legalLoaders')).loadLegalPage(key) }));
 
 const urlStateLayout = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/lib/url-state/UrlStateLayout')).default,
@@ -77,30 +82,22 @@ export const publicRoutes: RouteObject[] = [
       {
         path: 'privacy',
         ErrorBoundary: RouteErrorBoundary,
-        lazy: lazyRoute(async () => ({
-          Component: (await import('@/modules/public/pages/PrivacyPolicyPage')).PrivacyPolicyPage,
-        })),
+        lazy: legalPage('privacy'),
       },
       {
         path: 'cookies',
         ErrorBoundary: RouteErrorBoundary,
-        lazy: lazyRoute(async () => ({
-          Component: (await import('@/modules/public/pages/CookiePolicyPage')).CookiePolicyPage,
-        })),
+        lazy: legalPage('cookies'),
       },
       {
         path: 'terms',
         ErrorBoundary: RouteErrorBoundary,
-        lazy: lazyRoute(async () => ({
-          Component: (await import('@/modules/public/pages/TermsPage')).TermsPage,
-        })),
+        lazy: legalPage('terms'),
       },
       {
         path: 'accessibility',
         ErrorBoundary: RouteErrorBoundary,
-        lazy: lazyRoute(async () => ({
-          Component: (await import('@/modules/public/pages/AccessibilityPage')).AccessibilityPage,
-        })),
+        lazy: legalPage('accessibility'),
       },
       {
         path: '*',

@@ -75,14 +75,14 @@ The four legal pages are public routes inside `PublicLayout`: `/privacy`, `/cook
 
 | Page | Size | Result |
 |---|---|---|
-| Privacy Policy (`/privacy`) | 145.12 KB | ok |
-| Cookie Policy (`/cookies`) | 145.12 KB | ok |
-| Terms of Use (`/terms`) | 145.11 KB | ok |
-| Accessibility Statement (`/accessibility`) | 145.12 KB | ok |
+| Privacy Policy (`/privacy`) | 144.98 KB | ok |
+| Cookie Policy (`/cookies`) | 144.98 KB | ok |
+| Terms of Use (`/terms`) | 144.97 KB | ok |
+| Accessibility Statement (`/accessibility`) | 144.98 KB | ok |
 
-These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 4.9 KB that is left on each row.
+These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 5.0 KB that is left on each row. The legal figures leave out the loader chunk (`legalLoaders.ts`, about 0.3 KB gzip) that the legal routes also fetch.
 
-**Open issue.** The four new lazy routes live in the entry chunk's route table, so every page's first download grows by about 0.24 KB (measured: with the four routes left out, Home was 149.78 KB and Contact 149.82 KB; with them, Home is 150.02 KB and Contact 150.05 KB). Both are over the 150.00 KB limit, so `npm run build` stops. This is recorded in the plan 12-05 summary for the owner to decide.
+**Entry chunk cost.** Every lazy route adds its chunk name and import to the entry chunk's route table, and every page downloads that table. Four separate legal imports in `router.tsx` grew it by about 0.24 KB (Home 149.78 to 150.02 KB, Contact 149.82 to 150.05 KB, both over the limit). The four routes now share one import of `legalLoaders.ts`, which holds the four page imports. That costs about 0.10 KB (Home 149.88 KB, Contact 149.92 KB), and each page is still its own lazy chunk. In the production build Home and Contact have about 0.1 KB left. **`npm run build:budget` (the admin-included build that CI runs) is over:** Home 150.09 KB and Contact 150.13 KB, where the same build before this plan gave 149.98 KB and 149.99 KB, which was already within 0.02 KB of the limit. Any new lazy route in the entry chunk now breaks that build, so Phase 12 needs a recovery of entry bytes before it can ship; the owner decides how (recorded in the plan 12-05 summary).
 
 ## Fonts and compression (Phase 11)
 
