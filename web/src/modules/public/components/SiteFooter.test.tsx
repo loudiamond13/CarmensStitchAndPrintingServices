@@ -1,5 +1,6 @@
 // The public footer from the stored shop facts (PUB-02, D-25, D-33, D-42).
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -15,6 +16,7 @@ import {
   type PublicSiteFixture,
 } from '@/test/publicFixtures';
 import { server } from '@/test/msw';
+import { consentStore } from '../hooks/useConsent';
 import FooterHours from './FooterHours';
 import { SiteFooter } from './SiteFooter';
 
@@ -258,5 +260,39 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
     const { container } = renderBase();
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('SiteFooter Legal row, Cookie Settings (ANL-03)', () => {
+  it.each([
+    ['full', renderFullFrom],
+    [
+      'base',
+      (site: PublicSiteFixture) => {
+        putBootBlock(site);
+        return renderBase();
+      },
+    ],
+  ])('ends the %s footer with a nav named "Legal" that holds the Cookie Settings button', (_name, draw) => {
+    draw(demoSite);
+    const nav = within(screen.getByRole('contentinfo')).getByRole('navigation', { name: 'Legal' });
+
+    expect(within(nav).getByRole('button', { name: 'Cookie Settings' })).toHaveAttribute('type', 'button');
+  });
+
+  it('opens the window from the button and shows the button pending until the window says it is ready', async () => {
+    const user = userEvent.setup();
+    putBootBlock(demoSite);
+    renderBase();
+    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
+      name: 'Cookie Settings',
+    });
+
+    await user.click(button);
+
+    expect(consentStore.getSnapshot().settingsOpen).toBe(true);
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveFocus();
   });
 });

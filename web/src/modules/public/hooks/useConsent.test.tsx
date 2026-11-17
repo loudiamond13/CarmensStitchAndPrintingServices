@@ -396,4 +396,27 @@ describe('the settings window state', () => {
     expect(opener).toHaveFocus();
     opener.remove();
   });
+
+  it('is loading from the first open until the window reports ready, and not again on a later open', () => {
+    setConsent({ cookie: null });
+    const { result } = renderHook(() => useConsent());
+    expect(result.current.settingsLoading).toBe(false);
+
+    act(() => {
+      result.current.openSettings();
+    });
+    expect(result.current.settingsLoading).toBe(true);
+
+    act(() => {
+      result.current.settingsReady();
+    });
+    expect(result.current.settingsLoading).toBe(false);
+
+    act(() => {
+      result.current.closeSettings();
+      result.current.openSettings();
+    });
+    expect(result.current.settingsOpen).toBe(true);
+    expect(result.current.settingsLoading).toBe(false);
+  });
 });
