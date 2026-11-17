@@ -106,6 +106,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The cookie decisions kept as proof of consent: one row per decision, never edited, kept 13 months (ANL-07, D-05).</summary>
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
 
+    /// <summary>The anonymous page-view counts: one row per business day and page key, with no visitor information (ANL-06).</summary>
+    public DbSet<DailyPageCount> DailyPageCounts => Set<DailyPageCount>();
+
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 

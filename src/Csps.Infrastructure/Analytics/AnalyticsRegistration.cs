@@ -14,6 +14,7 @@ public static class AnalyticsRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<IConsentRecords, ConsentRecords>();
+        services.AddScoped<IPageViewCounts, PageViewCounts>();
         return services;
     }
 }
