@@ -25,6 +25,10 @@ internal sealed partial class AnalyticsRetentionJob(
 {
     internal const string RolledUpLabel = "Visitor days rolled up";
 
+    internal const string RawLabel = "Old visit records removed";
+
+    internal const string ConsentLabel = "Old cookie choices removed";
+
     internal const string JobName = "analytics-retention";
 
     internal const int BatchSize = 500;
@@ -44,14 +48,28 @@ internal sealed partial class AnalyticsRetentionJob(
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var today = clock.Today;
+        var now = clock.UtcNow;
         var lines = new List<MaintenanceLine>();
 
-        var (line, more) = await RunRuleAsync(
-            RolledUpLabel,
-            "The visitor days could not be rolled up.",
-            () => RollUpAsync(today, budget, cancellationToken)).ConfigureAwait(false);
-        lines.Add(line);
-        return new MaintenanceJobReport(lines, more);
+        // The rules in run order: the rollup first, so a raw day is only ever removed after its totals are kept. A rule that stops for the
+        // budget ends the pass with More; the next pass carries on from there.
+        var rules = new List<(string Label, string FailedText, Func<Task<(long Count, bool More)>> Work)>
+        {
+            (RolledUpLabel, "The visitor days could not be rolled up.", () => RollUpAsync(today, budget, cancellationToken)),
+            (RawLabel, "The old visit records could not be removed.", () => PurgeRawVisitsAsync(today, budget, cancellationToken)),
+            (ConsentLabel, "The old cookie choices could not be removed.", () => PurgeConsentAsync(now, budget, cancellationToken)),
+        };
+        foreach (var (label, failedText, work) in rules)
+        {
+            var (line, more) = await RunRuleAsync(label, failedText, work).ConfigureAwait(false);
+            lines.Add(line);
+            if (more)
+            {
+                return new MaintenanceJobReport(lines, true);
+            }
+        }
+
+        return new MaintenanceJobReport(lines, false);
     }
 
     // Runs one rule. A database failure is logged and becomes the rule's failed line, so the run never throws for it.
@@ -139,6 +157,82 @@ internal sealed partial class AnalyticsRetentionJob(
             await cursors.SaveAsync(JobName, day.ToString(CursorFormat, CultureInfo.InvariantCulture), cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    // Removes visits, page views and speed samples older than the raw cut (D-03), children first, and only for days the cursor shows rolled up.
+    private async Task<(long Count, bool More)> PurgeRawVisitsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
+    {
+        var rolledThrough = await ReadCursorAsync(cancellationToken).ConfigureAwait(false);
+        if (rolledThrough is not { } last)
+        {
+            return (0, false);
+        }
+
+        var rawCut = AnalyticsRetention.RawCut(today);
+        var before = rawCut <= last ? rawCut : last.AddDays(1);
+        return await DrainAsync(
+            [
+                token => context.AnalyticsVitalSamples
+                    .Where(sample => sample.BusinessDay < before)
+                    .OrderBy(sample => sample.Id)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+                token => context.AnalyticsPageViews
+                    .Where(view => view.BusinessDay < before)
+                    .OrderBy(view => view.Id)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+                token => context.AnalyticsVisits
+                    .Where(visit => visit.BusinessDay < before)
+                    .OrderBy(visit => visit.BusinessDay)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+            ],
+            budget,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    // Removes cookie choices decided before the consent cut (D-05).
+    private Task<(long Count, bool More)> PurgeConsentAsync(DateTimeOffset now, MaintenanceBudget budget, CancellationToken cancellationToken)
+    {
+        var cut = AnalyticsRetention.ConsentPurgeBefore(now);
+        return DrainAsync(
+            [
+                token => context.ConsentRecords
+                    .Where(record => record.DecidedAtUtc < cut)
+                    .OrderBy(record => record.DecidedAtUtc)
+                    .Take(BatchSize)
+                    .ExecuteDeleteAsync(token),
+            ],
+            budget,
+            cancellationToken);
+    }
+
+    // Runs each step in batches until it removes less than a full batch. A full batch may mean more rows are left: the budget is checked
+    // then, and a spent budget ends the pass with More.
+    private static async Task<(long Count, bool More)> DrainAsync(
+        IReadOnlyList<Func<CancellationToken, Task<int>>> steps, MaintenanceBudget budget, CancellationToken cancellationToken)
+    {
+        long removed = 0;
+        foreach (var step in steps)
+        {
+            while (true)
+            {
+                var batch = await step(cancellationToken).ConfigureAwait(false);
+                removed += batch;
+                if (batch < BatchSize)
+                {
+                    break;
+                }
+
+                if (budget.IsSpent)
+                {
+                    return (removed, true);
+                }
+            }
+        }
+
+        return (removed, false);
     }
 
     // The last rolled day, or null when none is saved or the saved text is not a date.
