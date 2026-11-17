@@ -75,6 +75,14 @@ function Block({ block }: { block: LegalBlock }) {
               <dd className={descriptionClasses}>
                 <Parts parts={item.parts} />
               </dd>
+              {item.more?.map((parts, index) => (
+                <dd
+                  key={`${String(index)}-${typeof parts[0] === 'string' ? parts[0] : ''}`}
+                  className={descriptionClasses}
+                >
+                  <Parts parts={parts} />
+                </dd>
+              ))}
             </div>
           ))}
         </dl>

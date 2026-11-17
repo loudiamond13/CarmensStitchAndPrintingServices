@@ -39,7 +39,6 @@ function blockText(block: LegalBlock): string[] {
     case 'h3':
       return [block.text];
     case 'facts':
-    case 'cookie-settings':
       return [];
   }
 }
@@ -68,7 +67,9 @@ export function inventoryProblems(codeNames: readonly string[], text: LegalText)
   return [
     ...[...code].filter((name) => !listed.has(name)).map((name) => `${name} is set by the code but not in the policy`),
     ...[...listed].filter((name) => !code.has(name)).map((name) => `${name} is in the policy but not set by the code`),
-    ...[...code].filter((name) => listed.has(name) && !terms.has(name)).map((name) => `${name} is not a term of its own`),
+    ...[...code]
+      .filter((name) => listed.has(name) && !terms.has(name))
+      .map((name) => `${name} is not a term of its own`),
   ];
 }
 
@@ -115,9 +116,9 @@ describe('inventoryProblems (the guard itself)', () => {
   });
 
   it('passes a policy that lists exactly the code names', () => {
-    expect(inventoryProblems(['__Host-csps_a', '__Secure-csps_b'], sample([dl('__Host-csps_a', '__Secure-csps_b')]))).toEqual(
-      [],
-    );
+    expect(
+      inventoryProblems(['__Host-csps_a', '__Secure-csps_b'], sample([dl('__Host-csps_a', '__Secure-csps_b')])),
+    ).toEqual([]);
   });
 
   it('fails a cookie the code sets and the policy leaves out', () => {

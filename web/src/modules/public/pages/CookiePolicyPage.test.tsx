@@ -26,13 +26,11 @@ async function sectionOf(name: string): Promise<HTMLElement> {
 /** The dl item of a cookie: its dt and the dd lines that follow it. */
 function itemOf(section: HTMLElement, name: string): { dt: HTMLElement; lines: string[] } {
   const dt = Array.from(section.querySelectorAll('dt')).find((node) => node.textContent === name);
-  if (dt === undefined || dt.parentElement === null) {
+  const item = dt?.parentElement;
+  if (dt === undefined || item === null || item === undefined) {
     throw new Error(`No dt named "${name}".`);
   }
-  return {
-    dt,
-    lines: Array.from(dt.parentElement.querySelectorAll('dd')).map((dd) => dd.textContent),
-  };
+  return { dt, lines: Array.from(item.querySelectorAll('dd')).map((dd) => dd.textContent) };
 }
 
 describe('CookiePolicyPage cookies we use (LEGAL-02, D-17)', { timeout: 20_000 }, () => {
@@ -87,7 +85,7 @@ describe('CookiePolicyPage cookies we use (LEGAL-02, D-17)', { timeout: 20_000 }
     expect(admin.lines[0]).toMatch(/orders view/i);
   });
 
-  it('says Google sets its own cookies when the map loads, with a link to Google\'s cookie policy that opens in a new tab', async () => {
+  it("says Google sets its own cookies when the map loads, with a link to Google's cookie policy that opens in a new tab", async () => {
     await renderCookies();
     const section = await sectionOf('Cookies we use');
     expect(within(section).getByText(/Google sets its own cookies when the map loads/)).toBeInTheDocument();
@@ -95,6 +93,6 @@ describe('CookiePolicyPage cookies we use (LEGAL-02, D-17)', { timeout: 20_000 }
     expect(link).toHaveAttribute('href', 'https://policies.google.com/technologies/cookies');
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(link).toHaveTextContent(" (opens in a new tab)");
+    expect(link).toHaveTextContent(' (opens in a new tab)');
   });
 });
