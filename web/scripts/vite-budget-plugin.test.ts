@@ -72,7 +72,7 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
-/** The public layout and the five public pages, each a lazy chunk (PUB-01, RESEARCH P-7). */
+/** The public layout and the nine public pages, each a lazy chunk (PUB-01, RESEARCH P-7). */
 function publicChunks(): Rollup.OutputChunk[] {
   const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
     outputChunk(fileName, 'export const b = 2;', {
@@ -86,6 +86,10 @@ function publicChunks(): Rollup.OutputChunk[] {
     lazy('assets/ProductsPage-D5.js', 'src/modules/public/pages/ProductsPage.tsx'),
     lazy('assets/GalleryPage-D6.js', 'src/modules/public/pages/GalleryPage.tsx'),
     lazy('assets/ContactPage-D7.js', 'src/modules/public/pages/ContactPage.tsx'),
+    lazy('assets/PrivacyPolicyPage-D9.js', 'src/modules/public/pages/PrivacyPolicyPage.tsx'),
+    lazy('assets/CookiePolicyPage-DA.js', 'src/modules/public/pages/CookiePolicyPage.tsx'),
+    lazy('assets/TermsPage-DB.js', 'src/modules/public/pages/TermsPage.tsx'),
+    lazy('assets/AccessibilityPage-DC.js', 'src/modules/public/pages/AccessibilityPage.tsx'),
     lazy('assets/NotFoundPage-D8.js', 'src/modules/public/pages/NotFoundPage.tsx'),
   ];
 }
@@ -239,8 +243,8 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
-    // The 200 KB entry is part of every public page, so each of the five pages is over its limit.
-    expect(summary.errors).toHaveLength(5);
+    // The 200 KB entry is part of every public page, so each of the nine pages is over its limit.
+    expect(summary.errors).toHaveLength(9);
     expect(summary.errors.every((error) => error.startsWith('public JS ('))).toBe(true);
   });
 

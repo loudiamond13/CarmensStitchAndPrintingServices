@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-13T00:24:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-16T20:50:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -68,6 +68,21 @@ Figures from plan 11-08 (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for ever
 | Not found | 138.22 KB | 137.95 KB |
 
 The Gallery page is the largest because it also loads nuqs. The data sections of later plans must fit in the room that is left (about 12 KB on Home and 7 KB on Gallery), or load lazily.
+
+## Legal pages (Phase 12, plan 12-05)
+
+The four legal pages are public routes inside `PublicLayout`: `/privacy`, `/cookies`, `/terms` and `/accessibility`. Each is its own lazy chunk and its own row in the budget report (`privacy`, `cookies`, `terms`, `accessibility`). Figures from `npm run build` (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
+
+| Page | Size | Result |
+|---|---|---|
+| Privacy Policy (`/privacy`) | 145.12 KB | ok |
+| Cookie Policy (`/cookies`) | 145.12 KB | ok |
+| Terms of Use (`/terms`) | 145.11 KB | ok |
+| Accessibility Statement (`/accessibility`) | 145.12 KB | ok |
+
+These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 4.9 KB that is left on each row.
+
+**Open issue.** The four new lazy routes live in the entry chunk's route table, so every page's first download grows by about 0.24 KB (measured: with the four routes left out, Home was 149.78 KB and Contact 149.82 KB; with them, Home is 150.02 KB and Contact 150.05 KB). Both are over the 150.00 KB limit, so `npm run build` stops. This is recorded in the plan 12-05 summary for the owner to decide.
 
 ## Fonts and compression (Phase 11)
 
