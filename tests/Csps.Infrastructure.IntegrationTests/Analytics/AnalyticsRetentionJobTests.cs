@@ -22,6 +22,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     private const string RolledUpLabel = "Visitor days rolled up";
     private const string RawLabel = "Old visit records removed";
     private const string ConsentLabel = "Old cookie choices removed";
+    private const string DailyLabel = "Old daily visitor totals removed";
+    private const string SaltLabel = "Old address salts removed";
     private const string JobName = "analytics-retention";
 
     // 2026-11-16 12:00 in Manila.
@@ -390,6 +392,134 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task DailyTotalsOlderThanThreeYearsGoFromAllThreeTablesAndOneAtTheFloorStays()
+    {
+        await database.ResetAsync();
+        var gone = new DateOnly(2023, 11, 14);
+        var kept = new DateOnly(2023, 11, 15);
+        await AddDailyRowsAsync(gone);
+        await AddDailyRowsAsync(kept);
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)));
+
+        Line(report, DailyLabel).Value.ShouldBe(4);
+        Line(report, DailyLabel).Failed.ShouldBeFalse();
+        await using var context = database.CreateContext();
+        (await context.DailyPageCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
+        (await context.DailyReferrerCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
+        (await context.DailyDeviceCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([kept]);
+    }
+
+    [Fact]
+    public async Task TheDailyFloorAtALeapDayKeepsTheFirstSurvivingDay()
+    {
+        await database.ResetAsync();
+        await AddDailyRowsAsync(new DateOnly(2025, 2, 27));
+        await AddDailyRowsAsync(new DateOnly(2025, 2, 28));
+
+        // Three years before 2028-02-29 is 2025-02-28.
+        await RunAsync(new FakeTimeProvider(new DateTimeOffset(2028, 2, 29, 4, 0, 0, TimeSpan.Zero)));
+
+        await using var context = database.CreateContext();
+        (await context.DailyPageCounts.AsNoTracking().Select(row => row.BusinessDay).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([new DateOnly(2025, 2, 28)]);
+    }
+
+    [Fact]
+    public async Task ABacklogOfOldDailyRowsIsRemovedInBatchesOf500()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2020, 1, 1);
+        await using (var context = database.CreateContext())
+        {
+            context.DailyPageCounts.AddRange(Enumerable.Range(0, 1200).Select(index => DailyPageCount.First(day, "page" + index)));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var counter = new CommandCounter();
+
+        var report = await RunAsync(new FakeTimeProvider(Now), counter);
+
+        Line(report, DailyLabel).Value.ShouldBe(1200);
+        counter.Commands.Count(static command => command.Contains("DELETE", StringComparison.Ordinal) && command.Contains("DailyPageCounts", StringComparison.Ordinal)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AddressSaltsForTodayAndYesterdayStayAndOlderOnesGo()
+    {
+        await database.ResetAsync();
+        var today = new DateOnly(2026, 11, 15);
+        await AddSaltsAsync(today, today.AddDays(-1), today.AddDays(-2), today.AddDays(-30));
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)));
+
+        Line(report, SaltLabel).Value.ShouldBe(2);
+        Line(report, SaltLabel).Failed.ShouldBeFalse();
+        await using var context = database.CreateContext();
+        (await context.AnalyticsSalts.AsNoTracking().OrderBy(salt => salt.BusinessDay).Select(salt => salt.BusinessDay).ToListAsync(TestContext.Current.CancellationToken))
+            .ShouldBe([today.AddDays(-1), today]);
+    }
+
+    [Fact]
+    public async Task TheFiveRulesReportTheirOwnLabelsInRunOrder()
+    {
+        await database.ResetAsync();
+
+        var report = await RunAsync(new FakeTimeProvider(Now));
+
+        report.Lines.Select(line => line.Label).ShouldBe(
+            ["Visitor days rolled up", "Old visit records removed", "Old cookie choices removed", "Old daily visitor totals removed", "Old address salts removed"]);
+        report.Lines.ShouldAllBe(line => !line.Failed && line.Value == 0);
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AFailedCookieChoiceRemovalDoesNotStopTheDailyTotalsAndSaltRules()
+    {
+        await database.ResetAsync();
+        await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
+        await AddDailyRowsAsync(new DateOnly(2023, 11, 14));
+        await AddSaltsAsync(new DateOnly(2026, 11, 10));
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)), new FailDeletesOn("ConsentRecords"));
+
+        Line(report, ConsentLabel).Failed.ShouldBeTrue();
+        Line(report, DailyLabel).Value.ShouldBe(4);
+        Line(report, SaltLabel).Value.ShouldBe(1);
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AFailedDailyTotalsRemovalIsThatRulesFailedLineAndTheSaltRuleStillRuns()
+    {
+        await database.ResetAsync();
+        await AddDailyRowsAsync(new DateOnly(2023, 11, 14));
+        await AddSaltsAsync(new DateOnly(2026, 11, 10));
+
+        var report = await RunAsync(new FakeTimeProvider(Now), new FailDeletesOn("DailyPageCounts"));
+
+        var failed = Line(report, DailyLabel);
+        failed.Failed.ShouldBeTrue();
+        failed.Value.ShouldBeNull();
+        failed.Text.ShouldBe("The old daily visitor totals could not be removed.");
+        Line(report, SaltLabel).Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AFailedSaltRemovalIsThatRulesFailedLine()
+    {
+        await database.ResetAsync();
+        await AddSaltsAsync(new DateOnly(2026, 11, 10));
+
+        var report = await RunAsync(new FakeTimeProvider(Now), new FailDeletesOn("AnalyticsSalts"));
+
+        var failed = Line(report, SaltLabel);
+        failed.Failed.ShouldBeTrue();
+        failed.Value.ShouldBeNull();
+        failed.Text.ShouldBe("The old address salts could not be removed.");
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
     public void TheJobRunsAtOrder15UnderItsFixedName()
     {
         using var context = database.CreateContext();
@@ -441,6 +571,24 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await using var context = database.CreateContext();
         context.ConsentRecords.Add(ConsentRecord.Decide(Guid.NewGuid(), "1.0", true, false, false, ConsentSource.Bar, decidedAt));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    // One row per daily table for the day: 1 + 1 + 2 = 4 rows.
+    private async Task AddDailyRowsAsync(DateOnly day)
+    {
+        await using var context = database.CreateContext();
+        context.DailyPageCounts.Add(DailyPageCount.First(day, PageKeys.Gallery));
+        context.DailyReferrerCounts.Add(DailyReferrerCount.Of(day, "Facebook", 1));
+        context.DailyDeviceCounts.Add(DailyDeviceCount.Of(day, DeviceDimension.Device, "Phone", 1));
+        context.DailyDeviceCounts.Add(DailyDeviceCount.Of(day, DeviceDimension.Browser, "Chrome", 1));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task AddSaltsAsync(params DateOnly[] days)
+    {
+        await using var context = database.CreateContext();
+        context.AnalyticsSalts.AddRange(days.Select(day => AnalyticsSalt.Create(day, System.Security.Cryptography.RandomNumberGenerator.GetBytes(AnalyticsSalt.Length))));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
