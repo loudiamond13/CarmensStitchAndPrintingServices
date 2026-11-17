@@ -7,6 +7,7 @@ import { Link, MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { consentCookie, setConsent } from '@/test/consentFixtures';
 import { pageViewProbe } from '@/test/msw';
+import { consentStore } from './useConsent';
 import { type BeaconSend, createBeaconMachine, usePageViewBeacon } from './usePageViewBeacon';
 
 function Beacon() {
@@ -271,6 +272,25 @@ describe('usePageViewBeacon with the bar showing (UI-SPEC CB1 "After the choice"
     });
     await settle();
     expect(probe.requests).toHaveLength(1);
+  });
+
+  it('keeps holding while the store changes without a choice and while the page stays visible', async () => {
+    setConsent({ cookie: null });
+    const probe = pageViewProbe();
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Beacon />
+      </MemoryRouter>,
+    );
+    await settle();
+
+    act(() => {
+      consentStore.openSettings();
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await settle();
+
+    expect(probe.requests).toHaveLength(0);
   });
 
   it('stops listening when the layout goes away', async () => {
