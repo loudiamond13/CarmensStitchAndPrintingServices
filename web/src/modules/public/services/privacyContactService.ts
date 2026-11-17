@@ -10,9 +10,8 @@ export interface PrivacyContactService {
 }
 
 export function createPrivacyContactService(client: HttpClient): PrivacyContactService {
-  void client;
   return {
-    getPrivacyContact: () => Promise.resolve({ email: null }),
+    getPrivacyContact: (signal) => client.get<PrivacyContact>('/public/privacy-contact', { signal }),
   };
 }
 
