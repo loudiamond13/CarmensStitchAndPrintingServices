@@ -1299,15 +1299,15 @@ Plans:
 
 **Research flag:** Standard patterns. The PRD and NPC guidance are already detailed.
 
-**Plans**: 6/31 plans executed
+**Plans**: 8/31 plans executed
 - [ ] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
 - [x] 12-03-PLAN.md
 - [x] 12-04-PLAN.md
 - [x] 12-05-PLAN.md
 - [x] 12-06-PLAN.md
-- [ ] 12-07-PLAN.md
-- [ ] 12-08-PLAN.md
+- [x] 12-07-PLAN.md
+- [x] 12-08-PLAN.md
 - [ ] 12-09-PLAN.md
 - [ ] 12-10-PLAN.md
 - [ ] 12-11-PLAN.md
@@ -1574,7 +1574,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
-| 12. Consent, Analytics & Legal | 6/31 | In Progress | - |
+| 12. Consent, Analytics & Legal | 8/31 | In Progress | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
