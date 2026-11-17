@@ -140,6 +140,7 @@ public sealed class CollectVitalsHandlerTests
         { Token, ConsentValue(true, decidedOn: BusinessDay.AddMonths(-12)), false },
         { Token, ConsentValue(true, decidedOn: BusinessDay.AddDays(1)), false },
         { Token, ConsentValue(true), true },
+        { Token, ConsentValue(true, pending: true), false },
     };
 
     [Theory]
@@ -226,8 +227,8 @@ public sealed class CollectVitalsHandlerTests
         bot.Error.Kind.ShouldBe(ErrorKind.Validation);
     }
 
-    private static string ConsentValue(bool? stats, string? version = null, DateOnly? decidedOn = null) =>
-        new ConsentCookie(ConsentChain, version ?? LegalPages.CookiePolicyVersion, stats, true, decidedOn ?? BusinessDay, false).Format();
+    private static string ConsentValue(bool? stats, string? version = null, DateOnly? decidedOn = null, bool pending = false) =>
+        new ConsentCookie(ConsentChain, version ?? LegalPages.CookiePolicyVersion, stats, true, decidedOn ?? BusinessDay, pending).Format();
 
     private static CollectContext Consented(string? userAgent = Chrome, bool staff = false) => new(userAgent, staff, false, Token, ConsentValue(true));
 

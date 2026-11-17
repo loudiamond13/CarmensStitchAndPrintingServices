@@ -304,6 +304,7 @@ public sealed class CollectPageViewHandlerTests
         { Token, ConsentValue(true, decidedOn: BusinessDay.AddMonths(-12)), false },
         { Token, ConsentValue(true, decidedOn: BusinessDay.AddDays(1)), false },
         { Token, ConsentValue(true), true },
+        { Token, ConsentValue(true, pending: true), false },
     };
 
     [Fact]
@@ -488,8 +489,8 @@ public sealed class CollectPageViewHandlerTests
     // A different fixed salt for each business day, so a test can see that the day changes the hash.
     private static byte[] SaltOf(DateOnly day) => SHA256.HashData(Encoding.UTF8.GetBytes("test-salt-" + day.ToString("O", CultureInfo.InvariantCulture)));
 
-    private static string ConsentValue(bool? stats, string? version = null, DateOnly? decidedOn = null) =>
-        new ConsentCookie(ConsentChain, version ?? LegalPages.CookiePolicyVersion, stats, true, decidedOn ?? BusinessDay, false).Format();
+    private static string ConsentValue(bool? stats, string? version = null, DateOnly? decidedOn = null, bool pending = false) =>
+        new ConsentCookie(ConsentChain, version ?? LegalPages.CookiePolicyVersion, stats, true, decidedOn ?? BusinessDay, pending).Format();
 
     private static CollectContext Consented(string? userAgent = Chrome, bool staff = false) => new(userAgent, staff, false, Token, ConsentValue(true));
 

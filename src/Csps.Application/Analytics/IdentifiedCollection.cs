@@ -5,7 +5,7 @@ namespace Csps.Application.Analytics;
 
 /// <summary>
 /// The three server gates for the identified half of collection (ANL-05, T-12-39): the HttpOnly visitor id is present, the consent cookie allows
-/// stats for the current policy version and is current today, and the browser did not send <c>Sec-GPC: 1</c>. Page views and speed samples
+/// stats for the current policy version, is current today and is not the browser's pending copy (the server has not confirmed it yet, so it counts as no consent), and the browser did not send <c>Sec-GPC: 1</c>. Page views and speed samples
 /// use the same rule.
 /// </summary>
 internal static class IdentifiedCollection
@@ -18,5 +18,6 @@ internal static class IdentifiedCollection
         !context.Gpc
         && !string.IsNullOrEmpty(context.VisitorToken)
         && ConsentCookie.TryParse(context.ConsentCookie, out var cookie)
+        && !cookie.Pending
         && cookie.AllowsStats(LegalPages.CookiePolicyVersion, today);
 }

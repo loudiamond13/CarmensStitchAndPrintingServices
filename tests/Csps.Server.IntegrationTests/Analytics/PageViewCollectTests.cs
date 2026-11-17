@@ -301,6 +301,8 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     [InlineData("not-chosen")]
     [InlineData("gpc")]
     [InlineData("malformed-vid")]
+    [InlineData("pending")]
+    [InlineData("unreadable-consent")]
     public async Task WithoutTheVidAnAcceptedChoiceAndNoGpcOnlyTheAnonymousCountChanges(string scenario)
     {
         await database.ResetAsync();
@@ -313,6 +315,8 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
             "rejected" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(false, day)}",
             "not-chosen" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(null, day)}",
             "malformed-vid" => $"__Secure-csps_vid=short; __Host-csps_consent={ConsentValue(true, day)}",
+            "pending" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, day)}_p",
+            "unreadable-consent" => $"__Secure-csps_vid={Vid}; __Host-csps_consent=1_zz_1.0_1_1_garbage",
             _ => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, day)}",
         };
         using var request = NewPost(PathBody("/gallery"));
