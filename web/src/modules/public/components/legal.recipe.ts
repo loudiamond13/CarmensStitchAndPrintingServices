@@ -21,6 +21,38 @@ export const versionLineClasses = tw('text-14 leading-5 text-ink-muted');
 /** The article area under the page head: the `.s-wrap` column, 32px under the head and 48px at the bottom. */
 export const articleAreaClasses = tw('mx-auto w-full max-w-(--container-max) px-6 pt-8 pb-12 pg-phone:px-4');
 
+/** The two columns from 1024px: a 240px table of contents and a 640px article, 64px apart; one column below that, 32px apart. */
+export const articleGridClasses = tw(
+  'grid grid-cols-[240px_minmax(0,640px)] items-start gap-16 pg-lt-lg:grid-cols-[minmax(0,1fr)] pg-lt-lg:gap-8',
+);
+
+/** The wide table of contents: sticky under the header (header height plus 24px); hidden at 1023px and below. */
+export const tocWideClasses = tw('sticky top-[calc(var(--header-height)+var(--space-6))] pg-lt-lg:hidden');
+
+/** The phone table of contents box: closed by default, `--surface` ground, 1px line border; hidden at 1024px and above. */
+export const tocBoxClasses = tw('group hidden rounded-md border border-line bg-surface pg-lt-lg:block');
+
+/** The box's summary: a 44px Label row with the chevron at the end; the browser marker is hidden. */
+export const tocSummaryClasses = tw(
+  'flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 text-14 leading-5 font-semibold text-ink [&::-webkit-details-marker]:hidden',
+);
+
+/** The summary chevron: turns when the box opens, and not under reduced motion. */
+export const tocChevronClasses = tw(
+  'transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none',
+);
+
+/** The links inside the phone box: 16px of padding at the sides. */
+export const tocBoxLinksClasses = tw('px-4 pb-2');
+
+/** The table of contents links: a list with 8px between the 44px links. */
+export const tocListClasses = tw('flex flex-col gap-2');
+
+/** One table of contents link: Small, 44px tall. */
+export const tocLinkClasses = tw(
+  'flex min-h-11 items-center text-14 leading-5 text-ink no-underline hover:text-link hover:underline hover:underline-offset-4',
+);
+
 /** The article text column: at most 640px, and long words and pasted URLs wrap. */
 export const articleClasses = tw('max-w-[640px] min-w-0 wrap-anywhere');
 

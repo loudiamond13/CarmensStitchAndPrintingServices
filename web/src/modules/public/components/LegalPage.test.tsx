@@ -74,8 +74,8 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
 
   it('keeps every h2 in the table of contents', () => {
     renderPage();
-    const nav = screen.getAllByRole('navigation', { name: 'On this page' })[0];
-    const names = within(nav as HTMLElement)
+    const [nav] = screen.getAllByRole('navigation', { name: 'On this page' });
+    const names = within(nav ?? document.body)
       .getAllByRole('link')
       .map((link) => link.textContent);
     for (const heading of screen.getAllByRole('heading', { level: 2 })) {
@@ -104,7 +104,7 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
 
   it('makes every table of contents link at least 44px tall and the summary too', () => {
     const { container } = renderPage();
-    for (const link of container.querySelectorAll('nav a')) {
+    for (const link of container.querySelectorAll('nav[aria-label="On this page"] a')) {
       expect(link.className).toContain('min-h-11');
     }
     expect(container.querySelector('summary')?.className).toContain('min-h-11');

@@ -2,17 +2,25 @@
 // SPEC-GAP: LEGAL-05, D-10. Guards the shape of every legal text module: at least one section, unique kebab-case ids, a heading on
 // each section, only safe link targets and no long dash. A text module is any web/src/modules/public/legal*.ts apart from the shared
 // files below, so the plans that add the Privacy, Terms and Cookie texts never edit this test.
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legalContent';
-
-const modules = import.meta.glob<Record<string, unknown>>('../modules/public/legal*.ts', { eager: true });
 
 /** Shared files that are not text modules. */
 const SHARED = new Set(['legalPages.ts', 'legalCopy.ts', 'legalContent.ts', 'legalLoaders.ts']);
 
-const textModules = Object.entries(modules)
-  .map(([path, exports]) => ({ file: path.split('/').pop() ?? path, exports }))
-  .filter(({ file }) => !SHARED.has(file) && !file.includes('.test.'));
+const publicDir = fileURLToPath(new URL('../modules/public/', import.meta.url));
+
+const textFiles = readdirSync(publicDir).filter(
+  (file) => /^legal.*\.ts$/.test(file) && !SHARED.has(file) && !file.includes('.test.'),
+);
+
+/** The legal texts a module exports. */
+async function textsOf(file: string): Promise<LegalText[]> {
+  const loaded: unknown = await import(/* @vite-ignore */ `../modules/public/${file}`);
+  return typeof loaded === 'object' && loaded !== null ? Object.values(loaded).filter(isLegalText) : [];
+}
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LONG_DASH = new RegExp(`[${String.fromCharCode(0x2012)}-${String.fromCharCode(0x2015)}]`);
@@ -108,19 +116,16 @@ const para = (...parts: LegalInline[]): LegalBlock => ({ kind: 'p', parts });
 
 describe('legal text modules (LEGAL-05, D-10)', () => {
   it('finds the Accessibility text module by its file name', () => {
-    expect(textModules.map(({ file }) => file)).toContain('legalAccessibility.ts');
+    expect(textFiles).toContain('legalAccessibility.ts');
   });
 
-  it.each(textModules.map(({ file, exports }) => [file, exports] as const))(
-    '%s exports a sound text',
-    (_file, exports) => {
-      const texts = Object.values(exports).filter(isLegalText);
-      expect(texts.length).toBeGreaterThan(0);
-      for (const text of texts) {
-        expect(legalTextProblems(text)).toEqual([]);
-      }
-    },
-  );
+  it.each(textFiles)('%s exports a sound text', async (file) => {
+    const texts = await textsOf(file);
+    expect(texts.length).toBeGreaterThan(0);
+    for (const text of texts) {
+      expect(legalTextProblems(text)).toEqual([]);
+    }
+  });
 
   it('takes the version, date and approval flag from legalPages.ts', async () => {
     const { LEGAL_PAGES } = await import('../modules/public/legalPages');

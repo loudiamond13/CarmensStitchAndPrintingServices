@@ -7,6 +7,8 @@ export const LEGAL_COPY = {
     label: 'Draft: this text is not final yet.',
     detail: "It may change before it's approved.",
   },
+  /** The table of contents: the summary of the phone box and the name of the navigation. */
+  toc: { label: 'On this page' },
   /** LegalFacts (UI-SPEC L1 item 3, D-11 to D-13, D-29): the label of each line; the values come from the site settings. */
   facts: {
     dpo: 'Data Protection Officer: The owner, Data Protection Officer',
