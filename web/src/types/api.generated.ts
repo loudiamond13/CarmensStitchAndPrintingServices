@@ -2839,6 +2839,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visitor-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads unique visitors, visits and page views for a date range. The server resolves the range in the business zone (Asia/Manila) and
+         *     returns the dates it used. Page views are kept for 3 years; visits and unique visitors for 13 months, so a range that starts earlier
+         *     counts them from the cut date, and a range wholly before it answers them as null.
+         */
+        get: operations["GetVisitorStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6243,6 +6264,39 @@ export interface components {
             /** @description Why a new password is needed (`temporary` or `breach`); null when signed in. */
             reason: null | string;
             session: null | components["schemas"]["SessionResponse"];
+        };
+        /** @description The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`. */
+        VisitorStatsResponse: {
+            /** @description The oldest business day that still has visits (13 months back); older days keep page views only. */
+            cutDate: string;
+            /** @description The first business day of the range, resolved on the server. */
+            from: string;
+            /** @description The range that was read: a preset name or `custom`. */
+            range: string;
+            /** @description The last business day of the range, resolved on the server. */
+            to: string;
+            /** @description The three totals. */
+            totals: components["schemas"]["VisitorTotalsDto"];
+        };
+        /** @description The three headline totals of a range (ANL-08, D-33). Totals only: no visitor, visit or time is ever listed. */
+        VisitorTotalsDto: {
+            /** @description The business day visits and unique visitors are counted from, `YYYY-MM-DD`, when the range starts before the raw cut; otherwise null. */
+            countedFrom: null | string;
+            /**
+             * Format: int32
+             * @description Every page view in the range, from the daily counts, which are kept longer than the visits.
+             */
+            pageViews: number | string;
+            /**
+             * Format: int32
+             * @description The distinct visitors who had a visit in the counted span; null when the whole range is older than the raw cut (D-27).
+             */
+            uniqueVisitors: null | number | string;
+            /**
+             * Format: int32
+             * @description The visits in the counted span: one sitting, ended by 30 minutes of silence; null when the whole range is older than the raw cut (D-27).
+             */
+            visits: null | number | string;
         };
         /**
          * @description One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or
@@ -15817,6 +15871,60 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetVisitorStats: {
+        parameters: {
+            query?: {
+                /** @description A preset: `last-7-days`, `last-30-days` (also used when none or an unknown name is sent), `this-month`, `last-month`, `this-year`; or `custom`. */
+                range?: string;
+                /** @description The first business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitorStatsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
