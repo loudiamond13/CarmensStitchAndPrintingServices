@@ -15,7 +15,7 @@
 //     parts (Sidebar, Topbar, MoneyInput, ...), and once a build uses them, importing the barrel here put them in the
 //     chunks the public route loads (docs/web/budgets.md, "Public route imports").
 import clsx from 'clsx';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Outlet, useLocation, useNavigation } from 'react-router';
 import { SkipLink } from '@/components/entry/SkipLink';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
@@ -23,6 +23,7 @@ import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation/SiteHeader';
 import { ConsentSlot } from '@/modules/public/components/ConsentSlot';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { useConsent } from '@/modules/public/hooks/useConsent';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicOutletContext } from '@/modules/public/outletContext';
 import { tw } from '@/ui/tw';
@@ -51,6 +52,11 @@ function currentSiteLink(pathname: string): string {
 
 export function PublicLayout() {
   const { pathname } = useLocation();
+  const { resendPending } = useConsent();
+  // A choice whose send failed is sent again on the next page view (UI-SPEC "Saving a choice"); with none pending this does nothing.
+  useEffect(() => {
+    void resendPending();
+  }, [pathname, resendPending]);
   const link = currentSiteLink(pathname);
   const onContact = link === 'Contact';
   const onBarPage = link === 'Products' || link === 'Gallery';

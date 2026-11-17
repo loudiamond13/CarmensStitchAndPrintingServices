@@ -13,7 +13,7 @@
 import { useSyncExternalStore } from 'react';
 import type { ConsentCookie } from '../consentCookie';
 import { readConsentCookie } from '../consentJar';
-import type { SaveHost } from '../consentSave';
+import type { SaveHost, SendMemory } from '../consentSave';
 import type { ConsentService, ConsentSource } from '../services/consentService';
 
 export type { ConsentSource } from '../services/consentService';
@@ -71,27 +71,32 @@ export interface ConsentStore extends ConsentActions {
 
 type Rules = typeof import('../consentRules');
 
+const freshMemory = (): SendMemory => ({ inFlight: false, answeredValue: undefined, lastSource: 'bar' });
+
 export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let options = initial;
   let rules: Rules | undefined;
   let rulesLoading = false;
   let settingsOpen = false;
+  let serverGpc = false;
+  let memory: SendMemory = freshMemory();
   let settingsOpener: HTMLElement | undefined;
   let announcement: string | null = null;
   const listeners = new Set<() => void>();
 
   function compute(raw: string | undefined): ConsentState {
-    const shared = { gpc: options.gpc, settingsOpen, announcement };
+    const gpc = options.gpc || serverGpc;
+    const shared = { gpc, settingsOpen, announcement };
     if (rules === undefined) {
       return {
         ...shared,
         cookie: null,
-        needsChoice: raw === undefined && !options.gpc,
+        needsChoice: raw === undefined && !gpc,
         statsAllowed: false,
         mapAllowed: false,
       };
     }
-    return { ...shared, ...rules.deriveConsent(raw, options) };
+    return { ...shared, ...rules.deriveConsent(raw, { ...options, gpc }) };
   }
 
   function update(): void {
@@ -121,8 +126,12 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
 
   const host: SaveHost = {
     options: () => options,
+    memory: () => memory,
     announce: (line) => {
       announcement = line;
+    },
+    markGpc: () => {
+      serverGpc = true;
     },
     refresh,
   };
@@ -142,6 +151,8 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       settingsOpen = false;
       settingsOpener = undefined;
       announcement = null;
+      serverGpc = false;
+      memory = freshMemory();
       refresh();
     },
     acceptAll: async (source) => {
@@ -167,7 +178,11 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       refresh();
       if (settingsOpener?.isConnected === true) settingsOpener.focus();
     },
-    resendPending: () => Promise.resolve(),
+    resendPending: async () => {
+      // A pending cookie ends in _p, so a visitor with none loads nothing here.
+      if (options.readCookie()?.endsWith('_p') !== true) return;
+      await (await loadSave()).resendChoice(host);
+    },
   };
 }
 
