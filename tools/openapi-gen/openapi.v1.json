@@ -8437,6 +8437,49 @@
           "session"
         ],
         "type": "object"
+      },
+      "VitalsRequest": {
+        "description": "One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or\n`#`. Each metric is optional: the browser reports the ones it measured. LCP and INP are in milliseconds, CLS is a score.",
+        "properties": {
+          "cls": {
+            "description": "Cumulative Layout Shift score, or null.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "inp": {
+            "description": "Interaction to Next Paint in milliseconds, or null.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "lcp": {
+            "description": "Largest Contentful Paint in milliseconds, or null.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ]
+          },
+          "path": {
+            "description": "The page path, starting with a slash.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
       }
     }
   },
@@ -8631,6 +8674,94 @@
           }
         },
         "summary": "Counts one public page view for the business day, anonymously.",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/vitals": {
+      "post": {
+        "operationId": "RecordVitals",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VitalsRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VitalsRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/VitalsRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Stores a consented visitor's Core Web Vitals against their current visit.",
         "tags": [
           "Analytics"
         ]

@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/vitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stores a consented visitor's Core Web Vitals against their current visit. */
+        post: operations["RecordVitals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-log": {
         parameters: {
             query?: never;
@@ -6206,6 +6223,29 @@ export interface components {
             reason: null | string;
             session: null | components["schemas"]["SessionResponse"];
         };
+        /**
+         * @description One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or
+         *     `#`. Each metric is optional: the browser reports the ones it measured. LCP and INP are in milliseconds, CLS is a score.
+         */
+        VitalsRequest: {
+            /**
+             * Format: double
+             * @description Cumulative Layout Shift score, or null.
+             */
+            cls?: null | number | string;
+            /**
+             * Format: double
+             * @description Interaction to Next Paint in milliseconds, or null.
+             */
+            inp?: null | number | string;
+            /**
+             * Format: double
+             * @description Largest Contentful Paint in milliseconds, or null.
+             */
+            lcp?: null | number | string;
+            /** @description The page path, starting with a slash. */
+            path?: null | string;
+        };
     };
     responses: never;
     parameters: never;
@@ -6291,6 +6331,60 @@ export interface operations {
                 "application/*+json": null | components["schemas"]["PageViewRequest"];
                 "application/json": null | components["schemas"]["PageViewRequest"];
                 "text/json": null | components["schemas"]["PageViewRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RecordVitals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["VitalsRequest"];
+                "application/json": null | components["schemas"]["VitalsRequest"];
+                "text/json": null | components["schemas"]["VitalsRequest"];
             };
         };
         responses: {
