@@ -29,6 +29,11 @@
     <Content Include="..\fixtures\site-link-cases.json" Link="Fixtures\site-link-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The legal page facts (LEGAL-05, D-10) are shared with the web node test and linked the same way. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\legal-pages.json" Link="Fixtures\legal-pages.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Coverage under Microsoft.Testing.Platform (D-17); thresholds are enforced by tools/scripts/Invoke-CoverageGate.ps1. -->
   <ItemGroup>
     <PackageReference Include="coverlet.MTP" />

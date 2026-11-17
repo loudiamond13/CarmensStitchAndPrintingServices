@@ -904,6 +904,36 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         new PublicLinePhotosDto(null, null, null),
         true);
 
+    [Theory]
+    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
+    public async Task ALegalPageSendsItsTitleAndLeadAndIsKeptOutOfSearchResultsWhileDraft(string path, string title, string lead)
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        body.ShouldContain($"<title>{title}</title>", Case.Sensitive, path);
+        Meta(body, "name", "description").ShouldBe(lead, path);
+        Meta(body, "property", "og:description").ShouldBe(lead, path);
+        Meta(body, "name", "robots").ShouldBe("noindex, nofollow", path);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    public async Task APageThatIsNotLegalCarriesNoRobotsMeta(string path)
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        Meta(body, "name", "robots").ShouldBeNull(path);
+    }
+
     private static ShellTestFactory FactoryFor(PublicSiteDto site) => new(new StubPublicContentReader(site));
 
     private static PublicSiteDto Site(string tagline) => StubPublicContentReader.Site("Sample Shop", tagline);

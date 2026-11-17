@@ -28,6 +28,8 @@ public sealed class PublicRouteTableTests
     [InlineData("/products/", PublicPage.Products, "/products")]
     [InlineData("/GALLERY/", PublicPage.Gallery, "/gallery")]
     [InlineData("/contact", PublicPage.Contact, "/contact")]
+    [InlineData("/privacy", PublicPage.Privacy, "/privacy")]
+    [InlineData("/Privacy/", PublicPage.Privacy, "/privacy")]
     public void KnownPagesMatchWithTheirLowerCaseCanonicalPath(string path, PublicPage page, string canonical)
     {
         var match = PublicRouteTable.Match(new PathString(path), devRoutesKnown: false);
