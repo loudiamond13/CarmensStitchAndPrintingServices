@@ -13,6 +13,7 @@ import {
   homeHandler,
   openStatusAt0900,
   openStatusHandler,
+  privacyContactHandler,
   productLinesHandler,
   resetPublicData,
   siteHandler,
@@ -67,6 +68,7 @@ if (typeof window !== 'undefined') {
       productLinesHandler(demoLines),
       homeHandler(demoHome),
       galleryHandler(demoGallery),
+      privacyContactHandler(),
     );
   });
   afterEach(() => {
