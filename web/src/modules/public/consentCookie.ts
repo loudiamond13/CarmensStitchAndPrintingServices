@@ -59,9 +59,49 @@ export function readConsentCookie(documentCookie: string): string | undefined {
   return undefined;
 }
 
+type Day = readonly [year: number, month: number, day: number];
+
+const DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const LIFETIME_MONTHS = 12;
+
+function readDay(iso: string): Day | null {
+  const match = DAY_PATTERN.exec(iso);
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28;
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+}
+
+// Month arithmetic that clamps the day (29 Feb plus 12 months is 28 Feb). No Date object, so no time zone is involved.
+function addMonths([year, month, day]: Day, months: number): Day {
+  const total = year * 12 + (month - 1) + months;
+  const newYear = Math.floor(total / 12);
+  const newMonth = (total % 12) + 1;
+  return [newYear, newMonth, Math.min(day, daysInMonth(newYear, newMonth))];
+}
+
+function isBefore(a: Day, b: Day): boolean {
+  if (a[0] !== b[0]) return a[0] < b[0];
+  if (a[1] !== b[1]) return a[1] < b[1];
+  return a[2] < b[2];
+}
+
+/**
+ * True when the bar must ask: no cookie, a new policy version, a choice 12 months old, or a map-only save (D-18).
+ * Never true when the browser sends GPC (D-20). `today` is a YYYY-MM-DD business day; no clock is read here.
+ */
 export function needsChoice(
   cookie: ConsentCookie | null,
   options: { currentVersion: string; today: string; gpc: boolean },
 ): boolean {
-  return !options.gpc && cookie === null;
+  if (options.gpc) return false;
+  if (cookie === null) return true;
+  if (cookie.stats === null || cookie.policyVersion !== options.currentVersion) return true;
+  const decided = readDay(cookie.decidedOn);
+  const today = readDay(options.today);
+  if (decided === null || today === null) return true;
+  return !isBefore(today, addMonths(decided, LIFETIME_MONTHS));
 }

@@ -76,7 +76,13 @@ public sealed record ConsentCookie(Guid ConsentId, string PolicyVersion, bool? S
     }
 
     /// <summary>True when the visitor allowed stats, under the current policy version, less than 12 months ago.</summary>
-    public bool AllowsStats(string currentVersion, DateOnly today) => Pending && currentVersion.Length < 0 && today == DecidedOn;
+    public bool AllowsStats(string currentVersion, DateOnly today) =>
+        Stats == true
+        && string.Equals(PolicyVersion, currentVersion, StringComparison.Ordinal)
+        && today < Expiry;
+
+    // 12 months after the choice. AddMonths clamps month ends (29 Feb); the last year saturates instead of throwing.
+    private DateOnly Expiry => DecidedOn.Year >= DateOnly.MaxValue.Year ? DateOnly.MaxValue : DecidedOn.AddMonths(LifetimeMonths);
 
     // Cookie-octet (RFC 6265): no control characters, space, quote, comma, semicolon or backslash.
     private static bool IsCookieOctet(char c) =>
