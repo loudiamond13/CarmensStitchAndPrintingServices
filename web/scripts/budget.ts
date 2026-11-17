@@ -139,18 +139,23 @@ export const GALLERY_ONLY_MODULE_PREFIXES: readonly string[] = Object.freeze([
   'src/lib/url-state/',
 ]);
 
-/** The shipped modules a signed-in `/admin` visit loads first: the query client route, the guard, the admin layout, the URL-state layout and the devices page. */
+/**
+ * The shipped modules a signed-in `/admin` visit loads first: the query client route, the admin route table (the first
+ * chunk any /admin visit loads, D-42), the guard, the admin layout, the URL-state layout and the devices page.
+ */
 export const ADMIN_ROUTE: readonly string[] = Object.freeze([
   'src/core/routes/QueryRoot.tsx',
+  'src/modules/admin/routes.tsx',
   'src/layouts/AdminLayout.tsx',
   'src/lib/url-state/UrlStateLayout.tsx',
   'src/modules/admin/pages/SessionsPage.tsx',
   'src/modules/admin/guard.ts',
 ]);
 
-/** The shipped modules a signed-out visit to `/admin` loads first: the query client route, the guard, the auth layout and the sign-in page. */
+/** The shipped modules a signed-out visit to `/admin` loads first: the query client route, the admin route table (D-42), the guard, the auth layout and the sign-in page. */
 export const ADMIN_SIGN_IN_ROUTE: readonly string[] = Object.freeze([
   'src/core/routes/QueryRoot.tsx',
+  'src/modules/admin/routes.tsx',
   'src/layouts/AuthLayout.tsx',
   'src/modules/admin/pages/SignInPage.tsx',
   'src/modules/admin/guard.ts',
@@ -193,8 +198,8 @@ const isShowcaseHeld = (moduleId: string): boolean => isShowcaseOnly(moduleId) &
 
 /**
  * Module ids the public initial JS must never contain (PERF-02): TanStack Query and the admin app load with the admin
- * chunks, so a public page ships only what it needs. The admin route table (`routes.tsx`) is the one admin module
- * the entry holds; its page, layout and service imports are all lazy. The Gallery route alone may load nuqs and the
+ * chunks, so a public page ships only what it needs. No admin module is allowed, the route table included: the router
+ * loads it lazily on the first navigation under /admin (D-42). The Gallery route alone may load nuqs and the
  * URL-state modules (GALLERY_ONLY_MODULE_PREFIXES, WEB-10).
  */
 export const PUBLIC_FORBIDDEN_MODULE_PREFIXES: readonly string[] = Object.freeze([
@@ -211,9 +216,6 @@ export const PUBLIC_FORBIDDEN_MODULE_PREFIXES: readonly string[] = Object.freeze
   'src/layouts/AuthLayout',
   'src/modules/admin/',
 ]);
-
-/** The admin modules the public entry may hold: only the route table. */
-export const PUBLIC_ALLOWED_ADMIN_MODULES: readonly string[] = Object.freeze(['src/modules/admin/routes.tsx']);
 
 /** Output folders of the parity reference (web/.reference-dist, web/visual/.reference-src); never inside a build (02-13). */
 export const REFERENCE_FOLDERS: readonly string[] = Object.freeze(['.reference-dist', '.reference-src']);
@@ -490,12 +492,7 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
         const devOnly = options.build === 'production' && (isDevOnly(id) || isShowcaseOnly(id));
         const galleryOnly =
           m.route === 'gallery' && GALLERY_ONLY_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix));
-        if (
-          !devOnly &&
-          !galleryOnly &&
-          !PUBLIC_ALLOWED_ADMIN_MODULES.includes(id) &&
-          PUBLIC_FORBIDDEN_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix))
-        ) {
+        if (!devOnly && !galleryOnly && PUBLIC_FORBIDDEN_MODULE_PREFIXES.some((prefix) => id.startsWith(prefix))) {
           publicProblems.add(
             `The public initial JS (${c.fileName}) contains ${id}: TanStack Query and admin code must load with the admin chunks, and nuqs only with the Gallery route (PERF-02, WEB-10).`,
           );
