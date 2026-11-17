@@ -5,6 +5,7 @@ using System.Text.Json;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Domain.Content;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -133,6 +134,146 @@ public sealed class ConsentEndpointTests(CspsDatabase database) : IClassFixture<
         await using var context = database.CreateContext();
         var columns = context.Model.FindEntityType(typeof(ConsentRecord))!.GetProperties().Select(property => property.Name).ToList();
         columns.ShouldBe(["Id", "ConsentId", "PolicyVersion", "Stats", "Map", "Gpc", "Source", "DecidedAtUtc"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task AnOldPolicyVersionIs409WithTheCodeAndTheCurrentVersionAndRecordsNothing()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, Body(policyVersion: "0.0", stats: true, map: true, source: "bar"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("consent.policy-changed");
+        problem.GetProperty("currentVersion").GetString().ShouldBe(LegalPages.CookiePolicyVersion);
+        (await ReadRecordsAsync()).ShouldBeEmpty();
+        SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("{\"policyVersion\":\"1\",\"stats\":true,\"map\":true,\"source\":\"bar\"}", "policyVersion")]
+    [InlineData("{\"stats\":true,\"map\":true,\"source\":\"bar\"}", "policyVersion")]
+    [InlineData("{\"policyVersion\":\"0.1\",\"stats\":true,\"map\":true,\"source\":\"clear\"}", "source")]
+    [InlineData("{\"policyVersion\":\"0.1\",\"stats\":true,\"map\":true}", "source")]
+    [InlineData("{\"consentId\":\"ZZ\",\"policyVersion\":\"0.1\",\"stats\":true,\"map\":true,\"source\":\"bar\"}", "consentId")]
+    [InlineData("{}", "policyVersion")]
+    [InlineData("not json", "policyVersion")]
+    [InlineData("", "policyVersion")]
+    public async Task ABadBodyIs400NamingTheFieldAndRecordsNothing(string json, string field)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, json);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("errors").TryGetProperty(field, out _).ShouldBeTrue($"the 400 must name {field}");
+        (await ReadRecordsAsync()).ShouldBeEmpty();
+        SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UnderGpcStatsIsStoredOffWhateverTheBodySaysAndTheGpcFlagIsStored()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = NewPost(AcceptAll());
+        request.Headers.Add("Sec-GPC", "1");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var record = (await ReadRecordsAsync()).ShouldHaveSingleItem();
+        record.Stats.ShouldBe(false);
+        record.Gpc.ShouldBeTrue();
+        record.Map.ShouldBeTrue();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("stats").GetBoolean().ShouldBeFalse();
+        document.RootElement.GetProperty("gpc").GetBoolean().ShouldBeTrue();
+        ConsentCookie.TryParse(ValueOf(SetCookieOf(response, AnalyticsCookies.ConsentCookieName)!), out var cookie).ShouldBeTrue();
+        cookie!.Stats.ShouldBe(false);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("true")]
+    [InlineData("")]
+    public async Task OnlyTheValueOneCountsAsGpc(string header)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = NewPost(AcceptAll());
+        request.Headers.TryAddWithoutValidation("Sec-GPC", header);
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var record = (await ReadRecordsAsync()).ShouldHaveSingleItem();
+        record.Gpc.ShouldBeFalse();
+        record.Stats.ShouldBe(true);
+    }
+
+    [Fact]
+    public async Task GpcAloneCreatesNoRecordOnAnyOtherRequest()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/health", UriKind.Relative));
+        request.Headers.Add("Sec-GPC", "1");
+
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldNotBe(HttpStatusCode.NotFound);
+        (await ReadRecordsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AMapOnlySaveStoresNullStatsAndTheCookieShowsADash()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, Body(stats: null, map: true, source: "map-link"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var record = (await ReadRecordsAsync()).ShouldHaveSingleItem();
+        record.Stats.ShouldBeNull();
+        record.Map.ShouldBeTrue();
+        record.Source.ShouldBe(ConsentSource.MapLink);
+        var value = ValueOf(SetCookieOf(response, AnalyticsCookies.ConsentCookieName)!);
+        value.ShouldContain($"_{LegalPages.CookiePolicyVersion}_-_1_");
+        ConsentCookie.TryParse(value, out var cookie).ShouldBeTrue();
+        cookie!.Stats.ShouldBeNull();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("stats").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task TwoIdenticalPostsAddTwoRecordsWithTheSameChain()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        var body = Body(consentId: ConsentChain, stats: true, map: true, source: "settings");
+
+        using var first = await PostAsync(client, body);
+        using var second = await PostAsync(client, body);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var records = await ReadRecordsAsync();
+        records.Count.ShouldBe(2);
+        records.Select(record => record.ConsentId.ToString("N")).Distinct().ShouldBe([ConsentChain]);
+        records[1].Id.ShouldNotBe(records[0].Id);
     }
 
     internal static string AcceptAll() => Body(stats: true, map: true, source: "bar");

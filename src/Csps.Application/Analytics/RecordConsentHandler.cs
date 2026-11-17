@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Domain.Common;
+using FluentValidation;
 
 namespace Csps.Application.Analytics;
 
@@ -9,7 +10,8 @@ namespace Csps.Application.Analytics;
 /// <param name="unitOfWork">Saves the record.</param>
 /// <param name="calendar">The business clock: the decision time and day.</param>
 /// <param name="random">The source of new visitor ids.</param>
-public sealed class RecordConsentHandler(IConsentRecords records, IUnitOfWork unitOfWork, IBusinessCalendar calendar, ISecureRandom random)
+/// <param name="validator">Checks the decision's fields.</param>
+public sealed class RecordConsentHandler(IConsentRecords records, IUnitOfWork unitOfWork, IBusinessCalendar calendar, ISecureRandom random, IValidator<RecordConsentRequest> validator)
 {
     private const string FieldRequired = "This is required.";
 
@@ -22,7 +24,7 @@ public sealed class RecordConsentHandler(IConsentRecords records, IUnitOfWork un
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(context);
-        _ = random;
+        _ = (random, validator);
 
         var missing = new Dictionary<string, string[]>(StringComparer.Ordinal);
         if (string.IsNullOrWhiteSpace(request.PolicyVersion))
