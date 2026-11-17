@@ -399,4 +399,22 @@ describe('SiteFooter Legal row, Cookie Settings (ANL-03)', () => {
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveFocus();
   });
+
+  it('ignores a press while the button is pending, and keeps focus on it', async () => {
+    const user = userEvent.setup();
+    putBootBlock(demoSite);
+    renderBase();
+    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
+      name: 'Cookie Settings',
+    });
+    await user.click(button);
+    const changed = vi.fn();
+    const stop = consentStore.subscribe(changed);
+
+    await user.click(button);
+
+    stop();
+    expect(changed).not.toHaveBeenCalled();
+    expect(button).toHaveFocus();
+  });
 });

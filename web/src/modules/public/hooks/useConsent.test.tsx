@@ -8,7 +8,7 @@ import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
 import { manilaBusinessDay } from '../consentRules';
 import { consentCookieText } from '../consentSave';
-import { createConsentStore, resetConsentStore, useConsent } from './useConsent';
+import { consentStore, createConsentStore, resetConsentStore, useConsent } from './useConsent';
 
 const TODAY = '2026-11-17';
 
@@ -471,5 +471,16 @@ describe('the settings window state', () => {
     });
     expect(result.current.settingsOpen).toBe(true);
     expect(result.current.settingsLoading).toBe(false);
+  });
+
+  it('tells nobody when the window reports ready and nothing was waiting', () => {
+    setConsent({ cookie: null });
+    const changed = vi.fn();
+    const stop = consentStore.subscribe(changed);
+
+    consentStore.settingsReady();
+
+    stop();
+    expect(changed).not.toHaveBeenCalled();
   });
 });
