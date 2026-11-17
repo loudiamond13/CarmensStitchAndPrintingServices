@@ -20,6 +20,8 @@ namespace Csps.Infrastructure.IntegrationTests.Analytics;
 public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string RolledUpLabel = "Visitor days rolled up";
+    private const string RawLabel = "Old visit records removed";
+    private const string ConsentLabel = "Old cookie choices removed";
     private const string JobName = "analytics-retention";
 
     // 2026-11-16 12:00 in Manila.
@@ -172,7 +174,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await AddVisitAsync(new DateOnly(2026, 11, 14), "Facebook", DeviceKind.Phone, "Chrome");
         var clock = new FakeTimeProvider(Now);
 
-        var first = await RunAsync(clock, new SpendBudgetAfterFirstInsert(clock, MaintenanceBudget.DefaultDuration), new MaintenanceBudget(clock));
+        var first = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "INSERT INTO [DailyReferrerCounts]"), new MaintenanceBudget(clock));
 
         Line(first, RolledUpLabel).Value.ShouldBe(1);
         first.More.ShouldBeTrue();
@@ -203,6 +205,191 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task AVisitThirteenMonthsOldGoesAndOneAtTheCutDateStaysAfterTheirDayIsRolledUp()
+    {
+        await database.ResetAsync();
+        var gone = new DateOnly(2025, 10, 14);
+        var kept = new DateOnly(2025, 10, 15);
+        await AddVisitAsync(gone, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(kept, "Facebook", DeviceKind.Phone, "Chrome");
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)));
+
+        Line(report, RawLabel).Value.ShouldBe(1);
+        Line(report, RawLabel).Failed.ShouldBeFalse();
+        (await ReadVisitDaysAsync()).ShouldBe([kept]);
+        (await ReadReferrersAsync()).Select(row => row.Day).ShouldBe([gone, kept]);
+    }
+
+    [Fact]
+    public async Task TheCutDateAtTheEndOfFebruaryKeepsTheFirstSurvivingDay()
+    {
+        await database.ResetAsync();
+        await AddVisitAsync(new DateOnly(2026, 2, 27), "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(new DateOnly(2026, 2, 28), "Facebook", DeviceKind.Phone, "Chrome");
+
+        await RunAsync(new FakeTimeProvider(new DateTimeOffset(2027, 3, 31, 4, 0, 0, TimeSpan.Zero)));
+
+        (await ReadVisitDaysAsync()).ShouldBe([new DateOnly(2026, 2, 28)]);
+    }
+
+    [Fact]
+    public async Task AnOldVisitTakesItsPageViewsAndSpeedSamplesWithItAndTheLineCountsEveryRow()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2025, 10, 14);
+        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddPageViewsAsync(visitId, day, 2);
+        await AddSampleAsync(visitId, day);
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)));
+
+        Line(report, RawLabel).Value.ShouldBe(4);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ADayThatWasNotRolledUpIsNeverRemovedEvenWhenItIsOld()
+    {
+        await database.ResetAsync();
+        await AddVisitAsync(new DateOnly(2025, 10, 11), "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
+        await using (var context = database.CreateContext())
+        {
+            await new MaintenanceCursors(context, TimeProvider.System).SaveAsync(JobName, "2025-10-12", TestContext.Current.CancellationToken);
+        }
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)), new FailCommandsOn("DailyReferrerCounts"));
+
+        Line(report, RolledUpLabel).Failed.ShouldBeTrue();
+        Line(report, RawLabel).Value.ShouldBe(1);
+        (await ReadVisitDaysAsync()).ShouldBe([new DateOnly(2025, 10, 14)]);
+    }
+
+    [Fact]
+    public async Task WithNoCursorNothingIsRemovedWhenTheRollupFails()
+    {
+        await database.ResetAsync();
+        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)), new FailCommandsOn("DailyReferrerCounts"));
+
+        Line(report, RawLabel).Value.ShouldBe(0);
+        (await ReadVisitDaysAsync()).Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TwelveHundredOldPageViewsTakeThreeBatchesOf500()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2025, 10, 14);
+        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddPageViewsAsync(visitId, day, 1200);
+        var counter = new CommandCounter();
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)), counter);
+
+        AnalyticsRetentionJob.BatchSize.ShouldBe(500);
+        Line(report, RawLabel).Value.ShouldBe(1201);
+        report.More.ShouldBeFalse();
+        counter.Commands.Count(static command => command.Contains("DELETE", StringComparison.Ordinal) && command.Contains("AnalyticsPageViews", StringComparison.Ordinal)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task ASpentBudgetAfterTheFirstPageViewBatchStopsWithMoreAndTheNextRunFinishes()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2025, 10, 14);
+        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddPageViewsAsync(visitId, day, 1200);
+        var now = new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero);
+        var clock = new FakeTimeProvider(now);
+
+        var first = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "DELETE|AnalyticsPageViews"), new MaintenanceBudget(clock));
+
+        Line(first, RawLabel).Value.ShouldBe(500);
+        first.More.ShouldBeTrue();
+        first.Lines.Select(line => line.Label).ShouldNotContain(ConsentLabel);
+        await using (var context = database.CreateContext())
+        {
+            (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(700);
+        }
+
+        var second = await RunAsync(new FakeTimeProvider(now));
+
+        Line(second, RawLabel).Value.ShouldBe(701);
+        second.More.ShouldBeFalse();
+        (await ReadVisitDaysAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AFailedVisitRemovalIsThatRulesFailedLineAndTheConsentRuleStillRuns()
+    {
+        await database.ResetAsync();
+        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
+        await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)), new FailDeletesOn("AnalyticsVisits"));
+
+        var failed = Line(report, RawLabel);
+        failed.Failed.ShouldBeTrue();
+        failed.Value.ShouldBeNull();
+        failed.Text.ShouldBe("The old visit records could not be removed.");
+        Line(report, ConsentLabel).Value.ShouldBe(1);
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task ACookieChoiceThirteenMonthsOldGoesAndOneAtTheCutMomentStays()
+    {
+        await database.ResetAsync();
+        await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
+        await AddConsentAsync(new DateTimeOffset(2025, 10, 15, 0, 0, 0, TimeSpan.Zero));
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)));
+
+        Line(report, ConsentLabel).Value.ShouldBe(1);
+        Line(report, ConsentLabel).Failed.ShouldBeFalse();
+        (await ReadConsentTimesAsync()).ShouldBe([new DateTimeOffset(2025, 10, 15, 0, 0, 0, TimeSpan.Zero)]);
+    }
+
+    [Fact]
+    public async Task ABacklogOfCookieChoicesIsRemovedInBatchesOf500()
+    {
+        await database.ResetAsync();
+        await using (var context = database.CreateContext())
+        {
+            context.ConsentRecords.AddRange(Enumerable.Range(0, 1200).Select(index =>
+                ConsentRecord.Decide(Guid.NewGuid(), "1.0", true, false, false, ConsentSource.Bar, new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero).AddMinutes(index))));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var counter = new CommandCounter();
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)), counter);
+
+        Line(report, ConsentLabel).Value.ShouldBe(1200);
+        counter.Commands.Count(static command => command.Contains("DELETE", StringComparison.Ordinal) && command.Contains("ConsentRecords", StringComparison.Ordinal)).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task AFailedCookieChoiceRemovalIsThatRulesFailedLine()
+    {
+        await database.ResetAsync();
+        await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
+
+        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)), new FailDeletesOn("ConsentRecords"));
+
+        var failed = Line(report, ConsentLabel);
+        failed.Failed.ShouldBeTrue();
+        failed.Value.ShouldBeNull();
+        failed.Text.ShouldBe("The old cookie choices could not be removed.");
+        report.More.ShouldBeFalse();
+    }
+
+    [Fact]
     public void TheJobRunsAtOrder15UnderItsFixedName()
     {
         using var context = database.CreateContext();
@@ -224,7 +411,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         return await job.RunAsync(budget ?? new MaintenanceBudget(clock), TestContext.Current.CancellationToken);
     }
 
-    private async Task AddVisitAsync(DateOnly day, string referrer, DeviceKind device, string browser)
+    private async Task<Guid> AddVisitAsync(DateOnly day, string referrer, DeviceKind device, string browser)
     {
         var hash = System.Security.Cryptography.RandomNumberGenerator.GetBytes(AnalyticsVisit.HashLength);
         var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(4, 0)), TimeSpan.Zero);
@@ -232,6 +419,41 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await using var context = database.CreateContext();
         context.AnalyticsVisits.Add(visit);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return visit.Id;
+    }
+
+    private async Task AddPageViewsAsync(Guid visitId, DateOnly day, int count)
+    {
+        var at = new DateTimeOffset(day.ToDateTime(new TimeOnly(5, 0)), TimeSpan.Zero);
+        await using var context = database.CreateContext();
+        context.AnalyticsPageViews.AddRange(Enumerable.Range(0, count).Select(_ => AnalyticsPageView.Of(visitId, day, at, PageKeys.Gallery)));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task AddSampleAsync(Guid visitId, DateOnly day)
+    {
+        await using var context = database.CreateContext();
+        context.AnalyticsVitalSamples.Add(AnalyticsVitalSample.Of(visitId, day, VitalMetric.Lcp, 2100m, PageKeys.Gallery));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task AddConsentAsync(DateTimeOffset decidedAt)
+    {
+        await using var context = database.CreateContext();
+        context.ConsentRecords.Add(ConsentRecord.Decide(Guid.NewGuid(), "1.0", true, false, false, ConsentSource.Bar, decidedAt));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<List<DateOnly>> ReadVisitDaysAsync()
+    {
+        await using var context = database.CreateContext();
+        return await context.AnalyticsVisits.AsNoTracking().OrderBy(visit => visit.BusinessDay).Select(visit => visit.BusinessDay).ToListAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<List<DateTimeOffset>> ReadConsentTimesAsync()
+    {
+        await using var context = database.CreateContext();
+        return await context.ConsentRecords.AsNoTracking().OrderBy(record => record.DecidedAtUtc).Select(record => record.DecidedAtUtc).ToListAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<List<(DateOnly Day, string Name, int Visits)>> ReadReferrersAsync()
@@ -292,8 +514,23 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         }
     }
 
-    // Moves the clock forward once the first daily referrer row is written, as if that day took the whole budget.
-    private sealed class SpendBudgetAfterFirstInsert(FakeTimeProvider clock, TimeSpan by) : DbCommandInterceptor
+    // Fails every delete on one table with a database error.
+    private sealed class FailDeletesOn(string table) : DbCommandInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("DELETE", StringComparison.Ordinal) && command.CommandText.Contains(table, StringComparison.Ordinal))
+            {
+                throw new TestDatabaseException();
+            }
+
+            return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
+    // Moves the clock forward once the first command holding every '|'-separated part of the marker has run, as if that step took the whole budget.
+    private sealed class SpendBudgetAfterFirst(FakeTimeProvider clock, TimeSpan by, string marker) : DbCommandInterceptor
     {
         private int _advanced;
 
@@ -313,7 +550,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
 
         private void Advance(DbCommand command)
         {
-            if (command.CommandText.Contains("INSERT INTO [DailyReferrerCounts]", StringComparison.Ordinal) && Interlocked.Exchange(ref _advanced, 1) == 0)
+            var matches = marker.Split('|').All(part => command.CommandText.Contains(part, StringComparison.Ordinal));
+            if (matches && Interlocked.Exchange(ref _advanced, 1) == 0)
             {
                 clock.Advance(by);
             }
