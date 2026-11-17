@@ -1,4 +1,5 @@
 using Csps.Application.Analytics;
+using Csps.Domain.Analytics;
 
 namespace Csps.Application.UnitTests.Analytics;
 
@@ -90,6 +91,20 @@ public sealed class RecordConsentRequestValidatorTests
         result.Errors.Select(error => error.PropertyName).Distinct().ShouldBe(
             [nameof(RecordConsentRequest.PolicyVersion), nameof(RecordConsentRequest.Source)], ignoreOrder: true);
     }
+
+    [Theory]
+    [InlineData("bar", ConsentSource.Bar)]
+    [InlineData("settings", ConsentSource.Settings)]
+    [InlineData("map-link", ConsentSource.MapLink)]
+    public void EachAcceptedSourceNameMapsToItsSource(string name, ConsentSource expected) =>
+        ConsentSources.From(name).ShouldBe(expected);
+
+    [Theory]
+    [InlineData("clear")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void ASourceNameTheBrowserMayNotSendDoesNotMap(string? name) =>
+        Should.Throw<ArgumentOutOfRangeException>(() => ConsentSources.From(name));
 
     [Fact]
     public void TheMessagesArePlainEnglishWithNoLongDash()

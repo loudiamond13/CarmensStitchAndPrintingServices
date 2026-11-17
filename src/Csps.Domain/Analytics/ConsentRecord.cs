@@ -56,7 +56,7 @@ public sealed class ConsentRecord
             throw new ArgumentException("The consent chain id is empty.", nameof(consentId));
         }
 
-        if (!IsVersion(policyVersion))
+        if (!IsPolicyVersion(policyVersion))
         {
             throw new ArgumentException("The policy version must be digits, a dot and digits, like 1.0.", nameof(policyVersion));
         }
@@ -84,8 +84,10 @@ public sealed class ConsentRecord
         };
     }
 
-    // "digits.digits" within the column length, like "1.0".
-    private static bool IsVersion(string? text)
+    /// <summary>Tells whether a text is a policy version the table can keep: digits, a dot and digits, like <c>1.0</c>, within the column length.</summary>
+    /// <param name="text">The text to check.</param>
+    /// <returns>True when the text is a usable policy version.</returns>
+    public static bool IsPolicyVersion(string? text)
     {
         if (string.IsNullOrEmpty(text) || text.Length > PolicyVersionMaxLength)
         {
