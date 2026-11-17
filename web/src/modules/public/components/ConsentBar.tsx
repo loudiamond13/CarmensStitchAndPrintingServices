@@ -5,6 +5,7 @@
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { CONSENT_COPY } from '../consentCopy';
+import { focusMain } from '../consentFocus';
 import { useConsent } from '../hooks/useConsent';
 import {
   barClasses,
@@ -18,11 +19,6 @@ import {
 
 // The save path starts loading with the bar, so a click applies the choice at once (it is not in the first download).
 void import('../consentSave');
-
-/** PublicLayout's `main#main` takes focus after a choice, so a keyboard visitor is not left on a removed button. */
-function focusMain(): void {
-  document.getElementById('main')?.focus({ preventScroll: true });
-}
 
 export function ConsentBar() {
   const { acceptAll, rejectAll, openSettings } = useConsent();

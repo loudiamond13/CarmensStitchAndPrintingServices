@@ -265,6 +265,8 @@ export const PUBLIC_COPY = {
       tiktok: { short: 'TT', name: 'TT, CSPS on TikTok' },
     },
     staffLogin: 'Staff Login',
+    // SPEC-GAP: FT the Legal row's Cookie Settings button.
+    legal: { settings: 'Cookie Settings' },
     copyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}. All rights reserved.`,
     baseCopyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}`,
   },

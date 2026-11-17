@@ -3,12 +3,17 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { consentProbe, setConsent } from '@/test/consentFixtures';
 import { demoSite, putBootBlock } from '@/test/publicFixtures';
 import { parseConsentCookie } from '../consentCookie';
 import { ConsentSlot } from './ConsentSlot';
 import { SiteFooter } from './SiteFooter';
+
+// The window is a lazy chunk; the first transform of its parts can take longer than a test waits, so load it first.
+beforeAll(async () => {
+  await import('./CookieSettingsDialog');
+}, 30_000);
 
 function renderPage() {
   putBootBlock(demoSite);

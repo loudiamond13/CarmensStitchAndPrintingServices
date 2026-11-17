@@ -27,5 +27,9 @@ export const buttonsClasses = tw('flex flex-none items-center gap-2 pg-phone:gri
 /** Reject All and Accept All: the same width (wide), equal halves (phone). */
 export const choiceClasses = tw('w-32 pg-phone:w-full');
 
+/** CS1: the choices fieldset, rows 16px apart; the legend is a Label. */
+export const fieldsetClasses = tw('m-0 flex min-w-0 flex-col gap-4 border-0 p-0');
+export const legendClasses = tw('mb-4 p-0 text-14 leading-5 font-semibold text-ink');
+
 /** Cookie Settings: first in the DOM; full width under the two choices on phones. */
 export const settingsClasses = tw('pg-phone:order-last pg-phone:col-span-2 pg-phone:w-full');

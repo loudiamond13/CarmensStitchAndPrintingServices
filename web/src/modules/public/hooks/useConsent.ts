@@ -29,6 +29,8 @@ export interface ConsentState {
   statsAllowed: boolean;
   mapAllowed: boolean;
   settingsOpen: boolean;
+  /** True from the first open of the settings window until its chunk has mounted (the opener shows it pending). */
+  settingsLoading: boolean;
   announcement: string | null;
 }
 
@@ -45,6 +47,8 @@ export interface ConsentActions {
   allowMaps: () => Promise<void>;
   openSettings: (opener?: HTMLElement) => void;
   closeSettings: () => void;
+  /** The settings window has mounted: the opener stops showing pending. */
+  settingsReady: () => void;
   /** Sends a provisional choice again once, when an earlier send failed. */
   resendPending: () => Promise<void>;
 }
@@ -78,6 +82,8 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let rules: Rules | undefined;
   let rulesLoading = false;
   let settingsOpen = false;
+  let settingsLoading = false;
+  let windowReady = false;
   let serverGpc = false;
   // The choice written this page, kept in memory too, so a browser that will not store the cookie still closes the bar for this page.
   let held: string | undefined;
@@ -88,7 +94,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
 
   function compute(raw: string | undefined): ConsentState {
     const gpc = options.gpc || serverGpc;
-    const shared = { gpc, settingsOpen, announcement };
+    const shared = { gpc, settingsOpen, settingsLoading, announcement };
     if (rules === undefined) {
       return {
         ...shared,
@@ -157,6 +163,8 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     reconfigure: (next) => {
       options = next;
       settingsOpen = false;
+      settingsLoading = false;
+      windowReady = false;
       settingsOpener = undefined;
       announcement = null;
       serverGpc = false;
@@ -180,10 +188,18 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     openSettings: (opener) => {
       settingsOpener = opener;
       settingsOpen = true;
+      settingsLoading = !windowReady;
+      refresh();
+    },
+    settingsReady: () => {
+      windowReady = true;
+      if (!settingsLoading) return;
+      settingsLoading = false;
       refresh();
     },
     closeSettings: () => {
       settingsOpen = false;
+      settingsLoading = false;
       refresh();
       if (settingsOpener?.isConnected === true) settingsOpener.focus();
     },
@@ -213,6 +229,7 @@ const ACTIONS: ConsentActions = {
   allowMaps: consentStore.allowMaps,
   openSettings: consentStore.openSettings,
   closeSettings: consentStore.closeSettings,
+  settingsReady: consentStore.settingsReady,
   resendPending: consentStore.resendPending,
 };
 
