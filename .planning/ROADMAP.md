@@ -1299,7 +1299,8 @@ Plans:
 
 **Research flag:** Standard patterns. The PRD and NPC guidance are already detailed.
 
-**Plans**: 8/31 plans executed
+**Plans**: 16/32 plans executed
+- [x] 12-32-PLAN.md
 - [ ] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
 - [x] 12-03-PLAN.md
@@ -1308,13 +1309,13 @@ Plans:
 - [x] 12-06-PLAN.md
 - [x] 12-07-PLAN.md
 - [x] 12-08-PLAN.md
-- [ ] 12-09-PLAN.md
-- [ ] 12-10-PLAN.md
-- [ ] 12-11-PLAN.md
-- [ ] 12-12-PLAN.md
-- [ ] 12-13-PLAN.md
-- [ ] 12-14-PLAN.md
-- [ ] 12-15-PLAN.md
+- [x] 12-09-PLAN.md
+- [x] 12-10-PLAN.md
+- [x] 12-11-PLAN.md
+- [x] 12-12-PLAN.md
+- [x] 12-13-PLAN.md
+- [x] 12-14-PLAN.md
+- [x] 12-15-PLAN.md
 - [ ] 12-16-PLAN.md
 - [ ] 12-17-PLAN.md
 - [ ] 12-18-PLAN.md
@@ -1574,7 +1575,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
-| 12. Consent, Analytics & Legal | 8/31 | In Progress | - |
+| 12. Consent, Analytics & Legal | 16/32 | In Progress | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
