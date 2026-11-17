@@ -1,7 +1,9 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.Time;
 using FluentValidation;
 
 namespace Csps.Application.Analytics;
@@ -26,7 +28,6 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(visits);
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
@@ -54,6 +55,40 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         await counts.IncrementAsync(clock.Today, pageKey, cancellationToken).ConfigureAwait(false);
+        await RecordVisitAsync(context, pageKey, clock, cancellationToken).ConfigureAwait(false);
         return Result.Success();
+    }
+
+    // The identified half (ANL-05): only with the visitor id, a consent cookie that passes ConsentCookie.AllowsStats and no GPC.
+    private async Task RecordVisitAsync(CollectContext context, string pageKey, BusinessClock clock, CancellationToken cancellationToken)
+    {
+        if (!IdentifiedCollection.IsAllowed(context, clock.Today))
+        {
+            return;
+        }
+
+        var now = clock.UtcNow;
+        var visitorHash = VisitorKey.HashVisitor(context.VisitorToken!);
+        Guid visitId;
+        if (await visits.FindCurrentAsync(visitorHash, now.AddMinutes(-AnalyticsRetention.SessionMinutes), cancellationToken).ConfigureAwait(false) is { } current)
+        {
+            await visits.TouchAsync(current, now, cancellationToken).ConfigureAwait(false);
+            visitId = current;
+        }
+        else
+        {
+            var visit = AnalyticsVisit.Start(
+                visitorHash,
+                clock.Today,
+                now,
+                ReferrerName.Direct,
+                DeviceClass.From(context.UserAgent),
+                UserAgentFamily.Classify(context.UserAgent),
+                OsFamily.From(context.UserAgent),
+                null);
+            visitId = await visits.StartAsync(visit, cancellationToken).ConfigureAwait(false);
+        }
+
+        await visits.AddPageViewAsync(AnalyticsPageView.Of(visitId, clock.Today, now, pageKey), cancellationToken).ConfigureAwait(false);
     }
 }

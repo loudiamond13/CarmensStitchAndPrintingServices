@@ -50,6 +50,6 @@ public sealed class AnalyticsController(CollectPageViewHandler collectPageView) 
         Request.Headers.UserAgent.ToString() is { Length: > 0 } userAgent ? userAgent : null,
         Request.Cookies.ContainsKey(AnalyticsCookies.StaffCookieName) || Request.Headers.ContainsKey(HeaderNames.Authorization),
         string.Equals(Request.Headers[GpcHeader].ToString(), GpcOn, StringComparison.Ordinal),
-        Request.Cookies[AnalyticsCookies.VisitorCookieName],
+        Request.Cookies[AnalyticsCookies.VisitorCookieName] is { } visitor && AnalyticsCookies.IsVisitorId(visitor) ? visitor : null,
         Request.Cookies[AnalyticsCookies.ConsentCookieName]);
 }
