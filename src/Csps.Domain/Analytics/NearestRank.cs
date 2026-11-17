@@ -4,5 +4,6 @@ namespace Csps.Domain.Analytics;
 public static class NearestRank
 {
     /// <summary>The zero-based index of the percentile in a sorted list of <paramref name="count"/> items, or null for an empty list.</summary>
-    public static int? Index(int count, decimal percentile) => throw new NotImplementedException();
+    public static int? Index(int count, decimal percentile) =>
+        count <= 0 ? null : Math.Max(0, (int)decimal.Ceiling(percentile * count) - 1);
 }
