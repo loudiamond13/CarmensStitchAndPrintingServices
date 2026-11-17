@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-15T21:52:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-16T21:10:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -73,6 +73,10 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-39:** **The site publishes `/.well-known/gpc.json`** stating that it honors GPC, matching D-20. (OQ 4 A, owner, 2026-11-15)
 - **D-40:** **The Privacy Policy's "Who else handles your data" list is:** the web host, Cloudinary (photos), the email sender, and Google (the Contact map, only when allowed). (OQ 5, owner, 2026-11-15)
 - **D-41:** **Three defaults accepted as written** (12-RESEARCH A6 to A8): turning visitor stats off stops collection and expires the visitor id but keeps past rows (Clear is what deletes them); the GPC signal alone creates no consent record, and the GPC flag is stored on any decision made under it; Clear runs `localStorage.clear()`, which also resets a staff member's admin theme and orders view in that browser, and the daily totals with no visitor id stay (the Cookie Policy says so). (OQ 6, owner, 2026-11-15)
+
+### Execution rulings (owner, 2026-11-16, answered in chat during wave 1)
+- **D-42:** **Free about 1 KB of the public first download before wave 2.** Plan 12-05 (four legal routes) pushes `build:budget` to Home 150.09 KB and Contact 150.13 KB, over the 150 KB limit; the production build stays under (about 149.9 KB). A small recovery plan runs before any wave 2 plan, for example by keeping the admin route chunk list out of the public entry. The 150 KB limit is not raised. Later entry-touching plans (footer legal row, consent bar loader) must fit inside the freed room. (12-05 checkpoint option 1, owner, 2026-11-16)
+- **D-43:** **A consent cookie dated in the future is rejected and the visitor is asked again.** Both codecs (`ConsentCookie.cs`, `consentCookie.ts`) treat a decision date later than now as no choice, with fixture cases in `tests/fixtures/consent-cookie-cases.json`. A crafted cookie cannot stretch its own 12-month life. (12-03 open point, owner, 2026-11-16)
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.
