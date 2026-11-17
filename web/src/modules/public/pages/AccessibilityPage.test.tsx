@@ -42,8 +42,10 @@ describe('AccessibilityPage at /accessibility (LEGAL-04)', { timeout: 20_000 }, 
     const section = (await screen.findByRole('heading', { level: 2, name: 'Tell us about a problem' })).closest(
       'section',
     );
-    expect(section).not.toBeNull();
-    const scope = within(section as HTMLElement);
+    if (section === null) {
+      throw new Error('The "Tell us about a problem" heading is not inside a section.');
+    }
+    const scope = within(section);
     expect(await scope.findByRole('link', { name: 'shop-private@example.test' })).toHaveAttribute(
       'href',
       'mailto:shop-private@example.test',

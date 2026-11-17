@@ -7,6 +7,15 @@ export const LEGAL_COPY = {
     label: 'Draft: this text is not final yet.',
     detail: "It may change before it's approved.",
   },
+  /** LegalFacts (UI-SPEC L1 item 3, D-11 to D-13, D-29): the label of each line; the values come from the site settings. */
+  facts: {
+    dpo: 'Data Protection Officer: The owner, Data Protection Officer',
+    email: 'Email: ',
+    messenger: 'Messenger: ',
+    messengerLink: 'Message us on Messenger',
+    phone: 'Phone: ',
+    errorTitle: "Couldn't load our contact details.",
+  },
   /** The visually hidden suffix of a link that opens in a new tab. */
   externalSuffix: ' (opens in a new tab)',
 } as const;
