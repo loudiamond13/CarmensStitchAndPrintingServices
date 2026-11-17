@@ -156,6 +156,28 @@ public sealed class CollectPageViewHandlerTests
     }
 
     [Fact]
+    public async Task ASignedInStaffMemberStoresNothingAndStillSucceeds()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(new PageViewRequest("/gallery"), Visitor(staff: true), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Pages.DidNotReceive().PageKeyFor(Arg.Any<string>());
+        await harness.Counts.DidNotReceive().IncrementAsync(Arg.Any<DateOnly>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ABadBodyIs400EvenFromStaff()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(new PageViewRequest("gallery"), Visitor(staff: true), TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+    }
+
+    [Fact]
     public async Task ABadBodyIs400EvenFromABot()
     {
         var harness = new Harness();

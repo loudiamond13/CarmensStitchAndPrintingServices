@@ -203,6 +203,8 @@ export const HOST_ENV = Object.freeze({
   RateLimits__Images__PermitLimit: NO_THROTTLE,
   // The review pages press the cookie bar from this one address too (30 a minute in production, ANL-07).
   RateLimits__Consent__PermitLimit: NO_THROTTLE,
+  // The review pages send a beacon on every page view from this one address too (120 a minute in production, ANL-06).
+  RateLimits__AnalyticsCollect__PermitLimit: NO_THROTTLE,
 });
 // The Development host also loads the build-time static web assets manifest, whose wwwroot files would win over
 // --webroot; a manifest path that never exists turns that loader off for this host only (playwright.config.ts).

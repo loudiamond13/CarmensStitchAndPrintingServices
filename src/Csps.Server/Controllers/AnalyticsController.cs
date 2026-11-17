@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Net.Http.Headers;
 
 namespace Csps.Server.Controllers;
 
@@ -47,7 +48,7 @@ public sealed class AnalyticsController(CollectPageViewHandler collectPageView) 
 
     private CollectContext ReadContext() => new(
         Request.Headers.UserAgent.ToString() is { Length: > 0 } userAgent ? userAgent : null,
-        false,
+        Request.Cookies.ContainsKey(AnalyticsCookies.StaffCookieName) || Request.Headers.ContainsKey(HeaderNames.Authorization),
         string.Equals(Request.Headers[GpcHeader].ToString(), GpcOn, StringComparison.Ordinal),
         Request.Cookies[AnalyticsCookies.VisitorCookieName],
         Request.Cookies[AnalyticsCookies.ConsentCookieName]);

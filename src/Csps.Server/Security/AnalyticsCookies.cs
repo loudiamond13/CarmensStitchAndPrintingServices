@@ -1,7 +1,7 @@
 namespace Csps.Server.Security;
 
 /// <summary>
-/// The two analytics cookies and their attributes (ANL-05, ANL-07). The consent cookie holds the visitor's choice and is readable by the
+/// The analytics cookies and their attributes (ANL-05, ANL-07, D-21). The consent cookie holds the visitor's choice and is readable by the
 /// page; the visitor id is HttpOnly and sent only to the analytics API.
 /// </summary>
 public static class AnalyticsCookies
@@ -19,6 +19,7 @@ public static class AnalyticsCookies
     public const string CookiePath = "/api/v1/analytics";
 
     private const int VisitorIdLength = 43;
+    private const string StaffMarkerValue = "1";
 
     /// <summary>
     /// Sets the consent cookie from the server so Safari keeps it for the full 12 months: Path=/, Secure, SameSite=Lax and not HttpOnly,
@@ -52,7 +53,7 @@ public static class AnalyticsCookies
         ArgumentNullException.ThrowIfNull(response);
         ArgumentException.ThrowIfNullOrEmpty(token);
 
-        var options = VisitorOptions();
+        var options = Options();
         options.Expires = expires;
         response.Cookies.Append(VisitorCookieName, token, options);
     }
@@ -62,7 +63,7 @@ public static class AnalyticsCookies
     public static void ExpireVisitor(HttpResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
-        response.Cookies.Delete(VisitorCookieName, VisitorOptions());
+        response.Cookies.Delete(VisitorCookieName, Options());
     }
 
     /// <summary>Marks the browser as signed-in staff, so the stats leave it out (D-21).</summary>
@@ -71,7 +72,10 @@ public static class AnalyticsCookies
     public static void SetStaff(HttpResponse response, DateTimeOffset? expires)
     {
         ArgumentNullException.ThrowIfNull(response);
-        _ = expires;
+
+        var options = Options();
+        options.Expires = expires;
+        response.Cookies.Append(StaffCookieName, StaffMarkerValue, options);
     }
 
     /// <summary>Takes the staff marker away, with the same path and attributes it was set with.</summary>
@@ -79,6 +83,7 @@ public static class AnalyticsCookies
     public static void ClearStaff(HttpResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
+        response.Cookies.Delete(StaffCookieName, Options());
     }
 
     /// <summary>Tells whether a cookie value looks like a visitor id: 43 characters of base64url, as <c>ISecureRandom.NewToken</c> makes them.</summary>
@@ -87,7 +92,7 @@ public static class AnalyticsCookies
     public static bool IsVisitorId(string? value) =>
         value is { Length: VisitorIdLength } && value.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');
 
-    private static CookieOptions VisitorOptions() => new()
+    private static CookieOptions Options() => new()
     {
         HttpOnly = true,
         Secure = true,

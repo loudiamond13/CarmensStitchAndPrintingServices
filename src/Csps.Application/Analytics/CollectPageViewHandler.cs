@@ -38,6 +38,12 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
             return Result.Success();
         }
 
+        // Signed-in staff browsing the public site are not visitors, not even in the anonymous count (D-21).
+        if (context.IsStaff)
+        {
+            return Result.Success();
+        }
+
         // Only the pathname is kept: the query and the fragment are cut before anything else reads the path.
         if (AnalyticsPath.Cut(request.Path) is not { } cutPath || pages.PageKeyFor(cutPath) is not { } pageKey)
         {
