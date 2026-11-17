@@ -501,6 +501,20 @@ describe('Always show maps (D-18)', () => {
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: true, map: true });
     expect(result.current.mapAllowed).toBe(true);
   });
+
+  it('still saves the map under Global Privacy Control, with stats left unchosen and off (D-20)', async () => {
+    const probe = consentProbe();
+    const jar = setConsent({ cookie: null, gpc: true });
+    const { result } = renderHook(() => useConsent());
+
+    await result.current.allowMaps();
+
+    expect(parseConsentCookie(jar.value)).toMatchObject({ stats: null, map: true });
+    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: null, map: true, source: 'map-link' });
+    expect(result.current.mapAllowed).toBe(true);
+    expect(result.current.statsAllowed).toBe(false);
+    expect(result.current.needsChoice).toBe(false);
+  });
 });
 
 describe('whether the saved choice still counts (CS1 saved line)', () => {
