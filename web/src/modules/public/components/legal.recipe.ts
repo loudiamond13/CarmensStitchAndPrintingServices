@@ -83,8 +83,8 @@ export const descriptionClasses = tw('m-0 text-16 leading-6 text-ink');
 /** A link inside text: the link color, underlined. */
 export const inlineLinkClasses = tw('text-link underline underline-offset-[3px]');
 
-/** LegalFacts: the business and the contact lines, 8px apart. */
-export const factsClasses = tw('flex flex-col gap-2');
+/** LegalFacts: the business and the contact lines, 8px apart; long names, addresses and emails wrap. */
+export const factsClasses = tw('flex min-w-0 flex-col gap-2 wrap-anywhere');
 
 /** The business address: Small, muted. */
 export const factsAddressClasses = tw('text-14 leading-5 text-ink-muted');

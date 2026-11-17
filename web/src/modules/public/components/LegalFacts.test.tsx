@@ -114,7 +114,7 @@ describe('LegalFacts populated (D-11, D-12, D-13, D-29)', () => {
   it('shows the Email, Messenger and Phone lines, each with its link', async () => {
     renderFacts(['contact']);
     const items = await screen.findAllByRole('listitem');
-    expect(items.map((item) => item.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+    expect(items.map((item) => item.textContent.replace(/\s+/g, ' ').trim())).toEqual([
       `Email: ${EMAIL}`,
       'Messenger: Message us on Messenger (opens in a new tab)',
       'Phone: 0917 123 4567',
@@ -136,7 +136,7 @@ describe('LegalFacts populated (D-11, D-12, D-13, D-29)', () => {
   it('shows the parts in the order asked', async () => {
     const { container } = renderFacts(['business', 'dpo', 'contact']);
     await screen.findByRole('link', { name: EMAIL });
-    const text = container.textContent ?? '';
+    const text = container.textContent;
     expect(text.indexOf('Sample Shop')).toBeLessThan(text.indexOf('Data Protection Officer'));
     expect(text.indexOf('Data Protection Officer')).toBeLessThan(text.indexOf('Email:'));
   });
