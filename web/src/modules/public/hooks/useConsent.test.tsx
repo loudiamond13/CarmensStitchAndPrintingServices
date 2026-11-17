@@ -2,7 +2,7 @@
 // save flow through the service.
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { consentCookie, consentProbe, demoDecision, FAKE_CONSENT_ID, setConsent } from '@/test/consentFixtures';
 import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
@@ -11,6 +11,9 @@ import { consentCookieText, writeBrowserCookie } from '../consentSave';
 import { consentStore, createConsentStore, resetConsentStore, useConsent } from './useConsent';
 
 const TODAY = '2026-11-17';
+
+/** The save tests never clear, so a service double has nothing to answer. */
+const unusedClear = () => Promise.reject(new Error('clear is not used here'));
 
 describe('manilaBusinessDay (D-43)', () => {
   it.each([
@@ -213,7 +216,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record }),
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(1);
@@ -228,7 +231,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(POLICY_CHANGED_ERROR) }),
+      loadService: () => Promise.resolve({ record: () => Promise.reject(POLICY_CHANGED_ERROR), clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(2);
@@ -252,6 +255,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
             value = formatConsentCookie(consentCookie({ stats: true, map: true, decidedOn: TODAY }));
             return Promise.reject(POLICY_CHANGED_ERROR);
           },
+          clear: unusedClear,
         }),
     });
     await store.acceptAll('bar');
@@ -266,7 +270,7 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       readCookie: () => undefined,
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(conflict('other')) }),
+      loadService: () => Promise.resolve({ record: () => Promise.reject(conflict('other')), clear: unusedClear }),
     });
     await store.acceptAll('bar');
     expect(write).toHaveBeenCalledTimes(1);
@@ -285,7 +289,8 @@ describe('a store made without a cookie writer uses the browser (ANL-01)', () =>
       },
       gpc: false,
       today: () => TODAY,
-      loadService: () => Promise.resolve({ record: () => Promise.reject(thrown as unknown as Error) }),
+      loadService: () =>
+        Promise.resolve({ record: () => Promise.reject(thrown as unknown as Error), clear: unusedClear }),
     });
     await store.rejectAll('bar');
     expect(parseConsentCookie(value)).toMatchObject({ stats: false, map: false, pending: true });
@@ -389,7 +394,7 @@ describe('a failed save keeps the choice (UI-SPEC error, ANL-07)', () => {
         value = next ?? undefined;
       },
       gpc: false,
-      loadService: () => Promise.resolve({ record }),
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
     });
 
     const saving = store.acceptAll('bar');
@@ -629,5 +634,112 @@ describe('the settings window state', () => {
 
     stop();
     expect(changed).not.toHaveBeenCalled();
+  });
+});
+
+describe('clearData (ANL-04, D-19, D-31, D-41)', () => {
+  const NEW_CHAIN = 'fedcba9876543210fedcba9876543210';
+
+  beforeEach(() => {
+    localStorage.setItem('csps-admin-theme', 'espresso');
+    sessionStorage.setItem('orders-view', 'cards');
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('calls the server first, then clears this browser, keeps the cookie the server set and leaves stats and map off', async () => {
+    const jar = setConsent({ cookie: consentCookie({ stats: true, map: true }) });
+    const seen: { local: string | null; session: string | null; csrf: string | null; body: string }[] = [];
+    server.use(
+      http.post('*/api/v1/analytics/clear', async ({ request }) => {
+        seen.push({
+          local: localStorage.getItem('csps-admin-theme'),
+          session: sessionStorage.getItem('orders-view'),
+          csrf: request.headers.get('X-CSPS-CSRF'),
+          body: await request.text(),
+        });
+        // The browser accepts the server's Set-Cookie for the new reset decision.
+        jar.value = formatConsentCookie(consentCookie({ consentId: NEW_CHAIN, stats: false, map: false }));
+        return HttpResponse.json({ ...demoDecision, consentId: NEW_CHAIN, stats: false, map: false });
+      }),
+    );
+    const { result } = renderHook(() => useConsent());
+    await waitFor(() => {
+      expect(result.current.statsAllowed).toBe(true);
+    });
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await result.current.clearData();
+    });
+
+    expect(outcome).toBe('cleared');
+    expect(seen).toEqual([{ local: 'espresso', session: 'cards', csrf: '1', body: '' }]);
+    expect(localStorage.length).toBe(0);
+    expect(sessionStorage.length).toBe(0);
+    expect(parseConsentCookie(jar.value)).toMatchObject({
+      consentId: NEW_CHAIN,
+      stats: false,
+      map: false,
+      pending: false,
+    });
+    expect(jar.writes).toEqual([]);
+    expect(result.current).toMatchObject({ statsAllowed: false, mapAllowed: false, needsChoice: false });
+  });
+
+  it('forgets a choice held only in memory, so nothing of the old choice is left', async () => {
+    resetConsentStore({ readCookie: () => undefined, writeCookie: () => undefined, gpc: false });
+    consentProbe();
+    const { result } = renderHook(() => useConsent());
+    await act(async () => {
+      await result.current.acceptAll('bar');
+    });
+    await waitFor(() => {
+      expect(result.current.statsAllowed).toBe(true);
+    });
+    server.use(
+      http.post('*/api/v1/analytics/clear', () => HttpResponse.json({ ...demoDecision, stats: false, map: false })),
+    );
+
+    await act(async () => {
+      await result.current.clearData();
+    });
+
+    expect(result.current.statsAllowed).toBe(false);
+    expect(result.current.mapAllowed).toBe(false);
+  });
+
+  it.each([
+    ['the network fails', 'failed', () => HttpResponse.error()],
+    ['the server answers 500', 'failed', () => HttpResponse.json({ title: 'Failed', status: 500 }, { status: 500 })],
+    ['the server answers 403', 'failed', () => HttpResponse.json({ title: 'Forbidden', status: 403 }, { status: 403 })],
+    [
+      'the server answers 429',
+      'rate-limited',
+      () => HttpResponse.json({ title: 'Too many tries.', status: 429, code: 'rate-limited' }, { status: 429 }),
+    ],
+  ])('when %s: nothing is cleared in the browser and the outcome is %s', async (_name, expected, answer) => {
+    server.use(http.post('*/api/v1/analytics/clear', answer));
+    const jar = setConsent({ cookie: consentCookie({ stats: true, map: true }) });
+    const before = jar.value;
+    const { result } = renderHook(() => useConsent());
+    await waitFor(() => {
+      expect(result.current.statsAllowed).toBe(true);
+    });
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await result.current.clearData();
+    });
+
+    expect(outcome).toBe(expected);
+    expect(localStorage.getItem('csps-admin-theme')).toBe('espresso');
+    expect(sessionStorage.getItem('orders-view')).toBe('cards');
+    expect(jar.value).toBe(before);
+    expect(jar.writes).toEqual([]);
+    expect(result.current).toMatchObject({ statsAllowed: true, mapAllowed: true });
   });
 });

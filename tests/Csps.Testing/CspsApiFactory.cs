@@ -152,6 +152,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The page view beacons too; RealLimitsFactory restores the real 120 a minute.
         builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", "100000");
 
+        // Clear my cookies and data too; RealLimitsFactory restores the real 5 a minute.
+        builder.UseSetting("RateLimits:AnalyticsClear:PermitLimit", "100000");
+
         ConfigureSettings(builder);
     }
 

@@ -50,6 +50,16 @@ internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    // The page views and speed samples go by the database cascade, so one delete removes everything linked to the visitor.
+    public Task DeleteForVisitorAsync(byte[] visitorHash, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(visitorHash);
+
+        return context.AnalyticsVisits
+            .Where(visit => visit.VisitorHash == visitorHash)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     public async Task AddSamplesAsync(IReadOnlyList<AnalyticsVitalSample> samples, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);

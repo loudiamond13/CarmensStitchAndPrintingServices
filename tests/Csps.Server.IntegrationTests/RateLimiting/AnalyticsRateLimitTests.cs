@@ -1,4 +1,6 @@
 using System.Net;
+using Csps.Application.Analytics;
+using Csps.Domain.Analytics;
 using Csps.Server.IntegrationTests.Analytics;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
@@ -14,6 +16,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
 {
     private const int PerMinute = 30;
     private const int CollectPerMinute = 120;
+    private const int ClearPerMinute = 5;
     private const string Route = "/api/v1/analytics/consent";
 
     [Fact]
@@ -178,6 +181,139 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
 
         failure.Message.ShouldContain("RateLimits:AnalyticsCollect:PermitLimit must be at least 1.");
+    }
+
+    [Fact]
+    public async Task TheSixthClearInAMinuteFromOneAddressGets429WithItsOwnMessageAndAnotherAddressIsUnaffected()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString) { RemoteIpFromHeader = true };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        for (var attempt = 1; attempt <= ClearPerMinute; attempt++)
+        {
+            using var inside = await PostClearAsync(client, "203.0.113.80");
+            inside.StatusCode.ShouldBe(HttpStatusCode.OK, $"clear {attempt} is inside the limit");
+        }
+
+        using var rejected = await PostClearAsync(client, "203.0.113.80");
+        using var other = await PostClearAsync(client, "203.0.113.81");
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("rate-limited");
+        problem.GetProperty("detail").GetString().ShouldBe("Too many tries. Wait a minute and try again.");
+        rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
+        other.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task TheOtherAnalyticsPoliciesKeepTheGeneralMessage()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:Consent:PermitLimit"] = "1" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        using var accepted = await PostAsync(client, "203.0.113.82");
+        using var rejected = await PostAsync(client, "203.0.113.82");
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
+        problem.GetProperty("detail").GetString().ShouldBe("Too many attempts from this address. Please wait and try again.");
+    }
+
+    [Fact]
+    public async Task TheClearLimitCanBeChangedInConfiguration()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:AnalyticsClear:PermitLimit"] = "2" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        using var first = await PostClearAsync(client, "203.0.113.83");
+        using var second = await PostClearAsync(client, "203.0.113.83");
+        using var third = await PostClearAsync(client, "203.0.113.83");
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        third.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+    }
+
+    [Fact]
+    public async Task ARejectedClearDeletesNothingAndRecordsNothing()
+    {
+        await database.ResetAsync();
+        var visitor = new string('c', 43);
+        await using (var seed = database.CreateContext())
+        {
+            var day = new DateOnly(2026, 11, 17);
+            seed.AnalyticsVisits.Add(AnalyticsVisit.Start(VisitorKey.HashVisitor(visitor), day, new DateTimeOffset(2026, 11, 17, 2, 0, 0, TimeSpan.Zero), ReferrerName.Direct, DeviceKind.Computer, "Chrome", "Windows", null));
+            await seed.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:AnalyticsClear:PermitLimit"] = "1" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        using var accepted = await PostClearAsync(client, "203.0.113.84");
+        using var rejected = await PostClearAsync(client, "203.0.113.84", $"{AnalyticsCookies.VisitorCookieName}={visitor}");
+
+        accepted.StatusCode.ShouldBe(HttpStatusCode.OK);
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        await using var context = database.CreateContext();
+        context.AnalyticsVisits.Count().ShouldBe(1);
+        context.ConsentRecords.Count().ShouldBe(1);
+        ConsentEndpointTests.SetCookieOf(rejected, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+        ConsentEndpointTests.SetCookieOf(rejected, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
+    }
+
+    [Fact]
+    public void TheClearDefaultIsFiveAMinuteInTheAnalyticsClearSection()
+    {
+        var rule = AnalyticsClearRateLimit.Default();
+
+        (rule.PermitLimit, rule.Window).ShouldBe((5, TimeSpan.FromMinutes(1)));
+        AnalyticsClearRateLimit.Validate(rule).ShouldBeEmpty();
+        AnalyticsClearRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsClear");
+        RateLimitPolicies.AnalyticsClear.ShouldBe("analytics-clear");
+    }
+
+    [Fact]
+    public void AnUnusableClearLimitIsNamedAndNeverEchoed()
+    {
+        var problems = AnalyticsClearRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+
+        problems.ShouldBe(["RateLimits:AnalyticsClear:PermitLimit must be at least 1.", "RateLimits:AnalyticsClear:Window must be at least 6 seconds."]);
+    }
+
+    [Fact]
+    public async Task AHostWithAnUnusableClearLimitDoesNotStartAndNamesTheSetting()
+    {
+        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { ["RateLimits:AnalyticsClear:PermitLimit"] = "0" });
+
+        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
+
+        failure.Message.ShouldContain("RateLimits:AnalyticsClear:PermitLimit must be at least 1.");
+    }
+
+    private static async Task<HttpResponseMessage> PostClearAsync(HttpClient client, string address, string? cookies = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri("/api/v1/analytics/clear", UriKind.Relative));
+        request.Headers.Add(RequireCsrfHeaderAttribute.HeaderName, "1");
+        request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
+        if (cookies is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Cookie", cookies);
+        }
+
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task<HttpResponseMessage> PostPageViewAsync(HttpClient client, string address)
