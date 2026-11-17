@@ -72,7 +72,7 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
-/** The public layout and the nine public pages, each a lazy chunk (PUB-01, RESEARCH P-7). */
+/** The public layout, the nine public pages and the legal loader the four legal routes fetch first, each a lazy chunk (PUB-01, D-42). */
 function publicChunks(): Rollup.OutputChunk[] {
   const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
     outputChunk(fileName, 'export const b = 2;', {
@@ -86,7 +86,8 @@ function publicChunks(): Rollup.OutputChunk[] {
     lazy('assets/ProductsPage-D5.js', 'src/modules/public/pages/ProductsPage.tsx'),
     lazy('assets/GalleryPage-D6.js', 'src/modules/public/pages/GalleryPage.tsx'),
     lazy('assets/ContactPage-D7.js', 'src/modules/public/pages/ContactPage.tsx'),
-    lazy('assets/PrivacyPolicyPage-D9.js', 'src/modules/public/pages/PrivacyPolicyPage.tsx'),
+    lazy('assets/legalLoaders-DD.js', 'src/modules/public/legalLoaders.ts'),
+    lazy('assets/PrivacyPolicyPage-D9.js','src/modules/public/pages/PrivacyPolicyPage.tsx'),
     lazy('assets/CookiePolicyPage-DA.js', 'src/modules/public/pages/CookiePolicyPage.tsx'),
     lazy('assets/TermsPage-DB.js', 'src/modules/public/pages/TermsPage.tsx'),
     lazy('assets/AccessibilityPage-DC.js', 'src/modules/public/pages/AccessibilityPage.tsx'),

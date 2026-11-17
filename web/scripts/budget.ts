@@ -111,19 +111,23 @@ export type PublicRouteName = (typeof PUBLIC_ROUTE_NAMES)[number];
 
 const HOME_PAGE = 'src/modules/public/pages/HomePage.tsx';
 
+/** The chunk the legal routes fetch before their page (router.tsx `legalPage`), so it is part of their first view. Counted since plan 12-32 (D-42). */
+export const LEGAL_LOADERS = 'src/modules/public/legalLoaders.ts';
+
 /**
  * The route modules each public page loads first (PUB-01, RESEARCH P-7): the layout plus the page, measured as one route
- * each, so a page that grows is named and the others are not blamed. The Gallery route also loads the URL-state layout.
+ * each, so a page that grows is named and the others are not blamed. The Gallery route also loads the URL-state layout,
+ * and the four legal routes also load their loader chunk.
  */
 export const PUBLIC_ROUTES: Readonly<Record<PublicRouteName, readonly string[]>> = Object.freeze({
   home: Object.freeze([PUBLIC_LAYOUT, HOME_PAGE]),
   products: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ProductsPage.tsx']),
   gallery: Object.freeze([PUBLIC_LAYOUT, URL_STATE_LAYOUT, 'src/modules/public/pages/GalleryPage.tsx']),
   contact: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ContactPage.tsx']),
-  privacy: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/PrivacyPolicyPage.tsx']),
-  cookies: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/CookiePolicyPage.tsx']),
-  terms: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/TermsPage.tsx']),
-  accessibility: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/AccessibilityPage.tsx']),
+  privacy: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/PrivacyPolicyPage.tsx']),
+  cookies: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/CookiePolicyPage.tsx']),
+  terms: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/TermsPage.tsx']),
+  accessibility: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/AccessibilityPage.tsx']),
   notFound: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/NotFoundPage.tsx']),
 });
 
