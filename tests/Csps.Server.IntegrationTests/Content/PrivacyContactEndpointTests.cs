@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Infrastructure.Persistence;
+using Csps.Server.Endpoints;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,25 @@ public sealed class PrivacyContactEndpointTests(CspsDatabase database) : IClassF
         }
 
         (await ReadEmailAsync(client)).ShouldBe("other-private@example.test");
+    }
+
+    [Fact]
+    public async Task NoPublicPageShellAndNotTheSiteFactsHoldTheStoredEmail()
+    {
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        foreach (var path in PublicRouteTable.PagePaths.Append("/no-such-page"))
+        {
+            using var page = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+            var html = await page.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            html.ShouldContain("<html", Case.Insensitive, path);
+            html.ShouldNotContain(DemoEmail, Case.Insensitive, $"the {path} shell must not hold the shop email");
+        }
+
+        using var site = await client.GetAsync(new Uri("/api/v1/public/site", UriKind.Relative), TestContext.Current.CancellationToken);
+        (await site.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).ShouldNotContain(DemoEmail, Case.Insensitive);
     }
 
     private static async Task<string?> ReadEmailAsync(HttpClient client)
