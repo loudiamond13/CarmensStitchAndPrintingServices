@@ -25,6 +25,10 @@ internal static class PublicPageHeads
         "Contact Us and Get a Quote · CSPS",
         "Message us on Messenger or call the shop. See our hours, address and map.");
 
+    private static readonly PageHead Privacy = new(
+        "Privacy Policy · CSPS",
+        "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.");
+
     /// <summary>Gets the head of the 404 page.</summary>
     public static PageHead NotFound { get; } = new("Page Not Found · CSPS", "This page couldn't be found.");
 
@@ -38,6 +42,7 @@ internal static class PublicPageHeads
         PublicPage.Products => Products,
         PublicPage.Gallery => Gallery,
         PublicPage.Contact => Contact,
+        PublicPage.Privacy => Privacy,
         _ => throw new ArgumentOutOfRangeException(nameof(page), page, "Unknown public page."),
     };
 }

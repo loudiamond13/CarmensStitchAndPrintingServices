@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security;
 using System.Text;
 using Csps.Application.Ports;
+using Csps.Domain.Content;
 using Csps.Infrastructure.Email;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -63,6 +64,11 @@ public static partial class SeoEndpoints
             .Append("<urlset xmlns=\"").Append(SitemapNamespace).Append("\">\n");
         foreach (var pagePath in PublicRouteTable.PagePaths)
         {
+            if (LegalPages.ByPath(pagePath) is { Approved: false })
+            {
+                continue;
+            }
+
             xml.Append("  <url><loc>").Append(SecurityElement.Escape(origin + pagePath)).Append("</loc>");
             if (lastModified is not null)
             {

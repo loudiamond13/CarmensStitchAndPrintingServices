@@ -75,6 +75,13 @@ export const publicRoutes: RouteObject[] = [
         })),
       },
       {
+        path: 'privacy',
+        ErrorBoundary: RouteErrorBoundary,
+        lazy: lazyRoute(async () => ({
+          Component: (await import('@/modules/public/pages/PrivacyPolicyPage')).PrivacyPolicyPage,
+        })),
+      },
+      {
         path: '*',
         ErrorBoundary: RouteErrorBoundary,
         lazy: lazyRoute(async () => ({

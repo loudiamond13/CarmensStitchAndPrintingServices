@@ -16,6 +16,9 @@ public enum PublicPage
 
     /// <summary>The Contact page.</summary>
     Contact,
+
+    /// <summary>The Privacy Policy.</summary>
+    Privacy,
 }
 
 /// <summary>What kind of path a request is.</summary>
@@ -56,6 +59,7 @@ public static class PublicRouteTable
         ("/products", PublicPage.Products),
         ("/gallery", PublicPage.Gallery),
         ("/contact", PublicPage.Contact),
+        ("/privacy", PublicPage.Privacy),
     ];
 
     /// <summary>Gets the known page paths, lower case, in sitemap order.</summary>

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Content;
 using Csps.Application.Ports;
+using Csps.Domain.Content;
 using Csps.Infrastructure.Email;
 using Csps.Server.Http;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -300,7 +301,7 @@ internal sealed partial class ShellRenderer(
                 page.Description,
                 origin + match.CanonicalPath,
                 site.BusinessName,
-                NoIndex: false,
+                NoIndex: LegalPages.ByPath(match.CanonicalPath!) is { Approved: false },
                 JsonLd: PublicHeadWriter.LocalBusinessJsonLd(site, snapshot.Closures, origin, siteImage),
                 BootJson: boot,
                 ShareImageUrl: shareImage));
