@@ -18,12 +18,16 @@ import type { ConsentService, ConsentSource } from '../services/consentService';
 
 export type { ConsentSource } from '../services/consentService';
 
+const NO_BREAK_SPACE = String.fromCodePoint(0xa0);
+
 /** The polite status after a choice. */
 export const CONSENT_SAVED_LINE = 'Your cookie choice is saved.';
 
 export interface ConsentState {
   /** The saved cookie as read, whether or not it still counts. Null until the rules have loaded when a cookie exists. */
   cookie: ConsentCookie | null;
+  /** The saved cookie still counts (its version, day and age). False until the rules have loaded. */
+  current: boolean;
   gpc: boolean;
   needsChoice: boolean;
   statsAllowed: boolean;
@@ -99,6 +103,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       return {
         ...shared,
         cookie: null,
+        current: false,
         needsChoice: raw === undefined && !gpc,
         statsAllowed: false,
         mapAllowed: false,
@@ -141,8 +146,9 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       held = value;
     },
     memory: () => memory,
+    // A repeat of the same line gets a trailing no-break space, so the live region's text changes and is read again.
     announce: (line) => {
-      announcement = line;
+      announcement = line !== null && line === announcement ? line + NO_BREAK_SPACE : line;
     },
     markGpc: () => {
       serverGpc = true;
