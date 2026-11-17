@@ -267,6 +267,7 @@ export const PUBLIC_COPY = {
     staffLogin: 'Staff Login',
     // SPEC-GAP: FT the Legal row: the four legal pages in order, then the Cookie Settings button.
     legal: {
+      label: 'Legal',
       links: [
         { text: 'Privacy Policy', to: '/privacy' },
         { text: 'Cookie Policy', to: '/cookies' },

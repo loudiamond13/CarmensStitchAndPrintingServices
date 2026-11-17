@@ -50,7 +50,7 @@ const legalLinkClasses = tw(
   'inline-flex min-h-11 items-center text-14 leading-5 text-ink-subtle no-underline hover:text-ink hover:underline',
 );
 const legalButtonClasses = tw(
-  'inline-flex min-h-11 cursor-pointer items-center text-14 leading-5 text-ink-subtle hover:text-ink hover:underline aria-busy:cursor-wait aria-busy:opacity-60',
+  'inline-flex min-h-11 cursor-pointer items-center text-14 leading-5 text-ink-subtle hover:text-ink hover:underline aria-busy:cursor-wait aria-busy:text-ink-muted',
 );
 /** The footer shell (App. C `.s-foot`). On phones the bottom padding is 96px, or the Contact bar's height plus the safe area when that is taller, so the bar never covers the last row. */
 const footerShellClasses = tw(
@@ -133,7 +133,7 @@ function LegalRow({ className }: { className: string }) {
   const { openSettings, settingsLoading } = useConsent();
   const { pathname } = useLocation();
   return (
-    <nav aria-label="Legal" className={className}>
+    <nav aria-label={FOOTER.legal.label} className={className}>
       <ul className="flex flex-wrap gap-x-4 gap-y-2">
         {FOOTER.legal.links.map((link) => (
           <li key={link.to}>
