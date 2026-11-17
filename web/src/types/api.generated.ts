@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/page-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Counts one public page view for the business day, anonymously. */
+        post: operations["RecordPageView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-log": {
         parameters: {
             query?: never;
@@ -4830,6 +4847,16 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`
+         *     and never stores it as sent. The referrer host is the host name of `document.referrer`, sent on the first view of a page load only.
+         */
+        PageViewRequest: {
+            /** @description The page path, starting with a slash. */
+            path?: null | string;
+            /** @description The referrer's host name, or null. */
+            referrerHost?: null | string;
+        };
         /** @description One phone number of the Business Info form. */
         PhoneEntry: {
             /** @description True for the number the Call buttons dial; exactly one number is the main one. */
@@ -6233,6 +6260,60 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RecordPageView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["PageViewRequest"];
+                "application/json": null | components["schemas"]["PageViewRequest"];
+                "text/json": null | components["schemas"]["PageViewRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

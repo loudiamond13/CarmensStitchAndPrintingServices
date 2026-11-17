@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
 using FluentValidation;
@@ -19,14 +20,25 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
     /// <param name="context">What the server read from the headers and cookies.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>Success, whether or not the view was counted; a 400 naming the path for a bad body.</returns>
-    public Task<Result> HandleAsync(PageViewRequest request, CollectContext context, CancellationToken cancellationToken)
+    public async Task<Result> HandleAsync(PageViewRequest request, CollectContext context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(context);
-        _ = pages;
-        _ = counts;
-        _ = calendar;
-        _ = validator;
-        return Task.FromResult(Result.Success());
+
+        var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!validation.IsValid)
+        {
+            return Result.Failure(ValidationResults.ToError(validation, PageViewErrors.ValidationCode, PageViewErrors.ValidationMessage));
+        }
+
+        var pageKey = pages.PageKeyFor(request.Path!);
+        if (pageKey is null)
+        {
+            return Result.Success();
+        }
+
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        await counts.IncrementAsync(clock.Today, pageKey, cancellationToken).ConfigureAwait(false);
+        return Result.Success();
     }
 }

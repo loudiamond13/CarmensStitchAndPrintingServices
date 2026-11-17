@@ -1,3 +1,4 @@
+using Csps.Domain.Analytics;
 using FluentValidation;
 
 namespace Csps.Application.Analytics;
@@ -13,4 +14,14 @@ public sealed class PageViewRequestValidator : AbstractValidator<PageViewRequest
 
     /// <summary>The message for a path that is too long.</summary>
     public const string PathTooLong = "The page path is too long.";
+
+    /// <summary>Creates the validator.</summary>
+    public PageViewRequestValidator()
+    {
+        RuleFor(request => request.Path)
+            .Cascade(CascadeMode.Stop)
+            .Must(static path => !string.IsNullOrEmpty(path)).WithMessage(PathRequired)
+            .Must(static path => path![0] == '/').WithMessage(PathInvalid)
+            .Must(static path => path!.Length <= AnalyticsPath.MaxLength).WithMessage(PathTooLong);
+    }
 }

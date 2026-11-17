@@ -1,5 +1,7 @@
 using Csps.Application.Ports;
+using Csps.Domain.Analytics;
 using Csps.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Analytics;
 
@@ -7,9 +9,21 @@ namespace Csps.Infrastructure.Analytics;
 /// <param name="context">The database context.</param>
 internal sealed class PageViewCounts(CspsDbContext context) : IPageViewCounts
 {
-    public Task IncrementAsync(DateOnly day, string pageKey, CancellationToken cancellationToken)
+    public async Task IncrementAsync(DateOnly day, string pageKey, CancellationToken cancellationToken)
     {
-        _ = context;
-        return Task.CompletedTask;
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageKey);
+
+        if (await AddOneAsync(day, pageKey, cancellationToken).ConfigureAwait(false) > 0)
+        {
+            return;
+        }
+
+        context.DailyPageCounts.Add(DailyPageCount.First(day, pageKey));
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    private Task<int> AddOneAsync(DateOnly day, string pageKey, CancellationToken cancellationToken) =>
+        context.DailyPageCounts
+            .Where(row => row.BusinessDay == day && row.PageKey == pageKey)
+            .ExecuteUpdateAsync(calls => calls.SetProperty(row => row.Views, row => row.Views + 1), cancellationToken);
 }

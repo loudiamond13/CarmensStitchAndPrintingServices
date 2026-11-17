@@ -27,6 +27,12 @@ public sealed class DailyPageCount
     /// <exception cref="ArgumentException">The page key is blank or longer than <see cref="PageKeys.MaxLength"/>.</exception>
     public static DailyPageCount First(DateOnly day, string pageKey)
     {
-        return new DailyPageCount { BusinessDay = day, PageKey = pageKey, Views = 0 };
+        ArgumentException.ThrowIfNullOrWhiteSpace(pageKey);
+        if (pageKey.Length > PageKeys.MaxLength)
+        {
+            throw new ArgumentException("The page key is longer than the column holds.", nameof(pageKey));
+        }
+
+        return new DailyPageCount { BusinessDay = day, PageKey = pageKey, Views = 1 };
     }
 }
