@@ -38,7 +38,15 @@ export const CONSENT_COPY = {
     },
     save: 'Save Choices',
   },
-  // CS1 item 5 and CS2 (UI-SPEC Copywriting "Clear section", "Clear dialog", "Cleared", "Clear failed"; D-31, D-35).
+  // M1, the Contact map card (UI-SPEC Copywriting "Map, allowed" and "Map, after a one-time tap"; D-18).
+  mapCard: {
+    allowed: 'The map is from Google. You can turn it off in',
+    settings: 'Cookie Settings',
+    allowedEnd: '.',
+    always: 'Always show maps?',
+    saved: 'Maps will show right away from now on. You can change this in Cookie Settings.',
+  },
+  // CS1 item 5 and CS2(UI-SPEC Copywriting "Clear section", "Clear dialog", "Cleared", "Clear failed"; D-31, D-35).
   clear: {
     heading: 'Clear my cookies & data',
     description:
