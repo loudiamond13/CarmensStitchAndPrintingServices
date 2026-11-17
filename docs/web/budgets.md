@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T02:20:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T04:15:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -25,7 +25,7 @@ A route's initial JS is everything the browser must download before that route c
 2. the chunk of every route module the route renders on first load,
 3. every chunk those chunks import statically, followed all the way down.
 
-Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted.
+Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted. The four legal rows also list `src/modules/public/legalLoaders.ts`, the chunk their routes fetch before the page (plan 12-32).
 
 | Route | Route modules |
 |---|---|
@@ -80,7 +80,7 @@ The four legal pages are public routes inside `PublicLayout`: `/privacy`, `/cook
 | Terms of Use (`/terms`) | 144.97 KB | ok |
 | Accessibility Statement (`/accessibility`) | 144.98 KB | ok |
 
-These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 5.0 KB that is left on each row. The legal figures leave out the loader chunk (`legalLoaders.ts`, about 0.3 KB gzip) that the legal routes also fetch.
+These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 5.0 KB that is left on each row. The loader chunk (`legalLoaders.ts`, about 0.55 KB gzip) that the legal routes also fetch is counted in these four rows since plan 12-32.
 
 **Entry chunk cost.** Every lazy route adds its chunk name and import to the entry chunk's route table, and every page downloads that table. Four separate legal imports in `router.tsx` grew it by about 0.24 KB (Home 149.78 to 150.02 KB, Contact 149.82 to 150.05 KB, both over the limit). The four routes now share one import of `legalLoaders.ts`, which holds the four page imports. That costs about 0.10 KB (Home 149.88 KB, Contact 149.92 KB), and each page is still its own lazy chunk. In the production build Home and Contact had about 0.1 KB left. `npm run build:budget` (the admin-included build that CI runs) was over: Home 150.09 KB and Contact 150.13 KB, where the same build before this plan gave 149.98 KB and 149.99 KB. The recovery, the figures and the room that is left now are in "Entry recovery (Phase 12, plan 12-31, D-42)" below.
 
@@ -128,7 +128,7 @@ Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), Aft
 
 Every public row drops by 2.4 to 2.6 KB. Admin JS goes up by about 1.5 to 1.6 KB because the route table is now its own chunk, which every `/admin` visit loads first, and the budget counts it (`src/modules/admin/routes.tsx` is in the admin rows above). Admin JS is still well under 250 KB.
 
-**Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily.
+**Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily. After plans 12-09 and 12-11 that room was gone, and plan 12-32 made new room: see "Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)" below.
 
 ## Cookie bar (Phase 12, plan 12-09)
 
@@ -144,6 +144,79 @@ The cookie bar adds to the public first download only the consent store (`hooks/
 A first visit loads the bar, and with it the save path and the rules, so a click applies at once. A returning visitor loads the rules chunk once per page load (from cache after the first), and a stale saved choice shows the bar once it arrives; until then the saved choice is trusted, so nobody sees a flash.
 
 The first build, with the codec, the Cookie Policy table and the save path all in the entry, put Contact at 150.43 KB (over). `consentPolicy.ts` holds the policy version alone, so `legalPages.ts` stays out of the first download. Figures are in the plan 12-09 summary.
+
+## Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)
+
+After wave 3 `npm run build:budget` failed again (Privacy 150.04 KB). Plan 12-09 (the consent store split into four small modules) added about 1.4 KB to every public route, and plan 12-11 (the Privacy Policy text) about 2 KB to `/privacy`. The owner ruled that the limit stays at 150 KB (D-42). Plan 12-32 made room in two honest ways, and changed no page content.
+
+**What changed.**
+
+1. One `$initial` group in `web/vite.config.ts` (`build.rolldownOptions.output.codeSplitting`). Every module the entry imports statically now ships in the entry chunk, instead of in 8 small shared chunks that the entry imported anyway. It applies to the production, e2e and budget builds, which have `index.html` as their only entry. It is off in the parity build (and in development): there the tag would cover both entries, and `parity.html`'s modules would merge into the visitor entry. `build-config.node.test.ts` pins both.
+2. The four legal rows (privacy, cookies, terms, accessibility) now count `src/modules/public/legalLoaders.ts` (`LEGAL_LOADERS` in `budget.ts`). The legal routes always downloaded it before their page. A build without that chunk fails with "has no chunk", so the figure cannot quietly drop it again.
+
+**Why it is honest.** Each route loads the same modules as before, in the same order, in fewer files. The entry already imported them at start-up, and Rolldown keeps the order inside a chunk. Nothing moved out of the count and nothing loads later. The saving is packaging only: one gzip stream instead of nine, and fewer import and export lines. Home goes from 31 files to 24, and `index.html` lists 24 `modulepreload` links instead of 37. Item 2 goes the other way: it raises the legal figures to what a visitor really downloads first.
+
+Figures, gzip -9, 1 KB = 1000 B, from the numbers files. Before is the plan base (the gate as it measured it). "Before, loader counted" adds `legalLoaders.ts` to the four legal rows (the loader was 621 B in the production build and 624 B in the budget build at the base). After is this plan.
+
+`npm run build` (production):
+
+| Measure | Before | Before, loader counted | After | Files before to after |
+|---|---|---|---|---|
+| Home | 149.14 KB | 149.14 KB | 145.55 KB | 31 to 24 |
+| Products | 145.82 KB | 145.82 KB | 142.25 KB | 30 to 23 |
+| Gallery | 147.13 KB | 147.13 KB | 143.60 KB | 29 to 22 |
+| Contact | 149.09 KB | 149.09 KB | 145.62 KB | 32 to 25 |
+| Privacy | 149.99 KB | 150.61 KB (over) | 147.09 KB | 30 to 24 |
+| Cookies | 147.92 KB | 148.54 KB | 145.03 KB | 30 to 24 |
+| Terms | 149.10 KB | 149.72 KB | 146.20 KB | 30 to 24 |
+| Accessibility | 148.66 KB | 149.28 KB | 145.76 KB | 30 to 24 |
+| Not found | 141.79 KB | 141.79 KB | 138.32 KB | 27 to 20 |
+| Admin JS | 221.10 KB | 221.10 KB | 217.47 KB | |
+| CSS | 20.39 KB | 20.39 KB | 20.39 KB | |
+
+`npm run build:budget` (admin routes included, the build CI runs):
+
+| Measure | Before | Before, loader counted | After | Files before to after |
+|---|---|---|---|---|
+| Home | 149.19 KB | 149.19 KB | 145.57 KB | 31 to 24 |
+| Products | 145.88 KB | 145.88 KB | 142.28 KB | 30 to 23 |
+| Gallery | 147.18 KB | 147.18 KB | 143.62 KB | 29 to 22 |
+| Contact | 149.15 KB | 149.15 KB | 145.64 KB | 32 to 25 |
+| Privacy | 150.04 KB (over) | 150.67 KB (over) | 147.11 KB | 30 to 24 |
+| Cookies | 147.97 KB | 148.60 KB | 145.04 KB | 30 to 24 |
+| Terms | 149.15 KB | 149.78 KB | 146.22 KB | 30 to 24 |
+| Accessibility | 148.71 KB | 149.33 KB | 145.78 KB | 30 to 24 |
+| Not found | 141.84 KB | 141.84 KB | 138.34 KB | 27 to 20 |
+| Admin JS | 223.12 KB | 223.12 KB | 219.44 KB | |
+| CSS | 20.39 KB | 20.39 KB | 20.39 KB | |
+
+The "loader counted" columns are the base figures plus the loader chunk size measured at the base; the base builds themselves did not list it. For the legal rows the file count before is 30 without the loader; with it the base loaded 31 files, so those rows go from 31 to 24.
+
+**Headroom.** The larger of the two builds' figures (the budget build), per public row. The target is 148.50 KB, the room the later wave 4 plans were planned against; the hard limit is 150 KB.
+
+| Page | Size | Room to 150 KB | Room to 148.50 KB |
+|---|---|---|---|
+| Home | 145.57 KB | 4.43 KB | 2.93 KB |
+| Products | 142.28 KB | 7.72 KB | 6.22 KB |
+| Gallery | 143.62 KB | 6.38 KB | 4.88 KB |
+| Contact | 145.64 KB | 4.36 KB | 2.86 KB |
+| Privacy | **147.11 KB** | **2.89 KB** | **1.39 KB** |
+| Cookies | 145.04 KB | 4.96 KB | 3.46 KB |
+| Terms | 146.22 KB | 3.78 KB | 2.28 KB |
+| Accessibility | 145.78 KB | 4.22 KB | 2.72 KB |
+| Not found | 138.34 KB | 11.66 KB | 10.16 KB |
+
+The tightest row is Privacy. Plans 12-13 (the Cookie Settings window and the footer legal row) and 12-15 (the page view beacon) both add to the public first download and must fit in this room together, or load lazily.
+
+**Reserve options.** None is used. Each needs the owner's yes before any plan uses it.
+
+| Option | What | Figure | Measured | Cost |
+|---|---|---|---|---|
+| R1 | One chunk for the public layout's shared chain (the 15 small chunks every public page loads through `PublicLayout`) | every public row a further 4.06 KB lower | Measured, on top of the entry merge, before the loader was counted | Admin JS 4.63 KB higher (admin visitors also download the public footer, header and copy); needs a hand-kept module list |
+| R2 | Smaller legal dependencies: `format.ts` is pulled whole for one date line in `legalCopy.ts`, and `ProductStates.tsx` for `ProductsError` in `LegalFacts.tsx` | about 1.0 to 1.5 KB on the four legal rows only | Estimated | Two small modules; touches legal page code |
+| R3 | A public icon registry, so the icon chunk (about 80 icons, many admin-only) stops loading with the entry on every page | about 3 to 4 KB on every public row | Estimated | Changes the `Icon` API (C-10), so it is an owner call |
+
+**The limit to watch.** The entry is now one file: 366.74 KB raw in the production build and 366.88 KB in the budget build (117.7 KB gzip). Vite warns above 500 KB raw, and that warning would break the zero-warnings rule. There are about 133 KB raw left before it.
 
 ## Fonts and compression (Phase 11)
 
