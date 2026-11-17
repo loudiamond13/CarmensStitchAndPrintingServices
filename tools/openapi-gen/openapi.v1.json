@@ -8438,6 +8438,87 @@
         ],
         "type": "object"
       },
+      "VisitorStatsResponse": {
+        "description": "The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`.",
+        "properties": {
+          "cutDate": {
+            "description": "The oldest business day that still has visits (13 months back); older days keep page views only.",
+            "type": "string"
+          },
+          "from": {
+            "description": "The first business day of the range, resolved on the server.",
+            "type": "string"
+          },
+          "range": {
+            "description": "The range that was read: a preset name or `custom`.",
+            "type": "string"
+          },
+          "to": {
+            "description": "The last business day of the range, resolved on the server.",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/VisitorTotalsDto",
+            "description": "The three totals."
+          }
+        },
+        "required": [
+          "range",
+          "from",
+          "to",
+          "cutDate",
+          "totals"
+        ],
+        "type": "object"
+      },
+      "VisitorTotalsDto": {
+        "description": "The three headline totals of a range (ANL-08, D-33). Totals only: no visitor, visit or time is ever listed.",
+        "properties": {
+          "countedFrom": {
+            "description": "The business day visits and unique visitors are counted from, `YYYY-MM-DD`, when the range starts before the raw cut; otherwise null.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pageViews": {
+            "description": "Every page view in the range, from the daily counts, which are kept longer than the visits.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "uniqueVisitors": {
+            "description": "The distinct visitors who had a visit in the counted span; null when the whole range is older than the raw cut (D-27).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
+          "visits": {
+            "description": "The visits in the counted span: one sitting, ended by 30 minutes of silence; null when the whole range is older than the raw cut (D-27).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "uniqueVisitors",
+          "visits",
+          "pageViews",
+          "countedFrom"
+        ],
+        "type": "object"
+      },
       "VitalsRequest": {
         "description": "One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or\n`#`. Each metric is optional: the browser reports the ones it measured. LCP and INP are in milliseconds, CLS is a score.",
         "properties": {
@@ -21936,6 +22017,83 @@
           "Users"
         ]
       }
+    },
+    "/api/v1/visitor-stats": {
+      "get": {
+        "operationId": "GetVisitorStats",
+        "parameters": [
+          {
+            "description": "A preset: `last-7-days`, `last-30-days` (also used when none or an unknown name is sent), `this-month`, `last-month`, `this-year`; or `custom`.",
+            "in": "query",
+            "name": "range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitorStatsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Reads unique visitors, visits and page views for a date range. The server resolves the range in the business zone (Asia/Manila) and\nreturns the dates it used. Page views are kept for 3 years; visits and unique visitors for 13 months, so a range that starts earlier\ncounts them from the cut date, and a range wholly before it answers them as null.",
+        "tags": [
+          "VisitorStats"
+        ]
+      }
     }
   },
   "servers": [
@@ -22057,6 +22215,9 @@
     },
     {
       "name": "Users"
+    },
+    {
+      "name": "VisitorStats"
     }
   ]
 }

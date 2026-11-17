@@ -18,6 +18,7 @@ public static class AnalyticsRegistration
         services.AddScoped<IAnalyticsVisits, AnalyticsVisits>();
         services.AddSingleton<AnalyticsSaltCache>();
         services.AddScoped<IAnalyticsSalts, AnalyticsSalts>();
+        services.AddScoped<IVisitorStatsReader, VisitorStatsReader>();
         return services;
     }
 }

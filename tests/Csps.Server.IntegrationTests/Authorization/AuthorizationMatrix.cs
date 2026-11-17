@@ -222,6 +222,9 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
 
+        // The visitor stats read (ANL-08, D-23): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/visitor-stats", "/api/v1/visitor-stats", Anonymous: 401, Admin: 403, Manager: 200),
+
         // The order lists (D-16, D-17, D-18, D-19): Staff only, both roles read them.
         new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
         new("GET", "/api/v1/payment-methods", "/api/v1/payment-methods", Anonymous: 401, Admin: 200, Manager: 200),
