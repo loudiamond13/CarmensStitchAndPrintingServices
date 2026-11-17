@@ -20,6 +20,7 @@ namespace Csps.Server.Controllers;
 /// <param name="productLines">The product lines handler.</param>
 /// <param name="home">The Home page data handler.</param>
 /// <param name="gallery">The Gallery data handler.</param>
+/// <param name="privacyContact">The privacy contact handler.</param>
 [ApiController]
 [Route("api/v1/public")]
 [AllowAnonymous]
@@ -30,7 +31,8 @@ public sealed class PublicSiteController(
     GetOpenStatusHandler openStatus,
     GetPublicProductLinesHandler productLines,
     GetPublicHomeHandler home,
-    GetPublicGalleryHandler gallery) : ControllerBase
+    GetPublicGalleryHandler gallery,
+    GetPrivacyContactHandler privacyContact) : ControllerBase
 {
     private const string OpenStatusCacheControl = "public, max-age=60";
 
@@ -138,6 +140,24 @@ public sealed class PublicSiteController(
                 Response.Headers[HeaderNames.CacheControl] = OpenStatusCacheControl;
                 return TypedResults.Ok(dto);
             });
+    }
+
+    /// <summary>
+    /// Reads the shop's Contact email for the four legal pages only (D-13, D-29): <c>email</c>, or null when none is stored. It is a
+    /// separate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is
+    /// never stored by a browser or a cache.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the email, or 429 when the address reads too often.</returns>
+    [HttpGet("privacy-contact")]
+    [EndpointName("GetPrivacyContact")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    [ProducesResponseType<PrivacyContactDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> GetPrivacyContact(CancellationToken cancellationToken)
+    {
+        var result = await privacyContact.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, dto => TypedResults.Ok(dto));
     }
 
     private IResult Conditional(PublicJsonSnapshot json)

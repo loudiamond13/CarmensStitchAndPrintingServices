@@ -13,10 +13,10 @@ public sealed class GetPrivacyContactHandler(ISiteSettingsReader settings)
     /// <summary>Returns the privacy contact.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The contact; its email is null when none is stored.</returns>
-    public Task<Result<PrivacyContactDto>> HandleAsync(CancellationToken cancellationToken)
+    public async Task<Result<PrivacyContactDto>> HandleAsync(CancellationToken cancellationToken)
     {
-        _ = settings;
-        _ = cancellationToken;
-        return Task.FromResult(Result.Success(new PrivacyContactDto(null)));
+        var snapshot = await settings.GetAsync(cancellationToken).ConfigureAwait(false);
+        var email = string.IsNullOrWhiteSpace(snapshot.ContactEmail) ? null : snapshot.ContactEmail;
+        return Result.Success(new PrivacyContactDto(email));
     }
 }

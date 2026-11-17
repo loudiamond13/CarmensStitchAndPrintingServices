@@ -14,6 +14,7 @@ public static class ContentApplicationRegistration
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<GetPublicSiteHandler>();
+        services.AddScoped<GetPrivacyContactHandler>();
         services.AddScoped<UpdateSiteSettingsHandler>();
         services.AddScoped<UploadSharePictureHandler>();
         services.AddScoped<RemoveSharePictureHandler>();
