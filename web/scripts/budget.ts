@@ -95,7 +95,17 @@ export const PUBLIC_LAYOUT = 'src/layouts/PublicLayout.tsx';
 export const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
 
 /** The public pages, in the order the report lists them. */
-export const PUBLIC_ROUTE_NAMES = ['home', 'products', 'gallery', 'contact', 'notFound'] as const;
+export const PUBLIC_ROUTE_NAMES = [
+  'home',
+  'products',
+  'gallery',
+  'contact',
+  'privacy',
+  'cookies',
+  'terms',
+  'accessibility',
+  'notFound',
+] as const;
 
 export type PublicRouteName = (typeof PUBLIC_ROUTE_NAMES)[number];
 
@@ -110,6 +120,10 @@ export const PUBLIC_ROUTES: Readonly<Record<PublicRouteName, readonly string[]>>
   products: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ProductsPage.tsx']),
   gallery: Object.freeze([PUBLIC_LAYOUT, URL_STATE_LAYOUT, 'src/modules/public/pages/GalleryPage.tsx']),
   contact: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ContactPage.tsx']),
+  privacy: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/PrivacyPolicyPage.tsx']),
+  cookies: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/CookiePolicyPage.tsx']),
+  terms: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/TermsPage.tsx']),
+  accessibility: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/AccessibilityPage.tsx']),
   notFound: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/NotFoundPage.tsx']),
 });
 

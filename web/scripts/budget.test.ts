@@ -43,9 +43,23 @@ const PAGE_MODULES = {
   products: 'src/modules/public/pages/ProductsPage.tsx',
   gallery: 'src/modules/public/pages/GalleryPage.tsx',
   contact: 'src/modules/public/pages/ContactPage.tsx',
+  privacy: 'src/modules/public/pages/PrivacyPolicyPage.tsx',
+  cookies: 'src/modules/public/pages/CookiePolicyPage.tsx',
+  terms: 'src/modules/public/pages/TermsPage.tsx',
+  accessibility: 'src/modules/public/pages/AccessibilityPage.tsx',
   notFound: 'src/modules/public/pages/NotFoundPage.tsx',
 } as const;
-const PAGE_NAMES = ['home', 'products', 'gallery', 'contact', 'notFound'] as const;
+const PAGE_NAMES = [
+  'home',
+  'products',
+  'gallery',
+  'contact',
+  'privacy',
+  'cookies',
+  'terms',
+  'accessibility',
+  'notFound',
+] as const;
 const HOME_PAGE = PAGE_MODULES.home;
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
 const URL_STATE_LAYOUT = 'src/lib/url-state/UrlStateLayout.tsx';
@@ -187,6 +201,10 @@ describe('BUDGETS (PERF-01)', () => {
       products: [PUBLIC_LAYOUT, PAGE_MODULES.products],
       gallery: [PUBLIC_LAYOUT, 'src/lib/url-state/UrlStateLayout.tsx', PAGE_MODULES.gallery],
       contact: [PUBLIC_LAYOUT, PAGE_MODULES.contact],
+      privacy: [PUBLIC_LAYOUT, PAGE_MODULES.privacy],
+      cookies: [PUBLIC_LAYOUT, PAGE_MODULES.cookies],
+      terms: [PUBLIC_LAYOUT, PAGE_MODULES.terms],
+      accessibility: [PUBLIC_LAYOUT, PAGE_MODULES.accessibility],
       notFound: [PUBLIC_LAYOUT, PAGE_MODULES.notFound],
     });
     expect(Object.isFrozen(PUBLIC_ROUTES)).toBe(true);
@@ -764,6 +782,10 @@ describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-
       products: 120_000,
       gallery: 120_000,
       contact: 120_000,
+      privacy: 120_000,
+      cookies: 120_000,
+      terms: 120_000,
+      accessibility: 120_000,
       notFound: 120_000,
     });
     expect(report.measurements.filter((m) => m.name === 'publicJs').map((m) => m.label)).toEqual(

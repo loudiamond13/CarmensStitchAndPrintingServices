@@ -57,12 +57,18 @@ public static partial class SeoEndpoints
 
     private static async Task<string> SitemapAsync(HttpContext context, string origin)
     {
+        var legalPages = context.RequestServices.GetRequiredService<ILegalPageCatalog>();
         var lastModified = await LastModifiedAsync(context).ConfigureAwait(false);
         var xml = new StringBuilder()
             .Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
             .Append("<urlset xmlns=\"").Append(SitemapNamespace).Append("\">\n");
         foreach (var pagePath in PublicRouteTable.PagePaths)
         {
+            if (legalPages.IsDraft(pagePath))
+            {
+                continue;
+            }
+
             xml.Append("  <url><loc>").Append(SecurityElement.Escape(origin + pagePath)).Append("</loc>");
             if (lastModified is not null)
             {
