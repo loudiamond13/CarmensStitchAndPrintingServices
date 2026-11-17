@@ -30,7 +30,7 @@ export function createAnalyticsService(client: HttpClient): AnalyticsService {
   return {
     pageView: (body, options) =>
       client.post<undefined>('/analytics/page-views', body, { keepalive: options?.keepalive }),
-    vitals: () => Promise.resolve(),
+    vitals: (body, options) => client.post<undefined>('/analytics/vitals', body, { keepalive: options?.keepalive }),
   };
 }
 
