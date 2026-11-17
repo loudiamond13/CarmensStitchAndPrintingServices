@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
+using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -67,6 +69,118 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ACraftedPathWithAQueryAndAFragmentCountsAsTheGalleryAndNoTableHoldsTheRawPath()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, PathBody("/gallery?q=secret#x"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("gallery");
+        row.Views.ShouldBe(1);
+        await using var context = database.CreateContext();
+        (await context.DailyPageCounts.AsNoTracking().Select(count => count.PageKey).ToListAsync(TestContext.Current.CancellationToken))
+            .ShouldAllBe(key => !key.Contains('?', StringComparison.Ordinal) && !key.Contains('#', StringComparison.Ordinal) && !key.Contains("secret", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AnUnknownPublicPathCountsAsNotFoundAndManyUnknownPathsShareOneRow()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var first = await PostAsync(client, PathBody("/nope"));
+        using var second = await PostAsync(client, PathBody("/wp-login.php"));
+        using var third = await PostAsync(client, PathBody("/a/b/c/d"));
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        third.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("not-found");
+        row.Views.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData("/admin")]
+    [InlineData("/admin/orders")]
+    [InlineData("/dev/preview")]
+    public async Task AnAdminOrDevPathStoresNothingAndStillAnswers204(string path)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, PathBody(path));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")]
+    [InlineData("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/126.0.0.0 Safari/537.36")]
+    [InlineData(null)]
+    public async Task ABotAndAMissingUserAgentStoreNothingAndStillAnswer204(string? userAgent)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, PathBody("/gallery"), userAgent);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"path\":\"\"}")]
+    [InlineData("{\"path\":\"gallery\"}")]
+    [InlineData("{\"path\":null}")]
+    [InlineData("not json")]
+    [InlineData("")]
+    public async Task ABodyWithNoUsablePathIs400NamingThePathAndStoresNothing(string json)
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, json);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("errors").TryGetProperty("path", out _).ShouldBeTrue("the 400 must name path");
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task NoLogLineHoldsThePathTheReferrerTheUserAgentOrACookieValue()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+        const string Marker = "zq7marker91";
+        using var counted = NewPost($"{{\"path\":\"/gallery?{Marker}-query#{Marker}-fragment\",\"referrerHost\":\"{Marker}.example\"}}", $"{DesktopChrome} {Marker}-agent");
+        counted.Headers.Add("Cookie", $"__Secure-csps_vid={Marker}-visitor; __Host-csps_consent={Marker}-consent");
+        using var dropped = NewPost($"{{\"path\":\"/{Marker}-dropped\"}}", $"{Marker}-bot Googlebot/2.1");
+
+        using var first = await client.SendAsync(counted, TestContext.Current.CancellationToken);
+        using var second = await client.SendAsync(dropped, TestContext.Current.CancellationToken);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        var lines = factory.Sink.Events.Select(logEvent => logEvent.RenderMessage(CultureInfo.InvariantCulture) + " " + string.Join(' ', logEvent.Properties.Values.Select(value => value.ToString())) + " " + logEvent.Exception).ToList();
+        lines.ShouldNotBeEmpty();
+        lines.ShouldAllBe(line => !line.Contains(Marker, StringComparison.Ordinal));
     }
 
     internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";

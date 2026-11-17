@@ -49,6 +49,42 @@ public sealed class PageViewCountsTests(CspsDatabase database) : IClassFixture<C
         rows.ShouldAllBe(row => row.Views == 1);
     }
 
+    [Fact]
+    public async Task TenParallelFirstViewsOfOnePageOnOneDayLeaveOneRowWithTenViews()
+    {
+        await database.ResetAsync();
+
+        await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(() => IncrementAsync(Day, PageKeys.Home), TestContext.Current.CancellationToken)));
+
+        var row = (await ReadAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("home");
+        row.Views.ShouldBe(10);
+    }
+
+    [Fact]
+    public async Task ParallelViewsOnTopOfAnExistingRowAreAllCounted()
+    {
+        await database.ResetAsync();
+        await IncrementAsync(Day, PageKeys.Contact);
+
+        await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => Task.Run(() => IncrementAsync(Day, PageKeys.Contact), TestContext.Current.CancellationToken)));
+
+        (await ReadAsync()).ShouldHaveSingleItem().Views.ShouldBe(21);
+    }
+
+    [Fact]
+    public async Task ParallelFirstViewsOfSeveralPagesKeepOneRowEach()
+    {
+        await database.ResetAsync();
+        string[] keys = [PageKeys.Home, PageKeys.Products, PageKeys.Gallery];
+
+        await Task.WhenAll(Enumerable.Range(0, 30).Select(index => Task.Run(() => IncrementAsync(Day, keys[index % keys.Length]), TestContext.Current.CancellationToken)));
+
+        var rows = await ReadAsync();
+        rows.Count.ShouldBe(3);
+        rows.ShouldAllBe(row => row.Views == 10);
+    }
+
     private async Task IncrementAsync(DateOnly day, string pageKey)
     {
         await using var context = database.CreateContext();
