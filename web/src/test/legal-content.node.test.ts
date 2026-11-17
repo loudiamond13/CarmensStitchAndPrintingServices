@@ -192,6 +192,14 @@ describe('legalTextProblems (the guard itself)', () => {
     expect(good).toEqual([]);
   });
 
+  it('passes a cookie-settings block, which holds no text of its own', () => {
+    expect(
+      legalTextProblems(
+        sample([{ id: 'one', heading: 'One', blocks: [para('Press the button.'), { kind: 'cookie-settings' }] }]),
+      ),
+    ).toEqual([]);
+  });
+
   it('checks the extra description lines of a term too', () => {
     const en = String.fromCharCode(0x2013);
     const bad = legalTextProblems(

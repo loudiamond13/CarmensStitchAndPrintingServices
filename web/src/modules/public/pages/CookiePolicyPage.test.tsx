@@ -1,10 +1,19 @@
-// SPEC-GAP: LEGAL-02, D-17. The Cookie Policy at /cookies: the cookies the site sets, in three groups, each with what it does and
-// how long it lasts, and the Google cookie policy link (UI-SPEC L3).
-import { render, screen, within } from '@testing-library/react';
+// SPEC-GAP: LEGAL-02, D-17, D-19, D-20, D-22, D-31, D-36, D-39, D-41. The Cookie Policy at /cookies: the cookies the site sets, in
+// three groups, each with what it does and how long it lasts, the Google cookie policy link, the seven sections in order, the button
+// that opens Cookie Settings and the lines about GPC, clearing and changes (UI-SPEC L3).
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
+import { expectNoAxeViolations } from '@/test/axe';
+import { setConsent } from '@/test/consentFixtures';
+
+// The Cookie Settings window is a lazy chunk; the first transform of its parts can take longer than a test waits, so load it first.
+beforeAll(async () => {
+  await import('../components/CookieSettingsDialog');
+}, 30_000);
 
 /** The real route tree at /cookies, settled once the h1 is on screen. */
 async function renderCookies() {
@@ -94,5 +103,147 @@ describe('CookiePolicyPage cookies we use (LEGAL-02, D-17)', { timeout: 20_000 }
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(link).toHaveTextContent(' (opens in a new tab)');
+  });
+});
+
+const SECTIONS = [
+  'What cookies are',
+  'Cookies we use',
+  'Your choices',
+  'Global Privacy Control',
+  'Clear your cookies and data',
+  'Changes to this policy',
+  'Contact us',
+];
+
+describe('CookiePolicyPage sections (LEGAL-02)', { timeout: 20_000 }, () => {
+  it('shows one h1 and the seven sections in order', async () => {
+    await renderCookies();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    const names = (await screen.findAllByRole('heading', { level: 2 })).map((heading) => heading.textContent);
+    expect(names).toEqual(SECTIONS);
+  });
+
+  it('shows the version line with the consent policy version', async () => {
+    await renderCookies();
+    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+  });
+});
+
+describe('CookiePolicyPage Your choices and the Cookie Settings button (LEGAL-02, D-17)', { timeout: 20_000 }, () => {
+  it('ends "Your choices" with a button named "Change Cookie Settings"', async () => {
+    setConsent();
+    await renderCookies();
+    const section = await sectionOf('Your choices');
+    const button = within(section).getByRole('button', { name: 'Change Cookie Settings' });
+    expect(button).toHaveAttribute('type', 'button');
+    const last = section.querySelector('div > :last-child');
+    expect(last === button || last?.contains(button) === true).toBe(true);
+  });
+
+  it('opens the Cookie Settings window with focus inside it, and Escape returns focus to the button', async () => {
+    setConsent();
+    await renderCookies();
+    const button = within(await sectionOf('Your choices')).getByRole('button', { name: 'Change Cookie Settings' });
+    await userEvent.click(button);
+    const dialog = await screen.findByRole('dialog', { name: 'Cookie Settings' });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Cookie Settings' })).not.toBeInTheDocument();
+    });
+    expect(button).toHaveFocus();
+  });
+
+  it('explains the two choices and what happens when the cookies are blocked in the browser', async () => {
+    setConsent();
+    await renderCookies();
+    const section = await sectionOf('Your choices');
+    expect(within(section).getByText(/Visitor stats: allow or refuse/)).toBeInTheDocument();
+    expect(within(section).getByText(/Google map: allow or refuse/)).toBeInTheDocument();
+    expect(within(section).getByText(/12 months, or sooner if this policy changes/)).toBeInTheDocument();
+    expect(within(section).getByText(/block the necessary cookies/)).toBeInTheDocument();
+  });
+});
+
+describe('CookiePolicyPage Global Privacy Control (D-20, D-39)', { timeout: 20_000 }, () => {
+  it('says the site reads GPC as a no to visitor stats, shows no bar and still lets the visitor allow the map', async () => {
+    await renderCookies();
+    const section = await sectionOf('Global Privacy Control');
+    expect(within(section).getByText(/we read it as a no to visitor stats/)).toBeInTheDocument();
+    expect(within(section).getByText(/We show no cookie bar/)).toBeInTheDocument();
+    expect(within(section).getByText(/still allow the Google map/)).toBeInTheDocument();
+  });
+
+  it('links /.well-known/gpc.json as a plain link that opens in a new tab', async () => {
+    await renderCookies();
+    const link = within(await sectionOf('Global Privacy Control')).getByRole('link', { name: /GPC statement/ });
+    expect(link).toHaveAttribute('href', '/.well-known/gpc.json');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+});
+
+describe('CookiePolicyPage Clear your cookies and data (D-19, D-31, D-36, D-41)', { timeout: 20_000 }, () => {
+  it('says what Clear deletes and what it turns off', async () => {
+    await renderCookies();
+    const section = await sectionOf('Clear your cookies and data');
+    expect(
+      within(section).getByText(/deletes this site's cookies and saved settings in this browser/),
+    ).toBeInTheDocument();
+    expect(within(section).getByText(/the visit records linked to them on our server/)).toBeInTheDocument();
+    expect(within(section).getByText(/turns visitor stats and the Google map off/)).toBeInTheDocument();
+  });
+
+  it("says Clear also resets a staff member's admin theme and orders view in that browser", async () => {
+    await renderCookies();
+    const section = await sectionOf('Clear your cookies and data');
+    expect(
+      within(section).getByText(/resets a staff member's admin theme and orders view in that browser/),
+    ).toBeInTheDocument();
+  });
+
+  it("says the daily totals stay and Google's own cookies cannot be cleared", async () => {
+    await renderCookies();
+    const section = await sectionOf('Clear your cookies and data');
+    expect(within(section).getByText(/leaves the daily totals/)).toBeInTheDocument();
+    expect(within(section).getByText(/no visitor id/)).toBeInTheDocument();
+    expect(within(section).getByText(/cannot clear Google's own cookies/)).toBeInTheDocument();
+  });
+
+  it("uses the owner's retention wording for the visit records and the cookie choice", async () => {
+    await renderCookies();
+    const section = await sectionOf('Clear your cookies and data');
+    const lines = within(section).getAllByText('Kept for about 13 months; removed at the next monthly cleanup.');
+    expect(lines).toHaveLength(2);
+    expect(section.textContent).not.toMatch(/Kept for 13 months/);
+  });
+});
+
+describe('CookiePolicyPage Changes to this policy and Contact us (D-22)', { timeout: 20_000 }, () => {
+  it('says a new version comes with a reviewed release and every visitor is asked again', async () => {
+    await renderCookies();
+    const section = await sectionOf('Changes to this policy');
+    expect(within(section).getByText(/publish a new version with a reviewed release/)).toBeInTheDocument();
+    expect(within(section).getByText(/Every visitor is then asked for their choice again/)).toBeInTheDocument();
+  });
+
+  it('shows the shop contact lines under "Contact us"', async () => {
+    await renderCookies();
+    const scope = within(await sectionOf('Contact us'));
+    expect(await scope.findByRole('link', { name: 'shop-private@example.test' })).toHaveAttribute(
+      'href',
+      'mailto:shop-private@example.test',
+    );
+    expect(scope.getByRole('link', { name: '0917 123 4567' })).toHaveAttribute('href', 'tel:+639171234567');
+  });
+});
+
+describe('CookiePolicyPage accessibility', { timeout: 20_000 }, () => {
+  it('has zero axe violations', async () => {
+    setConsent();
+    const { container } = await renderCookies();
+    await screen.findByRole('link', { name: 'shop-private@example.test' });
+    await expectNoAxeViolations(container);
   });
 });
