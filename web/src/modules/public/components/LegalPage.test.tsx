@@ -4,8 +4,9 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
+import { inStrictMode } from '@/test/strictMode';
 import type { LegalSectionData } from '../legalContent';
-import { LEGAL_PAGES } from '../legalPages';
+import { LEGAL_PAGES, type LegalPageMeta } from '../legalPages';
 import { LegalPage } from './LegalPage';
 
 const SECTIONS: readonly LegalSectionData[] = [
@@ -148,8 +149,85 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
   });
 
+  it('shows no article and no table of contents when the page has no sections prop at all', () => {
+    render(
+      <MemoryRouter>
+        <LegalPage page={LEGAL_PAGES.terms} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'On this page' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Terms of use.');
+  });
+
   it('has zero axe violations', async () => {
     const { container } = renderPage();
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('LegalPage head (D-14)', () => {
+  const DRAFT = LEGAL_PAGES.terms;
+  const APPROVED = { ...LEGAL_PAGES.privacy, approved: true };
+
+  function wrap(page: LegalPageMeta, sections?: readonly LegalSectionData[]) {
+    return (
+      <MemoryRouter>
+        {sections === undefined ? <LegalPage page={page} /> : <LegalPage page={page} sections={sections} />}
+      </MemoryRouter>
+    );
+  }
+
+  it('shows the DRAFT notice while the page is not approved', () => {
+    render(wrap(DRAFT));
+    expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+    expect(screen.getByText("It may change before it's approved.")).toBeInTheDocument();
+  });
+
+  it('shows no DRAFT notice once the page is approved', () => {
+    render(wrap(APPROVED));
+    expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Privacy policy.');
+  });
+
+  it('shows the breadcrumb, eyebrow, version line and lead of the page it is given', () => {
+    render(wrap(DRAFT));
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByText('Terms of Use')).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('Using this site')).toBeInTheDocument();
+    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+    expect(screen.getByText(DRAFT.lead)).toBeInTheDocument();
+  });
+
+  it('leaves out the date when the date cannot be read', () => {
+    render(wrap({ ...DRAFT, lastUpdated: 'not a date' }));
+    expect(screen.getByText('Version 0.1')).toBeInTheDocument();
+  });
+
+  it('follows the page and its sections on a rerender', () => {
+    const { rerender } = render(wrap(DRAFT, SECTIONS));
+    rerender(wrap(DRAFT, SECTIONS));
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(3);
+
+    rerender(wrap(APPROVED, SECTIONS.slice(0, 1)));
+    expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Privacy policy.');
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(1);
+
+    rerender(wrap(DRAFT));
+    expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  });
+});
+
+describe('LegalPage under StrictMode', () => {
+  it('draws the DRAFT notice, the head, the table of contents and the sections, whether the render is cached or fresh', async () => {
+    await inStrictMode(() => {
+      renderPage();
+      expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Terms of use.');
+      expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(3);
+      expect(screen.getAllByRole('navigation', { name: 'On this page' })).toHaveLength(2);
+    });
   });
 });
