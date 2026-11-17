@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { devRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/devRoutes';
 import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';

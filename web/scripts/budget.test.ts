@@ -68,6 +68,7 @@ const AUTH_LAYOUT = 'src/layouts/AuthLayout.tsx';
 const SIGN_IN_PAGE = 'src/modules/admin/pages/SignInPage.tsx';
 const GUARD = 'src/modules/admin/guard.ts';
 const QUERY_ROOT = 'src/core/routes/QueryRoot.tsx';
+const ADMIN_ROUTES = 'src/modules/admin/routes.tsx';
 const PREVIEW_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
 const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
@@ -76,8 +77,9 @@ const SHARED = 'assets/shared-B2.js';
  * A production-shaped graph: the entry, the public layout and the five public pages all import one shared chunk. Each
  * of the five public routes totals `publicBytes` (entry + shared + layout + page; the Gallery route also loads the
  * URL-state layout and the chunk it imports, so its page chunk is smaller). The guarded admin app ships too:
- * the signed-in entry (guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
- * signed-out entry (guard, auth layout, sign-in page) is about 2 KB over the public number.
+ * the signed-in entry (route table, guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
+ * signed-out entry (route table, guard, auth layout, sign-in page) is about 3 KB over the public number. The route
+ * table is its own lazy chunk: the router loads it on the first navigation under /admin (D-42).
  */
 function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes = publicBytes + 42_000): BudgetGraph {
   const adminShared = 'assets/admin-shared-G7.js';
@@ -111,7 +113,13 @@ function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes
         imports: [SHARED],
         moduleIds: [QUERY_ROOT, 'node_modules/@tanstack/query-core/build/modern/queryClient.js'],
       }),
-      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 1_000, {
+      chunk('assets/routes-R6.js', 1_000, {
+        isDynamicEntry: true,
+        facadeModuleId: ADMIN_ROUTES,
+        imports: [SHARED],
+        moduleIds: [ADMIN_ROUTES],
+      }),
+      chunk('assets/AdminLayout-H8.js', adminRouteBytes - publicBytes - 2_000, {
         isDynamicEntry: true,
         facadeModuleId: ADMIN_LAYOUT,
         imports: [SHARED, adminShared],
@@ -211,6 +219,7 @@ describe('BUDGETS (PERF-01)', () => {
     expect(PUBLIC_PRELOAD_ROUTE).toEqual([PUBLIC_LAYOUT, HOME_PAGE]);
     expect(ADMIN_ROUTE).toEqual([
       'src/core/routes/QueryRoot.tsx',
+      'src/modules/admin/routes.tsx',
       'src/layouts/AdminLayout.tsx',
       'src/lib/url-state/UrlStateLayout.tsx',
       'src/modules/admin/pages/SessionsPage.tsx',
@@ -218,6 +227,7 @@ describe('BUDGETS (PERF-01)', () => {
     ]);
     expect(ADMIN_SIGN_IN_ROUTE).toEqual([
       'src/core/routes/QueryRoot.tsx',
+      'src/modules/admin/routes.tsx',
       'src/layouts/AuthLayout.tsx',
       'src/modules/admin/pages/SignInPage.tsx',
       'src/modules/admin/guard.ts',
@@ -370,11 +380,11 @@ describe('evaluateBudgets: public JS and CSS (production build)', () => {
     const chunks = graph.chunks.map((c) => (c.facadeModuleId === AUTH_LAYOUT ? { ...c, gzipSize: 200_000 } : c));
     const report = evaluateBudgets({ ...graph, chunks }, production);
     expect(report.ok).toBe(false);
-    expect(report.adminJs).toBe(320_000);
-    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*320.00 KB.*250\.00 KB/)]);
+    expect(report.adminJs).toBe(321_000);
+    expect(report.errors).toEqual([expect.stringMatching(/admin JS.*321.00 KB.*250\.00 KB/)]);
   });
 
-  it.each([[SIGN_IN_PAGE], [GUARD], [SESSIONS_PAGE]])(
+  it.each([[SIGN_IN_PAGE], [GUARD], [SESSIONS_PAGE], [ADMIN_ROUTES]])(
     'fails closed in the production build when the shipped admin module %s has no chunk',
     (module) => {
       const graph = productionGraph(120_000);
@@ -508,13 +518,13 @@ describe('evaluateBudgets: no dev code in production (D-20, CWE-489)', () => {
     expect(report.errors).toEqual([expect.stringContaining(`index-A1.js contains the dev-only module ${moduleId}`)]);
   });
 
-  it('allows the guarded admin app in production (D-20 reversed in Phase 4) in its own lazy chunks, with only the route table in the entry', () => {
+  it('allows the guarded admin app in production (D-20 reversed in Phase 4) in its own lazy chunks, the route table included (D-42)', () => {
     const graph = productionGraph(120_000);
-    const admin = graph.chunks.map((c) =>
-      c.fileName === ENTRY ? { ...c, moduleIds: [...c.moduleIds, 'src/modules/admin/routes.tsx'] } : c,
-    );
-    expect(evaluateBudgets({ ...graph, chunks: admin }, production).errors).toEqual([]);
+    expect(evaluateBudgets(graph, production).errors).toEqual([]);
     expect(graph.chunks.some((c) => c.moduleIds.includes('src/modules/admin/guard.ts'))).toBe(true);
+    const routeTable = graph.chunks.find((c) => c.moduleIds.includes(ADMIN_ROUTES));
+    expect(routeTable).toMatchObject({ isDynamicEntry: true, facadeModuleId: ADMIN_ROUTES });
+    expect(graph.chunks.find((c) => c.isEntry)?.moduleIds).not.toContain(ADMIN_ROUTES);
   });
 
   it('allows a module whose name only resembles a dev path', () => {
@@ -731,6 +741,7 @@ describe('evaluateBudgets: the public initial JS carries no TanStack Query and n
     ['src/modules/admin/guard.ts'],
     ['src/modules/admin/services/session.ts'],
     ['src/modules/admin/pages/AdminNotFoundPage.tsx'],
+    ['src/modules/admin/routes.tsx'],
   ])('fails a public initial chunk that contains %s', (moduleId) => {
     for (const build of [production, devRoutes]) {
       const report = withEntryModule(moduleId, build);
@@ -753,8 +764,7 @@ describe('evaluateBudgets: the public initial JS carries no TanStack Query and n
     ]);
   });
 
-  it('allows the admin route table and the error boundaries in the entry', () => {
-    expect(withEntryModule('src/modules/admin/routes.tsx').errors).toEqual([]);
+  it('allows the error boundaries in the entry', () => {
     expect(withEntryModule('src/core/routes/ErrorBoundary.tsx').errors).toEqual([]);
   });
 });

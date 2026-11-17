@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-16T20:50:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-16T22:35:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -30,8 +30,8 @@ Each chunk is counted once, even when several of them import it. Chunks loaded l
 | Route | Route modules |
 |---|---|
 | Public (`/`) | `src/modules/public/pages/HoldingPage.tsx` (the D-17 holding page; `PublicLayout` returns to this row with Phase 11) |
-| Admin, signed in (`/admin`) | `src/core/routes/QueryRoot.tsx`, `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
-| Admin, signed out (`/admin/login`) | `src/core/routes/QueryRoot.tsx`, `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed in (`/admin`) | `src/core/routes/QueryRoot.tsx`, `src/modules/admin/routes.tsx`, `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed out (`/admin/login`) | `src/core/routes/QueryRoot.tsx`, `src/modules/admin/routes.tsx`, `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
 
 The admin number is the larger of the two admin rows. Both ship in every build, so admin JS is measured in the production build too. The dev-only `AdminPreviewPage` is never part of it.
 
@@ -82,7 +82,53 @@ The four legal pages are public routes inside `PublicLayout`: `/privacy`, `/cook
 
 These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 5.0 KB that is left on each row. The legal figures leave out the loader chunk (`legalLoaders.ts`, about 0.3 KB gzip) that the legal routes also fetch.
 
-**Entry chunk cost.** Every lazy route adds its chunk name and import to the entry chunk's route table, and every page downloads that table. Four separate legal imports in `router.tsx` grew it by about 0.24 KB (Home 149.78 to 150.02 KB, Contact 149.82 to 150.05 KB, both over the limit). The four routes now share one import of `legalLoaders.ts`, which holds the four page imports. That costs about 0.10 KB (Home 149.88 KB, Contact 149.92 KB), and each page is still its own lazy chunk. In the production build Home and Contact have about 0.1 KB left. **`npm run build:budget` (the admin-included build that CI runs) is over:** Home 150.09 KB and Contact 150.13 KB, where the same build before this plan gave 149.98 KB and 149.99 KB, which was already within 0.02 KB of the limit. Any new lazy route in the entry chunk now breaks that build, so Phase 12 needs a recovery of entry bytes before it can ship; the owner decides how (recorded in the plan 12-05 summary).
+**Entry chunk cost.** Every lazy route adds its chunk name and import to the entry chunk's route table, and every page downloads that table. Four separate legal imports in `router.tsx` grew it by about 0.24 KB (Home 149.78 to 150.02 KB, Contact 149.82 to 150.05 KB, both over the limit). The four routes now share one import of `legalLoaders.ts`, which holds the four page imports. That costs about 0.10 KB (Home 149.88 KB, Contact 149.92 KB), and each page is still its own lazy chunk. In the production build Home and Contact had about 0.1 KB left. `npm run build:budget` (the admin-included build that CI runs) was over: Home 150.09 KB and Contact 150.13 KB, where the same build before this plan gave 149.98 KB and 149.99 KB. The recovery, the figures and the room that is left now are in "Entry recovery (Phase 12, plan 12-31, D-42)" below.
+
+## Entry recovery (Phase 12, plan 12-31, D-42)
+
+After plan 12-05 the entry chunk was too big: `npm run build:budget` failed (Home 150.09 KB, Contact 150.13 KB). The owner ruled that the limit stays at 150 KB and the entry gets smaller (D-42).
+
+**What moved.** The router no longer imports the admin route table (`src/modules/admin/routes.tsx`) or the dev-only table (`src/modules/admin/devRoutes.tsx`). Both load through React Router's `patchRoutesOnNavigation` on the first navigation under `/admin` or `/dev`, and patch into the one lazy `QueryRoot` route. The tables and the long list of chunk file names they carried (the `__vite__mapDeps` preload list) left the entry. The production build has a literal `false` for `__DEV_ROUTES__`, so it holds no `/dev` table and no `devRoutes` import. A table that fails to load (a stale tab after a deploy) shows the admin error screen with Reload Page.
+
+**What now fails the build.** No admin module may sit in a public initial chunk, `routes.tsx` included. The old one-file exception is gone, so a later static import of the admin table cannot undo this. The limits did not change (`publicJs` is still 150_000).
+
+Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), After is this plan. Both are from the numbers files.
+
+`npm run build` (production):
+
+| Measure | Before | After |
+|---|---|---|
+| Home | 149.88 KB | 147.47 KB |
+| Products | 146.55 KB | 144.16 KB |
+| Gallery | 147.92 KB | 145.51 KB |
+| Contact | 149.92 KB | 147.48 KB |
+| Privacy | 144.98 KB | 142.54 KB |
+| Cookies | 144.98 KB | 142.54 KB |
+| Terms | 144.97 KB | 142.53 KB |
+| Accessibility | 144.98 KB | 142.54 KB |
+| Not found | 142.63 KB | 140.18 KB |
+| Admin JS | 219.44 KB | 221.07 KB |
+| CSS | 20.13 KB | 20.13 KB |
+
+`npm run build:budget` (admin routes included):
+
+| Measure | Before | After |
+|---|---|---|
+| Home | 150.09 KB (over) | 147.50 KB |
+| Products | 146.76 KB | 144.19 KB |
+| Gallery | 148.13 KB | 145.54 KB |
+| Contact | 150.13 KB (over) | 147.51 KB |
+| Privacy | 145.19 KB | 142.57 KB |
+| Cookies | 145.19 KB | 142.57 KB |
+| Terms | 145.18 KB | 142.56 KB |
+| Accessibility | 145.19 KB | 142.57 KB |
+| Not found | 142.83 KB | 140.21 KB |
+| Admin JS | 221.57 KB | 223.05 KB |
+| CSS | 20.13 KB | 20.13 KB |
+
+Every public row drops by 2.4 to 2.6 KB. Admin JS goes up by about 1.5 to 1.6 KB because the route table is now its own chunk, which every `/admin` visit loads first, and the budget counts it (`src/modules/admin/routes.tsx` is in the admin rows above). Admin JS is still well under 250 KB.
+
+**Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily.
 
 ## Fonts and compression (Phase 11)
 
@@ -152,7 +198,7 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
 - **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from the parity entry (`src/dev/parity-main`), `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), the dev-only public layout check page (`src/modules/public/pages/PublicLayoutCheckPage`), or when it has an entry other than `index.html`. The rest of `src/dev/` is the showcase's, under the next rule.
 - **The showcase ships only as its own lazy chunks** (decisions D-30..D-33, D-41 Q3, plan 05-35). See the section below. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
-- **No TanStack Query and no admin code in the public initial JS** (PERF-02, quick task 261016). Every chunk the public route loads first must be free of `@tanstack/`, `nuqs`, `react-hook-form`, `zod`, `src/lib/query/`, `src/lib/url-state/`, `src/lib/forms/`, `QueryRoot`, the admin and auth layouts and `src/modules/admin/` (the route table `routes.tsx` is the one exception). The query client lives in the lazy `QueryRoot` route, so it loads with the admin chunks. The build stops and names the chunk and the module.
+- **No TanStack Query and no admin code in the public initial JS** (PERF-02, quick task 261016). Every chunk the public route loads first must be free of `@tanstack/`, `nuqs`, `react-hook-form`, `zod`, `src/lib/query/`, `src/lib/url-state/`, `src/lib/forms/`, `QueryRoot`, the admin and auth layouts and `src/modules/admin/` (no admin module may be in the public initial JS, the route table `routes.tsx` included since plan 12-31, D-42: the router loads it on the first navigation under `/admin`). The query client lives in the lazy `QueryRoot` route, so it loads with the admin chunks. The build stops and names the chunk and the module.
 - **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example the dev preview page behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 

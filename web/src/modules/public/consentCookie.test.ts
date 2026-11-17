@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONSENT_COOKIE_NAME,
   formatConsentCookie,
+  isCurrentChoice,
   needsChoice,
   parseConsentCookie,
   readConsentCookie,
@@ -133,5 +134,61 @@ describe('needsChoice', () => {
     expect(cases.needsChoice.some((c) => c.gpc)).toBe(true);
     expect(cases.needsChoice.some((c) => c.value === null)).toBe(true);
     expect(cases.needsChoice.some((c) => c.today === '2026-11-14' && !c.expected)).toBe(true);
+  });
+
+  it('keeps a future-dated case in the shared file, so a later edit cannot drop D-43 coverage', () => {
+    const decidedDay = (value: string | null): string => /_(\d{8})(_p)?$/.exec(value ?? '')?.[1] ?? '';
+    const isFuture = (c: { value: string | null; today: string }): boolean =>
+      decidedDay(c.value) > c.today.replaceAll('-', '');
+
+    expect(cases.needsChoice.some((c) => !c.gpc && isFuture(c) && c.expected)).toBe(true);
+    expect(cases.needsChoice.some((c) => c.gpc && isFuture(c) && !c.expected)).toBe(true);
+  });
+});
+
+describe('isCurrentChoice (D-22, D-43, ANL-07)', () => {
+  const options = { currentVersion: '1.0', today: '2026-11-15' };
+  const cookie = (decidedOn: string, policyVersion = '1.0') => ({
+    consentId: '0f5c2a9e4b7d4c1e8a3f6b2d9e0c7a51',
+    policyVersion,
+    stats: true,
+    map: true,
+    decidedOn,
+    pending: false,
+  });
+
+  it('is true for the current version decided today or a day before', () => {
+    expect(isCurrentChoice(cookie('2026-11-15'), options)).toBe(true);
+    expect(isCurrentChoice(cookie('2026-11-14'), options)).toBe(true);
+  });
+
+  it('is true up to the day before 12 months have passed', () => {
+    expect(isCurrentChoice(cookie('2025-11-16'), options)).toBe(true);
+  });
+
+  it('is false for a decision day after today', () => {
+    expect(isCurrentChoice(cookie('2026-11-16'), options)).toBe(false);
+    expect(isCurrentChoice(cookie('9999-12-31'), options)).toBe(false);
+  });
+
+  it('is false for a choice 12 months old', () => {
+    expect(isCurrentChoice(cookie('2025-11-15'), options)).toBe(false);
+  });
+
+  it('is false for an old policy version', () => {
+    expect(isCurrentChoice(cookie('2026-11-14', '0.1'), options)).toBe(false);
+  });
+
+  it('is false when today is unreadable', () => {
+    expect(isCurrentChoice(cookie('2026-11-14'), { ...options, today: 'yesterday' })).toBe(false);
+  });
+
+  it('holds at the last day of the calendar (the saturated year)', () => {
+    expect(isCurrentChoice(cookie('9999-12-30'), { currentVersion: '1.0', today: '9999-12-30' })).toBe(true);
+  });
+
+  it('judges a pending choice by the same rule', () => {
+    expect(isCurrentChoice({ ...cookie('2026-11-16'), pending: true }, options)).toBe(false);
+    expect(isCurrentChoice({ ...cookie('2026-11-14'), pending: true }, options)).toBe(true);
   });
 });

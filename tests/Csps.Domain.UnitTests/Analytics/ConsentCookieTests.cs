@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Csps.Domain.Analytics;
 
@@ -148,6 +149,21 @@ public sealed class ConsentCookieTests
         Cases.Value.NeedsChoice.ShouldContain(c => c.Today == new DateOnly(2026, 11, 14) && !c.Expected);
         Cases.Value.AllowsStats.ShouldContain(c => c.Expected);
         Cases.Value.AllowsStats.ShouldContain(c => !c.Expected);
+    }
+
+    [Fact]
+    public void TheSharedFileKeepsTheFutureDatedCasesOfD43()
+    {
+        Cases.Value.NeedsChoice.ShouldContain(c => !c.Gpc && IsFuture(c.Value, c.Today) && c.Expected);
+        Cases.Value.NeedsChoice.ShouldContain(c => c.Gpc && IsFuture(c.Value, c.Today) && !c.Expected);
+        Cases.Value.AllowsStats.ShouldContain(c => IsFuture(c.Value, c.Today) && !c.Expected);
+    }
+
+    // The day is the 8 digits before an optional "_p"; a day after today is a future decision (D-43).
+    private static bool IsFuture(string? value, DateOnly today)
+    {
+        var day = value?.Split('_').FirstOrDefault(part => part.Length == 8 && part.All(char.IsAsciiDigit));
+        return day is not null && string.CompareOrdinal(day, today.ToString("yyyyMMdd", CultureInfo.InvariantCulture)) > 0;
     }
 
     private static CaseFile Load()

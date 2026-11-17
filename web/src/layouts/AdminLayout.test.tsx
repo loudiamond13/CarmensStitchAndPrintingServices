@@ -9,9 +9,9 @@ import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
 import { AdminRootErrorBoundary, AdminRouteErrorBoundary, ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
-import { lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
+import { discoverRoutes, lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
-import { devRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/devRoutes';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
@@ -124,7 +124,8 @@ function expectOnlyReportsOf(error: Error): void {
 
 /** The dev route tree in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(devTree(), { initialEntries: [path] });
+  // The admin table (the sign-in screens) arrives through discovery, as in the app (D-42).
+  const router = createMemoryRouter(devTree(), { initialEntries: [path], patchRoutesOnNavigation: discoverRoutes });
   const view = render(<RouterProvider router={router} />);
   // The first render transforms the lazy route modules on demand, which can take over the default 1 s in a full run.
   await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
@@ -832,7 +833,10 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/admin/sessions'],
+      patchRoutesOnNavigation: discoverRoutes,
+    });
     render(<RouterProvider router={router} />);
     expect(await screen.findByText('Safari on iPhone', undefined, { timeout: 5000 })).toBeInTheDocument();
     await userEvent.click(userButton());

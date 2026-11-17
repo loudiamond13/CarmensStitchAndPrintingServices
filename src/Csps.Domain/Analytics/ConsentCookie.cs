@@ -75,10 +75,17 @@ public sealed record ConsentCookie(Guid ConsentId, string PolicyVersion, bool? S
         return $"{Prefix}_{ConsentId:N}_{PolicyVersion}_{stats}_{map}_{day}{suffix}";
     }
 
-    /// <summary>True when the visitor allowed stats, under the current policy version, less than 12 months ago.</summary>
-    public bool AllowsStats(string currentVersion, DateOnly today) =>
-        Stats == true
-        && string.Equals(PolicyVersion, currentVersion, StringComparison.Ordinal)
+    /// <summary>
+    /// True when the visitor allowed stats and the choice is current: the current policy version (D-22), a decision day
+    /// that is not after <paramref name="today"/> (D-43: a cookie dated in the future is no choice), and less than 12
+    /// months old (ANL-07). <paramref name="today"/> is the business day the server stamps through IBusinessCalendar.
+    /// </summary>
+    public bool AllowsStats(string currentVersion, DateOnly today) => Stats == true && IsCurrent(currentVersion, today);
+
+    // Checked in this order so a future year-9999 day never reaches Expiry.
+    private bool IsCurrent(string currentVersion, DateOnly today) =>
+        string.Equals(PolicyVersion, currentVersion, StringComparison.Ordinal)
+        && DecidedOn <= today
         && today < Expiry;
 
     // 12 months after the choice. AddMonths clamps month ends (29 Feb); the last year saturates instead of throwing.

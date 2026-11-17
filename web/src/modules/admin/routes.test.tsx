@@ -3,12 +3,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { createMemoryRouter } from 'react-router';
+import { createMemoryRouter as createRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryBranch, routes } from '@/core/routes/router';
-import { devRoutes } from '@/modules/admin/routes';
-import type { RouteObject } from 'react-router';
+import { discoverRoutes, queryBranch, routes } from '@/core/routes/router';
+import { devRoutes } from '@/modules/admin/devRoutes';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import {
   categoriesBackend,
@@ -32,6 +31,10 @@ import { sessionResponse } from '@/test/sessionFixtures';
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
 // the 5 s default for every test: only this file, never the whole suite (plan 05-37).
 vi.setConfig({ testTimeout: 15_000 });
+
+/** Every router in this file discovers the admin table the way the app does (D-42). */
+const createMemoryRouter: typeof createRouter = (tree, options) =>
+  createRouter(tree, { patchRoutesOnNavigation: discoverRoutes, ...options });
 
 interface RefreshProbe {
   count: number;
