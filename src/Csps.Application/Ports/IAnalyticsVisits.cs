@@ -36,4 +36,13 @@ public interface IAnalyticsVisits
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>A task that completes when the rows are saved.</returns>
     Task AddSamplesAsync(IReadOnlyList<AnalyticsVitalSample> samples, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes every visit of one visitor. The page views and speed samples of those visits go with them. Nothing else is touched, and a visitor
+    /// with no rows is not an error (ANL-04, D-41).
+    /// </summary>
+    /// <param name="visitorHash">The SHA-256 of the visitor id.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>A task that completes when the rows are deleted.</returns>
+    Task DeleteForVisitorAsync(byte[] visitorHash, CancellationToken cancellationToken);
 }

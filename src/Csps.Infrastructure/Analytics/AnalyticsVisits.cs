@@ -50,6 +50,9 @@ internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public Task DeleteForVisitorAsync(byte[] visitorHash, CancellationToken cancellationToken) =>
+        throw new NotImplementedException();
+
     public async Task AddSamplesAsync(IReadOnlyList<AnalyticsVitalSample> samples, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(samples);

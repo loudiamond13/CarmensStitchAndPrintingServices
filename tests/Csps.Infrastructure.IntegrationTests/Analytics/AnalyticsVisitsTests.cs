@@ -121,6 +121,46 @@ public sealed class AnalyticsVisitsTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task DeletingAVisitorRemovesItsVisitsPageViewsAndSamplesAndLeavesEveryoneElse()
+    {
+        await database.ResetAsync();
+        var mine = NewVisit(Hash(1), Start);
+        var myOther = NewVisit(Hash(1), Start.AddHours(3));
+        var theirs = NewVisit(Hash(2), Start);
+        foreach (var visit in new[] { mine, myOther, theirs })
+        {
+            await StartAsync(visit);
+            await AddRowsAsync(visit);
+        }
+
+        await using (var context = database.CreateContext())
+        {
+            await new AnalyticsVisits(context).DeleteForVisitorAsync(Hash(1), TestContext.Current.CancellationToken);
+        }
+
+        await using var check = database.CreateContext();
+        (await check.AnalyticsVisits.Select(row => row.Id).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([theirs.Id]);
+        (await check.AnalyticsPageViews.Select(row => row.VisitId).ToListAsync(TestContext.Current.CancellationToken)).ShouldBe([theirs.Id]);
+        (await check.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task DeletingAVisitorWithNoRowsChangesNothingAndDoesNotFail()
+    {
+        await database.ResetAsync();
+        var theirs = NewVisit(Hash(2), Start);
+        await StartAsync(theirs);
+
+        await using (var context = database.CreateContext())
+        {
+            await new AnalyticsVisits(context).DeleteForVisitorAsync(Hash(1), TestContext.Current.CancellationToken);
+        }
+
+        await using var check = database.CreateContext();
+        (await check.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
     public async Task NoSamplesWritesNothingAndDoesNotFail()
     {
         await database.ResetAsync();
@@ -228,6 +268,14 @@ public sealed class AnalyticsVisitsTests(CspsDatabase database) : IClassFixture<
 
     private static AnalyticsVisit NewVisit(byte[] hash, DateTimeOffset at) =>
         AnalyticsVisit.Start(hash, Day, at, ReferrerName.Direct, DeviceKind.Computer, "Chrome", "Windows", null);
+
+    private async Task AddRowsAsync(AnalyticsVisit visit)
+    {
+        await using var context = database.CreateContext();
+        var store = new AnalyticsVisits(context);
+        await store.AddPageViewAsync(AnalyticsPageView.Of(visit.Id, Day, visit.StartedAtUtc, PageKeys.Gallery), TestContext.Current.CancellationToken);
+        await store.AddSamplesAsync([AnalyticsVitalSample.Of(visit.Id, Day, VitalMetric.Lcp, 2100m, PageKeys.Gallery)], TestContext.Current.CancellationToken);
+    }
 
     private static byte[] Hash(byte fill) => Enumerable.Repeat(fill, 32).ToArray();
 
