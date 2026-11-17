@@ -265,8 +265,16 @@ export const PUBLIC_COPY = {
       tiktok: { short: 'TT', name: 'TT, CSPS on TikTok' },
     },
     staffLogin: 'Staff Login',
-    // SPEC-GAP: FT the Legal row's Cookie Settings button.
-    legal: { settings: 'Cookie Settings' },
+    // SPEC-GAP: FT the Legal row: the four legal pages in order, then the Cookie Settings button.
+    legal: {
+      links: [
+        { text: 'Privacy Policy', to: '/privacy' },
+        { text: 'Cookie Policy', to: '/cookies' },
+        { text: 'Terms of Use', to: '/terms' },
+        { text: 'Accessibility Statement', to: '/accessibility' },
+      ],
+      settings: 'Cookie Settings',
+    },
     copyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}. All rights reserved.`,
     baseCopyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}`,
   },

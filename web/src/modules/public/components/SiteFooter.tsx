@@ -16,6 +16,7 @@
 // h4, so the page's headings go h1 → h2 (Lighthouse heading order). Preflight resets heading size, weight and margin,
 // and the look comes from the classes, so nothing visible changes.
 import { Suspense } from 'react';
+import { useLocation } from 'react-router';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Logo } from '@/components/brand/Logo';
@@ -45,6 +46,9 @@ const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
 const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
 /** The Legal row's items: Small 14/20, 44px tall, underlined only on hover (UI-SPEC FT). A busy button looks inactive. */
+const legalLinkClasses = tw(
+  'inline-flex min-h-11 items-center text-14 leading-5 text-ink-subtle no-underline hover:text-ink hover:underline',
+);
 const legalButtonClasses = tw(
   'inline-flex min-h-11 cursor-pointer items-center text-14 leading-5 text-ink-subtle hover:text-ink hover:underline aria-busy:cursor-wait aria-busy:opacity-60',
 );
@@ -127,9 +131,17 @@ function StaffLogin() {
 /** The Legal row (UI-SPEC FT). A wait for the settings window shows on the button, which keeps focus (WEB-09). */
 function LegalRow({ className }: { className: string }) {
   const { openSettings, settingsLoading } = useConsent();
+  const { pathname } = useLocation();
   return (
     <nav aria-label="Legal" className={className}>
       <ul className="flex flex-wrap gap-x-4 gap-y-2">
+        {FOOTER.legal.links.map((link) => (
+          <li key={link.to}>
+            <UiLink to={link.to} className={legalLinkClasses} aria-current={pathname === link.to ? 'page' : undefined}>
+              {link.text}
+            </UiLink>
+          </li>
+        ))}
         <li>
           <button
             type="button"
