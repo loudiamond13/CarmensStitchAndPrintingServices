@@ -50,7 +50,8 @@ public sealed class ConsentController(RecordConsentHandler recordConsent) : Cont
         CancellationToken cancellationToken)
     {
         var gpc = string.Equals(Request.Headers[GpcHeader].ToString(), GpcOn, StringComparison.Ordinal);
-        var context = new ConsentCallContext(gpc, HasVisitorId: false);
+        var heldVisitor = Request.Cookies[AnalyticsCookies.VisitorCookieName];
+        var context = new ConsentCallContext(gpc, AnalyticsCookies.IsVisitorId(heldVisitor));
         var result = await recordConsent.HandleAsync(body ?? RecordConsentRequest.Empty, context, cancellationToken).ConfigureAwait(false);
         if (result.IsFailure && result.Error.Code == ConsentErrors.PolicyChangedCode)
         {
@@ -60,8 +61,25 @@ public sealed class ConsentController(RecordConsentHandler recordConsent) : Cont
         return result.ToHttpResult(HttpContext, outcome =>
         {
             AnalyticsCookies.SetConsent(Response, outcome.CookieValue, outcome.ExpiresAt);
+            SetVisitor(outcome, heldVisitor);
             return TypedResults.Ok(outcome.Response);
         });
+    }
+
+    // A logged yes gets a new visitor id; a no, a map-only save or GPC takes a held one away. Nothing is sent when there is nothing to change.
+    private void SetVisitor(ConsentOutcome outcome, string? heldVisitor)
+    {
+        switch (outcome.Visitor)
+        {
+            case VisitorIdAction.Issue:
+                AnalyticsCookies.SetVisitor(Response, outcome.VisitorToken!, outcome.ExpiresAt);
+                break;
+            case VisitorIdAction.Expire when !string.IsNullOrEmpty(heldVisitor):
+                AnalyticsCookies.ExpireVisitor(Response);
+                break;
+            default:
+                break;
+        }
     }
 
     // The 409 also tells the browser which version is current, so it can ask the visitor again.

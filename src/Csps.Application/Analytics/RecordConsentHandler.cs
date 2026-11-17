@@ -29,7 +29,6 @@ public sealed class RecordConsentHandler(IConsentRecords records, IUnitOfWork un
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(context);
-        _ = random;
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
@@ -57,6 +56,10 @@ public sealed class RecordConsentHandler(IConsentRecords records, IUnitOfWork un
             record.Map,
             record.Gpc,
             clock.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-        return Result.Success(new ConsentOutcome(response, cookie.Format(), clock.UtcNow.AddMonths(ConsentCookie.LifetimeMonths), VisitorIdAction.Keep, null));
+        // Stats are on only without GPC (the record holds false under it), so one test decides: a logged yes gets a visitor id,
+        // anything else takes it away. Past analytics rows are kept either way (D-41).
+        var visitor = record.Stats != true ? VisitorIdAction.Expire : context.HasVisitorId ? VisitorIdAction.Keep : VisitorIdAction.Issue;
+        var token = visitor == VisitorIdAction.Issue ? random.NewToken() : null;
+        return Result.Success(new ConsentOutcome(response, cookie.Format(), clock.UtcNow.AddMonths(ConsentCookie.LifetimeMonths), visitor, token));
     }
 }
