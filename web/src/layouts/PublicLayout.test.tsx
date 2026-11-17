@@ -5,7 +5,7 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
+import { consentCookie, consentProbe, FAKE_CONSENT_ID, setConsent } from '@/test/consentFixtures';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
 import { PublicLayout } from './PublicLayout';
@@ -332,6 +332,45 @@ describe('PublicLayout cookie bar (ANL-01, D-16, D-17)', () => {
     setConsent({ cookie: consentCookie() });
     await renderAt('/products');
     expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+    expect(probe.requests).toEqual([]);
+  });
+
+  it('shows no bar under Global Privacy Control, even with no saved choice (D-20)', async () => {
+    setConsent({ cookie: null, gpc: true });
+    await renderAt('/products');
+    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+  });
+
+  it('shows the bar again for a choice saved under an older Cookie Policy version (D-22)', async () => {
+    setConsent({ cookie: consentCookie({ policyVersion: '0.0' }) });
+    await renderAt('/products');
+    expect(await screen.findByRole('region', { name: 'Cookie choices' })).toBeInTheDocument();
+  });
+
+  it('sends a pending choice again on the page view after a failed save, once', async () => {
+    const probe = consentProbe();
+    setConsent({ cookie: consentCookie({ pending: true, stats: true, map: false }) });
+    const { router } = await renderAt('/products');
+
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    expect(probe.requests[0]?.body).toMatchObject({ stats: true, map: false, consentId: FAKE_CONSENT_ID });
+
+    await act(async () => {
+      await router.navigate('/gallery');
+    });
+    await screen.findByRole('heading', { level: 1 });
+    expect(probe.requests).toHaveLength(1);
+  });
+
+  it('sends nothing on a page view when no choice is pending', async () => {
+    const probe = consentProbe();
+    setConsent({ cookie: consentCookie() });
+    const { router } = await renderAt('/products');
+    await act(async () => {
+      await router.navigate('/gallery');
+    });
     expect(probe.requests).toEqual([]);
   });
 });

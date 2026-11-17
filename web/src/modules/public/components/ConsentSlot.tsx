@@ -8,6 +8,7 @@ import { useConsent } from '../hooks/useConsent';
 const ConsentBar = lazy(() => import('./ConsentBar').then((module) => ({ default: module.ConsentBar })));
 
 export function ConsentSlot() {
+  'use no memo';
   const { needsChoice, announcement } = useConsent();
   return (
     <>

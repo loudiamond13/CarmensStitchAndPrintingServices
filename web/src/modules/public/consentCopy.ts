@@ -10,5 +10,4 @@ export const CONSENT_COPY = {
   settings: 'Cookie Settings',
   reject: 'Reject All',
   accept: 'Accept All',
-  saved: 'Your cookie choice is saved.',
 } as const;

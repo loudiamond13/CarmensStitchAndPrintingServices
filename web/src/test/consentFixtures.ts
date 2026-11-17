@@ -3,8 +3,9 @@
 // POST /api/v1/analytics/consent. Every value is made up.
 import { http, HttpResponse } from 'msw';
 import { formatConsentCookie, type ConsentCookie } from '@/modules/public/consentCookie';
-import { manilaBusinessDay, resetConsentStore } from '@/modules/public/hooks/useConsent';
-import { LEGAL_PAGES } from '@/modules/public/legalPages';
+import { manilaBusinessDay } from '@/modules/public/consentRules';
+import { resetConsentStore } from '@/modules/public/hooks/useConsent';
+import { COOKIE_POLICY_VERSION } from '@/modules/public/consentPolicy';
 import type { ConsentDecision } from '@/modules/public/services/consentService';
 import { server } from '@/test/msw';
 
@@ -14,7 +15,7 @@ export const FAKE_CONSENT_ID = '0123456789abcdef0123456789abcdef';
 export function consentCookie(overrides: Partial<ConsentCookie> = {}): ConsentCookie {
   return {
     consentId: FAKE_CONSENT_ID,
-    policyVersion: LEGAL_PAGES.cookies.version,
+    policyVersion: COOKIE_POLICY_VERSION,
     stats: false,
     map: false,
     decidedOn: manilaBusinessDay(new Date()),
@@ -55,9 +56,18 @@ export function setConsent({ cookie = consentCookie(), gpc = false, today }: Set
   return jar;
 }
 
+/**
+ * Waits until the shared store has loaded the cookie rules (it loads them when a cookie exists), so the first test of a
+ * file sees the same state as the last. A store made with createConsentStore starts without them on purpose.
+ */
+export async function consentRulesLoaded(): Promise<void> {
+  await import('@/modules/public/consentRules');
+  await Promise.resolve();
+}
+
 export const demoDecision: ConsentDecision = {
   consentId: FAKE_CONSENT_ID,
-  policyVersion: LEGAL_PAGES.cookies.version,
+  policyVersion: COOKIE_POLICY_VERSION,
   stats: true,
   map: true,
   gpc: false,

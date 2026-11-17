@@ -3,6 +3,7 @@
 // true: it shows the DRAFT notice, and the server keeps it out of search results and the sitemap. The Cookie Policy's version is
 // the consent policy version. Titles are the strings the server sends (PublicPageHeads.cs), and each lead is the meta description.
 // They sit apart from copy.ts so the first download of every public page does not grow (PERF-01).
+import { COOKIE_POLICY_VERSION } from './consentPolicy';
 
 export type LegalPageKey = 'privacy' | 'cookies' | 'terms' | 'accessibility';
 
@@ -37,7 +38,7 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPageMeta>> = {
   cookies: {
     key: 'cookies',
     path: '/cookies',
-    version: '0.1',
+    version: COOKIE_POLICY_VERSION,
     lastUpdated: '2026-11-15',
     approved: false,
     title: 'Cookie Policy · CSPS',

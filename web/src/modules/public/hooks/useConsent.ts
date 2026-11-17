@@ -1,29 +1,28 @@
 // The one consent state for the public layout (ANL-01, ANL-07, D-16, D-17, D-22, D-34). A small external store over the
 // saved cookie, read with useSyncExternalStore. The state is worked out again only when this store changes the cookie, so
 // the snapshot stays the same object between changes.
-//   - Before a choice nothing is written and nothing is sent (ANL-01).
-//   - A choice is written at once as a provisional cookie (pending marker), applied in this browser, and then sent to
-//     the server through a dynamic import, so the service and the HTTP client load only when a choice is made (PERF-01).
-//   - The server answers by setting the real cookie; this file never writes the confirmed cookie itself.
-//   - `today` is the Asia/Manila business day, never the device date (D-43).
+//   - Before a choice nothing is written and nothing is sent (ANL-01). With no cookie the answer needs no rules at all:
+//     the bar is needed (unless the browser sends GPC), so a first visit loads nothing here.
+//   - With a cookie, the rules (consentRules.ts: version, day and 12-month checks) load as their own chunk and the state
+//     is worked out again. Until then the saved choice is trusted (no bar), so a returning visitor sees no flash; a stale
+//     choice shows the bar once the rules arrive.
+//   - A choice goes through consentSave.ts, loaded only when one is made. It writes a provisional cookie (pending
+//     marker), applies the choice at once, then sends it to the server. The server sets the real cookie; this store
+//     never writes the confirmed cookie itself.
+//   - The first download holds this file and the cookie reader only (PERF-01).
 import { useSyncExternalStore } from 'react';
-import {
-  CONSENT_COOKIE_NAME,
-  formatConsentCookie,
-  isCurrentChoice,
-  needsChoice,
-  parseConsentCookie,
-  readConsentCookie,
-  type ConsentCookie,
-} from '../consentCookie';
-import { CONSENT_COPY } from '../consentCopy';
-import { LEGAL_PAGES } from '../legalPages';
-import type { ConsentRecordBody, ConsentService, ConsentSource } from '../services/consentService';
+import type { ConsentCookie } from '../consentCookie';
+import { readConsentCookie } from '../consentJar';
+import type { SaveHost } from '../consentSave';
+import type { ConsentService, ConsentSource } from '../services/consentService';
 
 export type { ConsentSource } from '../services/consentService';
 
+/** The polite status after a choice. */
+export const CONSENT_SAVED_LINE = 'Your cookie choice is saved.';
+
 export interface ConsentState {
-  /** The saved cookie as read, whether or not it still counts. */
+  /** The saved cookie as read, whether or not it still counts. Null until the rules have loaded when a cookie exists. */
   cookie: ConsentCookie | null;
   gpc: boolean;
   needsChoice: boolean;
@@ -53,8 +52,8 @@ export interface ConsentActions {
 export interface ConsentStoreOptions {
   /** The consent cookie value, or undefined. */
   readCookie: () => string | undefined;
-  /** Writes the provisional consent cookie, or removes the cookie with null. */
-  writeCookie: (value: string | null) => void;
+  /** Writes the provisional consent cookie, or removes the cookie with null. The default writes document.cookie. */
+  writeCookie?: (value: string | null) => void;
   gpc: boolean;
   /** The Asia/Manila business day as YYYY-MM-DD. */
   today?: () => string;
@@ -70,102 +69,67 @@ export interface ConsentStore extends ConsentActions {
   reconfigure: (options: ConsentStoreOptions) => void;
 }
 
-const BUSINESS_ZONE = 'Asia/Manila';
-const LIFETIME_SECONDS = 365 * 24 * 60 * 60;
-
-/** The business day (Asia/Manila) of an instant as YYYY-MM-DD; the same day the server stamps on the cookie. */
-export function manilaBusinessDay(now: Date): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: BUSINESS_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const part = (type: string): string => parts.find((entry) => entry.type === type)?.value ?? '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
-/** The `Set-Cookie` text for the provisional cookie, or for its removal (null): `__Host-` rules, 12 months. */
-export function consentCookieText(value: string | null): string {
-  const attributes = `Path=/; Secure; SameSite=Lax; Max-Age=${String(value === null ? 0 : LIFETIME_SECONDS)}`;
-  return `${CONSENT_COOKIE_NAME}=${value ?? ''}; ${attributes}`;
-}
-
-function randomConsentId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function loadConsentService(): Promise<ConsentService> {
-  return import('../services/consentService').then((module) => module.consentService);
-}
+type Rules = typeof import('../consentRules');
 
 export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let options = initial;
+  let rules: Rules | undefined;
+  let rulesLoading = false;
   let settingsOpen = false;
   let settingsOpener: HTMLElement | undefined;
   let announcement: string | null = null;
   const listeners = new Set<() => void>();
 
-  const today = (): string => (options.today ?? (() => manilaBusinessDay(new Date())))();
-  const version = (): string => options.currentVersion ?? LEGAL_PAGES.cookies.version;
-
-  function compute(): ConsentState {
-    const cookie = parseConsentCookie(options.readCookie());
-    const checks = { currentVersion: version(), today: today() };
-    const current = cookie !== null && isCurrentChoice(cookie, checks);
-    return {
-      cookie,
-      gpc: options.gpc,
-      needsChoice: needsChoice(cookie, { ...checks, gpc: options.gpc }),
-      statsAllowed: !options.gpc && current && cookie.stats === true,
-      mapAllowed: current && cookie.map,
-      settingsOpen,
-      announcement,
-    };
+  function compute(raw: string | undefined): ConsentState {
+    const shared = { gpc: options.gpc, settingsOpen, announcement };
+    if (rules === undefined) {
+      return {
+        ...shared,
+        cookie: null,
+        needsChoice: raw === undefined && !options.gpc,
+        statsAllowed: false,
+        mapAllowed: false,
+      };
+    }
+    return { ...shared, ...rules.deriveConsent(raw, options) };
   }
 
-  let state = compute();
-
-  function refresh(): void {
-    state = compute();
-    for (const listener of listeners) listener();
-  }
-
-  async function send(body: ConsentRecordBody): Promise<void> {
-    try {
-      const service = await (options.loadService ?? loadConsentService)();
-      await service.record(body);
-      refresh();
-    } catch {
-      // The choice already applies in this browser; a failed send is never shown to the visitor.
+  function update(): void {
+    const raw = options.readCookie();
+    state = compute(raw);
+    if (raw !== undefined && rules === undefined && !rulesLoading) {
+      rulesLoading = true;
+      void import('../consentRules').then((module) => {
+        rules = module;
+        update();
+        notify();
+      });
     }
   }
 
-  async function commit(choice: ConsentChoice, source: ConsentSource, announce: boolean): Promise<void> {
-    const prior = state.cookie;
-    const stats = options.gpc && choice.stats === true ? false : choice.stats;
-    const decision: ConsentCookie = {
-      consentId: prior?.consentId ?? (options.newConsentId ?? randomConsentId)(),
-      policyVersion: version(),
-      stats,
-      map: choice.map,
-      decidedOn: today(),
-      pending: true,
-    };
-    options.writeCookie(formatConsentCookie(decision));
-    if (announce) announcement = CONSENT_COPY.saved;
-    refresh();
-    await send({
-      ...(prior === null ? {} : { consentId: prior.consentId }),
-      policyVersion: decision.policyVersion,
-      stats,
-      map: choice.map,
-      source,
-    });
+  function notify(): void {
+    for (const listener of listeners) listener();
   }
 
-  const store: ConsentStore = {
+  function refresh(): void {
+    update();
+    notify();
+  }
+
+  let state: ConsentState = compute(undefined);
+  update();
+
+  const host: SaveHost = {
+    options: () => options,
+    announce: (line) => {
+      announcement = line;
+    },
+    refresh,
+  };
+
+  const loadSave = () => import('../consentSave');
+
+  return {
     getSnapshot: () => state,
     subscribe: (listener) => {
       listeners.add(listener);
@@ -180,13 +144,18 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       announcement = null;
       refresh();
     },
-    acceptAll: (source) => commit({ stats: true, map: true }, source, true),
-    rejectAll: (source) => commit({ stats: false, map: false }, source, true),
-    save: (choice, source) => commit(choice, source, true),
-    allowMaps: () => {
-      const current =
-        state.cookie !== null && isCurrentChoice(state.cookie, { currentVersion: version(), today: today() });
-      return commit({ stats: current ? (state.cookie?.stats ?? null) : null, map: true }, 'map-link', false);
+    acceptAll: async (source) => {
+      await (await loadSave()).commitChoice(host, { stats: true, map: true }, source, CONSENT_SAVED_LINE);
+    },
+    rejectAll: async (source) => {
+      await (await loadSave()).commitChoice(host, { stats: false, map: false }, source, CONSENT_SAVED_LINE);
+    },
+    save: async (choice, source) => {
+      await (await loadSave()).commitChoice(host, choice, source, CONSENT_SAVED_LINE);
+    },
+    allowMaps: async () => {
+      const save = await loadSave();
+      await save.commitChoice(host, save.mapOnlyChoice(host), 'map-link', null);
     },
     openSettings: (opener) => {
       settingsOpener = opener;
@@ -200,15 +169,10 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     },
     resendPending: () => Promise.resolve(),
   };
-  return store;
 }
 
 export const consentStore: ConsentStore = createConsentStore({
   readCookie: () => (typeof document === 'undefined' ? undefined : readConsentCookie(document.cookie)),
-  writeCookie: (value) => {
-    // The only document.cookie write on the public site before the server answers (ANL-01).
-    document.cookie = consentCookieText(value);
-  },
   gpc:
     typeof navigator !== 'undefined' &&
     (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true,
@@ -229,6 +193,7 @@ const ACTIONS: ConsentActions = {
 };
 
 export function useConsent(): ConsentState & ConsentActions {
+  'use no memo';
   const state = useSyncExternalStore(consentStore.subscribe, consentStore.getSnapshot, consentStore.getSnapshot);
   return { ...state, ...ACTIONS };
 }
