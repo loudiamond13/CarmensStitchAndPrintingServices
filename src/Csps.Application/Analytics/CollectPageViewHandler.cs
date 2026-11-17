@@ -1,5 +1,6 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Domain.Analytics;
 using Csps.Domain.Common;
 using FluentValidation;
 
@@ -31,8 +32,14 @@ public sealed class CollectPageViewHandler(IPublicPageResolver pages, IPageViewC
             return Result.Failure(ValidationResults.ToError(validation, PageViewErrors.ValidationCode, PageViewErrors.ValidationMessage));
         }
 
-        var pageKey = pages.PageKeyFor(request.Path!);
-        if (pageKey is null)
+        // A crawler, a test runner or a call with no User-Agent is not a visitor.
+        if (AnalyticsBots.IsBot(context.UserAgent))
+        {
+            return Result.Success();
+        }
+
+        // Only the pathname is kept: the query and the fragment are cut before anything else reads the path.
+        if (AnalyticsPath.Cut(request.Path) is not { } cutPath || pages.PageKeyFor(cutPath) is not { } pageKey)
         {
             return Result.Success();
         }

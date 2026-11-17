@@ -5,7 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.Analytics;
 
-/// <summary><see cref="IPageViewCounts"/> over EF: one atomic update per view, so no view is lost when many arrive at once.</summary>
+/// <summary>
+/// <see cref="IPageViewCounts"/> over EF: one atomic update per view, so no view is lost when many arrive at once. The first view of a page
+/// on a day adds the row; if another request added it first, the unique key refuses the second row and the view is added to the winner's row.
+/// </summary>
 /// <param name="context">The database context.</param>
 internal sealed class PageViewCounts(CspsDbContext context) : IPageViewCounts
 {
@@ -18,8 +21,17 @@ internal sealed class PageViewCounts(CspsDbContext context) : IPageViewCounts
             return;
         }
 
-        context.DailyPageCounts.Add(DailyPageCount.First(day, pageKey));
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var first = DailyPageCount.First(day, pageKey);
+        context.DailyPageCounts.Add(first);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException error) when (SqlErrors.Has(error, SqlErrors.UniqueKeyViolation, SqlErrors.DuplicateKey))
+        {
+            context.Entry(first).State = EntityState.Detached;
+            await AddOneAsync(day, pageKey, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private Task<int> AddOneAsync(DateOnly day, string pageKey, CancellationToken cancellationToken) =>

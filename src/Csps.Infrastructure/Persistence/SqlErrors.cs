@@ -16,6 +16,12 @@ internal static class SqlErrors
     /// <summary>The number of a transaction chosen as a deadlock victim.</summary>
     public const int DeadlockVictim = 1205;
 
+    /// <summary>The number of a primary key or unique constraint that a second row would break.</summary>
+    public const int UniqueKeyViolation = 2627;
+
+    /// <summary>The number of a unique index that a second row would break.</summary>
+    public const int DuplicateKey = 2601;
+
     /// <summary>Tells whether the error or one of its inner errors is a SQL Server error with one of the numbers.</summary>
     /// <param name="error">The caught error.</param>
     /// <param name="numbers">The SQL Server error numbers.</param>
