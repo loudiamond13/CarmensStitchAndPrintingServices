@@ -3,11 +3,13 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
+import { consentCookie, consentProbe, demoDecision, setConsent } from '@/test/consentFixtures';
+import { server } from '@/test/msw';
 import { demoSite, putBootBlock } from '@/test/publicFixtures';
-import { parseConsentCookie } from '../consentCookie';
+import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
 import { consentStore } from '../hooks/useConsent';
 import { ConsentSlot } from './ConsentSlot';
 import { SiteFooter } from './SiteFooter';
@@ -351,6 +353,141 @@ describe('opened from the cookie bar (D-34, ANL-01)', () => {
     });
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: true, map: true });
     expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Clear my cookies & data (CS1 item 5, CS2, ANL-04, D-19, D-31, D-35)', () => {
+  const NEW_CHAIN = 'fedcba9876543210fedcba9876543210';
+  const CLEAR_TITLE = 'Clear your cookies and data?';
+  const DONE =
+    "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.";
+
+  beforeEach(() => {
+    localStorage.setItem('csps-admin-theme', 'espresso');
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  /** The server answers Clear and the browser accepts its Set-Cookie for the reset decision. */
+  function clearAnswers(jar: ReturnType<typeof setSaved>) {
+    server.use(
+      http.post('*/api/v1/analytics/clear', () => {
+        jar.value = formatConsentCookie(consentCookie({ consentId: NEW_CHAIN, stats: false, map: false }));
+        return HttpResponse.json({ ...demoDecision, consentId: NEW_CHAIN, stats: false, map: false });
+      }),
+    );
+  }
+
+  function clearButton(dialog: HTMLElement): HTMLElement {
+    return within(dialog).getByRole('button', { name: 'Clear My Cookies & Data' });
+  }
+
+  it('ends the window with the Clear section after the choices', async () => {
+    setSaved({ stats: true, map: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    const heading = within(dialog).getByRole('heading', { level: 3, name: 'Clear my cookies & data' });
+    expect(
+      within(dialog).getByText(
+        "Removes this site's cookies and saved settings from this browser, and deletes the visit records linked to it on our server.",
+      ),
+    ).toBeInTheDocument();
+    expect(clearButton(dialog)).toBeInTheDocument();
+    const group = within(dialog).getByRole('group', { name: 'Your choices' });
+    expect(group.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(footerOf(dialog).contains(heading)).toBe(false);
+  });
+
+  it('opens the confirmation with focus on Keep My Data, and Keep My Data closes it and returns focus to the button', async () => {
+    setSaved({ stats: true, map: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    await userEvent.click(clearButton(dialog));
+    const confirm = await screen.findByRole('dialog', { name: CLEAR_TITLE });
+    expect(within(confirm).getByRole('button', { name: 'Keep My Data' })).toHaveFocus();
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Keep My Data' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: CLEAR_TITLE })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('dialog', { name: 'Cookie Settings' })).toBeInTheDocument();
+    expect(clearButton(dialog)).toHaveFocus();
+    expect(localStorage.getItem('csps-admin-theme')).toBe('espresso');
+  });
+
+  it('after Clear My Data closes the confirmation, keeps the window open with both boxes unticked, returns focus and says Done', async () => {
+    const jar = setSaved({ stats: true, map: true });
+    clearAnswers(jar);
+    renderPage();
+    const dialog = await openWindow();
+    expect(box(dialog, 'Visitor stats')).toBeChecked();
+    expect(box(dialog, 'Google map')).toBeChecked();
+
+    await userEvent.click(clearButton(dialog));
+    const confirm = await screen.findByRole('dialog', { name: CLEAR_TITLE });
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Clear My Data' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: CLEAR_TITLE })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('dialog', { name: 'Cookie Settings' })).toBeInTheDocument();
+    expect(box(dialog, 'Visitor stats')).not.toBeChecked();
+    expect(box(dialog, 'Google map')).not.toBeChecked();
+    expect(clearButton(dialog)).toHaveFocus();
+    expect(within(dialog).getByRole('status')).toHaveTextContent(DONE);
+    expect(localStorage.length).toBe(0);
+    expect(parseConsentCookie(jar.value)).toMatchObject({ consentId: NEW_CHAIN, stats: false, map: false });
+    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
+  });
+
+  it('shows no Done line before Clear is pressed, and none after a failed clear', async () => {
+    setSaved({ stats: true, map: true });
+    server.use(http.post('*/api/v1/analytics/clear', () => HttpResponse.error()));
+    renderPage();
+    const dialog = await openWindow();
+    expect(within(dialog).queryByText(DONE)).not.toBeInTheDocument();
+
+    await userEvent.click(clearButton(dialog));
+    const confirm = await screen.findByRole('dialog', { name: CLEAR_TITLE });
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Clear My Data' }));
+
+    expect(await within(confirm).findByRole('alert')).toHaveTextContent(
+      "Couldn't clear your data. Check your internet connection and try again.",
+    );
+    expect(within(dialog).queryByText(DONE)).not.toBeInTheDocument();
+    expect(box(dialog, 'Visitor stats')).toBeChecked();
+    expect(localStorage.getItem('csps-admin-theme')).toBe('espresso');
+  });
+
+  it('still offers the Clear section under Global Privacy Control', async () => {
+    setConsent({ cookie: null, gpc: true });
+    renderPage();
+    const dialog = await openWindow();
+
+    expect(clearButton(dialog)).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the section, with the confirmation open and after Done', async () => {
+    const jar = setSaved({ stats: true, map: true });
+    clearAnswers(jar);
+    const { container } = renderPage();
+    const dialog = await openWindow();
+    await expectNoAxeViolations(container);
+
+    await userEvent.click(clearButton(dialog));
+    const confirm = await screen.findByRole('dialog', { name: CLEAR_TITLE });
+    await expectNoAxeViolations(container);
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Clear My Data' }));
+    await waitFor(() => {
+      expect(within(dialog).getByRole('status')).toHaveTextContent(DONE);
+    });
+
+    await expectNoAxeViolations(container);
   });
 });
 

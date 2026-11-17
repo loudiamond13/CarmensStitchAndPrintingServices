@@ -42,3 +42,38 @@ describe('consentService.record', () => {
     expect(isHttpError(error) && error.status === 409 && error.code === 'consent.policy-changed').toBe(true);
   });
 });
+
+describe('consentService.clear', () => {
+  it('calls POST /api/v1/analytics/clear once with no body and resolves the typed answer', async () => {
+    const fake = createFakeFetch([{ body: { ...demoDecision, stats: false, map: false } }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const answer = await createConsentService(client).clear();
+
+    expect(answer).toEqual({ ...demoDecision, stats: false, map: false });
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/analytics/clear');
+    expect(fake.calls[0]?.body).toBeUndefined();
+  });
+
+  it('rejects with an HttpError that carries the 429 status when the clear limit is hit', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 429,
+        headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '30' },
+        body: { title: 'Too many tries. Wait a minute and try again.', status: 429, code: 'rate-limited' },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch, retry: { max: 0 } });
+
+    const error = await createConsentService(client)
+      .clear()
+      .then(
+        () => undefined,
+        (failure: unknown) => failure,
+      );
+
+    expect(isHttpError(error) && error.status === 429).toBe(true);
+  });
+});
