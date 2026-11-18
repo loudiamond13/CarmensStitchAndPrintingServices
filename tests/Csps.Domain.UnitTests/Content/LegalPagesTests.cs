@@ -73,9 +73,12 @@ public sealed partial class LegalPagesTests
     }
 
     [Fact]
-    public void EveryPageIsStillADraftUntilTheOwnerApprovesIt()
+    public void EveryPageIsApprovedAtVersionOnePointZeroOnTheOwnersDate()
     {
-        LegalPages.All.ShouldAllBe(page => !page.Approved);
+        // The owner approved all four pages on 2026-11-18.
+        LegalPages.All.ShouldAllBe(page => page.Approved);
+        LegalPages.All.ShouldAllBe(page => page.Version == "1.0");
+        LegalPages.All.ShouldAllBe(page => page.LastUpdated == new DateOnly(2026, 11, 18));
     }
 
     [GeneratedRegex(@"^[0-9]+\.[0-9]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]

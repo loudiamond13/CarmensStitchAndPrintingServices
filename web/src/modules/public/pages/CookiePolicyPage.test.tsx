@@ -126,7 +126,7 @@ describe('CookiePolicyPage sections (LEGAL-02)', { timeout: 20_000 }, () => {
 
   it('shows the version line with the consent policy version', async () => {
     await renderCookies();
-    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Version 1.0 · Last updated Nov 18, 2026')).toBeInTheDocument();
   });
 });
 

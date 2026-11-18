@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { consentCookie, consentProbe, demoDecision, FAKE_CONSENT_ID, setConsent } from '@/test/consentFixtures';
 import { server } from '@/test/msw';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
+import { COOKIE_POLICY_VERSION } from '../consentPolicy';
 import { manilaBusinessDay } from '../consentRules';
 import { consentCookieText, writeBrowserCookie } from '../consentSave';
 import { consentStore, createConsentStore, resetConsentStore, useConsent } from './useConsent';
@@ -113,7 +114,7 @@ describe('Accept All (D-17, ANL-07)', () => {
         stats: true,
         map: true,
         pending: true,
-        policyVersion: '0.1',
+        policyVersion: COOKIE_POLICY_VERSION,
       });
     });
     await waitFor(() => {
@@ -125,7 +126,7 @@ describe('Accept All (D-17, ANL-07)', () => {
 
     await saving;
     expect(probe.requests).toEqual([
-      { body: { policyVersion: '0.1', stats: true, map: true, source: 'bar' }, csrf: '1' },
+      { body: { policyVersion: COOKIE_POLICY_VERSION, stats: true, map: true, source: 'bar' }, csrf: '1' },
     ]);
   });
 
@@ -178,7 +179,12 @@ describe('Reject All (D-16, D-17)', () => {
     await result.current.rejectAll('bar');
 
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: false, map: false, pending: true });
-    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: false, map: false, source: 'bar' });
+    expect(probe.requests[0]?.body).toEqual({
+      policyVersion: COOKIE_POLICY_VERSION,
+      stats: false,
+      map: false,
+      source: 'bar',
+    });
     expect(result.current.needsChoice).toBe(false);
     expect(result.current.statsAllowed).toBe(false);
     expect(result.current.announcement).toBe('Your cookie choice is saved.');
@@ -307,7 +313,12 @@ describe('Save with a chosen mix (settings window)', () => {
     await result.current.save({ stats: true, map: false }, 'settings');
 
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: true, map: false, pending: true });
-    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: true, map: false, source: 'settings' });
+    expect(probe.requests[0]?.body).toEqual({
+      policyVersion: COOKIE_POLICY_VERSION,
+      stats: true,
+      map: false,
+      source: 'settings',
+    });
     expect(result.current.needsChoice).toBe(false);
     expect(result.current.announcement).toBe('Your cookie choice is saved.');
   });
@@ -358,7 +369,7 @@ describe('a failed save keeps the choice (UI-SPEC error, ANL-07)', () => {
     expect(calls).toBe(2);
     expect(bodies[1]).toEqual({
       consentId: provisional?.consentId,
-      policyVersion: '0.1',
+      policyVersion: COOKIE_POLICY_VERSION,
       stats: true,
       map: true,
       source: 'bar',
@@ -484,7 +495,12 @@ describe('Always show maps (D-18)', () => {
     await result.current.allowMaps();
 
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: null, map: true, pending: true });
-    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: null, map: true, source: 'map-link' });
+    expect(probe.requests[0]?.body).toEqual({
+      policyVersion: COOKIE_POLICY_VERSION,
+      stats: null,
+      map: true,
+      source: 'map-link',
+    });
     expect(result.current.mapAllowed).toBe(true);
     expect(result.current.statsAllowed).toBe(false);
     expect(result.current.needsChoice).toBe(true);
@@ -510,7 +526,12 @@ describe('Always show maps (D-18)', () => {
     await result.current.allowMaps();
 
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: null, map: true });
-    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: null, map: true, source: 'map-link' });
+    expect(probe.requests[0]?.body).toEqual({
+      policyVersion: COOKIE_POLICY_VERSION,
+      stats: null,
+      map: true,
+      source: 'map-link',
+    });
     expect(result.current.mapAllowed).toBe(true);
     expect(result.current.statsAllowed).toBe(false);
     expect(result.current.needsChoice).toBe(false);

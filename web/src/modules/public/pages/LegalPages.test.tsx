@@ -1,5 +1,5 @@
-// SPEC-GAP: LEGAL-05, D-14. The legal pages open inside the public layout with the DRAFT notice, the crumbs, the eyebrow, the h1
-// with its accent word, the version line and the lead (UI-SPEC L1).
+// SPEC-GAP: LEGAL-05, D-14. The legal pages open inside the public layout with the crumbs, the eyebrow, the h1 with its accent
+// word, the version line and the lead (UI-SPEC L1). The four pages are approved, so the DRAFT notice is tested on a draft meta.
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { inStrictMode } from '@/test/strictMode';
 import { LegalPage } from '../components/LegalPage';
-import { LEGAL_PAGES } from '../legalPages';
+import { LEGAL_PAGES, type LegalPageMeta } from '../legalPages';
+
+const VERSION_LINE = 'Version 1.0 · Last updated Nov 18, 2026';
 
 /** The real route tree at a legal path, settled once the h1 is on screen. */
 async function renderLegal(path: string, name: string) {
@@ -31,25 +33,18 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01, LEGAL-05, D-14)', { timeout: 
     ).toBeInTheDocument();
   });
 
-  it('shows the DRAFT notice above the crumbs while the page is not approved', async () => {
+  it('shows no DRAFT notice now the page is approved, and "Home / Privacy Policy" in the crumbs', async () => {
     await renderLegal('/privacy', 'Privacy policy.');
-    const notice = screen.getByText('Draft: this text is not final yet.');
-    expect(screen.getByText("It may change before it's approved.")).toBeInTheDocument();
+    expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
+    expect(screen.queryByText("It may change before it's approved.")).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(notice.compareDocumentPosition(crumbs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(crumbs).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(within(crumbs).getByText('Privacy Policy')).toHaveAttribute('aria-current', 'page');
   });
 
-  it('does not make the notice a live region', async () => {
-    await renderLegal('/privacy', 'Privacy policy.');
-    const label = screen.getByText('Draft: this text is not final yet.');
-    expect(label.closest('[role="alert"], [role="status"], [aria-live]')).toBeNull();
-  });
-
   it('shows the version line exactly, after the h1 and before the lead', async () => {
     await renderLegal('/privacy', 'Privacy policy.');
-    const version = screen.getByText('Version 0.1 · Last updated Nov 15, 2026');
+    const version = screen.getByText(VERSION_LINE);
     const h1 = screen.getByRole('heading', { level: 1 });
     const lead = screen.getByText(/^How we collect, use and protect/);
     expect(h1.compareDocumentPosition(version) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -82,9 +77,9 @@ const PAGES = [
 ] as const;
 
 describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout: 20_000 }, (page) => {
-  it('shows the DRAFT notice, "Home / crumb", the eyebrow, one h1 with its accent word and the version line', async () => {
+  it('shows no DRAFT notice, then "Home / crumb", the eyebrow, one h1 with its accent word and the version line', async () => {
     await renderLegal(page.path, page.h1);
-    expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+    expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
     expect(within(crumbs).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     expect(within(crumbs).getByText(page.crumb)).toHaveAttribute('aria-current', 'page');
@@ -92,7 +87,7 @@ describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout
     const headings = screen.getAllByRole('heading', { level: 1 });
     expect(headings).toHaveLength(1);
     expect(headings[0]?.querySelector('em')).toHaveTextContent(page.accent);
-    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+    expect(screen.getByText(VERSION_LINE)).toBeInTheDocument();
   });
 
   it('sets the document title the server sends', async () => {
@@ -103,33 +98,53 @@ describe.each(PAGES)('the legal page at $path (LEGAL-01 to LEGAL-05)', { timeout
   it('shows the same head under StrictMode, whether the render is cached or fresh', async () => {
     await inStrictMode(async () => {
       await renderLegal(page.path, page.h1);
-      expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+      expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
       expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-      expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+      expect(screen.getByText(VERSION_LINE)).toBeInTheDocument();
       expect(document.title).toBe(`${page.crumb} · CSPS`);
     });
   });
 });
 
-describe('LegalPage for an approved page (LEGAL-05, D-14)', () => {
+function renderMeta(page: LegalPageMeta) {
+  return render(
+    <MemoryRouter>
+      <LegalPage page={page} />
+    </MemoryRouter>,
+  );
+}
+
+describe('LegalPage for an approved and a draft page (LEGAL-05, D-14)', () => {
+  /** The Privacy Policy as a draft, built here because every real page is approved. */
+  const DRAFT_PRIVACY: LegalPageMeta = { ...LEGAL_PAGES.privacy, approved: false };
+
   it('shows no DRAFT notice and still shows the version line', () => {
-    render(
-      <MemoryRouter>
-        <LegalPage page={{ ...LEGAL_PAGES.terms, approved: true }} />
-      </MemoryRouter>,
-    );
+    renderMeta(LEGAL_PAGES.terms);
+    expect(LEGAL_PAGES.terms.approved).toBe(true);
     expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
     expect(screen.queryByText("It may change before it's approved.")).not.toBeInTheDocument();
-    expect(screen.getByText('Version 0.1 · Last updated Nov 15, 2026')).toBeInTheDocument();
+    expect(screen.getByText(VERSION_LINE)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Terms of use.' })).toBeInTheDocument();
   });
 
   it('shows the notice again for the same page while it is not approved', () => {
-    render(
-      <MemoryRouter>
-        <LegalPage page={LEGAL_PAGES.terms} />
-      </MemoryRouter>,
-    );
+    renderMeta({ ...LEGAL_PAGES.terms, approved: false });
     expect(screen.getByText('Draft: this text is not final yet.')).toBeInTheDocument();
+  });
+
+  it('shows the DRAFT notice above the crumbs while the page is not approved', () => {
+    renderMeta(DRAFT_PRIVACY);
+    const notice = screen.getByText('Draft: this text is not final yet.');
+    expect(screen.getByText("It may change before it's approved.")).toBeInTheDocument();
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(notice.compareDocumentPosition(crumbs) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(crumbs).getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(within(crumbs).getByText('Privacy Policy')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('does not make the notice a live region', () => {
+    renderMeta(DRAFT_PRIVACY);
+    const label = screen.getByText('Draft: this text is not final yet.');
+    expect(label.closest('[role="alert"], [role="status"], [aria-live]')).toBeNull();
   });
 });

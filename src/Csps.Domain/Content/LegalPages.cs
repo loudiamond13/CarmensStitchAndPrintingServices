@@ -15,16 +15,16 @@ public sealed record LegalPageFacts(string Key, string Path, string Version, Dat
 public static class LegalPages
 {
     /// <summary>Gets the Privacy Policy.</summary>
-    public static LegalPageFacts Privacy { get; } = new("privacy", "/privacy", "0.1", new DateOnly(2026, 11, 15), Approved: false);
+    public static LegalPageFacts Privacy { get; } = new("privacy", "/privacy", "1.0", new DateOnly(2026, 11, 18), Approved: true);
 
     /// <summary>Gets the Cookie Policy.</summary>
-    public static LegalPageFacts Cookies { get; } = new("cookies", "/cookies", "0.1", new DateOnly(2026, 11, 15), Approved: false);
+    public static LegalPageFacts Cookies { get; } = new("cookies", "/cookies", "1.0", new DateOnly(2026, 11, 18), Approved: true);
 
     /// <summary>Gets the Terms of Use.</summary>
-    public static LegalPageFacts Terms { get; } = new("terms", "/terms", "0.1", new DateOnly(2026, 11, 15), Approved: false);
+    public static LegalPageFacts Terms { get; } = new("terms", "/terms", "1.0", new DateOnly(2026, 11, 18), Approved: true);
 
     /// <summary>Gets the Accessibility Statement.</summary>
-    public static LegalPageFacts Accessibility { get; } = new("accessibility", "/accessibility", "0.1", new DateOnly(2026, 11, 15), Approved: false);
+    public static LegalPageFacts Accessibility { get; } = new("accessibility", "/accessibility", "1.0", new DateOnly(2026, 11, 18), Approved: true);
 
     /// <summary>Gets all four pages, in route order.</summary>
     public static IReadOnlyList<LegalPageFacts> All { get; } = [Privacy, Cookies, Terms, Accessibility];
