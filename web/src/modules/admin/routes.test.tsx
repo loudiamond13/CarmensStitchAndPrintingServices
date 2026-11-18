@@ -721,6 +721,8 @@ function visitorStatsBackend(): URL[] {
         to: '2026-11-15',
         cutDate: '2025-10-15',
         totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+        bucket: 'day',
+        trend: [{ start: '2026-11-15', pageViews: 12, uniqueVisitors: 4 }],
       });
     }),
   );
