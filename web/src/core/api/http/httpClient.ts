@@ -224,8 +224,8 @@ function buildUrl(baseURL: string, request: HttpRequest): string {
 const jsonContentType = /^application\/(?:problem\+)?json\s*(?:;|$)/i;
 const csvContentType = /^text\/csv\s*(?:;|$)/i;
 
-function isJson(headers: Headers): boolean {
-  return jsonContentType.test(headers.get('Content-Type') ?? '');
+function hasType(headers: Headers, type: RegExp): boolean {
+  return type.test(headers.get('Content-Type') ?? '');
 }
 
 function isUnauthorized(error: unknown): error is HttpError {
@@ -357,7 +357,7 @@ const noContentStatuses: ReadonlySet<number> = new Set([202, 204, 205]);
 /** Turns a received answer into the response data, or throws an HttpError. */
 function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean): HttpResponse {
   const { status, headers, text } = raw;
-  const json = isJson(headers);
+  const json = hasType(headers, jsonContentType);
   if (status < 200 || status > 299) {
     let problem;
     if (json) {
@@ -374,7 +374,7 @@ function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean): H
   }
   // The API never redirects and answers with JSON or 204, or text/csv when asked. A followed redirect, an empty body or a
   // body of another type is a captive portal, a proxy or a host page, never the DTO the caller typed (LIB-WR-05).
-  if (raw.redirected || text === '' || !(asCsv ? csvContentType.test(headers.get('Content-Type') ?? '') : json)) {
+  if (raw.redirected || text === '' || !(asCsv ? hasType(headers, csvContentType) : json)) {
     throw new HttpError({ kind: 'parse', status });
   }
   if (asCsv) {
