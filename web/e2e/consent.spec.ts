@@ -202,7 +202,8 @@ test('@consent Clear my cookies & data removes the visitor id and storage, leave
 
   await page.keyboard.press('Escape');
   await expect(settings).toHaveCount(0);
-  await openQuietly(page, '/terms');
+  // A /terms view is counted for everyone, and the Visitor Stats spec reads that row, so it is opened under the site content lock.
+  await withSiteContentLock(() => openQuietly(page, '/terms'));
   await expect(bar(page)).toHaveCount(0);
   expect(await cookieNamed(context, VISITOR_COOKIE)).toBeUndefined();
 });

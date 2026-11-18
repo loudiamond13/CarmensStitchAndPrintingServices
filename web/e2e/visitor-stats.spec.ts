@@ -10,7 +10,7 @@ import type { APIRequestContext, Locator, Page, Request, Response } from '@playw
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, guardContext, test, type Guard } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
-import { ensureDemoSiteContent, isDemoSeeded } from './site-content-lock.ts';
+import { ensureDemoSiteContent, isDemoSeeded, withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedAnalytics, type AnalyticsSeedDay } from './testing-api.ts';
 
 const STATS = '/admin/visitor-stats';
@@ -201,7 +201,8 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
   request,
   guard,
 }) => {
-  test.setTimeout(180_000);
+  // The site content lock can take up to 6 minutes to get (the sweep and consent specs hold it while they open /terms).
+  test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   await signInAs(page, request, await createStaff(request, 'Manager'));
   expect(
@@ -209,12 +210,15 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
     'the staff marker is set',
   ).toBe(true);
 
-  // Terms of Use: the one page no other visitor stats journey opens, so its row moves only if this view is counted.
-  await openStats(page);
-  const before = await listCount(page, 'Most viewed pages', 'Terms of Use');
-  await openCounted(page, '/terms');
-  await openStats(page);
-  expect(await listCount(page, 'Most viewed pages', 'Terms of Use')).toBe(before);
+  // Terms of Use: the Terms sweep and the consent journey also open it, and a visitor view of it is counted. Every spec that opens
+  // /terms does so under the site content lock, so under it the row moves only if this Manager's view is counted.
+  await withSiteContentLock(async () => {
+    await openStats(page);
+    const before = await listCount(page, 'Most viewed pages', 'Terms of Use');
+    await openCounted(page, '/terms');
+    await openStats(page);
+    expect(await listCount(page, 'Most viewed pages', 'Terms of Use')).toBe(before);
+  });
 });
 
 test('@visitor-stats an Admin who opens Visitor Stats lands on /admin and the menu has no Visitor Stats item', async ({
