@@ -1,9 +1,10 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
@@ -32,10 +33,33 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
 
 type Responder = (url: URL) => VisitorStatsResponse | Response | Promise<VisitorStatsResponse | Response>;
 
+/** The business today the server gives (D-59): the one small orders call useBusinessToday makes. */
+const TODAY = '2026-11-15';
+
+/** The range each preset resolves to on the server, for TODAY. */
+const RESOLVED: Readonly<Record<string, readonly [string, string]>> = {
+  'last-7-days': ['2026-11-09', TODAY],
+  'last-30-days': ['2026-10-17', TODAY],
+  'this-month': ['2026-11-01', TODAY],
+  'last-month': ['2026-10-01', '2026-10-31'],
+  'this-year': ['2026-01-01', TODAY],
+};
+
+/** Answers as the server does: the range it read, with the dates it resolved. */
+function echo(url: URL): VisitorStatsResponse {
+  const range = url.searchParams.get('range') ?? 'last-30-days';
+  if (range === 'custom') {
+    return statsAnswer({}, { range, from: url.searchParams.get('from') ?? '', to: url.searchParams.get('to') ?? '' });
+  }
+  const [from, to] = RESOLVED[range] ?? RESOLVED['last-30-days'] ?? ['', ''];
+  return statsAnswer({}, { range, from, to });
+}
+
 /** The fake stats API; returns the calls it answered. */
 function backend(respond: VisitorStatsResponse | Responder = statsAnswer()): { calls: URL[] } {
   const calls: URL[] = [];
   server.use(
+    http.get('*/api/v1/orders', () => HttpResponse.json({ items: [], page: 1, pageSize: 1, total: 0, today: TODAY })),
     http.get('*/api/v1/visitor-stats', async ({ request }) => {
       const url = new URL(request.url);
       calls.push(url);
@@ -221,6 +245,248 @@ describe('V1 the KPI row', () => {
   it('has no axe violations with the figures shown', async () => {
     backend(statsAnswer({ uniqueVisitors: null, visits: null }));
     const { container } = await openPage();
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+/** The last stats request's query, as an object. */
+function lastQuery(calls: URL[]): Record<string, string> {
+  return Object.fromEntries(calls.at(-1)?.searchParams ?? []);
+}
+
+type UrlUpdateSpy = ReturnType<typeof vi.fn<OnUrlUpdateFunction>>;
+
+function lastUrl(onUrlUpdate: UrlUpdateSpy): string | undefined {
+  return onUrlUpdate.mock.calls.at(-1)?.[0].queryString;
+}
+
+function rangeSelect(): HTMLElement {
+  return screen.getByLabelText('Date range');
+}
+
+describe('V1 the date range toolbar (D-24, WEB-10)', () => {
+  it('offers the five server presets and Custom range in a Date range select, with Last 30 days chosen', async () => {
+    backend(echo);
+    await openPage();
+
+    expect(
+      within(rangeSelect())
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Last 7 days', 'Last 30 days', 'This month', 'Last month', 'This year', 'Custom range']);
+    expect(rangeSelect()).toHaveValue('last-30-days');
+  });
+
+  it.each([
+    ['Last 7 days', 'last-7-days', 'Nov 9 to Nov 15, 2026'],
+    ['This month', 'this-month', 'Nov 1 to Nov 15, 2026'],
+    ['Last month', 'last-month', 'Oct 1 to Oct 31, 2026'],
+    ['This year', 'this-year', 'Jan 1 to Nov 15, 2026'],
+  ])('choosing %s writes ?range=%s with replace and asks the server for it by name', async (label, range, dates) => {
+    const { calls } = backend(echo);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+
+    await user.selectOptions(rangeSelect(), label);
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toEqual({ range });
+    });
+    expect(lastUrl(onUrlUpdate)).toBe(`?range=${range}`);
+    expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
+    expect(
+      await screen.findByText(`${dates} · Visits to the public website. Staff signed in to admin aren't counted.`),
+    ).toBeInTheDocument();
+  });
+
+  it('choosing Last 30 days again takes the range out of the URL', async () => {
+    const { calls } = backend(echo);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('?range=this-year', onUrlUpdate);
+    expect(lastQuery(calls)).toEqual({ range: 'this-year' });
+
+    await user.selectOptions(rangeSelect(), 'Last 30 days');
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('');
+    });
+    await waitFor(() => {
+      expect(lastQuery(calls)).toEqual({ range: 'last-30-days' });
+    });
+  });
+
+  it.each(['forever', 'today'])('an unknown ?range=%s falls back to Last 30 days', async (range) => {
+    const { calls } = backend(echo);
+    await openPage(`?range=${range}`);
+
+    expect(rangeSelect()).toHaveValue('last-30-days');
+    expect(lastQuery(calls)).toEqual({ range: 'last-30-days' });
+  });
+
+  it('Custom range shows From and To bounded by the 3-year floor and the business today, and keeps the last range', async () => {
+    const { calls } = backend(echo);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('?range=this-year', onUrlUpdate);
+    expect(screen.queryByLabelText('From')).toBeNull();
+
+    await user.selectOptions(rangeSelect(), 'Custom range');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('From')).toHaveAttribute('min', '2023-11-15');
+    });
+    const from = screen.getByLabelText('From');
+    const to = screen.getByLabelText('To');
+    expect(from).toHaveAttribute('type', 'date');
+    expect(from).toHaveAttribute('max', TODAY);
+    expect(to).toHaveAttribute('min', '2023-11-15');
+    expect(to).toHaveAttribute('max', TODAY);
+    expect(lastUrl(onUrlUpdate)).toBe('?range=custom');
+    expect(screen.queryByText('Enter a start date.')).toBeNull();
+    expect(screen.queryByText('Enter an end date.')).toBeNull();
+    expect(calls).toHaveLength(1);
+    expect(
+      screen.getByText(
+        "Jan 1 to Nov 15, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('applies a custom range only once both dates are valid', async () => {
+    const { calls } = backend(echo);
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    const user = userEvent.setup();
+    await openPage('', onUrlUpdate);
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-01-05' } });
+    expect(lastUrl(onUrlUpdate)).toBe('?range=custom');
+    expect(calls).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-02-04' } });
+
+    await waitFor(() => {
+      expect(lastUrl(onUrlUpdate)).toBe('?from=2026-01-05&range=custom&to=2026-02-04');
+    });
+    await waitFor(() => {
+      expect(lastQuery(calls)).toEqual({ range: 'custom', from: '2026-01-05', to: '2026-02-04' });
+    });
+    expect(
+      await screen.findByText(
+        "Jan 5 to Feb 4, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('a shared link with a custom range reopens with the dates filled and asks for them', async () => {
+    const { calls } = backend(echo);
+    renderPage('?range=custom&from=2026-01-05&to=2026-02-04');
+
+    await waitFor(() => {
+      expect(lastQuery(calls)).toEqual({ range: 'custom', from: '2026-01-05', to: '2026-02-04' });
+    });
+    expect(screen.getByLabelText('From')).toHaveValue('2026-01-05');
+    expect(screen.getByLabelText('To')).toHaveValue('2026-02-04');
+    expect(calls).toHaveLength(1);
+  });
+
+  it('says "Enter a start date." and "Enter an end date." under the date that is missing, once touched', async () => {
+    backend(echo);
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+    expect(await screen.findByText('Enter a start date.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-01' } });
+
+    expect(await screen.findByText('Enter an end date.')).toBeInTheDocument();
+  });
+
+  it('says "The start date must be on or before the end date." and keeps the last applied range', async () => {
+    const { calls } = backend(echo);
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-01' } });
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-10-05' } });
+
+    expect(await screen.findByText('The start date must be on or before the end date.')).toBeInTheDocument();
+    expect(calls).toHaveLength(1);
+    expect(lastQuery(calls)).toEqual({ range: 'last-30-days' });
+    expect(screen.getByText('4,567')).toBeInTheDocument();
+  });
+
+  it('says "Choose a date from Nov 15, 2023 to today." for a date before the 3-year floor', async () => {
+    const { calls } = backend(echo);
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2023-11-14' } });
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+
+    expect(await screen.findByText('Choose a date from Nov 15, 2023 to today.')).toBeInTheDocument();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('keeps the last figures on screen under aria-busy while a new range loads', async () => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    backend(async (url) => {
+      if (url.searchParams.get('range') === 'this-year') await held;
+      return url.searchParams.get('range') === 'this-year' ? statsAnswer({ pageViews: 9999 }) : statsAnswer();
+    });
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.selectOptions(rangeSelect(), 'This year');
+
+    await waitFor(() => {
+      expect(screen.getByText('Loading the visitor stats…')).toBeInTheDocument();
+    });
+    const region = screen.getByText('4,567').closest('[aria-busy="true"]');
+    expect(region).not.toBeNull();
+    expect(region?.querySelector('[data-kpi-value]')).not.toBeNull();
+    release();
+    expect(await screen.findByText('9,999')).toBeInTheDocument();
+    expect(screen.queryByText('4,567')).toBeNull();
+  });
+
+  it('puts the toolbar under the title up to 1023px and each control on its own full-width row on phones', async () => {
+    backend(echo);
+    const user = userEvent.setup();
+    await openPage();
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+
+    const toolbar = rangeSelect().closest(`div.${CSS.escape('pg-phone:flex-col')}`);
+    expect(toolbar).not.toBeNull();
+    const classes = toolbar?.className.split(/\s+/) ?? [];
+    expect(classes).toEqual(expect.arrayContaining(['flex-wrap', 'pg-lt-lg:w-full', 'pg-phone:*:w-full']));
+    expect(toolbar).toContainElement(screen.getByLabelText('From'));
+    expect(toolbar).toContainElement(screen.getByLabelText('To'));
+  });
+
+  it('has no axe violations with Custom range open and a message shown', async () => {
+    backend(echo);
+    const user = userEvent.setup();
+    const { container } = await openPage();
+    await user.selectOptions(rangeSelect(), 'Custom range');
+    await screen.findByLabelText('From');
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-12' } });
+    await screen.findByText('Enter a start date.');
 
     await expectNoAxeViolations(container);
   });
