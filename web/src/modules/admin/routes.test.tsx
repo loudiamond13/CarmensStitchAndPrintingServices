@@ -724,6 +724,9 @@ function visitorStatsBackend(): URL[] {
         bucket: 'day',
         trend: [{ start: '2026-11-15', pageViews: 12, uniqueVisitors: 4 }],
         topPages: [{ name: 'home', count: 12, share: 100 }],
+        referrers: [],
+        devices: [],
+        browsers: [],
       });
     }),
   );

@@ -46,6 +46,9 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
       { name: 'contact', count: 200, share: 18 },
       { name: 'not-found', count: 172, share: 16 },
     ],
+    referrers: [],
+    devices: [],
+    browsers: [],
     ...rest,
   };
 }

@@ -14,6 +14,9 @@ const answer: VisitorStatsResponse = {
   bucket: 'day',
   trend: [{ start: '2026-10-17', pageViews: 3, uniqueVisitors: 2 }],
   topPages: [{ name: 'gallery', count: 412, share: 100 }],
+  referrers: [],
+  devices: [],
+  browsers: [],
 };
 
 afterEach(() => {
