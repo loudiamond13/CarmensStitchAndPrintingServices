@@ -32,6 +32,7 @@ const SECTIONS = [
   'Order photos',
   'Dashboard and staff money',
   'Site content and public website',
+  'Visitor stats',
 ];
 
 /**
