@@ -261,3 +261,29 @@ export async function seedDemoSiteContent(request: APIRequestContext): Promise<v
   const response = await request.post('/api/testing/site-content');
   expect(response.status(), 'POST /api/testing/site-content').toBe(204);
 }
+
+/** One visit of a seeded day: its source, device class, browser and OS labels and how many pages it saw (1 to 20). */
+export interface AnalyticsSeedVisit {
+  readonly referrer: string;
+  readonly device: 'Phone' | 'Tablet' | 'Computer' | 'Other';
+  readonly browser: string;
+  readonly os: string;
+  readonly pageViews: number;
+}
+
+/** One page on one business day. `offsetDays` counts from the business today: 0 is today, -1 yesterday. */
+export interface AnalyticsSeedDay {
+  readonly offsetDays: number;
+  readonly pageKey: string;
+  readonly views: number;
+  readonly visits?: readonly AnalyticsSeedVisit[];
+}
+
+/**
+ * Replaces the visitor stats on the given business days (POST /api/testing/analytics, plan 12-30). Days over 13 months ago get the
+ * daily counts only, as the retention job leaves them; newer days get raw visits too.
+ */
+export async function seedAnalytics(request: APIRequestContext, days: readonly AnalyticsSeedDay[]): Promise<void> {
+  const response = await request.post('/api/testing/analytics', { data: { days } });
+  expect(response.status(), 'POST /api/testing/analytics').toBe(204);
+}

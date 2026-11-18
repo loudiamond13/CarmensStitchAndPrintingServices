@@ -79,7 +79,7 @@ public sealed class TestingAnalyticsTests(CspsDatabase database) : IClassFixture
         seed.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         await using var context = database.CreateContext();
         (await context.DailyPageCounts.AsNoTracking().SingleAsync(row => row.BusinessDay == day, TestContext.Current.CancellationToken)).Views.ShouldBe(9);
-        var visits = await context.AnalyticsVisits.AsNoTracking().Where(row => row.BusinessDay == day).OrderBy(row => row.Referrer).ThenBy(row => row.Browser).ToListAsync(TestContext.Current.CancellationToken);
+        var visits = await context.AnalyticsVisits.AsNoTracking().Where(row => row.BusinessDay == day).OrderBy(row => row.Referrer).ThenBy(row => row.Browser).ThenBy(row => row.PageViews).ToListAsync(TestContext.Current.CancellationToken);
         visits.Select(row => $"{row.Referrer}|{row.Device}|{row.Browser}|{row.Os}|{row.PageViews}").ShouldBe(
             ["Direct|Computer|Firefox|Windows|1", "Facebook|Phone|Chrome|Android|2", "Facebook|Phone|Chrome|Android|3"]);
         visits.Select(row => Convert.ToHexString(row.VisitorHash)).Distinct().Count().ShouldBe(3);

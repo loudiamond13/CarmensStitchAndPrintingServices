@@ -19,6 +19,9 @@ public static class AnalyticsRegistration
         services.AddSingleton<AnalyticsSaltCache>();
         services.AddScoped<IAnalyticsSalts, AnalyticsSalts>();
         services.AddScoped<IVisitorStatsReader, VisitorStatsReader>();
+#if CSPS_TESTING
+        services.AddScoped<TestingAnalyticsSeeder>();
+#endif
         return services;
     }
 }
