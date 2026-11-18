@@ -166,6 +166,77 @@ public sealed class GetVisitorStatsHandlerTests
         (result.Value.Trend[0].Start, result.Value.Trend[^1].Start).ShouldBe(("2026-10-17", "2026-11-15"));
     }
 
+    [Fact]
+    public async Task ThisYearHasOneMonthBucketPerMonthWithTheStoreCountsOnTheirMonths()
+    {
+        var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2026, 3, 1), 40, 7)]);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("this-year"), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe("month");
+        result.Value.Trend.Select(static b => b.Start).ShouldBe(Enumerable.Range(1, 11).Select(static m => $"2026-{m:00}-01"));
+        result.Value.Trend[2].ShouldBe(new TrendBucketDto("2026-03-01", 40, 7));
+        result.Value.Trend[0].ShouldBe(new TrendBucketDto("2026-01-01", 0, 0));
+        await harness.Reader.Received(1).ReadTrendAsync(
+            new DateOnly(2026, 1, 1), new DateOnly(2026, 11, 15), new DateOnly(2025, 10, 15), StatsBucketKind.Month, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A365DayRangeIsThirteenMonthBucketsAndTheFirstStartsOnTheRangeStart()
+    {
+        var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2025, 11, 1), 5, 2)]);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-11-16", "2026-11-15"), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe("month");
+        result.Value.Trend.Count.ShouldBe(13);
+        result.Value.Trend[0].ShouldBe(new TrendBucketDto("2025-11-16", 5, 2));
+        (result.Value.Trend[1].Start, result.Value.Trend[^1].Start).ShouldBe(("2025-12-01", "2026-11-01"));
+    }
+
+    [Fact]
+    public async Task MonthsWhollyBeforeTheCutHaveNoUniqueVisitorsAndKeepTheirPageViews()
+    {
+        var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2025, 9, 1), 30, 0), new TrendCount(new DateOnly(2025, 10, 1), 20, 3)]);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2024-01-01", "2026-11-15"), TestContext.Current.CancellationToken);
+
+        var trend = result.Value.Trend;
+        trend.Count.ShouldBe(35);
+        trend.Take(21).ShouldAllBe(static b => b.UniqueVisitors == null);
+        trend[20].ShouldBe(new TrendBucketDto("2025-09-01", 30, null));
+        // October 2025 crosses the cut (Oct 15): it counts from the cut.
+        trend[21].ShouldBe(new TrendBucketDto("2025-10-01", 20, 3));
+        trend.Skip(22).ShouldAllBe(static b => b.UniqueVisitors == 0);
+    }
+
+    [Fact]
+    public async Task ADayBeforeTheCutHasNoUniqueVisitorsAndTheCutDayItselfCounts()
+    {
+        var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2025, 10, 14), 9, 0)]);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-10-10", "2025-10-20"), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe("day");
+        result.Value.Trend.Take(5).ShouldAllBe(static b => b.UniqueVisitors == null);
+        result.Value.Trend[4].ShouldBe(new TrendBucketDto("2025-10-14", 9, null));
+        result.Value.Trend[5].ShouldBe(new TrendBucketDto("2025-10-15", 0, 0));
+    }
+
+    [Theory]
+    [InlineData("2026-09-15", "day", 62)]
+    [InlineData("2026-09-14", "month", 3)]
+    public async Task SixtyTwoDaysArePerDayAndSixtyThreeArePerMonth(string from, string bucket, int count)
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", from, "2026-11-15"), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe(bucket);
+        result.Value.Trend.Count.ShouldBe(count);
+        result.Value.Trend[0].Start.ShouldBe(from);
+    }
+
     private sealed class Harness
     {
         public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null)

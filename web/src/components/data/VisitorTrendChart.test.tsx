@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { VisitorTrendChart, type TrendPoint } from '@/components/data';
 import {
@@ -129,5 +129,162 @@ describe('VisitorTrendChart: 30 day buckets', () => {
     const { container } = renderThirty();
 
     await expectNoAxeViolations(container);
+  });
+});
+
+/** `count` month buckets from the first of `year`-`month`, with figures from `figures`. */
+function months(
+  year: number,
+  month: number,
+  count: number,
+  figures: (i: number) => [number, number | null],
+): TrendPoint[] {
+  return Array.from({ length: count }, (_, i) => {
+    const [pageViews, uniqueVisitors] = figures(i);
+    const start = new Date(Date.UTC(year, month - 1 + i, 1)).toISOString().slice(0, 10);
+    return { start, pageViews, uniqueVisitors };
+  });
+}
+
+/** Dec 2025 to Nov 2026, page views and visitors every month. */
+const TWELVE = months(2025, 12, 12, (i) => [100 + i * 10, 20 + i]);
+
+/** A ResizeObserver stand-in: the test reports the frame width. */
+function stubResizeObserver() {
+  let callback: ResizeObserverCallback | undefined;
+  class StubResizeObserver {
+    constructor(onResize: ResizeObserverCallback) {
+      callback = onResize;
+    }
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  return {
+    resize(width: number) {
+      act(() => {
+        callback?.([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver);
+      });
+    },
+  };
+}
+
+/** The labels drawn under the buckets, in order (null where a label is thinned out). */
+function bucketLabels(container: HTMLElement): (string | null)[] {
+  return bucketGroups(container).map((group) => group.querySelector('text')?.textContent ?? null);
+}
+
+describe('VisitorTrendChart: month buckets and the 13-month line', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('labels month buckets with the short month', () => {
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    expect(bucketLabels(container)).toEqual([
+      'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+    ]);
+    expect(plot().getAttribute('aria-label')).toBe('Page views and unique visitors, Dec 1, 2025 to Nov 30, 2026');
+  });
+
+  it('stops the line where unique visitors are not available: no point and no zero there', () => {
+    // Oct 2023 to Dec 2023 are wholly before the cut; the rest have counts.
+    const buckets = months(2023, 10, 6, (i) => (i < 3 ? [50, null] : [60, 10 + i]));
+    const { container } = render(
+      <VisitorTrendChart buckets={buckets} bucket="month" from="2023-10-01" to="2024-03-31" />,
+    );
+    const [line] = pathsWith(container, chartVisitorLineClasses);
+
+    expect(container.querySelectorAll('circle')).toHaveLength(3);
+    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(1);
+    expect(bucketGroups(container).map((group) => group.querySelector('path')?.getAttribute('d') !== '')).toEqual(
+      Array.from({ length: 6 }, () => true),
+    );
+  });
+
+  it('breaks the line into one run per stretch of buckets with a count', () => {
+    const buckets = months(2025, 1, 5, (i) => [10, i === 2 ? null : 5]);
+    const { container } = render(
+      <VisitorTrendChart buckets={buckets} bucket="month" from="2025-01-01" to="2025-05-31" />,
+    );
+    const [line] = pathsWith(container, chartVisitorLineClasses);
+
+    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(2);
+    expect(container.querySelectorAll('circle')).toHaveLength(4);
+  });
+
+  it('draws nothing for the line when no bucket has a count', () => {
+    const buckets = months(2023, 1, 3, () => [10, null]);
+    const { container } = render(
+      <VisitorTrendChart buckets={buckets} bucket="month" from="2023-01-01" to="2023-03-31" />,
+    );
+
+    expect(pathsWith(container, chartVisitorLineClasses)[0]?.getAttribute('d')).toBe('');
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+  });
+
+  it('keeps every month label when a group is 28px or wider', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    observer.resize(640);
+
+    expect(bucketLabels(container).every((label) => label !== null)).toBe(true);
+  });
+
+  it('thins the month labels to every other one, counting back from the last, when a group is under 28px', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    observer.resize(320);
+
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 320 220');
+    expect(bucketLabels(container)).toEqual([
+      null,
+      'Jan',
+      null,
+      'Mar',
+      null,
+      'May',
+      null,
+      'Jul',
+      null,
+      'Sep',
+      null,
+      'Nov',
+    ]);
+  });
+
+  it('thins the wider day labels further so they never overlap', () => {
+    const observer = stubResizeObserver();
+    const { container } = renderThirty();
+
+    observer.resize(640);
+
+    // (640 - 52) / 30 is 19.6px a day; a day label needs 44px, so every third one shows, counting back from Nov 15.
+    const labels = bucketLabels(container);
+    expect(labels.filter((label) => label !== null)).toHaveLength(10);
+    expect(labels.at(-1)).toBe('Nov 15');
+    expect(labels.at(-2)).toBeNull();
+    expect(labels.at(-4)).toBe('Nov 12');
   });
 });

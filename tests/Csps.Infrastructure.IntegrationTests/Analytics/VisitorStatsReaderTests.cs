@@ -153,6 +153,53 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         trend.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task AMonthTrendSumsPageViewsPerMonthAndCountsAVisitorOnTwoDaysOfAMonthOnce()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(new DateOnly(2026, 10, 20), PageKeys.Home, 5);
+        await SeedViewsAsync(Day, PageKeys.Home, 3);
+        await SeedViewsAsync(Day.AddDays(5), PageKeys.Gallery, 4);
+        await SeedVisitAsync(1, new DateOnly(2026, 10, 20));
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(1, Day.AddDays(5));
+        await SeedVisitAsync(2, Day);
+
+        var trend = await ReadTrendAsync(new DateOnly(2026, 10, 1), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 10, 1), 5, 1), new TrendCount(new DateOnly(2026, 11, 1), 7, 2)]);
+    }
+
+    [Fact]
+    public async Task AMonthTrendCountsVisitorsFromTheCutOnlyAndKeepsOlderPageViews()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(new DateOnly(2025, 9, 20), PageKeys.Home, 8);
+        await SeedViewsAsync(new DateOnly(2025, 10, 10), PageKeys.Home, 6);
+        await SeedVisitAsync(3, new DateOnly(2025, 9, 20));
+        await SeedVisitAsync(1, Cut.AddDays(-1));
+        await SeedVisitAsync(2, Cut);
+        await SeedVisitAsync(1, Cut.AddDays(5));
+
+        var trend = await ReadTrendAsync(new DateOnly(2025, 9, 1), new DateOnly(2025, 10, 31), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2025, 9, 1), 8, 0), new TrendCount(new DateOnly(2025, 10, 1), 6, 2)]);
+    }
+
+    [Fact]
+    public async Task AMonthTrendReadsOnlyTheDaysOfAPartMonthInsideTheRange()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Day, PageKeys.Home, 100);
+        await SeedViewsAsync(Day.AddDays(5), PageKeys.Home, 4);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(2, Day.AddDays(5));
+
+        var trend = await ReadTrendAsync(Day.AddDays(2), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 11, 1), 4, 1)]);
+    }
+
     private async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly from, DateOnly to, StatsBucketKind bucket)
     {
         await using var context = database.CreateContext();
