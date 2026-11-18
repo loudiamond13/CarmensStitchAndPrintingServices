@@ -27,6 +27,14 @@ const COPY = VISITOR_STATS_COPY.speed;
 const ONE_DECIMAL = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const TWO_DECIMALS = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/**
+ * Rounds up to a step. The server rates the exact value (at or under a limit is the better rating), so a value over a limit must
+ * never show as the limit. The small allowance keeps a value that is exact in decimal, such as 0.3, from being pushed up a step.
+ */
+function ceilTo(value: number, step: number): number {
+  return Math.ceil(value / step - 1e-9) * step;
+}
+
 const RATING_LOOK: Readonly<Record<VitalRatingName, { tone: BadgeTone; icon: IconName }>> = {
   good: { tone: 'success', icon: 'circle-check' },
   'needs-work': { tone: 'warning', icon: 'triangle-alert' },
@@ -47,7 +55,7 @@ const MEASURES: readonly Measure[] = [
     name: COPY.lcp,
     meaning: COPY.lcpMeaning,
     format: (p75) => {
-      const value = ONE_DECIMAL.format(p75 / 1000);
+      const value = ONE_DECIMAL.format(ceilTo(p75, 100) / 1000);
       return { shown: COPY.seconds(value), spoken: COPY.secondsSpoken(value) };
     },
   },
@@ -56,7 +64,7 @@ const MEASURES: readonly Measure[] = [
     name: COPY.cls,
     meaning: COPY.clsMeaning,
     format: (p75) => {
-      const value = TWO_DECIMALS.format(p75);
+      const value = TWO_DECIMALS.format(ceilTo(p75, 0.01));
       return { shown: value, spoken: COPY.scoreSpoken(value) };
     },
   },
@@ -65,7 +73,7 @@ const MEASURES: readonly Measure[] = [
     name: COPY.inp,
     meaning: COPY.inpMeaning,
     format: (p75) => {
-      const value = formatCount(p75);
+      const value = formatCount(ceilTo(p75, 1));
       return { shown: COPY.milliseconds(value), spoken: COPY.millisecondsSpoken(value) };
     },
   },

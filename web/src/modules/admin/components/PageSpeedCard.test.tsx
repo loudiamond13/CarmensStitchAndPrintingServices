@@ -89,8 +89,52 @@ describe('PageSpeedCard: ratings and values', () => {
       />,
     );
 
-    expect(within(row('Loading speed')).getByText('12.3 s')).toBeInTheDocument();
+    expect(within(row('Loading speed')).getByText('12.4 s')).toBeInTheDocument();
     expect(within(row('Response to taps')).getByText('1,200 ms')).toBeInTheDocument();
+  });
+
+  // The server rates the exact value. A value just over a limit must not show as the limit itself, so the shown value rounds up.
+  it.each([
+    [
+      'LCP just over the 2.5 s limit',
+      { lcp: { p75: 2530, rating: 'needs-work' as const, samples: 9 } },
+      'Loading speed',
+      '2.6 s',
+    ],
+    [
+      'LCP exactly on the 2.5 s limit',
+      { lcp: { p75: 2500, rating: 'good' as const, samples: 9 } },
+      'Loading speed',
+      '2.5 s',
+    ],
+    [
+      'CLS just over the 0.1 limit',
+      { cls: { p75: 0.104, rating: 'needs-work' as const, samples: 9 } },
+      'Layout shifting',
+      '0.11',
+    ],
+    [
+      'CLS exactly on the 0.1 limit',
+      { cls: { p75: 0.1, rating: 'good' as const, samples: 9 } },
+      'Layout shifting',
+      '0.10',
+    ],
+    [
+      'INP just over the 200 ms limit',
+      { inp: { p75: 200.4, rating: 'needs-work' as const, samples: 9 } },
+      'Response to taps',
+      '201 ms',
+    ],
+    [
+      'INP exactly on the 200 ms limit',
+      { inp: { p75: 200, rating: 'good' as const, samples: 9 } },
+      'Response to taps',
+      '200 ms',
+    ],
+  ])('%s never shows a value that contradicts its rating', (_name, change, name, shown) => {
+    render(<PageSpeedCard speed={{ ...SPEED, ...change }} />);
+
+    expect(within(row(name)).getByText(shown)).toBeInTheDocument();
   });
 
   it('says "From 412 page views" under the rows, with en-PH grouping', () => {
