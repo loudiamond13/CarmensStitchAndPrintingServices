@@ -5,19 +5,22 @@
 // Where the server has no unique visitors (over 13 months ago) the line stops: no point and no zero.
 // SPEC-DEVIATION: D-51 a group under 28px gets every other label, as IncomeExpenseChart; a day label ("Nov 15") is wider than
 // a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { formatCalendarDate, formatCount, formatMonthShort } from '@/utils/format';
 import { VISITOR_TREND_COPY } from './copy';
 import {
   chartBarClasses,
   chartClasses,
   chartGridClasses,
+  chartHoverClasses,
   chartKeyClasses,
   chartLegendClasses,
   chartProfitGroupClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
+  chartTipClasses,
   chartVisitorHaloClasses,
   chartVisitorLineClasses,
   chartVisitorPointClasses,
@@ -57,7 +60,9 @@ const T = 12;
 /** The three gridline fractions of the axis top. */
 const TICK_FRACTIONS = [0, 0.5, 1] as const;
 
+/** The unique-visitor point radius at rest and for the active bucket. */
 const POINT_RADIUS = 3.5;
+const POINT_RADIUS_ACTIVE = 5;
 
 /** A bucket narrower than this (px) gets every other label (D-51); a day label needs the wider room. */
 const MIN_LABEL_GROUP = 28;
@@ -102,7 +107,30 @@ function rangeName(from: string, to: string): string {
   return COPY.groupName(from.slice(0, 4) === to.slice(0, 4) ? first.replace(YEAR_SUFFIX, '') : first, last);
 }
 
+/** "Nov 3, 2026" or "Oct 2026": the bucket in full, for the tooltip and the announcement. */
+function fullDate(start: string, bucket: TrendBucketSize): string {
+  const label = bucket === 'day' ? formatCalendarDate(start) : formatMonthShort(start);
+  if (label === null) return start;
+  return bucket === 'day' ? label : `${label} ${start.slice(0, 4)}`;
+}
+
+/** The tooltip rows of a bucket; the announcement reads the same rows. */
+function tipLines(point: TrendPoint, bucket: TrendBucketSize): [string, string, string] {
+  return [
+    fullDate(point.start, bucket),
+    `${COPY.pageViews} ${formatCount(point.pageViews)}`,
+    point.uniqueVisitors === null
+      ? COPY.uniqueVisitorsNotAvailable
+      : `${COPY.uniqueVisitors} ${formatCount(point.uniqueVisitors)}`,
+  ];
+}
+
+/** Where the tooltip came from: none, the pointer, or focus and the keys (only the keys are announced). */
+type TipSource = 'none' | 'pointer' | 'keys';
+
 export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: VisitorTrendChartProps) {
+  const [active, setActive] = useState(0);
+  const [tip, setTip] = useState<TipSource>('none');
   const [measured, setMeasured] = useState<number | null>(null);
   const frame = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -136,6 +164,31 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
     return all;
   }, []);
   const linePath = runs.map((run) => `M${run.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`).join('');
+  const last = buckets.length - 1;
+  const current = Math.min(active, Math.max(0, last));
+  const cur = tip === 'none' ? undefined : buckets[current];
+  const lines = cur === undefined ? null : tipLines(cur, bucket);
+  // SPEC-DEVIATION: A11Y-CHART (WCAG 2.1.1, 2.4.3) the plot is one tab stop: Left and Right move between buckets, Home and End
+  // jump to the ends, the tooltip follows focus, Escape hides it, and a polite live text reads the tooltip rows.
+  const onKeyDown = (event: KeyboardEvent) => {
+    const next =
+      event.key === 'ArrowLeft'
+        ? current - 1
+        : event.key === 'ArrowRight'
+          ? current + 1
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? last
+              : null;
+    if (event.key === 'Escape') {
+      setTip('none');
+    } else if (next !== null) {
+      event.preventDefault();
+      setActive(Math.min(Math.max(next, 0), Math.max(0, last)));
+      setTip('keys');
+    }
+  };
   return (
     <figure ref={frame} className={chartClasses}>
       <div className={chartLegendClasses}>
@@ -153,6 +206,17 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
         className={chartSvgClasses}
         role="group"
         aria-label={rangeName(from, to)}
+        tabIndex={0}
+        onFocus={() => {
+          setTip('keys');
+        }}
+        onBlur={() => {
+          setTip('none');
+        }}
+        onKeyDown={onKeyDown}
+        onMouseLeave={() => {
+          setTip((source) => (source === 'pointer' ? 'none' : source));
+        }}
       >
         {TICK_FRACTIONS.map((f) => top * f).map((tv) => (
           <g key={tv}>
@@ -163,7 +227,25 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
           </g>
         ))}
         {buckets.map((b, i) => (
-          <g key={b.start} data-bucket={b.start}>
+          <g
+            key={b.start}
+            data-bucket={b.start}
+            onMouseEnter={() => {
+              setActive(i);
+              setTip((source) => (source === 'keys' ? 'keys' : 'pointer'));
+            }}
+          >
+            <rect x={L + gw * i} y={T} width={gw} height={H - T - B} fill="transparent" />
+            {cur !== undefined && current === i && (
+              <rect
+                x={L + gw * i + 1}
+                y={T}
+                width={Math.max(0, gw - 2)}
+                height={H - T - B}
+                className={chartHoverClasses}
+                rx="6"
+              />
+            )}
             <path
               d={bar(cx(i) - bw / 2, y(b.pageViews), bw, y(0) - y(b.pageViews))}
               className={chartBarClasses.income}
@@ -179,10 +261,36 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
           <path d={linePath} className={chartVisitorHaloClasses} />
           <path d={linePath} className={chartVisitorLineClasses} />
           {points.map((p) => (
-            <circle key={p.key} cx={p.x} cy={p.y} r={POINT_RADIUS} className={chartVisitorPointClasses} />
+            <circle
+              key={p.key}
+              cx={p.x}
+              cy={p.y}
+              r={cur !== undefined && current === p.i ? POINT_RADIUS_ACTIVE : POINT_RADIUS}
+              className={chartVisitorPointClasses}
+            />
           ))}
         </g>
       </svg>
+      {lines !== null && (
+        <div
+          className={chartTipClasses}
+          aria-hidden="true"
+          style={{ '--tip-x': `${String((cx(current) / W) * 100)}%` }}
+        >
+          <strong>{lines[0]}</strong>
+          <span className={chartKeyClasses}>
+            <i className={chartSwatchClasses.income} />
+            {lines[1]}
+          </span>
+          <span className={chartKeyClasses}>
+            {cur?.uniqueVisitors !== null && <i className={chartVisitorSwatchClasses} />}
+            {lines[2]}
+          </span>
+        </div>
+      )}
+      <p className={srOnlyClasses} aria-live="polite">
+        {tip === 'keys' && lines !== null ? lines.join(', ') : ''}
+      </p>
     </figure>
   );
 }
