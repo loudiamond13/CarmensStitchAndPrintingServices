@@ -11,6 +11,14 @@ export const VISITOR_STATS_COPY = {
   dates: (from: string, to: string): string => `${from} to ${to}`,
   /** The noun of the loading region and the failure line: "Loading the visitor stats…", "Couldn't load the visitor stats." */
   things: 'the visitor stats',
+  /** A failed later refresh (P10 D-111): "Showing figures from 9:41 AM. Couldn't refresh." with Try Again. */
+  stale: (time: string): string => `Showing figures from ${time}. Couldn't refresh.`,
+  retry: 'Try Again',
+  /** The one EmptyState that replaces the trend, lists and speed when the range has no page views. */
+  noVisits: {
+    title: 'No visits in these dates',
+    message: 'Visits show here after people open the website. Try a longer date range.',
+  },
   toolbar: {
     dateRange: 'Date range',
     from: 'From',

@@ -7,7 +7,7 @@
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 either way.
 import { useEffect, useState } from 'react';
-import { ErrorState, LoadingRegion, Note, SkeletonText } from '@/components';
+import { Button, EmptyState, ErrorState, hitAreaClasses, LoadingRegion, Note, SkeletonText } from '@/components';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -20,6 +20,8 @@ import {
   dashboardCardHeadClasses,
   dashboardCardSubClasses,
   dashboardCardTitleClasses,
+  dashboardStaleClasses,
+  dashboardStaleTextClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import { DeviceBrowserCard } from '@/modules/admin/components/DeviceBrowserCard';
 import { PageSpeedCard } from '@/modules/admin/components/PageSpeedCard';
@@ -39,7 +41,7 @@ import { useVisitorStatsQuery } from '@/modules/admin/hooks/useVisitorStatsQuery
 import type { RankedItem, VisitorStats, VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
 import { VISITOR_STATS_COPY } from '@/modules/admin/visitorStatsCopy';
 import { DEFAULT_STATS_RANGE, statsQueryFor, type StatsRangeState } from '@/modules/admin/visitorStatsRange';
-import { formatCalendarDate } from '@/utils/format';
+import { formatBusinessTime, formatCalendarDate } from '@/utils/format';
 
 const COPY = VISITOR_STATS_COPY;
 
@@ -106,6 +108,8 @@ export interface VisitorStatsPageProps {
   error: unknown;
   /** The first read failed, so there is nothing to show. */
   failed: boolean;
+  /** The time of the figures shown when a later refresh failed (P10 D-111); otherwise null. */
+  staleAt: string | null;
   onRetry: () => void;
 }
 
@@ -116,6 +120,7 @@ export function VisitorStatsPage({
   loading,
   error,
   failed,
+  staleAt,
   onRetry,
 }: VisitorStatsPageProps) {
   const dates = stats === undefined ? null : rangeText(stats.from, stats.to);
@@ -126,6 +131,16 @@ export function VisitorStatsPage({
         <div className={pageHeadTitleClasses}>
           <h1 className={pageTitleClasses}>{COPY.title}</h1>
           {dates !== null && <p className={pageSublineClasses}>{COPY.subline(dates)}</p>}
+          {staleAt !== null && (
+            <div className={dashboardStaleClasses}>
+              <p role="alert" className={dashboardStaleTextClasses}>
+                {COPY.stale(staleAt)}
+              </p>
+              <Button variant="ghost" size="sm" className={hitAreaClasses} onClick={onRetry}>
+                {COPY.retry}
+              </Button>
+            </div>
+          )}
         </div>
         <VisitorStatsToolbar value={range} onChange={onRangeChange} />
       </div>
@@ -135,20 +150,28 @@ export function VisitorStatsPage({
         <LoadingRegion loading={loading} things={COPY.things} className={visitorStatsBodyClasses}>
           {cutDate !== null && <Note icon="info">{COPY.cutNote(cutDate)}</Note>}
           <VisitorKpiRow totals={stats?.totals} />
-          <VisitorTrendCard stats={stats} />
-          <div className={visitorStatsListRowClasses}>
-            <StatListCard
-              title={COPY.lists.topPages}
-              sub={COPY.lists.topPagesSub}
-              items={stats?.topPages}
-              labelFor={pageLabel}
-            />
-            <StatListCard title={COPY.lists.referrers} sub={COPY.lists.referrersSub} items={stats?.referrers} />
-          </div>
-          <div className={visitorStatsListRowClasses}>
-            <DeviceBrowserCard devices={stats?.devices} browsers={stats?.browsers} />
-            <PageSpeedCard speed={stats?.speed} />
-          </div>
+          {stats?.totals.pageViews === 0 ? (
+            <div className={dashboardCardClasses}>
+              <EmptyState icon="chart-column" level={2} title={COPY.noVisits.title} message={COPY.noVisits.message} />
+            </div>
+          ) : (
+            <>
+              <VisitorTrendCard stats={stats} />
+              <div className={visitorStatsListRowClasses}>
+                <StatListCard
+                  title={COPY.lists.topPages}
+                  sub={COPY.lists.topPagesSub}
+                  items={stats?.topPages}
+                  labelFor={pageLabel}
+                />
+                <StatListCard title={COPY.lists.referrers} sub={COPY.lists.referrersSub} items={stats?.referrers} />
+              </div>
+              <div className={visitorStatsListRowClasses}>
+                <DeviceBrowserCard devices={stats?.devices} browsers={stats?.browsers} />
+                <PageSpeedCard speed={stats?.speed} />
+              </div>
+            </>
+          )}
         </LoadingRegion>
       )}
     </>
@@ -182,6 +205,11 @@ export function VisitorStatsRoute() {
       loading={query.isPending || query.isPlaceholderData}
       error={query.error}
       failed={query.isError && query.data === undefined}
+      staleAt={
+        query.isError && query.data !== undefined && !query.isFetching
+          ? formatBusinessTime(new Date(query.dataUpdatedAt).toISOString())
+          : null
+      }
       onRetry={() => {
         void query.refetch();
       }}

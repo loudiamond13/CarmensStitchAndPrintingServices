@@ -629,14 +629,12 @@ describe('V1 states: no visits', () => {
 
     expect(screen.queryByRole('heading', { level: 2, name: 'No visits in these dates' })).not.toBeNull();
     const empty = screen.getByRole('heading', { level: 2, name: 'No visits in these dates' }).parentElement;
-    expect(empty).not.toBeNull();
+    if (empty === null) throw new Error('No EmptyState');
     expect(
-      within(empty as HTMLElement).getByText(
-        'Visits show here after people open the website. Try a longer date range.',
-      ),
+      within(empty).getByText('Visits show here after people open the website. Try a longer date range.'),
     ).toBeInTheDocument();
-    expect(empty?.querySelector('svg.lucide-chart-column')).not.toBeNull();
-    expect(within(empty as HTMLElement).queryByRole('button')).toBeNull();
+    expect(empty.querySelector('svg.lucide-chart-column')).not.toBeNull();
+    expect(within(empty).queryByRole('button')).toBeNull();
     for (const title of CARD_TITLES) {
       expect(screen.queryByRole('heading', { level: 2, name: title })).toBeNull();
     }
