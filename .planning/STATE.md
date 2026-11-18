@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 11 merged and gated
+last_activity_desc: Phase 12 wave 12 merged and gated; waiting on owner reviews
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 354
+  completed_plans: 355
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T09:40:00-06:00"
+updated: "2026-11-18T12:30:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-18: Phase 12 wave 11 (12-28, 12-29) merged and gated
+Last activity: 2026-11-18: Phase 12 wave 12 (12-30) merged and gated; all 32 plans executed; phase close waits on the owner's 12-01 photo check and 12-22 legal review
 
 Progress: [█████░░░░░] 50%
 
@@ -1026,7 +1026,7 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [x] **Wave 2 post-merge gate (2026-11-17):** build 0 warnings, format clean; Domain 2227, Architecture 290, Application 3108, Infrastructure 1219, Server 2917 passed (the intermittent `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` 500 seen once in the 12-08 worktree did not recur); openapi types match; web lint and types clean; web 10901 of 10902, the one failure was the owner review host missing the 12-08 consent limit lift, fixed and re-run (119 of 119); `build:budget` passes.
 - [ ] **12-07 Accessibility Statement wording (your review, plan 12-22):** the draft says "We will reply as soon as we can" and makes no full-accessibility promise. If you want a reply time, one sentence in `legalAccessibility.ts` changes.
 - [x] **Wave 3 post-merge gate (2026-11-17), closed by plan 12-32 and the wave 4 gate:** build 0 warnings, format clean; Domain 2234, Architecture 290, Application 3136, Infrastructure 1229 passed; openapi types match; web format, lint and types clean; production build ok. Three failures: (1) `build:budget` /privacy 150.04 KB over 150.00 (12-09 consent bar plus 12-11 Privacy text; each fit alone). Recovery plan 12-32 is being written under D-42 (no limit raise). (2) `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` 500 under load (see next item). (3) `GalleryPage.test.tsx` focus test failed once under load and passed alone 28 of 28.
-- [ ] **Intermittent 500 in `ParallelCallersEachGetTheirOwnStatus` (worth a look):** seen twice under heavy machine load, on different endpoints (Manager `GET /api/v1/orders` in the 12-08 worktree; Anonymous `POST /api/testing/site-content` in the wave 3 gate). It passed alone 3 of 3 and 6 of 6 at the base commit. A 500 is never a fine answer, so the cause should be found (likely a shared-database race or timeout under load). Recommended: a short debug session after Phase 12; nothing in Phase 12 is known to cause it.
+- [ ] **Intermittent 500 in `ParallelCallersEachGetTheirOwnStatus` (worth a look):** seen twice under heavy machine load, on different endpoints (Manager `GET /api/v1/orders` in the 12-08 worktree; Anonymous `POST /api/testing/site-content` in the wave 3 gate; a third time in the wave 12 gate, 204 expected, the endpoint not named in the log). It passed alone 3 of 3 and 6 of 6 at the base commit, and 1 of 1 after the wave 12 gate. A 500 is never a fine answer, so the cause should be found (likely a shared-database race or timeout under load). Recommended: a short debug session after Phase 12; nothing in Phase 12 is known to cause it.
 - [ ] **12-11 Privacy Policy, for your review in 12-22:** (1) "Deleted 6 months after we receive them" (quote requests) and "Kept for 8 months" (activity log) are exact; if those cleanups also run monthly, D-36 says they should read "about ... removed at the next monthly cleanup". (2) The UI-SPEC retention table still says "Kept for 13 months"; the page follows D-36. (3) Planner-drafted wording: the "What we collect" list, the basis sentences, the one-line text for each right, and "The owner, as our Data Protection Officer, answers these requests."
 - [ ] **12-12 Terms of Use, for your review in 12-22:** lines to check: "By using the website, you agree to them", "offered as it is" (Our responsibility), and "Changes to these terms" (no notice period promised). The contact block also shows the shop name and address from settings (plan said contact only); dropping them is a one-word change. Any payment, timing, refund or warranty rule you give changes only the prices-and-quotes section.
 - [x] **Wave 4 post-merge gate (2026-11-17; plans 12-13, 12-14, 12-15 plus a tests-only coverage fix for the legal components):** build 0 warnings, format clean; Domain 2260, Architecture 290, Application 3211, Infrastructure 1256, Server 3016 passed; openapi types match; `npm --prefix web run verify` exit 0 (415 files, 11140 tests, branches 90.38%); `build:budget` exit 0: Privacy 148.78 KB is the tightest public row (1.22 KB under the 150 KB limit, past the 148.50 soft target), Terms 147.89, Contact 147.30, Home 147.24, admin 220.73 KB. One merge conflict (`useConsent.test.tsx`, both sides added tests) resolved by keeping both.
@@ -1069,6 +1069,8 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-28 CSV export choices (your review; recommendation first):** (1) each row counts that day's distinct visitors, so a column sum counts a returning visitor more than once: keep (D-25 asks for one row per day), or rename the column (changes the D-33 header); (2) no rate limit on `GET /api/v1/visitor-stats/export`, as the stats read has none: keep none; (3) the download link is freed 10 seconds after the click, because Safari can fail if it is freed at once: keep. Outside its file list 12-28 changed `VisitorStatsPage.tsx`, made `GetVisitorStatsHandler.Resolve` internal and added one OpenAPI transform for the `text/csv` answer. Still owed: a real-browser download check (Chrome, Firefox, Safari) and opening the file in Excel and Sheets.
 - [ ] **12-29 showcase choices (your review; recommendation first):** (1) section names "Visitor stats" and "Cookies and legal": keep, or one section per phase; (2) the "Cookie Settings: GPC" trigger label: keep, or say "do not track"; (3) keep these parts in the showcase rather than /dev/public: keep; (4) the cleared demo shows today's Clear wording, so the 12-22 wording choice updates it too. Budget fix in 12-29: the showcase now imports LegalPage and LEGAL_PAGES so the legal pages' shared chunk stays whole (Privacy had reached 150.03 KB). The parity suite was not run (new cases are `parity: false`; the 12-13 footer question is open).
 - [ ] **Wave 11 load flakes (recorded; each passed alone, none failed in the gate re-run):** new: `OrderRefundModal`, the routes test, the third-party-notices script, `ProductsPage`, `DashboardPage`, and one Firefox `@showcase` load timeout; repeat: `OrderFormPage` (now fails one test in nearly every full run on a busy machine: worth a look), `GalleryPage`, `EditUserPanel`.
+- [x] **Wave 12 post-merge gate (2026-11-18; plan 12-30, no merge conflicts, test and Testing-only code only):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3302, Infrastructure 1322 of 1323 (1 skipped) passed; Server 3087 of 3088: the one failure is the known intermittent 500 in `ParallelCallersEachGetTheirOwnStatus` (see that item; passed alone); openapi types match; web `verify` 11509 of 11510: the one failure is the known `OrderFormPage` "cannot be left through the dialog while a save is pending" load flake (the file passed alone 84 of 84); `build:budget` exit 0: Privacy 149.58 KB, admin 223.32 KB, CSS 20.50 KB, unchanged. 12-30 ran `@visitor-stats` in all five Playwright projects (40 passed) and `@consent|@gpc` (85 passed). The Testing seed is absent from the Release build.
+- [ ] **12-30 choices (your review; recommendation first):** (1) the plan wants Back and Forward to restore the previous range, but the UI spec says a range change replaces the history entry, so the test checks Back and Forward across a trip to the Dashboard: keep replace; (2) Firefox logs a console line when a visitor leaves a page while a font is still downloading: no app change (the tests wait for fonts); (3) the "today" range is still open; today's figures are checked inside the default Last 30 days. Also: `dotnet build Csps.slnx -c Release` fails with 27 errors in two test projects that use Testing-only image types (not caused by 12-30; logged in `deferred-items.md`). Recommended: exclude those tests from Release builds in a small follow-up.
 
 ### Blockers/Concerns
 
