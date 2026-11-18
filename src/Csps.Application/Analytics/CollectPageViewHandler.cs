@@ -16,16 +16,12 @@ namespace Csps.Application.Analytics;
 /// <param name="pages">Maps a cut path to a page key.</param>
 /// <param name="counts">The daily counter.</param>
 /// <param name="visits">The visit store, used for visitors who allowed stats.</param>
-/// <param name="salts">The day's address salt.</param>
-/// <param name="requestContext">The connection's address, read only to be truncated and hashed.</param>
 /// <param name="calendar">The business clock: the day the view belongs to.</param>
 /// <param name="validator">Checks the body.</param>
 public sealed class CollectPageViewHandler(
     IPublicPageResolver pages,
     IPageViewCounts counts,
     IAnalyticsVisits visits,
-    IAnalyticsSalts salts,
-    IRequestContext requestContext,
     IBusinessCalendar calendar,
     IValidator<PageViewRequest> validator)
 {
@@ -89,7 +85,7 @@ public sealed class CollectPageViewHandler(
         else
         {
             // The store starts the visit only when none is current, so a parallel first view cannot start a second one.
-            var visit = await NewVisitAsync(request, context, visitorHash, clock, cancellationToken).ConfigureAwait(false);
+            var visit = NewVisit(request, context, visitorHash, clock);
             bool started;
             (visitId, started) = await visits.StartUnlessCurrentAsync(visit, since, cancellationToken).ConfigureAwait(false);
             if (!started)
@@ -101,13 +97,9 @@ public sealed class CollectPageViewHandler(
         await visits.AddPageViewAsync(AnalyticsPageView.Of(visitId, clock.Today, now, pageKey), cancellationToken).ConfigureAwait(false);
     }
 
-    // Only reduced values leave this method: the source name, the device class, the browser and OS labels and the salted hash of the address prefix.
-    private async Task<AnalyticsVisit> NewVisitAsync(PageViewRequest request, CollectContext context, byte[] visitorHash, BusinessClock clock, CancellationToken cancellationToken)
+    // Only reduced values leave this method: the source name, the device class and the browser and OS labels. The address is not stored (D-52).
+    private static AnalyticsVisit NewVisit(PageViewRequest request, CollectContext context, byte[] visitorHash, BusinessClock clock)
     {
-        var prefix = IpPrefix.From(requestContext.RemoteIp);
-        var ipHash = prefix is null
-            ? null
-            : VisitorKey.HashIp(prefix, await salts.ForDayAsync(clock.Today, cancellationToken).ConfigureAwait(false));
         return AnalyticsVisit.Start(
             visitorHash,
             clock.Today,
@@ -116,6 +108,6 @@ public sealed class CollectPageViewHandler(
             DeviceClass.From(context.UserAgent),
             UserAgentFamily.Classify(context.UserAgent),
             OsFamily.From(context.UserAgent),
-            ipHash);
+            ipHash: null);
     }
 }

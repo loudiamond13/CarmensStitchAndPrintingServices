@@ -388,54 +388,19 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
-    public async Task TwoAddressesInOneBlockShareAnAddressHashTheNextDayHasAnotherAndOnlyOneSaltIsMadePerDay()
-    {
-        await database.ResetAsync();
-        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        var clock = new FakeTimeProvider(TimeProvider.System.GetUtcNow());
-        await using var factory = AuthClient.WithClock(WithRemoteIp(baseFactory), clock);
-        using var client = NewClient(factory);
-
-        using var a = await PostWithAddressAsync(client, "192.0.2.10", 'a');
-        using var b = await PostWithAddressAsync(client, "192.0.2.200", 'b');
-        clock.Advance(TimeSpan.FromHours(24));
-        using var c = await PostWithAddressAsync(client, "192.0.2.10", 'c');
-
-        a.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        b.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        c.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var context = database.CreateContext();
-        var visits = await context.AnalyticsVisits.AsNoTracking().OrderBy(visit => visit.StartedAtUtc).ToListAsync(TestContext.Current.CancellationToken);
-        visits.Count.ShouldBe(3);
-        visits.ShouldAllBe(visit => visit.IpHash != null);
-        visits[1].IpHash.ShouldBe(visits[0].IpHash);
-        visits[2].IpHash.ShouldNotBe(visits[0].IpHash);
-        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task TenParallelFirstViewsFromTenVisitorsMakeOneSaltRowForTheDay()
+    public async Task AVisitFromAKnownAddressStoresNoAddressHashAndMakesNoSalt()
     {
         await database.ResetAsync();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
         await using var factory = WithRemoteIp(baseFactory);
         using var client = NewClient(factory);
-        var consent = ConsentValue(true, await BusinessDayAsync(factory));
 
-        var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(index => Task.Run(
-            async () =>
-            {
-                using var request = NewPost(PathBody("/"));
-                request.Headers.Add("Cookie", $"__Secure-csps_vid={new string((char)('a' + index), 43)}; __Host-csps_consent={consent}");
-                request.Headers.Add(RemoteIpStartupFilter.HeaderName, "192.0.2.10");
-                return (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode;
-            },
-            TestContext.Current.CancellationToken)));
+        using var response = await PostWithAddressAsync(client, "192.0.2.10", 'a');
 
-        responses.ShouldAllBe(status => status == HttpStatusCode.NoContent);
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         await using var context = database.CreateContext();
-        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
-        (await context.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(10);
+        (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().IpHash.ShouldBeNull();
+        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
@@ -455,19 +420,15 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         await using var context = database.CreateContext();
         var visit = (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
-        var salt = (await context.AnalyticsSalts.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
         var view = (await context.AnalyticsPageViews.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
         string[] forbidden = [Vid, "192.0.2", Marker, "zq7query91", "Mozilla"];
-        string[] texts = [visit.Referrer, visit.Browser, visit.Os, view.PageKey, Convert.ToHexString(visit.VisitorHash), Convert.ToHexString(visit.IpHash!), Convert.ToHexString(salt.Salt)];
+        string[] texts = [visit.Referrer, visit.Browser, visit.Os, view.PageKey, Convert.ToHexString(visit.VisitorHash)];
         foreach (var text in texts)
         {
             forbidden.ShouldAllBe(value => !text.Contains(value, StringComparison.OrdinalIgnoreCase));
         }
 
         visit.VisitorHash.ShouldNotBe(Encoding.UTF8.GetBytes(Vid));
-        visit.IpHash.ShouldNotBe(Encoding.UTF8.GetBytes("192.0.2.0"));
-        visit.IpHash.ShouldNotBe(visit.VisitorHash);
-        salt.Salt.Length.ShouldBe(32);
     }
 
     internal static WebApplicationFactory<Program> WithRemoteIp(WebApplicationFactory<Program> factory) =>
