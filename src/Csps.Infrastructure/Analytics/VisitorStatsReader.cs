@@ -12,6 +12,8 @@ namespace Csps.Infrastructure.Analytics;
 /// <param name="context">The scoped database context.</param>
 internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsReader
 {
+    private const decimal SpeedPercentile = 0.75m;
+
     public async Task<VisitorTotals> ReadTotalsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
     {
         var views = await context.DailyPageCounts
@@ -122,6 +124,42 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
         }
 
         return new VisitorLists(pages, Merge(rawReferrers, rolledReferrers), Merge(rawDevices, rolledDevices), Merge(rawBrowsers, rolledBrowsers));
+    }
+
+    public async Task<VisitorSpeed> ReadSpeedAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
+    {
+        // Samples go with their visits, so only the days from the cut on can have any.
+        var start = first > cut ? first : cut;
+        if (start > last)
+        {
+            return new VisitorSpeed(null, null, null);
+        }
+
+        var samples = context.AnalyticsVitalSamples.AsNoTracking().Where(row => row.BusinessDay >= start && row.BusinessDay <= last);
+        var lcp = await PercentileAsync(samples, VitalMetric.Lcp, cancellationToken).ConfigureAwait(false);
+        var cls = await PercentileAsync(samples, VitalMetric.Cls, cancellationToken).ConfigureAwait(false);
+        var inp = await PercentileAsync(samples, VitalMetric.Inp, cancellationToken).ConfigureAwait(false);
+        return new VisitorSpeed(lcp, cls, inp);
+    }
+
+    /// <summary>The nearest-rank 75th percentile of one metric: a count, then the value at that rank in ascending order.</summary>
+    private static async Task<VitalPercentile?> PercentileAsync(IQueryable<AnalyticsVitalSample> samples, VitalMetric metric, CancellationToken cancellationToken)
+    {
+        var values = samples.Where(row => row.Metric == metric);
+        var count = await values.CountAsync(cancellationToken).ConfigureAwait(false);
+        if (NearestRank.Index(count, SpeedPercentile) is not { } index)
+        {
+            return null;
+        }
+
+        var p75 = await values
+            .OrderBy(row => row.Value)
+            .ThenBy(row => row.Id)
+            .Skip(index)
+            .Select(row => (decimal?)row.Value)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return p75 is { } value ? new VitalPercentile(value, count) : null;
     }
 
     private static Task<List<NamedCount>> RolledLabelsAsync(IQueryable<DailyDeviceCount> rows, DeviceDimension dimension, CancellationToken cancellationToken) =>

@@ -40,7 +40,29 @@ public interface IVisitorStatsReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>One count per name, in no set order; a name with no count is left out. The caller orders, shares and trims.</returns>
     Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the nearest-rank 75th percentile of each Core Web Vital (D-26) over the samples of the business days from the later of
+    /// <paramref name="first"/> and <paramref name="cut"/> to <paramref name="last"/>. Samples are kept as long as their visits.
+    /// </summary>
+    /// <param name="first">The first business day.</param>
+    /// <param name="last">The last business day.</param>
+    /// <param name="cut">The first business day samples are still kept for.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Each metric's percentile and sample count; null for a metric with no sample.</returns>
+    Task<VisitorSpeed> ReadSpeedAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
 }
+
+/// <summary>The 75th percentile of each Core Web Vital.</summary>
+/// <param name="Lcp">Loading speed, in milliseconds.</param>
+/// <param name="Cls">Layout shifting, a score.</param>
+/// <param name="Inp">Response to taps, in milliseconds.</param>
+public sealed record VisitorSpeed(VitalPercentile? Lcp, VitalPercentile? Cls, VitalPercentile? Inp);
+
+/// <summary>One metric's percentile.</summary>
+/// <param name="P75">The value at the nearest-rank 75th percentile.</param>
+/// <param name="Samples">The samples it was taken from.</param>
+public sealed record VitalPercentile(decimal P75, int Samples);
 
 /// <summary>The grouped counts behind the ranked lists.</summary>
 /// <param name="Pages">Page views per page key.</param>

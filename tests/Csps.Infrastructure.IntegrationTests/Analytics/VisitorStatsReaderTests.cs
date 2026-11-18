@@ -297,6 +297,64 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
             () => lists.Browsers.ShouldBeEmpty());
     }
 
+    [Fact]
+    public async Task TheSeventyFifthPercentileIsTheNearestRankSampleInAscendingOrder()
+    {
+        await database.ResetAsync();
+        await SeedSamplesAsync(Day, VitalMetric.Lcp, 3000m, 1800m, 2400m, 2100m);
+
+        var speed = await ReadSpeedAsync(Day, Day);
+
+        speed.Lcp.ShouldBe(new VitalPercentile(2400m, 4));
+    }
+
+    [Fact]
+    public async Task EachMetricHasItsOwnPercentileAndAMetricWithNoSampleIsNull()
+    {
+        await database.ResetAsync();
+        await SeedSamplesAsync(Day, VitalMetric.Lcp, 2000m);
+        await SeedSamplesAsync(Day.AddDays(1), VitalMetric.Inp, 80m, 120m, 500m);
+
+        var speed = await ReadSpeedAsync(Day, Day.AddDays(1));
+
+        speed.ShouldBe(new VisitorSpeed(new VitalPercentile(2000m, 1), null, new VitalPercentile(500m, 3)));
+    }
+
+    [Fact]
+    public async Task ALayoutShiftScoreKeepsItsDecimals()
+    {
+        await database.ResetAsync();
+        await SeedSamplesAsync(Day, VitalMetric.Cls, 0.012m, 0.3m, 0.045m, 0.25m, 0.1m);
+
+        var speed = await ReadSpeedAsync(Day, Day);
+
+        speed.Cls.ShouldBe(new VitalPercentile(0.25m, 5));
+    }
+
+    [Fact]
+    public async Task SamplesAreReadOnlyForDaysInsideTheRangeAndFromTheCutDayOn()
+    {
+        await database.ResetAsync();
+        await SeedSamplesAsync(Cut.AddDays(-1), VitalMetric.Lcp, 9000m);
+        await SeedSamplesAsync(Cut, VitalMetric.Lcp, 1000m);
+        await SeedSamplesAsync(Cut.AddDays(1), VitalMetric.Lcp, 1500m);
+        await SeedSamplesAsync(Cut.AddDays(2), VitalMetric.Lcp, 9000m);
+
+        var speed = await ReadSpeedAsync(Cut.AddDays(-5), Cut.AddDays(1));
+
+        speed.Lcp.ShouldBe(new VitalPercentile(1500m, 2));
+    }
+
+    [Fact]
+    public async Task ARangeWhollyBeforeTheCutOrWithNoSamplesHasNoSpeed()
+    {
+        await database.ResetAsync();
+        await SeedSamplesAsync(Cut.AddDays(-1), VitalMetric.Lcp, 2000m);
+
+        (await ReadSpeedAsync(Cut.AddDays(-30), Cut.AddDays(-1))).ShouldBe(new VisitorSpeed(null, null, null));
+        (await ReadSpeedAsync(Day, Day.AddDays(5))).ShouldBe(new VisitorSpeed(null, null, null));
+    }
+
     private async Task SeedDailyAsync<T>(T row)
         where T : class
     {
@@ -310,6 +368,23 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         await using var context = database.CreateContext();
         var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
         context.AnalyticsVisits.Add(AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, referrer, device, browser, "Android", null));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task<VisitorSpeed> ReadSpeedAsync(DateOnly from, DateOnly to)
+    {
+        await using var context = database.CreateContext();
+        return await new VisitorStatsReader(context).ReadSpeedAsync(from, to, Cut, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>One visit on the day, with one sample of the metric per value.</summary>
+    private async Task SeedSamplesAsync(DateOnly day, VitalMetric metric, params decimal[] values)
+    {
+        await using var context = database.CreateContext();
+        var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
+        var visit = AnalyticsVisit.Start(Enumerable.Repeat((byte)7, 32).ToArray(), day, startedAt, ReferrerName.Direct, DeviceKind.Phone, "Chrome", "Android", null);
+        context.AnalyticsVisits.Add(visit);
+        context.AnalyticsVitalSamples.AddRange(values.Select(value => AnalyticsVitalSample.Of(visit.Id, day, metric, value, PageKeys.Home)));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 

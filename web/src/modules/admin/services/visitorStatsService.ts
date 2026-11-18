@@ -30,6 +30,28 @@ export interface RankedItem {
   share: number;
 }
 
+/** Google's rating of a speed figure (D-26), worked out on the server. */
+export type VitalRatingName = 'good' | 'needs-work' | 'poor';
+
+/** One Core Web Vital: the server's nearest-rank 75th percentile, its rating and the samples behind it. */
+export interface Vital {
+  /** Milliseconds for loading speed and tap response; a score for layout shifting. */
+  p75: number;
+  rating: VitalRatingName;
+  samples: number;
+}
+
+/** Page speed of the range; a measure with no sample is null. */
+export interface PageSpeed {
+  lcp: Vital | null;
+  cls: Vital | null;
+  inp: Vital | null;
+  /** The page views the figures come from. */
+  pageViews: number;
+  /** False when the whole range is older than 13 months, so no sample can exist (D-27). */
+  available: boolean;
+}
+
 /** The answer once the browser has checked it: the range the server read and its totals. */
 export interface VisitorStats {
   range: string;
@@ -49,6 +71,7 @@ export interface VisitorStats {
   devices: RankedItem[];
   /** The top 5 browsers, then "Other" for the rest. */
   browsers: RankedItem[];
+  speed: PageSpeed;
 }
 
 /** A stats answer the browser cannot show, so the page shows its failure instead of a wrong figure. */
@@ -84,6 +107,30 @@ function rankedItem(item: VisitorStatsResponse['topPages'][number], what: string
   return { name: item.name, count: count(item.count, `${what} count`), share: count(item.share, `${what} share`) };
 }
 
+function vitalRating(value: string): VitalRatingName {
+  if (value === 'good' || value === 'needs-work' || value === 'poor') return value;
+  throw new VisitorStatsContractError(`The speed rating "${value}" is not one the page knows.`);
+}
+
+function vital(item: VisitorStatsResponse['speed']['lcp'], what: string): Vital | null {
+  if (item === null) return null;
+  return {
+    p75: count(item.p75, `${what} figure`),
+    rating: vitalRating(item.rating),
+    samples: count(item.samples, `${what} sample count`),
+  };
+}
+
+function pageSpeed(speed: VisitorStatsResponse['speed']): PageSpeed {
+  return {
+    lcp: vital(speed.lcp, 'loading speed'),
+    cls: vital(speed.cls, 'layout shifting'),
+    inp: vital(speed.inp, 'tap response'),
+    pageViews: count(speed.pageViews, 'speed page view count'),
+    available: speed.available,
+  };
+}
+
 /** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
@@ -104,6 +151,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     referrers: response.referrers.map((item) => rankedItem(item, 'source')),
     devices: response.devices.map((item) => rankedItem(item, 'device')),
     browsers: response.browsers.map((item) => rankedItem(item, 'browser')),
+    speed: pageSpeed(response.speed),
   };
 }
 

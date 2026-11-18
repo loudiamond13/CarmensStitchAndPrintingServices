@@ -19,6 +19,20 @@ public sealed record TrendBucketDto(string Start, int PageViews, int? UniqueVisi
 /// <param name="Share">The whole percent of the list's total; a full list's shares add up to 100.</param>
 public sealed record RankedItemDto(string Name, int Count, int Share);
 
+/// <summary>One Core Web Vital of a range (D-26): the 75th percentile of the visitors' samples and its rating.</summary>
+/// <param name="P75">The nearest-rank 75th percentile: milliseconds for loading speed and tap response, a score for layout shifting.</param>
+/// <param name="Rating">Google's rating of the percentile: <c>good</c>, <c>needs-work</c> or <c>poor</c>.</param>
+/// <param name="Samples">The samples the percentile was taken from.</param>
+public sealed record VitalDto(decimal P75, string Rating, int Samples);
+
+/// <summary>Page speed of a range (ANL-08, D-26), from the samples kept for 13 months.</summary>
+/// <param name="Lcp">Loading speed; null when no sample was measured.</param>
+/// <param name="Cls">Layout shifting; null when no sample was measured (Safari sends none).</param>
+/// <param name="Inp">Response to taps; null when no sample was measured.</param>
+/// <param name="PageViews">The page views the figures come from: the largest sample count of the three.</param>
+/// <param name="Available">False when the whole range is older than the raw cut, so no sample can exist (D-27).</param>
+public sealed record SpeedDto(VitalDto? Lcp, VitalDto? Cls, VitalDto? Inp, int PageViews, bool Available);
+
 /// <summary>The visitor stats answer (ANL-08). Dates are business days as <c>YYYY-MM-DD</c>.</summary>
 /// <param name="Range">The range that was read: a preset name or <c>custom</c>.</param>
 /// <param name="From">The first business day of the range, resolved on the server.</param>
@@ -31,6 +45,7 @@ public sealed record RankedItemDto(string Name, int Count, int Share);
 /// <param name="Referrers">Up to 10 sources by visits, highest first, named as stored (D-28).</param>
 /// <param name="Devices">The device classes with visits, highest first.</param>
 /// <param name="Browsers">The top 5 browsers by visits, then <c>Other</c> for the rest.</param>
+/// <param name="Speed">Page speed: the 75th percentile and rating of each Core Web Vital.</param>
 public sealed record VisitorStatsResponse(
     string Range,
     string From,
@@ -42,4 +57,5 @@ public sealed record VisitorStatsResponse(
     IReadOnlyList<RankedItemDto> TopPages,
     IReadOnlyList<RankedItemDto> Referrers,
     IReadOnlyList<RankedItemDto> Devices,
-    IReadOnlyList<RankedItemDto> Browsers);
+    IReadOnlyList<RankedItemDto> Browsers,
+    SpeedDto Speed);

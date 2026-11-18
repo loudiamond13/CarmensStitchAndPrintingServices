@@ -17,6 +17,7 @@ const answer: VisitorStatsResponse = {
   referrers: [],
   devices: [],
   browsers: [],
+  speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
 };
 
 afterEach(() => {
@@ -66,6 +67,35 @@ describe('visitorStatsService.get', () => {
       referrers: [],
       devices: [],
       browsers: [],
+      speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
+    });
+  });
+
+  it('narrows page speed to plain numbers and keeps a measure with no sample as null', async () => {
+    const { service } = serviceWith([
+      {
+        body: {
+          ...answer,
+          speed: {
+            lcp: { p75: '2400.000', rating: 'good', samples: 412 },
+            cls: null,
+            inp: { p75: 320, rating: 'needs-work', samples: '9' },
+            pageViews: '412',
+            available: true,
+          },
+        },
+      },
+    ]);
+
+    const stats = await service.get({ range: 'last-30-days', from: null, to: null });
+
+    expect(stats.speed.lcp?.p75).toBe(2400);
+    expect(stats.speed).toEqual({
+      lcp: { p75: 2400, rating: 'good', samples: 412 },
+      cls: null,
+      inp: { p75: 320, rating: 'needs-work', samples: 9 },
+      pageViews: 412,
+      available: true,
     });
   });
 
@@ -142,6 +172,15 @@ describe('visitorStatsService.get', () => {
     ['a source count that is not a number', { referrers: [{ name: 'Direct', count: 'lots', share: 100 }] }],
     ['a device share that is not a number', { devices: [{ name: 'Phone', count: 1, share: 'all' }] }],
     ['a browser count that is not a number', { browsers: [{ name: 'Chrome', count: 'lots', share: 100 }] }],
+    [
+      'a speed rating it does not know',
+      { speed: { ...answer.speed, lcp: { p75: 2400, rating: 'great', samples: 1 } } },
+    ],
+    [
+      'a speed figure that is not a number',
+      { speed: { ...answer.speed, cls: { p75: 'fast', rating: 'good', samples: 1 } } },
+    ],
+    ['a speed page view count that is not a number', { speed: { ...answer.speed, pageViews: 'many' } }],
   ])('refuses an answer with %s', async (_, change) => {
     const { service } = serviceWith([{ body: { ...answer, ...change } }]);
 
