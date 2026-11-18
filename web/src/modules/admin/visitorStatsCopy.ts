@@ -25,6 +25,19 @@ export const VISITOR_STATS_COPY = {
     to: 'To',
     exportCsv: 'Export CSV',
   },
+  /** Export CSV (D-25): the WEB-09 pending label and the two toasts. */
+  export: {
+    pending: 'Exporting',
+    done: {
+      title: 'Visitor stats exported',
+      /** "visitor-stats-2026-10-17-to-2026-11-15.csv is in your downloads." */
+      message: (fileName: string): string => `${fileName} is in your downloads.`,
+    },
+    failed: {
+      title: "Couldn't export the visitor stats.",
+      message: 'Check your internet connection and try again.',
+    },
+  },
   /** The Date range options, in the order the select lists them. */
   ranges: {
     'last-7-days': 'Last 7 days',
