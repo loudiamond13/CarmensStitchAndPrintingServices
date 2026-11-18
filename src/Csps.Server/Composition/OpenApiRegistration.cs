@@ -35,6 +35,12 @@ public static class OpenApiRegistration
                         RestrictChartMonths(operation);
                         return Task.CompletedTask;
                     });
+                options.AddOperationTransformer(
+                    (operation, _, _) =>
+                    {
+                        ListCsvExportAsCsvOnly(operation);
+                        return Task.CompletedTask;
+                    });
             });
         }
 
@@ -60,6 +66,17 @@ public static class OpenApiRegistration
             && operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "months")?.Schema is OpenApiSchema schema)
         {
             schema.Enum = [JsonValue.Create("6"), JsonValue.Create("12")];
+        }
+    }
+
+    // The controller produces JSON, but its CSV export answers a file, so the document lists only text/csv for that 200.
+    private static void ListCsvExportAsCsvOnly(OpenApiOperation operation)
+    {
+        if (operation.OperationId == "ExportVisitorStats"
+            && operation.Responses?.TryGetValue("200", out var ok) == true
+            && ok.Content is { } content)
+        {
+            content.Remove("application/json");
         }
     }
 

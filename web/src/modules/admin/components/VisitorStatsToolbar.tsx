@@ -1,8 +1,11 @@
-// The Visitor Stats toolbar (UI-SPEC V1 item 1; D-24, WEB-10). SPEC-GAP: V1. The Date range select over the five server presets
-// and Custom range; with Custom range, From and To. The choice is written to the URL by the page's one URL hook.
-import { Select } from '@/components';
+// The Visitor Stats toolbar (UI-SPEC V1 item 1; D-24, D-25, WEB-10). SPEC-GAP: V1. The Date range select over the five server presets
+// and Custom range; with Custom range, From and To. The choice is written to the URL by the page's one URL hook. Export CSV saves the
+// range the page shows.
+import { Button, Select } from '@/components';
 import { StatsCustomRange } from '@/modules/admin/components/StatsCustomRange';
 import { visitorStatsToolbarClasses } from '@/modules/admin/components/visitorStats.recipe';
+import { downloadCsv } from '@/modules/admin/downloadCsv';
+import { visitorStatsService, type VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
 import { VISITOR_STATS_COPY } from '@/modules/admin/visitorStatsCopy';
 import { STATS_RANGES, type StatsRange, type StatsRangeState } from '@/modules/admin/visitorStatsRange';
 
@@ -16,9 +19,11 @@ function asRange(value: string): StatsRange | null {
 export interface VisitorStatsToolbarProps {
   value: StatsRangeState;
   onChange: (next: StatsRangeState) => void;
+  /** The range the page last applied: the one Export CSV saves. */
+  exportQuery: VisitorStatsQuery;
 }
 
-export function VisitorStatsToolbar({ value, onChange }: VisitorStatsToolbarProps) {
+export function VisitorStatsToolbar({ value, onChange, exportQuery }: VisitorStatsToolbarProps) {
   return (
     <div className={visitorStatsToolbarClasses}>
       <Select
@@ -39,6 +44,17 @@ export function VisitorStatsToolbar({ value, onChange }: VisitorStatsToolbarProp
           }}
         />
       )}
+      <Button
+        variant="secondary"
+        icon="download"
+        onClick={() => {
+          void visitorStatsService.exportCsv(exportQuery).then((file) => {
+            downloadCsv(file.text, file.fileName);
+          });
+        }}
+      >
+        {COPY.toolbar.exportCsv}
+      </Button>
     </div>
   );
 }

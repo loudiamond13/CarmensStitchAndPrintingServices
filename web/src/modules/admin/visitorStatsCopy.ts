@@ -23,6 +23,7 @@ export const VISITOR_STATS_COPY = {
     dateRange: 'Date range',
     from: 'From',
     to: 'To',
+    exportCsv: 'Export CSV',
   },
   /** The Date range options, in the order the select lists them. */
   ranges: {

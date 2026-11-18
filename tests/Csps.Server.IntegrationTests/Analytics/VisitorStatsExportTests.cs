@@ -57,7 +57,7 @@ public sealed class VisitorStatsExportTests(CspsDatabase database) : IClassFixtu
         using var response = await rig.GetAsync(string.Empty, rig.Manager.AccessToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        response.Content.Headers.ContentDisposition.ShouldNotBeNull().FileName.ShouldBe("\"visitor-stats-2026-10-17-to-2026-11-15.csv\"");
+        response.Content.Headers.ContentDisposition.ShouldNotBeNull().FileName.ShouldBe("visitor-stats-2026-10-17-to-2026-11-15.csv");
         var lines = (await ReadCsvAsync(response)).Split("\r\n");
         lines.Length.ShouldBe(32);
         lines[0].ShouldBe(Header);

@@ -177,8 +177,32 @@ export function createVisitorStatsService(client: HttpClient): VisitorStatsServi
           signal,
         }),
       ),
-    exportCsv: () => Promise.resolve({ text: '', fileName: '' }),
+    exportCsv: async (query, signal) => {
+      const body = await client.get<string>('/visitor-stats/export', {
+        params: { range: query.range, from: query.from, to: query.to },
+        signal,
+        responseType: 'text',
+      });
+      // fetch drops the byte-order mark; another transport may not, and downloadCsv adds it back.
+      const text = body.replace(/^\uFEFF/, '');
+      return { text, fileName: csvFileName(text) };
+    },
   };
+}
+
+const CSV_HEADER = 'Date,Unique visitors,Visits,Page views';
+const CSV_DAY = /^\d{4}-\d{2}-\d{2}(?=,)/;
+
+/** The server's own name, from the file's first and last day: `visitor-stats-{from}-to-{to}.csv`. */
+function csvFileName(text: string): string {
+  const lines = text.split('\r\n').filter((line) => line !== '');
+  const [header, first] = lines;
+  const from = first === undefined ? undefined : CSV_DAY.exec(first)?.[0];
+  const to = CSV_DAY.exec(lines.at(-1) ?? '')?.[0];
+  if (header !== CSV_HEADER || from === undefined || to === undefined) {
+    throw new VisitorStatsContractError('The CSV file is not one the page knows.');
+  }
+  return `visitor-stats-${from}-to-${to}.csv`;
 }
 
 export const visitorStatsService: VisitorStatsService = createVisitorStatsService(apiClient);

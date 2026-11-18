@@ -51,7 +51,25 @@ public interface IVisitorStatsReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>Each metric's percentile and sample count; null for a metric with no sample.</returns>
     Task<VisitorSpeed> ReadSpeedAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the figures of each business day from <paramref name="first"/> to <paramref name="last"/> for the CSV export (D-25). Page views
+    /// come from the daily counts. Visits and unique visitors come from the raw visits on the days from <paramref name="cut"/> on.
+    /// </summary>
+    /// <param name="first">The first business day.</param>
+    /// <param name="last">The last business day.</param>
+    /// <param name="cut">The first business day raw visits are still kept for.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>Only the days that have data, oldest first; the caller fills the rest.</returns>
+    Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
 }
+
+/// <summary>The figures of one business day that has data.</summary>
+/// <param name="Day">The business day.</param>
+/// <param name="PageViews">The page views of the day.</param>
+/// <param name="Visits">The visits of the day; zero before the cut.</param>
+/// <param name="UniqueVisitors">The distinct visitors of the day; zero before the cut.</param>
+public sealed record DailyCount(DateOnly Day, int PageViews, int Visits, int UniqueVisitors);
 
 /// <summary>The 75th percentile of each Core Web Vital.</summary>
 /// <param name="Lcp">Loading speed, in milliseconds.</param>
