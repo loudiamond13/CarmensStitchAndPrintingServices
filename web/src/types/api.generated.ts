@@ -2860,6 +2860,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/visitor-stats/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Downloads the same range as a CSV file (D-25, D-33): UTF-8 with a byte-order mark, the header `Date,Unique visitors,Visits,Page views`,
+         *     then one CRLF line per business day from the first day to the last. A day with no data is zeros. Before the 13-month cut the unique
+         *     visitor and visit cells are empty. The file name is `visitor-stats-{from}-to-{to}.csv` with the dates the server used.
+         */
+        get: operations["ExportVisitorStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -15975,6 +15996,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VisitorStatsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportVisitorStats: {
+        parameters: {
+            query?: {
+                /** @description The same range as the stats read. */
+                range?: string;
+                /** @description The first business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
             /** @description Bad Request */

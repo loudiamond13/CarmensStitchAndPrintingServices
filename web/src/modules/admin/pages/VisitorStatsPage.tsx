@@ -102,6 +102,8 @@ function sameQuery(a: VisitorStatsQuery, b: VisitorStatsQuery): boolean {
 export interface VisitorStatsPageProps {
   range: StatsRangeState;
   onRangeChange: (next: StatsRangeState) => void;
+  /** The range the figures are read for; Export CSV saves the same one. */
+  exportQuery: VisitorStatsQuery;
   stats: VisitorStats | undefined;
   /** The first read, or a new range, is loading. */
   loading: boolean;
@@ -116,6 +118,7 @@ export interface VisitorStatsPageProps {
 export function VisitorStatsPage({
   range,
   onRangeChange,
+  exportQuery,
   stats,
   loading,
   error,
@@ -142,7 +145,7 @@ export function VisitorStatsPage({
             </div>
           )}
         </div>
-        <VisitorStatsToolbar value={range} onChange={onRangeChange} />
+        <VisitorStatsToolbar value={range} onChange={onRangeChange} exportQuery={exportQuery} />
       </div>
       {failed ? (
         <ErrorState things={COPY.things} align="start" error={error} onRetry={onRetry} />
@@ -189,7 +192,8 @@ export function VisitorStatsRoute() {
     setApplied(wanted);
   }
   // A custom range waits for today, so a shared link asks for its own dates, not the default first.
-  const query = useVisitorStatsQuery(wanted ?? applied, !(values.range === CUSTOM_RANGE && today === null));
+  const read = wanted ?? applied;
+  const query = useVisitorStatsQuery(read, !(values.range === CUSTOM_RANGE && today === null));
 
   useEffect(() => {
     document.title = `${COPY.title}${ADMIN_COPY.titleSuffix}`;
@@ -201,6 +205,7 @@ export function VisitorStatsRoute() {
       onRangeChange={(next) => {
         set.setFilters(next);
       }}
+      exportQuery={read}
       stats={query.data}
       loading={query.isPending || query.isPlaceholderData}
       error={query.error}

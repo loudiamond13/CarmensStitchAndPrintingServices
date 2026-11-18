@@ -355,6 +355,60 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         (await ReadSpeedAsync(Day, Day.AddDays(5))).ShouldBe(new VisitorSpeed(null, null, null));
     }
 
+    [Fact]
+    public async Task EachDayHasItsPageViewsVisitsAndDistinctVisitorsAndOnlyDaysWithDataAreListed()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Day, PageKeys.Home, 3);
+        await SeedViewsAsync(Day, PageKeys.Gallery, 5);
+        await SeedViewsAsync(Day.AddDays(2), PageKeys.Contact, 4);
+        await SeedViewsAsync(Day.AddDays(3), PageKeys.Home, 100);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(2, Day);
+        await SeedVisitAsync(1, Day.AddDays(1));
+        await SeedVisitAsync(9, Day.AddDays(-1));
+
+        var days = await ReadDailyAsync(Day, Day.AddDays(2));
+
+        days.ShouldBe(
+        [
+            new DailyCount(Day, 8, 3, 2),
+            new DailyCount(Day.AddDays(1), 0, 1, 1),
+            new DailyCount(Day.AddDays(2), 4, 0, 0),
+        ]);
+    }
+
+    [Fact]
+    public async Task VisitsAreReadOnlyFromTheCutDayOnWhilePageViewsAreReadForEveryDay()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Home, 6);
+        await SeedViewsAsync(Cut, PageKeys.Home, 2);
+        await SeedVisitAsync(1, Cut.AddDays(-1));
+        await SeedVisitAsync(2, Cut);
+
+        var crossing = await ReadDailyAsync(Cut.AddDays(-2), Cut);
+        var old = await ReadDailyAsync(Cut.AddDays(-2), Cut.AddDays(-1));
+
+        crossing.ShouldBe([new DailyCount(Cut.AddDays(-1), 6, 0, 0), new DailyCount(Cut, 2, 1, 1)]);
+        old.ShouldBe([new DailyCount(Cut.AddDays(-1), 6, 0, 0)]);
+    }
+
+    [Fact]
+    public async Task ARangeWithNoDataListsNoDays()
+    {
+        await database.ResetAsync();
+
+        (await ReadDailyAsync(Day, Day.AddDays(4))).ShouldBeEmpty();
+    }
+
+    private async Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly from, DateOnly to)
+    {
+        await using var context = database.CreateContext();
+        return await new VisitorStatsReader(context).ReadDailyAsync(from, to, Cut, TestContext.Current.CancellationToken);
+    }
+
     private async Task SeedDailyAsync<T>(T row)
         where T : class
     {

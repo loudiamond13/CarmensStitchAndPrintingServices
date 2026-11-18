@@ -38,6 +38,8 @@ export interface RequestConfig {
   readonly skipAuthRefresh?: boolean | undefined;
   /** Lets the request finish after the page is hidden or closed (fetch `keepalive`). Off unless set. */
   readonly keepalive?: boolean | undefined;
+  /** 'text' asks for a text/csv file and resolves to its text; any other answer is still a parse error. Defaults to 'json'. */
+  readonly responseType?: 'json' | 'text' | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;
@@ -220,9 +222,10 @@ function buildUrl(baseURL: string, request: HttpRequest): string {
 }
 
 const jsonContentType = /^application\/(?:problem\+)?json\s*(?:;|$)/i;
+const csvContentType = /^text\/csv\s*(?:;|$)/i;
 
-function isJson(headers: Headers): boolean {
-  return jsonContentType.test(headers.get('Content-Type') ?? '');
+function hasType(headers: Headers, type: RegExp): boolean {
+  return type.test(headers.get('Content-Type') ?? '');
 }
 
 function isUnauthorized(error: unknown): error is HttpError {
@@ -352,9 +355,9 @@ function sendWithXhr(
 const noContentStatuses: ReadonlySet<number> = new Set([202, 204, 205]);
 
 /** Turns a received answer into the response data, or throws an HttpError. */
-function toHttpResponse(raw: RawResponse, method: HttpMethod): HttpResponse {
+function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean): HttpResponse {
   const { status, headers, text } = raw;
-  const json = isJson(headers);
+  const json = hasType(headers, jsonContentType);
   if (status < 200 || status > 299) {
     let problem;
     if (json) {
@@ -369,10 +372,13 @@ function toHttpResponse(raw: RawResponse, method: HttpMethod): HttpResponse {
   if (text === '' && (noContentStatuses.has(status) || method === 'HEAD')) {
     return { status, headers, data: undefined };
   }
-  // The API never redirects and answers with JSON or 204. A followed redirect, an empty body or a body of another type
-  // is a captive portal, a proxy or a host page, never the DTO the caller typed (LIB-WR-05).
-  if (raw.redirected || !json || text === '') {
+  // The API never redirects and answers with JSON or 204, or text/csv when asked. A followed redirect, an empty body or a
+  // body of another type is a captive portal, a proxy or a host page, never the DTO the caller typed (LIB-WR-05).
+  if (raw.redirected || text === '' || !(asCsv ? hasType(headers, csvContentType) : json)) {
     throw new HttpError({ kind: 'parse', status });
+  }
+  if (asCsv) {
+    return { status, headers, data: text };
   }
   try {
     const data: unknown = JSON.parse(text);
@@ -402,7 +408,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
 
   function initialRequest(request: RequestConfig, method: HttpMethod): HttpRequest {
     const headers = new Headers(config.headers);
-    headers.set('Accept', 'application/json');
+    headers.set('Accept', request.responseType === 'text' ? 'text/csv' : 'application/json');
     for (const [name, value] of Object.entries(request.headers ?? {})) {
       headers.set(name, value);
     }
@@ -451,7 +457,7 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
         onUploadProgress === undefined
           ? await sendWithFetch(fetchImpl, outgoing)
           : await sendWithXhr(createXhr, outgoing, onUploadProgress);
-      return toHttpResponse(raw, prepared.method);
+      return toHttpResponse(raw, prepared.method, requestConfig.responseType === 'text');
     } catch (error) {
       throw toTransportError(error, caller, timeout.signal);
     } finally {

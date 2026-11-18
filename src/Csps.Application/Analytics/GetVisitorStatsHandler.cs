@@ -156,7 +156,8 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
     private static DateOnly Next(DateOnly start, StatsBucketKind bucket) =>
         bucket == StatsBucketKind.Day ? start.AddDays(1) : new DateOnly(start.Year, start.Month, 1).AddMonths(1);
 
-    private static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)
+    /// <summary>The range name and its first and last business day; a checked custom range is used as given, anything else is a preset.</summary>
+    internal static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)
     {
         if (request.Range == StatsRangePresets.Custom
             && AuditLogFilters.TryParseDay(request.From, out var from)

@@ -155,9 +155,17 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
   };
 }
 
+/** The CSV file of a range and the name to save it under. */
+export interface VisitorStatsFile {
+  text: string;
+  fileName: string;
+}
+
 export interface VisitorStatsService {
   /** `GET /api/v1/visitor-stats`: the totals of a range. 400 field errors on `from` and `to` for a custom range. */
   get(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStats>;
+  /** `GET /api/v1/visitor-stats/export`: one CSV row per business day of the range (D-25). */
+  exportCsv(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStatsFile>;
 }
 
 export function createVisitorStatsService(client: HttpClient): VisitorStatsService {
@@ -169,7 +177,32 @@ export function createVisitorStatsService(client: HttpClient): VisitorStatsServi
           signal,
         }),
       ),
+    exportCsv: async (query, signal) => {
+      const body = await client.get<string>('/visitor-stats/export', {
+        params: { range: query.range, from: query.from, to: query.to },
+        signal,
+        responseType: 'text',
+      });
+      // fetch drops the byte-order mark; another transport may not, and downloadCsv adds it back.
+      const text = body.replace(/^\uFEFF/, '');
+      return { text, fileName: csvFileName(text) };
+    },
   };
+}
+
+const CSV_HEADER = 'Date,Unique visitors,Visits,Page views';
+const CSV_DAY = /^\d{4}-\d{2}-\d{2}(?=,)/;
+
+/** The server's own name, from the file's first and last day: `visitor-stats-{from}-to-{to}.csv`. */
+function csvFileName(text: string): string {
+  const lines = text.split('\r\n').filter((line) => line !== '');
+  const [header, first] = lines;
+  const from = first === undefined ? undefined : CSV_DAY.exec(first)?.[0];
+  const to = CSV_DAY.exec(lines.at(-1) ?? '')?.[0];
+  if (header !== CSV_HEADER || from === undefined || to === undefined) {
+    throw new VisitorStatsContractError('The CSV file is not one the page knows.');
+  }
+  return `visitor-stats-${from}-to-${to}.csv`;
 }
 
 export const visitorStatsService: VisitorStatsService = createVisitorStatsService(apiClient);

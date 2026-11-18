@@ -329,3 +329,64 @@ describe('createHttpClient: request interceptors', () => {
     expect(onlyCall(fake.calls).headers.has('X-Test')).toBe(false);
   });
 });
+
+describe('createHttpClient: text mode for a CSV file (Pitfall 2)', () => {
+  const csv = 'Date,Unique visitors,Visits,Page views\r\n2026-11-15,1,2,3\r\n';
+
+  it('asks for text/csv and resolves to the body text when responseType is text', async () => {
+    const fake = createFakeFetch([{ body: csv, headers: { 'Content-Type': 'text/csv; charset=utf-8' } }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const text = await client.get<string>('/visitor-stats/export', { responseType: 'text' });
+
+    expect(text).toBe(csv);
+    expect(onlyCall(fake.calls).headers.get('Accept')).toBe('text/csv');
+  });
+
+  it.each([
+    ['an HTML page', { status: 200, body: '<html>Sign in to Wi-Fi</html>', headers: { 'Content-Type': 'text/html' } }],
+    ['a JSON body', { status: 200, body: { a: 1 } }],
+    ['a text/plain body', { status: 200, body: 'pong', headers: { 'Content-Type': 'text/plain' } }],
+    ['an empty CSV', { status: 200, body: '', headers: { 'Content-Type': 'text/csv' } }],
+    [
+      'a CSV reached through a redirect',
+      { status: 200, body: csv, headers: { 'Content-Type': 'text/csv' }, redirected: true },
+    ],
+  ])('still rejects %s with kind parse in text mode (LIB-WR-05)', async (_case, plan) => {
+    const fake = createFakeFetch([plan]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    const error = await rejection(client.get('/export', { responseType: 'text' }));
+
+    expect([error.kind, error.status]).toEqual(['parse', 200]);
+  });
+
+  it('rejects a CSV answer with kind parse when the request did not ask for text', async () => {
+    const fake = createFakeFetch([
+      { body: csv, headers: { 'Content-Type': 'text/csv' } },
+      { body: csv, headers: { 'Content-Type': 'text/csv' } },
+    ]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    const json = await rejection(client.get('/export'));
+    const named = await rejection(client.get('/export', { responseType: 'json' }));
+
+    expect([json.kind, named.kind]).toEqual(['parse', 'parse']);
+    expect(fake.calls.map((call) => call.headers.get('Accept'))).toEqual(['application/json', 'application/json']);
+  });
+
+  it('turns an error answer in text mode into an HttpError with its ProblemDetails', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 400,
+        body: { title: 'Check the highlighted fields.', status: 400, errors: { from: ['Enter a start date.'] } },
+        headers: { 'Content-Type': 'application/problem+json' },
+      },
+    ]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    const error = await rejection(client.get('/export', { responseType: 'text' }));
+
+    expect([error.kind, error.status, error.problem?.errors]).toEqual(['http', 400, { from: ['Enter a start date.'] }]);
+  });
+});

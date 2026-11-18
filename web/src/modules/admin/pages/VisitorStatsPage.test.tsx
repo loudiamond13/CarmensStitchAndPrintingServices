@@ -1030,3 +1030,174 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+const CSV_FILE = 'Date,Unique visitors,Visits,Page views\r\n2026-10-17,1,2,3\r\n2026-11-15,4,5,6\r\n';
+
+/** The fake export call; returns the calls it answered. */
+function exportBackend(respond: () => Response | Promise<Response> = () => csvResponse()): { calls: URL[] } {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/visitor-stats/export', async ({ request }) => {
+      calls.push(new URL(request.url));
+      return respond();
+    }),
+  );
+  return { calls };
+}
+
+function csvResponse(): Response {
+  return new HttpResponse(CSV_FILE, { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+}
+
+interface SavedFile {
+  blob: Blob;
+  href: string;
+  download: string;
+}
+
+/** Stubs the object URL calls and the link click, and records each file the page saves. */
+function captureDownloads(): { saved: SavedFile[]; revoked: string[] } {
+  const saved: SavedFile[] = [];
+  const revoked: string[] = [];
+  const blobs: Blob[] = [];
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: (blob: Blob) => {
+      blobs.push(blob);
+      return `blob:csps/${String(blobs.length)}`;
+    },
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: (url: string) => {
+      revoked.push(url);
+    },
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    const blob = blobs.at(-1);
+    if (blob !== undefined) saved.push({ blob, href: this.href, download: this.download });
+  });
+  return { saved, revoked };
+}
+
+describe('V1 CSV export (D-25)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('pressing Export CSV asks the server for the range shown and saves the file under its name', async () => {
+    backend();
+    const { calls } = exportBackend();
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    const button = screen.queryByRole('button', { name: 'Export CSV' });
+    expect(button).not.toBeNull();
+    if (button === null) return;
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(saved).toHaveLength(1);
+    });
+    expect(lastQuery(calls)).toEqual({ range: 'last-30-days' });
+    expect(saved[0]?.download).toBe('visitor-stats-2026-10-17-to-2026-11-15.csv');
+    expect(saved[0]?.href).toBe('blob:csps/1');
+    expect(saved[0]?.blob.type).toBe('text/csv;charset=utf-8');
+  });
+
+  it('exports the custom range the page shows', async () => {
+    backend(echo);
+    const { calls } = exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    renderPage('?range=custom&from=2026-10-01&to=2026-10-31');
+    await screen.findByText('4,567');
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+    expect(lastQuery(calls)).toEqual({ range: 'custom', from: '2026-10-01', to: '2026-10-31' });
+  });
+
+  it('says "Visitor stats exported" with the file name once the file is saved', async () => {
+    backend();
+    exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const title = await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
+    expect(title?.textContent).toBe('Visitor stats exported');
+    expect(screen.getByText('visitor-stats-2026-10-17-to-2026-11-15.csv is in your downloads.')).toBeInTheDocument();
+  });
+
+  it('shows "Exporting" on a busy button while the file is made, then returns to rest', async () => {
+    backend();
+    let release: (() => void) | undefined;
+    const { calls } = exportBackend(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(csvResponse());
+          };
+        }),
+    );
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const busy = await screen.findByRole('button', { name: 'Exporting' }, { timeout: 3000 }).catch(() => null);
+    expect(busy?.getAttribute('aria-busy')).toBe('true');
+    expect(busy?.getAttribute('aria-disabled')).toBe('true');
+    if (busy !== null) await user.click(busy);
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+    release?.();
+    const rest = await screen.findByRole('button', { name: 'Export CSV' });
+    expect(rest.getAttribute('aria-busy')).toBeNull();
+    expect(rest.getAttribute('aria-disabled')).toBeNull();
+    expect(saved).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('shows the failure toast and saves nothing when the export fails', async () => {
+    backend();
+    exportBackend(() => new HttpResponse(null, { status: 500 }));
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const title = await screen
+      .findByText("Couldn't export the visitor stats.", {}, { timeout: 3000 })
+      .catch(() => null);
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toBe("Couldn't export the visitor stats.");
+    expect(screen.getByText('Check your internet connection and try again.')).toBeInTheDocument();
+    expect(saved).toHaveLength(0);
+    const rest = screen.getByRole('button', { name: 'Export CSV' });
+    expect(rest.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('has no axe violations with the export toast shown', async () => {
+    backend();
+    exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    const { container } = await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
+
+    await expectNoAxeViolations(container);
+  });
+});

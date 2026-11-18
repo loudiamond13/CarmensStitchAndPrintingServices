@@ -142,6 +142,37 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
         return new VisitorSpeed(lcp, cls, inp);
     }
 
+    public async Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
+    {
+        var views = await context.DailyPageCounts
+            .AsNoTracking()
+            .Where(row => row.BusinessDay >= first && row.BusinessDay <= last)
+            .GroupBy(row => row.BusinessDay)
+            .Select(group => new { Day = group.Key, Views = group.Sum(row => (long)row.Views) })
+            .ToDictionaryAsync(row => row.Day, row => (int)Math.Min(row.Views, int.MaxValue), cancellationToken)
+            .ConfigureAwait(false);
+
+        // Visits and unique visitors exist only from the cut day on; unique visitors are distinct per day.
+        var start = first > cut ? first : cut;
+        var visits = start > last
+            ? []
+            : await context.AnalyticsVisits
+                .AsNoTracking()
+                .Where(row => row.BusinessDay >= start && row.BusinessDay <= last)
+                .GroupBy(row => row.BusinessDay)
+                .Select(group => new { Day = group.Key, Visits = group.Count(), Unique = group.Select(row => row.VisitorHash).Distinct().Count() })
+                .ToDictionaryAsync(row => row.Day, row => (row.Visits, row.Unique), cancellationToken)
+                .ConfigureAwait(false);
+
+        return [.. views.Keys.Union(visits.Keys)
+            .Order()
+            .Select(day =>
+            {
+                var (visitCount, uniqueCount) = visits.GetValueOrDefault(day);
+                return new DailyCount(day, views.GetValueOrDefault(day), visitCount, uniqueCount);
+            })];
+    }
+
     /// <summary>The nearest-rank 75th percentile of one metric: a count, then the value at that rank in ascending order.</summary>
     private static async Task<VitalPercentile?> PercentileAsync(IQueryable<AnalyticsVitalSample> samples, VitalMetric metric, CancellationToken cancellationToken)
     {
