@@ -199,7 +199,9 @@ describe('VisitorTrendChart: month buckets and the 13-month line', () => {
       'Oct',
       'Nov',
     ]);
-    expect(plot().getAttribute('aria-label')).toBe('Page views and unique visitors, Dec 1, 2025 to Nov 30, 2026');
+    expect(screen.getByRole('group').getAttribute('aria-label')).toBe(
+      'Page views and unique visitors, Dec 1, 2025 to Nov 30, 2026',
+    );
   });
 
   it('stops the line where unique visitors are not available: no point and no zero there', () => {

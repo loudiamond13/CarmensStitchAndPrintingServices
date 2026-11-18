@@ -9,8 +9,9 @@ using FluentValidation;
 namespace Csps.Application.Analytics;
 
 /// <summary>
-/// Use case: a Manager reads unique visitors, visits and page views for a date range (ANL-08, D-24, D-33). Presets are resolved against the
-/// business calendar, never the device clock. The read runs on demand with no cache.
+/// Use case: a Manager reads unique visitors, visits and page views for a date range (ANL-08, D-24, D-33), with the trend per day for up to
+/// 62 days, else per month (<see cref="StatsBucket.For"/>). Presets are resolved against the business calendar, never the device clock. The
+/// read runs on demand with no cache.
 /// </summary>
 /// <param name="reader">The visitor stats read port.</param>
 /// <param name="calendar">The business calendar.</param>
@@ -59,22 +60,33 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 totals.PageViews,
                 crossesTheCut ? Format(cut) : null),
             bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
-            Fill(from, to, counts)));
+            Fill(from, to, cut, bucket, counts)));
     }
 
-    /// <summary>One bucket per day of the range: the store's counts where it has data, zeros elsewhere.</summary>
-    private static List<TrendBucketDto> Fill(DateOnly from, DateOnly to, IReadOnlyList<TrendCount> counts)
+    /// <summary>
+    /// One bucket per day or month of the range, oldest first: the store's counts where it has data, zeros elsewhere. A month
+    /// bucket starts on the range's first day when the range starts mid-month. D-27: a bucket that ends before the cut has no
+    /// unique visitors; one that crosses it counts from the cut (the store reads it so).
+    /// </summary>
+    private static List<TrendBucketDto> Fill(DateOnly from, DateOnly to, DateOnly cut, StatsBucketKind bucket, IReadOnlyList<TrendCount> counts)
     {
         var byStart = counts.ToDictionary(count => count.Start);
-        var trend = new List<TrendBucketDto>(to.DayNumber - from.DayNumber + 1);
-        for (var day = from; day <= to; day = day.AddDays(1))
+        var trend = new List<TrendBucketDto>();
+        for (var start = from; start <= to; start = Next(start, bucket))
         {
-            var count = byStart.GetValueOrDefault(day);
-            trend.Add(new TrendBucketDto(Format(day), count?.PageViews ?? 0, count?.UniqueVisitors ?? 0));
+            var key = bucket == StatsBucketKind.Day ? start : new DateOnly(start.Year, start.Month, 1);
+            var monthEnd = Next(start, bucket).AddDays(-1);
+            var end = bucket == StatsBucketKind.Day ? start : monthEnd < to ? monthEnd : to;
+            var count = byStart.GetValueOrDefault(key);
+            int? unique = end < cut ? null : count?.UniqueVisitors ?? 0;
+            trend.Add(new TrendBucketDto(Format(start), count?.PageViews ?? 0, unique));
         }
 
         return trend;
     }
+
+    private static DateOnly Next(DateOnly start, StatsBucketKind bucket) =>
+        bucket == StatsBucketKind.Day ? start.AddDays(1) : new DateOnly(start.Year, start.Month, 1).AddMonths(1);
 
     private static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)
     {

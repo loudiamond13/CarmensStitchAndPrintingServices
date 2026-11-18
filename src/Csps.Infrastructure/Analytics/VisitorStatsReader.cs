@@ -35,29 +35,46 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
 
     public async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken)
     {
-        var views = await context.DailyPageCounts
-            .AsNoTracking()
-            .Where(row => row.BusinessDay >= first && row.BusinessDay <= last)
-            .GroupBy(row => row.BusinessDay)
-            .Select(group => new { Start = group.Key, Views = group.Sum(row => (long)row.Views) })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var start = first > cut ? first : cut;
-        var visitors = start > last
-            ? []
-            : await context.AnalyticsVisits
-                .AsNoTracking()
-                .Where(row => row.BusinessDay >= start && row.BusinessDay <= last)
+        var days = context.DailyPageCounts.AsNoTracking().Where(row => row.BusinessDay >= first && row.BusinessDay <= last);
+        var views = bucket == StatsBucketKind.Day
+            ? await days
                 .GroupBy(row => row.BusinessDay)
-                .Select(group => new { Start = group.Key, Visitors = group.Select(row => row.VisitorHash).Distinct().Count() })
+                .Select(group => new BucketFigure(group.Key.Year, group.Key.Month, group.Key.Day, group.Sum(row => (long)row.Views)))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false)
+            : await days
+                .GroupBy(row => new { row.BusinessDay.Year, row.BusinessDay.Month })
+                .Select(group => new BucketFigure(group.Key.Year, group.Key.Month, 1, group.Sum(row => (long)row.Views)))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-        var viewsByStart = views.ToDictionary(row => row.Start, row => (int)Math.Min(row.Views, int.MaxValue));
-        var visitorsByStart = visitors.ToDictionary(row => row.Start, row => row.Visitors);
+        // Unique visitors are a distinct count over each bucket's raw visits from the cut on, never a sum of days.
+        var start = first > cut ? first : cut;
+        var visits = context.AnalyticsVisits.AsNoTracking().Where(row => row.BusinessDay >= start && row.BusinessDay <= last);
+        List<BucketFigure> visitors = start > last
+            ? []
+            : bucket == StatsBucketKind.Day
+                ? await visits
+                    .GroupBy(row => row.BusinessDay)
+                    .Select(group => new BucketFigure(group.Key.Year, group.Key.Month, group.Key.Day, group.Select(row => row.VisitorHash).Distinct().Count()))
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false)
+                : await visits
+                    .GroupBy(row => new { row.BusinessDay.Year, row.BusinessDay.Month })
+                    .Select(group => new BucketFigure(group.Key.Year, group.Key.Month, 1, group.Select(row => row.VisitorHash).Distinct().Count()))
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+        var viewsByStart = views.ToDictionary(row => row.Start, row => (int)Math.Min(row.Value, int.MaxValue));
+        var visitorsByStart = visitors.ToDictionary(row => row.Start, row => (int)row.Value);
         return [.. viewsByStart.Keys.Union(visitorsByStart.Keys)
             .Order()
             .Select(day => new TrendCount(day, viewsByStart.GetValueOrDefault(day), visitorsByStart.GetValueOrDefault(day)))];
+    }
+
+    /// <summary>One aggregate of a bucket: the day, or the month on its first day.</summary>
+    private sealed record BucketFigure(int Year, int Month, int Day, long Value)
+    {
+        public DateOnly Start => new(Year, Month, Day);
     }
 }

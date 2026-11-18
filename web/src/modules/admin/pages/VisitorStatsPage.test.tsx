@@ -284,6 +284,23 @@ describe('V1 the Trend card', () => {
     expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(30);
   });
 
+  it('says "Per month" and draws month buckets when the server chose months for This year', async () => {
+    const months = Array.from({ length: 11 }, (_, i) => ({
+      start: `2026-${String(i + 1).padStart(2, '0')}-01`,
+      pageViews: 100 + i,
+      uniqueVisitors: 10 + i,
+    }));
+    backend(statsAnswer({}, { range: 'this-year', from: '2026-01-01', bucket: 'month', trend: months }));
+    await openPage('?range=this-year');
+
+    expect(within(trendCard()).getByText('Per month')).toBeInTheDocument();
+    const plot = within(trendCard()).getByRole('group', {
+      name: 'Page views and unique visitors, Jan 1 to Nov 15, 2026',
+    });
+    expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(11);
+    expect(within(plot).getByText('Jan')).toBeInTheDocument();
+  });
+
   it('has no axe violations with the chart shown', async () => {
     backend();
     const { container } = await openPage();

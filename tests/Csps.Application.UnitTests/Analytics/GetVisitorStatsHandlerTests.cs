@@ -211,6 +211,17 @@ public sealed class GetVisitorStatsHandlerTests
     }
 
     [Fact]
+    public async Task AMonthCutShortByARangeEndingTheDayBeforeTheCutHasNoUniqueVisitors()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-01-01", "2025-10-14"), TestContext.Current.CancellationToken);
+
+        result.Value.Trend.Count.ShouldBe(10);
+        result.Value.Trend.ShouldAllBe(static b => b.UniqueVisitors == null);
+    }
+
+    [Fact]
     public async Task ADayBeforeTheCutHasNoUniqueVisitorsAndTheCutDayItselfCounts()
     {
         var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2025, 10, 14), 9, 0)]);
