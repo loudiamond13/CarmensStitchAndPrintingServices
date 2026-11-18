@@ -47,4 +47,10 @@ export const VISITOR_STATS_COPY = {
     /** "Counted from Oct 15, 2025 only". */
     countedFrom: (date: string): string => `Counted from ${date} only`,
   },
+  /** The Trend card (UI-SPEC V1 item 4); the chart's own words are VISITOR_TREND_COPY. */
+  trend: {
+    title: 'Visits over time',
+    perDay: 'Per day',
+    perMonth: 'Per month',
+  },
 } as const;

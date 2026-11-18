@@ -49,6 +49,12 @@ function plot(): HTMLElement {
   return screen.getByRole('group', { name: 'Page views and unique visitors, Oct 17 to Nov 15, 2026' });
 }
 
+/** The paths whose class list is exactly `classes`. */
+function pathsWith(container: HTMLElement, classes: string): Element[] {
+  const wanted = tokens(classes).join(' ');
+  return [...container.querySelectorAll('path')].filter((path) => classTokens(path).join(' ') === wanted);
+}
+
 function bucketGroups(container: HTMLElement): Element[] {
   return [...container.querySelectorAll('[data-bucket]')];
 }
@@ -74,8 +80,8 @@ describe('VisitorTrendChart: 30 day buckets', () => {
 
   it('draws the unique-visitor line over the bars with its surface halo', () => {
     const { container } = renderThirty();
-    const halo = container.querySelector(`path.${tokens(chartVisitorHaloClasses).join('.')}`);
-    const line = container.querySelector(`path.${tokens(chartVisitorLineClasses).join('.')}`);
+    const [halo] = pathsWith(container, chartVisitorHaloClasses);
+    const [line] = pathsWith(container, chartVisitorLineClasses);
 
     expect(halo?.getAttribute('d')).toMatch(/^M/);
     expect(line?.getAttribute('d')).toBe(halo?.getAttribute('d'));
@@ -108,7 +114,7 @@ describe('VisitorTrendChart: 30 day buckets', () => {
 
   it('shows the legend: a Page views swatch and a Unique visitors line swatch', () => {
     renderThirty();
-    const legend = screen.getByText('Page views').parentElement?.parentElement;
+    const legend = screen.getByText('Page views').parentElement;
 
     expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
     const swatches = [...(legend?.querySelectorAll('i') ?? [])];

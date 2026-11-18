@@ -33,6 +33,31 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
         return new VisitorTotals(uniqueCount, visitCount, pageViews);
     }
 
-    public Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<TrendCount>>([]);
+    public async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken)
+    {
+        var views = await context.DailyPageCounts
+            .AsNoTracking()
+            .Where(row => row.BusinessDay >= first && row.BusinessDay <= last)
+            .GroupBy(row => row.BusinessDay)
+            .Select(group => new { Start = group.Key, Views = group.Sum(row => (long)row.Views) })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var start = first > cut ? first : cut;
+        var visitors = start > last
+            ? []
+            : await context.AnalyticsVisits
+                .AsNoTracking()
+                .Where(row => row.BusinessDay >= start && row.BusinessDay <= last)
+                .GroupBy(row => row.BusinessDay)
+                .Select(group => new { Start = group.Key, Visitors = group.Select(row => row.VisitorHash).Distinct().Count() })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+        var viewsByStart = views.ToDictionary(row => row.Start, row => (int)Math.Min(row.Views, int.MaxValue));
+        var visitorsByStart = visitors.ToDictionary(row => row.Start, row => row.Visitors);
+        return [.. viewsByStart.Keys.Union(visitorsByStart.Keys)
+            .Order()
+            .Select(day => new TrendCount(day, viewsByStart.GetValueOrDefault(day), visitorsByStart.GetValueOrDefault(day)))];
+    }
 }

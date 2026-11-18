@@ -10,10 +10,12 @@ export const visitorStatsToolbarClasses = tw(
 );
 
 /**
- * The figures under the toolbar. While a new range loads, the last figures stay, dimmed by colour only (D-02: no opacity on
- * text), under the region's aria-busy.
+ * The figures under the toolbar, 24px apart. While a new range loads, the last figures stay, dimmed by colour only (D-02: no
+ * opacity on text), under the region's aria-busy: the KPI figures take `--ink-subtle` and the chart body `--surface-2`.
  */
-export const visitorStatsBodyClasses = tw('[&[aria-busy=true]_[data-kpi-value]]:text-ink-subtle');
+export const visitorStatsBodyClasses = tw(
+  'flex flex-col gap-6 [&[aria-busy=true]_[data-kpi-value]]:text-ink-subtle [&[aria-busy=true]_[data-trend-body]]:bg-surface-2',
+);
 
 /**
  * The KPI row: the dashboard KPI grid with three cards across, two then one up to 1023px, one column at 767px and below. On

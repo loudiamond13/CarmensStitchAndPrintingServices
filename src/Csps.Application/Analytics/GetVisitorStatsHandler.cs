@@ -18,6 +18,8 @@ namespace Csps.Application.Analytics;
 public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusinessCalendar calendar, IValidator<VisitorStatsRequest> validator)
 {
     private const string DateFormat = "yyyy-MM-dd";
+    private const string DayBucket = "day";
+    private const string MonthBucket = "month";
 
     /// <summary>Reads the totals.</summary>
     /// <param name="request">The query.</param>
@@ -40,6 +42,8 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var cut = AnalyticsRetention.RawCut(today);
 
         var totals = await reader.ReadTotalsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
+        var bucket = StatsBucket.For(from, to);
+        var counts = await reader.ReadTrendAsync(from, to, cut, bucket, cancellationToken).ConfigureAwait(false);
 
         // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
         var wholeRangeIsOld = to < cut;
@@ -54,8 +58,22 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 wholeRangeIsOld ? null : totals.Visits,
                 totals.PageViews,
                 crossesTheCut ? Format(cut) : null),
-            string.Empty,
-            []));
+            bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
+            Fill(from, to, counts)));
+    }
+
+    /// <summary>One bucket per day of the range: the store's counts where it has data, zeros elsewhere.</summary>
+    private static List<TrendBucketDto> Fill(DateOnly from, DateOnly to, IReadOnlyList<TrendCount> counts)
+    {
+        var byStart = counts.ToDictionary(count => count.Start);
+        var trend = new List<TrendBucketDto>(to.DayNumber - from.DayNumber + 1);
+        for (var day = from; day <= to; day = day.AddDays(1))
+        {
+            var count = byStart.GetValueOrDefault(day);
+            trend.Add(new TrendBucketDto(Format(day), count?.PageViews ?? 0, count?.UniqueVisitors ?? 0));
+        }
+
+        return trend;
     }
 
     private static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)

@@ -52,7 +52,20 @@ function optionalCount(value: unknown, what: string): number | null {
   return value === null ? null : count(value, what);
 }
 
-/** Narrows a stats answer: a count that is not a plain number refuses the whole answer. */
+function bucketSize(value: string): TrendBucketSize {
+  if (value === 'day' || value === 'month') return value;
+  throw new VisitorStatsContractError(`The bucket size "${value}" is not one the page knows.`);
+}
+
+function trendPoint(item: VisitorStatsResponse['trend'][number]): TrendPoint {
+  return {
+    start: item.start,
+    pageViews: count(item.pageViews, 'trend page view count'),
+    uniqueVisitors: optionalCount(item.uniqueVisitors, 'trend unique visitor count'),
+  };
+}
+
+/** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
   return {
@@ -66,8 +79,8 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
       pageViews: count(totals.pageViews, 'page view count'),
       countedFrom: totals.countedFrom,
     },
-    bucket: 'day',
-    trend: [],
+    bucket: bucketSize(response.bucket),
+    trend: response.trend.map(trendPoint),
   };
 }
 
