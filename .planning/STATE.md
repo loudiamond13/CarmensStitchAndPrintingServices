@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 7 merged and gated
+last_activity_desc: Phase 12 wave 8 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 349
+  completed_plans: 350
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-17T22:05:00-06:00"
+updated: "2026-11-17T23:55:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 7 (12-23, 12-24) merged and gated
+Last activity: 2026-11-17 — Phase 12 wave 8 (12-25) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1056,6 +1056,9 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-23 open items:** (1) the "today" range is the row above (`?range=today` falls back to Last 30 days); (2) if the business-day call fails with a custom range chosen, the cards stay loading: 12-28 (states) should show an error. Outside its file list 12-23 added a `KpiCard` `emptyLabel` prop and updated the nav order and icon count tests.
 - [ ] **12-24 notes:** the Clear test pins the "Done. This site's cookies ..." line, so a 12-22 rewording changes `consent.spec.ts` too. Firefox left 20 tall cards partly under the bar during the focus walk (recorded, not failed, as @public-sweep does). Test-only fixes: wait for the dialog animation at 320 px, scroll the lazy map frame into view for WebKit.
 - [ ] **Wave 7 load flakes (recorded):** `OrderItemModal.test.tsx` "sends one request for a double click" got 2 requests in 2 of 4 full runs in the 12-23 worktree (new; passed alone 4 of 4); `PublicLayout` bar and beacon tests and an `OrderFormPage` axe test failed once each and passed alone. All ran while 12-24 drove browsers. None failed in the gate.
+- [x] **Wave 8 post-merge gate (2026-11-17; plan 12-25, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3268, Infrastructure 1308 of 1309 (1 skipped, 0 failed), Server 3058 passed; openapi types match; web `verify` exit 0 (424 files, 11351 tests, branches 90.34%); `build:budget` exit 0: Privacy 149.58 KB (0.42 KB left), admin 223.21 KB. The chart is in an admin-only chunk.
+- [ ] **12-25 trend chart choices (your review; recommendation first):** (1) the card title says "Visits over time" but shows page views and unique visitors: rename to "Page views over time"; (2) day labels are spaced at least 44 px apart instead of the strict D-51 "every other label", because dates overlapped on phones: keep; (3) on small counts, raise an odd scale top under 10 to the next even number so the middle line is a whole count; (4) keyboard focus in the chart starts on the oldest day or month. Nothing decided; the code follows the 12-25 SUMMARY.
+- [ ] **Wave 8 load flakes (recorded):** in the 12-25 worktree `EditUserPanel` (new), `PublicLayout`, `OrderFormPage` and `GalleryPage` failed under load and passed alone; `third-party-notices.test.ts` failed there only because of a `node_modules` link. None failed in the gate.
 
 ### Blockers/Concerns
 
