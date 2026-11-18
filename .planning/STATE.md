@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 5 merged and gated
+last_activity_desc: Phase 12 wave 6 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 345
+  completed_plans: 347
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-17T11:40:00-06:00"
+updated: "2026-11-17T13:10:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 5 (12-16 to 12-19) merged and gated
+Last activity: 2026-11-17 — Phase 12 wave 6 (12-20, 12-21) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1044,6 +1044,11 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-17 narrow-screen dialog:** the 320 px Clear confirmation is checked only by class names in jsdom; plan 12-24 must check it in Playwright.
 - [ ] **Wave 5 load flakes (recorded):** `ParallelCallersEachGetTheirOwnStatus` 500 twice more in the 12-17 worktree (same row as above); `AdminLayout`, `GalleryPage`, `PublicLayout`, `ProductsPage` and an admin routes test failed under load and passed alone. None failed in the gate.
 - [ ] **Commit trailers (FYI):** 12-16 and 12-19 executors signed most commits `Claude Sonnet 5.5` (the model that ran them); not rewritten.
+- [x] **Wave 6 post-merge gate (2026-11-17; plans 12-20, 12-21, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3259, Infrastructure 1303, Server 3057 passed, 0 failed; openapi types match; web `verify` failed once on Prettier class order in `contact.recipe.ts`, fixed (31638203), then exit 0 (11240 tests, branches 90.45%); `build:budget` exit 0.
+- [ ] **Budget room after wave 6:** Privacy 149.39 KB, Cookies 149.29, Contact 149.20 (0.80 KB left), Terms 148.50, Accessibility 148.06, Home 147.66; admin 220.33 KB; CSS 20.42 KB. Later public-page plans must measure against these, not raise the limit (D-42).
+- [ ] **12-21 "today" range (needs your choice):** the stats totals accept the 5 server ranges; the UI-SPEC also shows a "today" choice the server does not offer. Choose: (A) drop "today" from the page (recommended: 12-23 already uses the 5 server ranges), (B) add "today" to the server.
+- [ ] **12-21 daily bars (FYI, 12-22/12-23):** the daily figures count visits, not unique visitors (same as the 12-18 row); page copy must say "visits".
+- [ ] **12-20 map card notes (UI review):** (1) after "Always show maps?" the status line stays until the page changes (recommended: leave); (2) the status line takes focus and shows the default focus ring (recommended: leave for the UI review to judge). Commits carry a `Claude Sonnet 5.5` trailer, not rewritten.
 
 ### Blockers/Concerns
 
