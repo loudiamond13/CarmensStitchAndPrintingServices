@@ -57,12 +57,20 @@ describe('downloadCsv', () => {
   });
 
   it('saves the Blob under the file name through one link click, then revokes the object URL', () => {
-    downloadCsv(CSV, 'visitor-stats-2026-10-17-to-2026-11-15.csv');
+    vi.useFakeTimers();
+    try {
+      downloadCsv(CSV, 'visitor-stats-2026-10-17-to-2026-11-15.csv');
 
-    expect(clicked).toHaveLength(1);
-    expect(clicked[0]?.download).toBe('visitor-stats-2026-10-17-to-2026-11-15.csv');
-    expect(clicked[0]?.href).toBe('blob:csps/1');
-    expect(revoked.join(' ')).toBe('blob:csps/1');
+      expect(clicked).toHaveLength(1);
+      expect(clicked[0]?.download).toBe('visitor-stats-2026-10-17-to-2026-11-15.csv');
+      expect(clicked[0]?.href).toBe('blob:csps/1');
+      // Kept for a moment so the browser can start the download (Safari fails on an early revoke).
+      expect(revoked).toHaveLength(0);
+      vi.advanceTimersByTime(10_000);
+      expect(revoked.join(' ')).toBe('blob:csps/1');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('leaves no link in the page', () => {
