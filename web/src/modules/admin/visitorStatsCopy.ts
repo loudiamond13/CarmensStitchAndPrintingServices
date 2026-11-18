@@ -53,4 +53,24 @@ export const VISITOR_STATS_COPY = {
     perDay: 'Per day',
     perMonth: 'Per month',
   },
+  /** The ranked list cards (UI-SPEC V1 items 5 to 7, Copywriting "Lists"). */
+  lists: {
+    topPages: 'Most viewed pages',
+    topPagesSub: 'Every page opened',
+    empty: 'No visitors allowed visitor stats in these dates.',
+    /** "412 · 38%": the count and the server's share. */
+    figure: (count: string, share: number): string => `${count} · ${String(share)}%`,
+  },
+  /** The name of each page key the server sends (D-28). */
+  pages: {
+    home: 'Home',
+    products: 'Products',
+    gallery: 'Gallery',
+    contact: 'Contact',
+    privacy: 'Privacy Policy',
+    cookies: 'Cookie Policy',
+    terms: 'Terms of Use',
+    accessibility: 'Accessibility Statement',
+    'not-found': 'Page not found',
+  } as Readonly<Record<string, string>>,
 } as const;

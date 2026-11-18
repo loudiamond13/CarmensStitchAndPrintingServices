@@ -8529,7 +8529,7 @@
             "type": "string"
           },
           "topPages": {
-            "description": "Up to 10 pages by page views, highest first; string RankedItemDto.Name is the page key.",
+            "description": "Up to 10 pages by page views, highest first; each name is a page key.",
             "items": {
               "$ref": "#/components/schemas/RankedItemDto"
             },

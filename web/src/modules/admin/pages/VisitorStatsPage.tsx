@@ -1,13 +1,13 @@
 // V1 Visitor Stats, /admin/visitor-stats (UI-SPEC V1; ANL-08, D-23, D-24, D-27, D-33, WEB-10). SPEC-GAP: V1.
 // SPEC-DEVIATION: D-23 (a Manager-only page with its own menu item after Site Content).
-// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row and the Trend card. Every count
-// is the server's.
+// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row, the Trend card and the list
+// cards. Every count and share is the server's.
 //   - The range lives in the URL through useVisitorStatsParams and nowhere else. A preset is sent by name; a custom range is
 //     sent only once both dates pass the checks, and until then the page keeps the range it last applied.
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 either way.
 import { useEffect, useState } from 'react';
-import { ErrorState, LoadingRegion } from '@/components';
+import { ErrorState, LoadingRegion, SkeletonText } from '@/components';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -15,7 +15,18 @@ import {
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
 import { CUSTOM_RANGE } from '@/lib/url-state/parsers';
-import { visitorStatsBodyClasses } from '@/modules/admin/components/visitorStats.recipe';
+import {
+  dashboardCardClasses,
+  dashboardCardHeadClasses,
+  dashboardCardSubClasses,
+  dashboardCardTitleClasses,
+} from '@/modules/admin/components/dashboard.recipe';
+import { StatBarList } from '@/modules/admin/components/StatBarList';
+import {
+  statListBodyClasses,
+  visitorStatsBodyClasses,
+  visitorStatsListRowClasses,
+} from '@/modules/admin/components/visitorStats.recipe';
 import { VisitorKpiRow } from '@/modules/admin/components/VisitorKpiRow';
 import { VisitorStatsToolbar } from '@/modules/admin/components/VisitorStatsToolbar';
 import { VisitorTrendCard } from '@/modules/admin/components/VisitorTrendCard';
@@ -23,7 +34,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
 import { useVisitorStatsParams } from '@/modules/admin/hooks/useVisitorStatsParams';
 import { useVisitorStatsQuery } from '@/modules/admin/hooks/useVisitorStatsQuery';
-import type { VisitorStats, VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
+import type { RankedItem, VisitorStats, VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
 import { VISITOR_STATS_COPY } from '@/modules/admin/visitorStatsCopy';
 import { DEFAULT_STATS_RANGE, statsQueryFor, type StatsRangeState } from '@/modules/admin/visitorStatsRange';
 import { formatCalendarDate } from '@/utils/format';
@@ -39,6 +50,39 @@ function rangeText(from: string, to: string): string | null {
   if (first === null || last === null) return null;
   const sameYear = from.slice(0, 4) === to.slice(0, 4);
   return COPY.dates(sameYear ? first.replace(/, \d{4}$/, '') : first, last);
+}
+
+function pageLabel(key: string): string {
+  return COPY.pages[key] ?? key;
+}
+
+interface StatListCardProps {
+  title: string;
+  sub: string;
+  /** Undefined while the first read runs. */
+  items: readonly RankedItem[] | undefined;
+  labelFor?: (name: string) => string;
+}
+
+/** A V1 list card: the title, its sub line and a StatBarList, or a skeleton until the first answer. */
+function StatListCard({ title, sub, items, labelFor }: StatListCardProps) {
+  return (
+    <section className={dashboardCardClasses}>
+      <div className={dashboardCardHeadClasses}>
+        <div>
+          <h2 className={dashboardCardTitleClasses}>{title}</h2>
+          <p className={dashboardCardSubClasses}>{sub}</p>
+        </div>
+      </div>
+      <div className={statListBodyClasses}>
+        {items === undefined ? (
+          <SkeletonText lines={3} />
+        ) : (
+          <StatBarList items={items} labelFor={labelFor} emptyText={COPY.lists.empty} />
+        )}
+      </div>
+    </section>
+  );
 }
 
 function sameQuery(a: VisitorStatsQuery, b: VisitorStatsQuery): boolean {
@@ -82,6 +126,14 @@ export function VisitorStatsPage({
         <LoadingRegion loading={loading} things={COPY.things} className={visitorStatsBodyClasses}>
           <VisitorKpiRow totals={stats?.totals} />
           <VisitorTrendCard stats={stats} />
+          <div className={visitorStatsListRowClasses}>
+            <StatListCard
+              title={COPY.lists.topPages}
+              sub={COPY.lists.topPagesSub}
+              items={stats?.topPages}
+              labelFor={pageLabel}
+            />
+          </div>
         </LoadingRegion>
       )}
     </>

@@ -10,7 +10,7 @@ namespace Csps.Application.Analytics;
 
 /// <summary>
 /// Use case: a Manager reads unique visitors, visits and page views for a date range (ANL-08, D-24, D-33), with the trend per day for up to
-/// 62 days, else per month (<see cref="StatsBucket.For"/>). Presets are resolved against the business calendar, never the device clock. The
+/// 62 days, else per month (<see cref="StatsBucket.For"/>), and the ranked lists with whole-percent shares. Presets are resolved against the business calendar, never the device clock. The
 /// read runs on demand with no cache.
 /// </summary>
 /// <param name="reader">The visitor stats read port.</param>
@@ -21,6 +21,7 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
     private const string DateFormat = "yyyy-MM-dd";
     private const string DayBucket = "day";
     private const string MonthBucket = "month";
+    private const int ListLength = 10;
 
     /// <summary>Reads the totals.</summary>
     /// <param name="request">The query.</param>
@@ -45,7 +46,7 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var totals = await reader.ReadTotalsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
         var bucket = StatsBucket.For(from, to);
         var counts = await reader.ReadTrendAsync(from, to, cut, bucket, cancellationToken).ConfigureAwait(false);
-        _ = await reader.ReadListsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
+        var lists = await reader.ReadListsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
 
         // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
         var wholeRangeIsOld = to < cut;
@@ -62,7 +63,21 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 crossesTheCut ? Format(cut) : null),
             bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
             Fill(from, to, cut, bucket, counts),
-            []));
+            Rank(lists.Pages, ListLength)));
+    }
+
+    /// <summary>
+    /// Orders by count, highest first, then by name (ordinal) so equal counts always come in the same order; shares are whole percents
+    /// over the full list (<see cref="Shares.LargestRemainder"/>); then keeps the first <paramref name="take"/> rows.
+    /// </summary>
+    private static List<RankedItemDto> Rank(IEnumerable<NamedCount> counts, int take)
+    {
+        var ordered = counts.Where(static row => row.Count > 0)
+            .OrderByDescending(static row => row.Count)
+            .ThenBy(static row => row.Name, StringComparer.Ordinal)
+            .ToList();
+        var shares = Shares.LargestRemainder([.. ordered.Select(static row => row.Count)]);
+        return [.. ordered.Take(take).Select((row, index) => new RankedItemDto(row.Name, (int)Math.Min(row.Count, int.MaxValue), shares[index]))];
     }
 
     /// <summary>

@@ -72,8 +72,17 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
             .Select(day => new TrendCount(day, viewsByStart.GetValueOrDefault(day), visitorsByStart.GetValueOrDefault(day)))];
     }
 
-    public Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken) =>
-        Task.FromResult(new VisitorLists([]));
+    public async Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
+    {
+        var pages = await context.DailyPageCounts
+            .AsNoTracking()
+            .Where(row => row.BusinessDay >= first && row.BusinessDay <= last)
+            .GroupBy(row => row.PageKey)
+            .Select(group => new NamedCount(group.Key, group.Sum(row => (long)row.Views)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return new VisitorLists(pages);
+    }
 
     /// <summary>One aggregate of a bucket: the day, or the month on its first day.</summary>
     private sealed record BucketFigure(int Year, int Month, int Day, long Value)

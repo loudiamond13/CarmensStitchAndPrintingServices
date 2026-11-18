@@ -74,6 +74,10 @@ function trendPoint(item: VisitorStatsResponse['trend'][number]): TrendPoint {
   };
 }
 
+function rankedItem(item: VisitorStatsResponse['topPages'][number], what: string): RankedItem {
+  return { name: item.name, count: count(item.count, `${what} count`), share: count(item.share, `${what} share`) };
+}
+
 /** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
@@ -90,7 +94,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     },
     bucket: bucketSize(response.bucket),
     trend: response.trend.map(trendPoint),
-    topPages: [],
+    topPages: response.topPages.map((item) => rankedItem(item, 'page')),
   };
 }
 

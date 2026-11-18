@@ -6307,7 +6307,7 @@ export interface components {
             range: string;
             /** @description The last business day of the range, resolved on the server. */
             to: string;
-            /** @description Up to 10 pages by page views, highest first; string RankedItemDto.Name is the page key. */
+            /** @description Up to 10 pages by page views, highest first; each name is a page key. */
             topPages: components["schemas"]["RankedItemDto"][];
             /** @description The three totals. */
             totals: components["schemas"]["VisitorTotalsDto"];
