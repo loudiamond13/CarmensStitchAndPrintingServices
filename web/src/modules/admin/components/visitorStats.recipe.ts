@@ -53,3 +53,14 @@ export const statBarEmptyClasses = tw('m-0 text-[14px] leading-5 text-ink-muted'
 
 /** The body of a list card. */
 export const statListBodyClasses = tw('p-5');
+
+/** Devices and browsers: the two lists side by side at 1280px and up, stacked below (UI-SPEC V1 item 7). */
+export const deviceBrowserGridClasses = tw(
+  'grid grid-cols-[repeat(2,minmax(0,1fr))] items-start gap-6 p-5 pg-lt-xl:grid-cols-[minmax(0,1fr)]',
+);
+
+/** One of the two lists: its h3, then the list 12px under it. */
+export const deviceBrowserColumnClasses = tw('flex min-w-0 flex-col gap-3');
+
+/** The h3 "Device" or "Browser": Label 14/600. */
+export const deviceBrowserHeadingClasses = tw('m-0 text-[14px] leading-5 font-semibold');

@@ -57,6 +57,12 @@ export const VISITOR_STATS_COPY = {
   lists: {
     topPages: 'Most viewed pages',
     topPagesSub: 'Every page opened',
+    referrers: 'Where visitors came from',
+    referrersSub: 'Visitors who allowed visitor stats',
+    devices: 'Devices and browsers',
+    devicesSub: 'Visitors who allowed visitor stats',
+    device: 'Device',
+    browser: 'Browser',
     empty: 'No visitors allowed visitor stats in these dates.',
     /** "412 · 38%": the count and the server's share. */
     figure: (count: string, share: number): string => `${count} · ${String(share)}%`,
@@ -72,5 +78,12 @@ export const VISITOR_STATS_COPY = {
     terms: 'Terms of Use',
     accessibility: 'Accessibility Statement',
     'not-found': 'Page not found',
+  } as Readonly<Record<string, string>>,
+  /** The name of each device class the server sends. */
+  devices: {
+    Phone: 'Phone',
+    Tablet: 'Tablet',
+    Computer: 'Computer',
+    Other: 'Other',
   } as Readonly<Record<string, string>>,
 } as const;

@@ -21,6 +21,7 @@ import {
   dashboardCardSubClasses,
   dashboardCardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
+import { DeviceBrowserCard } from '@/modules/admin/components/DeviceBrowserCard';
 import { StatBarList } from '@/modules/admin/components/StatBarList';
 import {
   statListBodyClasses,
@@ -133,6 +134,10 @@ export function VisitorStatsPage({
               items={stats?.topPages}
               labelFor={pageLabel}
             />
+            <StatListCard title={COPY.lists.referrers} sub={COPY.lists.referrersSub} items={stats?.referrers} />
+          </div>
+          <div className={visitorStatsListRowClasses}>
+            <DeviceBrowserCard devices={stats?.devices} browsers={stats?.browsers} />
           </div>
         </LoadingRegion>
       )}
