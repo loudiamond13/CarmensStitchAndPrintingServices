@@ -3,19 +3,19 @@ gsd_state_version: "1.0"
 current_phase: 12
 current_phase_name: Consent, Analytics & Legal
 status: executing
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-11-17T02:15:25.492Z"
-last_activity: 2026-11-17
-last_activity_desc: Phase 12 all plans closed; 12-01 live photo check moved to Phase 13
-state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
+stopped_at: Phase 12.1 context gathered
+last_updated: "2026-11-18T22:22:48.626Z"
+last_activity: "2026-11-18: Phase 12 all 32 plans closed (12-01 live photo check moved to Phase 13, D-49); next: phase close (verify, security, UI review, ship)"
+state_head: 46e4e6f0bc1956697811c90560a7ca426058e2bf
 progress:
-  total_phases: 18
+  total_phases: 19
   completed_phases: 9
-  total_plans: 371
-  completed_plans: 357
-  percent: 50
+  total_plans: 373
+  completed_plans: 373
+  percent: 47
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-18T15:10:00-06:00"
+last_activity_desc: Phase 12 all plans closed; 12-01 live photo check moved to Phase 13
 ---
 
 # Project State
@@ -34,7 +34,7 @@ Plan: 1 of 30
 Status: Executing Phase 12
 Last activity: 2026-11-18: Phase 12 all 32 plans closed (12-01 live photo check moved to Phase 13, D-49); next: phase close (verify, security, UI review, ship)
 
-Progress: [█████░░░░░] 50%
+Progress: [█████░░░░░] 47%
 
 ## Performance Metrics
 
@@ -1140,6 +1140,10 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 | 43 | Give the Contact bar Messenger button the 48px button shape (D-P11-BL-67) | 2026-11-14 | babb2667 | — |
 | 44 | Format nine web files so the CI Prettier step passes (D-39-1) | 2026-11-15 | da6e311e | — |
 
+### Roadmap Evolution
+
+- Phase 12.1 inserted after Phase 12: Analytics simplification: daily page tally only, no cookie banner (D-53 to D-58) (URGENT)
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -1150,9 +1154,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-16T03:23:19.754Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-consent-analytics-legal/12-UI-SPEC.md
+Last session: 2026-11-18T22:22:43.862Z
+Stopped at: Phase 12.1 context gathered
+Resume file: .planning/phases/12.1-analytics-simplification-daily-page-tally-only-no-cookie-ban/12.1-CONTEXT.md
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 

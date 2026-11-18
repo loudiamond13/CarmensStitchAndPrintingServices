@@ -1334,6 +1334,16 @@ Plans:
 - [x] 12-31-PLAN.md
 **UI hint**: yes
 
+### Phase 12.1: Analytics simplification: daily page tally only, no cookie banner (D-53 to D-58) (INSERTED)
+
+**Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 12.1 to break down)
+
 ### Phase 13: Quote Inquiries
 
 **Goal**: Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
