@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T10:30:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T21:15:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -246,6 +246,36 @@ Figures, gzip -9, 1 KB = 1000 B, from `npm run build:budget` (the build CI runs)
 `npm run build` (production, after): Home 147.45 KB, Products 144.15 KB, Gallery 145.50 KB, Contact 147.51 KB, Privacy 148.99 KB, Cookies 146.92 KB, Terms 148.10 KB, Accessibility 147.66 KB, Not found 140.22 KB, Admin JS 218.79 KB, CSS 20.42 KB. Every public row is under 150 KB and the limit is unchanged.
 
 **The tightest row is Privacy, with 0.93 KB left.** The wave 4 note recorded 148.78 KB for it; a build of this plan's base measured 148.26 KB, so the 0.8 KB here is the hook alone. Any later plan that adds to the public first download must fit in what is left or load lazily.
+
+## Lighthouse first visit with the consent bar (Phase 12, plan 12-24)
+
+Lighthouse starts every page with an empty browser, so it always scores the honest first visit: the consent bar is showing. The question was whether the bar costs score, and whether its text becomes the LCP element on a phone. It does neither in a way that matters: the bar text was never the LCP element, and the bar adds 0 to about 160 ms of simulated LCP, inside the 200 to 400 ms run-to-run noise on this machine.
+
+**The gate, three runs** (`npm --prefix web run lighthouse`, 2026-11-17, production build, mobile profile, simulated slow 4G, the Development host on `CSPS_Dev`). Performance score, then LCP in ms (report-only by D-29):
+
+| Page | Run 1 | Run 2 | Run 3 | LCP element (every run) |
+|---|---|---|---|---|
+| `/` | **0.92**, 2658 | 0.95, 2589 | 0.95, 2644 | the hero jersey's name, an SVG `text` in Barlow Condensed |
+| `/products` | 0.95, 2353 | 0.97, 2270 | 0.96, 2373 | the lead paragraph under the h1 |
+| `/gallery` | **0.91**, 3124 | **0.94**, 2715 | **0.93**, 2937 | the first gallery photo (`img`), loaded from Cloudinary |
+| `/contact` | **0.93**, 2569 | 0.96, 2286 | 0.95, 2508 | the lead paragraph under the h1 |
+
+Accessibility, best practices and SEO were 1 on every page in every run. TBT stayed under 200 ms (the highest was 199 ms on `/` in run 1) and CLS under 0.05 (`/products` 0.041, `/contact` 0.043, as in Phase 11). Run 1 started right after another executor's test coverage run ended, which is the likely reason it is the slowest. **No run was fully green: `/gallery` missed the 0.95 performance score in all three.**
+
+**Why `/gallery` misses.** On `CSPS_Dev` its LCP element is a real gallery photo fetched from `res.cloudinary.com` over the internet (about 0.5 s waiting for the request to start and 0.3 to 0.7 s to load it). With the seeded test data (`CSPS_E2E`, below) the Gallery's LCP element is its h1 and the page scores 0.96 to 0.97. The bar is not the cause.
+
+**The bar on or off, same build and host** (a scratch script, not in the repo: Lighthouse's own API with the same mobile defaults, a fresh browser profile per run, the host on `CSPS_E2E`, two rounds). "Bar" is a first visit; "no bar" starts with a saved Reject All cookie. Performance score, LCP in ms:
+
+| Page | Bar, round 1 | Bar, round 2 | No bar, round 1 | No bar, round 2 |
+|---|---|---|---|---|
+| `/` | 0.95, 2480 | 0.95, 2463 | 0.96, 2334 | 0.95, 2550 |
+| `/products` | 0.96, 2371 | 0.96, 2300 | 0.96, 2297 | 0.96, 2303 |
+| `/gallery` | 0.96, 2284 | 0.96, 2281 | 0.97, 2285 | 0.96, 2326 |
+| `/contact` | 0.95, 2409 | 0.95, 2436 | 0.96, 2280 | 0.96, 2250 |
+
+With the bar every page reached 0.95 or more in both rounds. The largest gap is Contact, about 160 ms of LCP and 0.01 of score: the bar, its save path and the rules load as three small chunks (about 3 KB) while the page is still waiting for its fonts. The LCP element was the same with and without the bar on every page, and the bar's text was never it, at the Lighthouse phone width (412 px) where the bar is tallest. It is `position: fixed` and drawn after the first paint, so it also adds no layout shift (`/` CLS 0.004 with it).
+
+**What this leaves open** (for the owner, recorded in the plan 12-24 summary): the gate is not reliably green on the performance score, as plan 11-36 already found, and `/gallery` on the development database now misses on every run because of its real photos. `CSPS_Dev` is also one migration behind (`AddDailyAnalyticsCounts`, plan 12-18), so every page view the gate's host receives answers 500 there; this does not change the scores (the beacon leaves after the page has loaded) but it fills the host log. No limit was changed.
 
 ## Fonts and compression (Phase 11)
 
