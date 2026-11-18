@@ -123,6 +123,16 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     });
   });
 
+  // SPEC-DEVIATION: D-23 the Manager-only Visitor Stats nav item sits beside ADMIN_NAV (plan 12-23).
+  it('exports the Visitor Stats nav item beside ADMIN_NAV', () => {
+    expect(exports.VISITOR_STATS_NAV_ITEM).toMatchObject({
+      id: 'stats',
+      to: '/admin/visitor-stats',
+      icon: 'chart-column',
+      manager: true,
+    });
+  });
+
   // SPEC-DEVIATION: D-39 the My Money nav item sits beside ADMIN_NAV for both roles (plan 10-13).
   it('exports the My Money nav item beside ADMIN_NAV', () => {
     expect(exports.MONEY_NAV_ITEM).toMatchObject({ id: 'money', to: '/admin/money', icon: 'wallet' });

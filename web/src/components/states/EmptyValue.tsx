@@ -3,11 +3,16 @@ import { Icon } from '@/components/brand';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { STATES_COPY } from './copy';
 
-export function EmptyValue() {
+export interface EmptyValueProps {
+  // SPEC-DEVIATION: EMPTY-LABEL. The hidden text, for a value that is missing for another reason ("Not available", D-27).
+  label?: string | undefined;
+}
+
+export function EmptyValue({ label = STATES_COPY.emptyValue }: EmptyValueProps) {
   return (
     <span>
       <Icon name="minus" size={16} />
-      <span className={srOnlyClasses}>{STATES_COPY.emptyValue}</span>
+      <span className={srOnlyClasses}>{label}</span>
     </span>
   );
 }

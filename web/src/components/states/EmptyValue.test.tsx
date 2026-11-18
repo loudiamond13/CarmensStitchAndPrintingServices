@@ -37,6 +37,23 @@ describe('EmptyValue', () => {
     expect(container.textContent).not.toMatch(DASHES);
   });
 
+  it('reads its own hidden label when one is given, with the same hidden icon (SPEC-DEVIATION EMPTY-LABEL)', () => {
+    const { container } = render(<EmptyValue label="Not available" />);
+
+    expect(container.querySelectorAll('svg')).toHaveLength(1);
+    expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    const hidden = container.querySelector('span span');
+    expect(hidden?.textContent).toBe('Not available');
+    expect(tokens(hidden?.className)).toEqual(tokens(srOnlyClasses));
+    expect(container.textContent).toBe('Not available');
+  });
+
+  it('still says "Not set" when no label is given', () => {
+    const { container } = render(<EmptyValue label={undefined} />);
+
+    expect(container.textContent).toBe('Not set');
+  });
+
   it('has no axe violations in a table cell or inline in a paragraph (A11Y-01)', async () => {
     const cell = render(
       <table>

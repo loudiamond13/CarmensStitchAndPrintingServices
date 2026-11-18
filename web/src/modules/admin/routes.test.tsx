@@ -170,6 +170,7 @@ describe('Manager-only routes (USER-08)', () => {
     '/admin/site-content',
     '/admin/site-content/products/new',
     `/admin/site-content/products/${LINE_IDS.basketball}`,
+    '/admin/visitor-stats',
   ])(
     'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
@@ -261,6 +262,7 @@ describe('Manager-only routes (USER-08)', () => {
     '/admin/site-content',
     '/admin/site-content/products/new',
     `/admin/site-content/products/${LINE_IDS.basketball}`,
+    '/admin/visitor-stats',
   ])('a visitor without a session opening %s goes to sign-in with the return path', async (path) => {
     answerRefresh();
     const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -704,6 +706,72 @@ describe('Site Content for Managers (D-27; plan 11-12)', () => {
 
     await screen.findAllByText('Lito Santos', {}, { timeout: 5000 });
     expect(screen.queryByRole('link', { name: /^Site Content/ })).toBeNull();
+  }, 30_000);
+});
+
+/** Answers the visitor stats read with the last 30 days; returns the calls it answered. */
+function visitorStatsBackend(): URL[] {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/visitor-stats', ({ request }) => {
+      calls.push(new URL(request.url));
+      return HttpResponse.json({
+        range: 'last-30-days',
+        from: '2026-10-17',
+        to: '2026-11-15',
+        cutDate: '2025-10-15',
+        totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+      });
+    }),
+  );
+  return calls;
+}
+
+describe('Visitor Stats for Managers (ANL-08, D-23; plan 12-23)', () => {
+  it('a Manager who opens /admin/visitor-stats stays and sees the three totals', async () => {
+    answerRefresh(sessionResponse());
+    const calls = visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Visitor Stats' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByText('4,567')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/visitor-stats');
+    expect(calls).toHaveLength(1);
+    await waitFor(() => {
+      expect(document.title).toBe('Visitor Stats · CSPS Admin');
+    });
+  }, 30_000);
+
+  it('marks Visitor Stats the one current sidebar item, and the tab bar has no such item (D-23)', async () => {
+    answerRefresh(sessionResponse());
+    visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    await screen.findByRole('heading', { level: 1, name: 'Visitor Stats' }, { timeout: 10_000 });
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Visitor Stats']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar).toBeDefined();
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    expect(tabBar?.querySelector('a[href="/admin/visitor-stats"]')).toBeNull();
+  }, 30_000);
+
+  it('an Admin who opens /admin/visitor-stats is sent to /admin before any stats request, with no Visitor Stats item', async () => {
+    answerRefresh(adminSession());
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
+    const calls = visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(calls).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: /^Visitor Stats/ })).toBeNull();
   }, 30_000);
 });
 
