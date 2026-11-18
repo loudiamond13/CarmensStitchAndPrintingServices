@@ -15,6 +15,7 @@ import {
   MONEY_NAV_ITEM,
   SETTINGS_NAV_ITEM,
   Sidebar,
+  VISITOR_STATS_NAV_ITEM,
   type AdminSection,
 } from '@/components/navigation';
 import {
@@ -239,6 +240,7 @@ describe('Sidebar Audit Log item (USER-08, OQ-2)', () => {
       'Audit LogManager',
       'SettingsManager',
       'Site ContentManager',
+      'Visitor StatsManager',
       'My Profile',
     ]);
     expect(link('Audit Log').getAttribute('href')).toBe('/admin/audit-log');
@@ -410,6 +412,67 @@ describe('Sidebar Site Content item (D-27, D-37)', () => {
   });
 });
 
+// SPEC-DEVIATION: D-23 (plan 12-23) the Manager-only Visitor Stats item follows Site Content, in the sidebar and the phone drawer and not in the tab bar.
+describe('Sidebar Visitor Stats item (D-23, D-32)', () => {
+  it('defines the Visitor Stats item beside ADMIN_NAV, Manager only, with the chart-column icon', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).not.toContain('stats');
+    expect(VISITOR_STATS_NAV_ITEM).toEqual({
+      id: 'stats',
+      label: 'Visitor Stats',
+      icon: 'chart-column',
+      to: '/admin/visitor-stats',
+      manager: true,
+    });
+  });
+
+  it('shows a Manager Visitor Stats right after Site Content, with the Manager tag and the chart-column icon', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog />));
+
+    const labels = navLinks().map((item) => item.textContent);
+    expect(labels.indexOf('Visitor StatsManager')).toBe(labels.indexOf('Site ContentManager') + 1);
+    expect(link('Visitor Stats').getAttribute('href')).toBe('/admin/visitor-stats');
+    expect(link('Visitor Stats').querySelector('svg.lucide-chart-column')).not.toBeNull();
+    expect(within(link('Visitor Stats')).getByText('Manager')).toBeInTheDocument();
+  });
+
+  it('never shows an Admin Visitor Stats, with or without the prop', () => {
+    const { rerender } = render(inRouter(<Sidebar role={ADMIN} withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Visitor Stats/ })).toBeNull();
+
+    rerender(inRouter(<Sidebar withAuditLog />));
+    expect(screen.queryByRole('link', { name: /^Visitor Stats/ })).toBeNull();
+  });
+
+  it('leaves the sidebar as it was without the prop (the parity scenarios stay equal)', () => {
+    render(inRouter(<Sidebar role={MANAGER} />));
+    expect(screen.queryByRole('link', { name: /^Visitor Stats/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('marks Visitor Stats current for active "stats" and hides its Manager tag on that row', () => {
+    const active: AdminSection = 'stats';
+    render(inRouter(<Sidebar role={MANAGER} active={active} withAuditLog />));
+    const stats = link('Visitor Stats');
+
+    expect(stats.getAttribute('aria-current')).toBe('page');
+    expect(within(stats).getByText('Manager').classList.contains('group-aria-[current=page]/nav:hidden')).toBe(true);
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([stats]);
+  });
+
+  it('names the item on the collapsed rail by its title and its label', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog defaultCollapsed />));
+
+    const stats = link('Visitor Stats');
+    expect(stats.getAttribute('title')).toBe('Visitor Stats');
+    expect(stats).toHaveAccessibleName('Visitor Stats');
+  });
+
+  it('has no axe violations with the item', async () => {
+    const { container } = render(inRouter(<Sidebar role={MANAGER} user={CARMEN} active="stats" withAuditLog />));
+    await expectNoAxeViolations(container);
+  });
+});
+
 // SPEC-DEVIATION: D-39, D-40 the My Money item follows Company Expenses for both roles (plan 10-13); the tab bar keeps its four items.
 describe('Sidebar My Money item (D-39, D-40)', () => {
   it('defines the My Money item beside ADMIN_NAV, for both roles, with the wallet icon', () => {
@@ -429,7 +492,7 @@ describe('Sidebar My Money item (D-39, D-40)', () => {
     expect(within(link('My Money')).queryByText('Manager')).toBeNull();
   });
 
-  it('keeps the order with the Audit Log, Settings and Site Content added: Company Expenses, My Money, Users, Audit Log, Settings, Site Content, My Profile', () => {
+  it('keeps the order with the Audit Log, Settings, Site Content and Visitor Stats added: Company Expenses, My Money, Users, Audit Log, Settings, Site Content, Visitor Stats, My Profile', () => {
     render(inRouter(<Sidebar role={MANAGER} withAuditLog withMoney />));
 
     expect(navLinks().map((item) => item.textContent)).toEqual([
@@ -441,6 +504,7 @@ describe('Sidebar My Money item (D-39, D-40)', () => {
       'Audit LogManager',
       'SettingsManager',
       'Site ContentManager',
+      'Visitor StatsManager',
       'My Profile',
     ]);
   });

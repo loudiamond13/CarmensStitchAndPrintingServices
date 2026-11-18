@@ -170,6 +170,7 @@ describe('Manager-only routes (USER-08)', () => {
     '/admin/site-content',
     '/admin/site-content/products/new',
     `/admin/site-content/products/${LINE_IDS.basketball}`,
+    '/admin/visitor-stats',
   ])(
     'an Admin who opens %s lands on the dashboard at /admin',
     async (path) => {
@@ -261,6 +262,7 @@ describe('Manager-only routes (USER-08)', () => {
     '/admin/site-content',
     '/admin/site-content/products/new',
     `/admin/site-content/products/${LINE_IDS.basketball}`,
+    '/admin/visitor-stats',
   ])('a visitor without a session opening %s goes to sign-in with the return path', async (path) => {
     answerRefresh();
     const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -739,6 +741,37 @@ describe('Visitor Stats for Managers (ANL-08, D-23; plan 12-23)', () => {
     await waitFor(() => {
       expect(document.title).toBe('Visitor Stats · CSPS Admin');
     });
+  }, 30_000);
+
+  it('marks Visitor Stats the one current sidebar item, and the tab bar has no such item (D-23)', async () => {
+    answerRefresh(sessionResponse());
+    visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    await screen.findByRole('heading', { level: 1, name: 'Visitor Stats' }, { timeout: 10_000 });
+    const sidebar = document.querySelector('aside nav[aria-label="Admin"]');
+    const current = [...(sidebar?.querySelectorAll('[aria-current="page"]') ?? [])];
+    expect(current.map((link) => link.textContent.replace('Manager', ''))).toEqual(['Visitor Stats']);
+    const tabBar = [...document.querySelectorAll('nav[aria-label="Admin"]')].find((nav) => !nav.closest('aside'));
+    expect(tabBar).toBeDefined();
+    expect(tabBar?.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+    expect(tabBar?.querySelector('a[href="/admin/visitor-stats"]')).toBeNull();
+  }, 30_000);
+
+  it('an Admin who opens /admin/visitor-stats is sent to /admin before any stats request, with no Visitor Stats item', async () => {
+    answerRefresh(adminSession());
+    dashboardBackend(dashboardSummaryFixture({ greeting: 'afternoon', firstName: 'Lito' }));
+    const calls = visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Good afternoon, Lito' }, { timeout: 10_000 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin');
+    expect(calls).toHaveLength(0);
+    expect(screen.queryByRole('link', { name: /^Visitor Stats/ })).toBeNull();
   }, 30_000);
 });
 
