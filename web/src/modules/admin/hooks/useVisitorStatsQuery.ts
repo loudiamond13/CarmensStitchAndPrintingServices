@@ -6,10 +6,12 @@ import { visitorStatsService, type VisitorStatsQuery } from '@/modules/admin/ser
 /** The root of every visitor stats query. */
 export const visitorStatsKey = ['visitor-stats'] as const;
 
-export function useVisitorStatsQuery(query: VisitorStatsQuery) {
+/** `enabled` false holds the request back until a value it needs is known (default true). */
+export function useVisitorStatsQuery(query: VisitorStatsQuery, enabled = true) {
   return useQuery({
     queryKey: [...visitorStatsKey, query.range, query.from, query.to] as const,
     queryFn: ({ signal }) => visitorStatsService.get(query, signal),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }

@@ -11,6 +11,29 @@ export const VISITOR_STATS_COPY = {
   dates: (from: string, to: string): string => `${from} to ${to}`,
   /** The noun of the loading region and the failure line: "Loading the visitor stats…", "Couldn't load the visitor stats." */
   things: 'the visitor stats',
+  toolbar: {
+    dateRange: 'Date range',
+    from: 'From',
+    to: 'To',
+  },
+  /** The Date range options, in the order the select lists them. */
+  ranges: {
+    'last-7-days': 'Last 7 days',
+    'last-30-days': 'Last 30 days',
+    'this-month': 'This month',
+    'last-month': 'Last month',
+    'this-year': 'This year',
+    custom: 'Custom range',
+  },
+  /** The custom range messages: the server's own words (OR-3, UI-SPEC Validation). */
+  errors: {
+    startRequired: 'Enter a start date.',
+    endRequired: 'Enter an end date.',
+    notReal: 'Enter a real date.',
+    order: 'The start date must be on or before the end date.',
+    /** "Choose a date from Nov 15, 2023 to today." */
+    outsideWindow: (floor: string): string => `Choose a date from ${floor} to today.`,
+  },
   kpis: {
     uniqueVisitors: 'Unique visitors',
     uniqueVisitorsHint: 'Visitors who allowed visitor stats',
