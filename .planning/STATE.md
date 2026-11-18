@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 8 merged and gated
+last_activity_desc: Phase 12 wave 9 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 350
+  completed_plans: 351
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-17T23:55:00-06:00"
+updated: "2026-11-18T02:30:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 8 (12-25) merged and gated
+Last activity: 2026-11-17 — Phase 12 wave 9 (12-26) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1059,6 +1059,9 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [x] **Wave 8 post-merge gate (2026-11-17; plan 12-25, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3268, Infrastructure 1308 of 1309 (1 skipped, 0 failed), Server 3058 passed; openapi types match; web `verify` exit 0 (424 files, 11351 tests, branches 90.34%); `build:budget` exit 0: Privacy 149.58 KB (0.42 KB left), admin 223.21 KB. The chart is in an admin-only chunk.
 - [ ] **12-25 trend chart choices (your review; recommendation first):** (1) the card title says "Visits over time" but shows page views and unique visitors: rename to "Page views over time"; (2) day labels are spaced at least 44 px apart instead of the strict D-51 "every other label", because dates overlapped on phones: keep; (3) on small counts, raise an odd scale top under 10 to the next even number so the middle line is a whole count; (4) keyboard focus in the chart starts on the oldest day or month. Nothing decided; the code follows the 12-25 SUMMARY.
 - [ ] **Wave 8 load flakes (recorded):** in the 12-25 worktree `EditUserPanel` (new), `PublicLayout`, `OrderFormPage` and `GalleryPage` failed under load and passed alone; `third-party-notices.test.ts` failed there only because of a `node_modules` link. None failed in the gate.
+- [x] **Wave 9 post-merge gate (2026-11-18; plan 12-26, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3278, Infrastructure 1314 of 1315 (1 skipped, 0 failed), Server 3060 passed; openapi types match; web `verify` exit 0 (425 files, 11391 tests, branches 90.33%); `build:budget` exit 0: Privacy 149.60 KB (0.40 KB left), admin 223.25 KB, CSS 20.50 KB.
+- [ ] **12-26 stats lists choices (your review; recommendation first):** (1) the empty "Most viewed pages" card uses the plan line "No visitors allowed visitor stats in these dates.", which is not quite true because page views count with or without cookies: use "No page views in these dates." for that card only; (2) with more than 10 sources the 10 rows shown can add up to under 100%: keep, so each bar shows its true share; (3) the browser "Other" row is always last: keep; (4) all four lists use one `{ name, count, share }` shape although the plan goals name other fields: keep one shape.
+- [ ] **Public pages grow 0.02 KB per admin plan (not traced):** 12-25 and 12-26 changed no public code, yet every public page grew 0.02 KB each time. Likely a shared chunk map; worth a look before 12-28/12-29, since Privacy has 0.40 KB left.
 
 ### Blockers/Concerns
 
