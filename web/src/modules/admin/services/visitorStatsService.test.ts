@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { createFakeFetch } from '@/test/fakeFetch';
-import {
-  createVisitorStatsService,
-  VisitorStatsContractError,
-  type VisitorStatsResponse,
-} from './visitorStatsService';
+import { createVisitorStatsService, VisitorStatsContractError, type VisitorStatsResponse } from './visitorStatsService';
 
 // The visitor stats call (ANL-08, D-24, D-27, D-33): Manager only, one GET, every count from the server.
 

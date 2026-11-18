@@ -46,6 +46,8 @@ export interface KpiCardProps {
   // SPEC-GAP: KpiCard empty. No figure to show (OR-4 replaces the mockup's long dash): the value slot is EmptyValue in the
   // dimmed zero look and `value` is ignored.
   empty?: boolean | undefined;
+  /** The hidden text of the empty value (SPEC-DEVIATION: EMPTY-LABEL); "Not set" when left out. */
+  emptyLabel?: string | undefined;
 }
 
 export function KpiCard({
@@ -58,6 +60,7 @@ export function KpiCard({
   hint,
   loading = false,
   empty = false,
+  emptyLabel,
 }: KpiCardProps) {
   const up = delta !== undefined && delta >= 0;
   const direction: DeltaDirection = up ? 'up' : 'down';
@@ -86,7 +89,7 @@ export function KpiCard({
           className={clsx(valueClasses, (zero || empty) && kpiZeroValueClasses)}
           data-kpi-value={long ? 'long' : 'normal'}
         >
-          {empty ? <EmptyValue /> : figure}
+          {empty ? <EmptyValue label={emptyLabel} /> : figure}
         </div>
       )}
       {hasFoot && !loading && (
