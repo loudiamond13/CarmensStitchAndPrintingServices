@@ -7,7 +7,7 @@
 //   - Under GPC (D-20) Visitor stats is locked off with its own hint, the Google map box works, and only Save Choices shows.
 //   - A choice closes the window first and is then saved, so the "saved" line is read while the page is live again. When
 //     the bar was showing, focus goes to `main` once the bar has closed; otherwise it goes back to the opener.
-//   - The last section clears this site's cookies and data (ANL-04, item 5): its button opens CS2 (ClearDataDialog). After a
+//   - The last section clears the optional cookies and data (ANL-04, item 5): its button opens CS2 (ClearDataDialog). After a
 //     clear the window stays open with both boxes unticked, and the live Note says it is done.
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/actions/Button';

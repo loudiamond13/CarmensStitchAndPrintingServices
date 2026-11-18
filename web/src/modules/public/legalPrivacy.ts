@@ -123,7 +123,7 @@ export const PRIVACY_TEXT: LegalText = {
             },
             {
               term: "Quote requests that didn't become an order, and their files",
-              parts: ['Deleted 6 months after we receive them.'],
+              parts: ['Kept for about 6 months after we receive them; removed at the next monthly cleanup.'],
             },
             {
               term: 'Visitor stats (visits, pages and page speed)',
@@ -133,7 +133,7 @@ export const PRIVACY_TEXT: LegalText = {
             },
             {
               term: 'Daily visitor totals',
-              parts: ['Deleted after 3 years. They have no visitor id.'],
+              parts: ['Kept for about 3 years; removed at the next monthly cleanup. They have no visitor id.'],
             },
             {
               term: 'Your cookie choice',
@@ -143,7 +143,7 @@ export const PRIVACY_TEXT: LegalText = {
             },
             {
               term: 'Staff account activity log',
-              parts: ['Kept for 8 months.'],
+              parts: ['Kept for about 8 months; removed at the next monthly cleanup.'],
             },
           ],
         },

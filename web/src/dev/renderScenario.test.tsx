@@ -254,7 +254,7 @@ const SETTLED_TEXT: Readonly<Record<string, string | RegExp>> = {
   'cookie-settings-saved': /^You chose on Nov 3, 2026\./,
   'cookie-settings-gpc': 'Your browser asked us not to track you, so visitor stats stay off.',
   'cookie-settings-cleared':
-    "Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.",
+    'Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.',
   'cookie-settings-clear-failed': "Couldn't clear your data. Check your internet connection and try again.",
   'legal-notice': 'Draft: this text is not final yet.',
 };

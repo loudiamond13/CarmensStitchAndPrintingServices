@@ -192,8 +192,9 @@ export const COOKIES_TEXT: LegalText = {
           kind: 'ul',
           items: [
             [
-              "It deletes this site's cookies and saved settings in this browser, and the visit records linked to them on our server.",
+              'It deletes the optional cookies and saved settings in this browser, and the visit records linked to them on our server.',
             ],
+            ['The necessary cookies stay, so a signed-in staff member stays signed in.'],
             ['It turns visitor stats and the Google map off, and the cookie bar does not ask again.'],
             ["It also resets a staff member's admin theme and orders view in that browser."],
           ],

@@ -26,7 +26,10 @@ async function sectionOf(name: string): Promise<HTMLElement> {
 
 const RETENTION: readonly (readonly [string, string])[] = [
   ['Orders, payments, discounts and expenses', 'Kept for good. They are our bookkeeping and tax records.'],
-  ["Quote requests that didn't become an order, and their files", 'Kept for about 6 months after we receive them; removed at the next monthly cleanup.'],
+  [
+    "Quote requests that didn't become an order, and their files",
+    'Kept for about 6 months after we receive them; removed at the next monthly cleanup.',
+  ],
   [
     'Visitor stats (visits, pages and page speed)',
     'Kept for about 13 months; removed at the next monthly cleanup. After that we keep only daily totals, which have no visitor id.',

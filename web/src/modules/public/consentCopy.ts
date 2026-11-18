@@ -50,13 +50,13 @@ export const CONSENT_COPY = {
   clear: {
     heading: 'Clear my cookies & data',
     description:
-      "Removes this site's cookies and saved settings from this browser, and deletes the visit records linked to it on our server.",
+      'Removes the optional cookies and saved settings from this browser, and deletes the visit records linked to it on our server. The cookies the site needs stay.',
     button: 'Clear My Cookies & Data',
-    done: "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.",
+    done: 'Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.',
     dialog: {
       title: 'Clear your cookies and data?',
       message:
-        "This deletes this site's cookies and saved settings in this browser, and the visit records linked to them on our server. This can't be undone.",
+        "This deletes the optional cookies and saved settings in this browser, and the visit records linked to them on our server. The cookies the site needs stay. This can't be undone.",
       confirm: 'Clear My Data',
       pending: 'Clearing',
       keep: 'Keep My Data',

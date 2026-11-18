@@ -359,7 +359,7 @@ describe('opened from the cookie bar (D-34, ANL-01)', () => {
 describe('Clear my cookies & data (CS1 item 5, CS2, ANL-04, D-19, D-31, D-35)', () => {
   const NEW_CHAIN = 'fedcba9876543210fedcba9876543210';
   const CLEAR_TITLE = 'Clear your cookies and data?';
-  const DONE = "Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.";
+  const DONE = 'Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.';
 
   beforeEach(() => {
     localStorage.setItem('csps-admin-theme', 'espresso');
@@ -394,7 +394,7 @@ describe('Clear my cookies & data (CS1 item 5, CS2, ANL-04, D-19, D-31, D-35)', 
     const heading = within(dialog).getByRole('heading', { level: 3, name: 'Clear my cookies & data' });
     expect(
       within(dialog).getByText(
-        "Removes the optional cookies and saved settings from this browser, and deletes the visit records linked to it on our server. The cookies the site needs stay.",
+        'Removes the optional cookies and saved settings from this browser, and deletes the visit records linked to it on our server. The cookies the site needs stay.',
       ),
     ).toBeInTheDocument();
     expect(clearButton(dialog)).toBeInTheDocument();
