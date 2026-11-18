@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Domain.Analytics;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -31,4 +32,7 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
         var uniqueCount = await visits.Select(row => row.VisitorHash).Distinct().CountAsync(cancellationToken).ConfigureAwait(false);
         return new VisitorTotals(uniqueCount, visitCount, pageViews);
     }
+
+    public Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<TrendCount>>([]);
 }

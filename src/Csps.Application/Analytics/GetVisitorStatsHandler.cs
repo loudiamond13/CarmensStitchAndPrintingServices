@@ -53,7 +53,9 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 wholeRangeIsOld ? null : totals.UniqueVisitors,
                 wholeRangeIsOld ? null : totals.Visits,
                 totals.PageViews,
-                crossesTheCut ? Format(cut) : null)));
+                crossesTheCut ? Format(cut) : null),
+            string.Empty,
+            []));
     }
 
     private static (string Name, DateOnly From, DateOnly To) Resolve(VisitorStatsRequest request, DateOnly today)

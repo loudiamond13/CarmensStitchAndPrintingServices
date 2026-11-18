@@ -19,6 +19,17 @@ import { sessionResponse } from '@/test/sessionFixtures';
 // date range toolbar. Every count is the server's; the page only formats.
 
 type Totals = VisitorStatsResponse['totals'];
+type Trend = VisitorStatsResponse['trend'];
+
+/** `count` day buckets from `start`, the figures growing with the day. */
+function dayTrend(start: string, count: number): Trend {
+  const [year, month, day] = start.split('-').map(Number);
+  return Array.from({ length: count }, (_, i) => ({
+    start: new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + i)).toISOString().slice(0, 10),
+    pageViews: i * 3,
+    uniqueVisitors: i,
+  }));
+}
 
 function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsResponse> = {}): VisitorStatsResponse {
   return {
@@ -27,6 +38,8 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
     to: '2026-11-15',
     cutDate: '2025-10-15',
     totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null, ...totals },
+    bucket: 'day',
+    trend: dayTrend('2026-10-17', 30),
     ...rest,
   };
 }
@@ -96,10 +109,12 @@ function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefi
   return render(<Harness search={search} onUrlUpdate={onUrlUpdate} />);
 }
 
-/** The KPI card whose overline label reads `label`. */
+/** The KPI card whose overline label reads `label` (the chart legend says some of the same words). */
 function card(label: string): HTMLElement {
-  const overline = screen.getByText(label, { selector: 'span' });
-  const root = overline.parentElement?.parentElement;
+  const root = screen
+    .getAllByText(label, { selector: 'span' })
+    .map((overline) => overline.parentElement?.parentElement)
+    .find((element) => element instanceof HTMLElement && element.tagName !== 'FIGURE');
   if (!(root instanceof HTMLElement)) throw new Error(`No card for ${label}`);
   return root;
 }
@@ -245,6 +260,34 @@ describe('V1 the KPI row', () => {
   it('has no axe violations with the figures shown', async () => {
     backend(statsAnswer({ uniqueVisitors: null, visits: null }));
     const { container } = await openPage();
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+/** The Trend card, found by its title. */
+function trendCard(): HTMLElement {
+  const section = screen.getByRole('heading', { level: 2, name: 'Visits over time' }).closest('section');
+  if (section === null) throw new Error('No Trend card');
+  return section;
+}
+
+describe('V1 the Trend card', () => {
+  it('shows "Visits over time" per day with one bucket for each day of the range', async () => {
+    backend();
+    await openPage();
+
+    expect(within(trendCard()).getByText('Per day')).toBeInTheDocument();
+    const plot = within(trendCard()).getByRole('group', {
+      name: 'Page views and unique visitors, Oct 17 to Nov 15, 2026',
+    });
+    expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(30);
+  });
+
+  it('has no axe violations with the chart shown', async () => {
+    backend();
+    const { container } = await openPage();
+    within(trendCard()).getByRole('group');
 
     await expectNoAxeViolations(container);
   });

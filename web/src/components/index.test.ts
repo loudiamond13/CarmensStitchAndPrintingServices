@@ -80,6 +80,7 @@ const SPEC_GAP_COMPONENTS = [
   'RecordMeta',
   'DateInput',
   'PhotoViewer',
+  'VisitorTrendChart',
 ] as const;
 
 const exports: Readonly<Record<string, unknown>> = ui;

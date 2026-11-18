@@ -200,6 +200,26 @@ export const chartProfitLossClasses = tw('text-danger');
 /** The zero line of a chart that goes below zero: the axis look (`--line-strong`). */
 export const chartZeroLineClasses = chartAxisClasses;
 
+/* ───────────── VisitorTrendChart ───────────── */
+
+// SPEC-GAP: VisitorTrendChart. The unique-visitor line takes the profit line's looks in `--chart-expense` (UI-SPEC V1 item 4).
+
+/** The 4px `--surface` halo under the unique-visitor line, as the profit line's. */
+export const chartVisitorHaloClasses = chartProfitHaloClasses;
+
+/** The 2px unique-visitor line in `--chart-expense`. */
+export const chartVisitorLineClasses = tw(
+  'fill-none stroke-chart-expense stroke-2 [stroke-linecap:round] [stroke-linejoin:round]',
+);
+
+/** A unique-visitor point: `--surface` fill with a 2px `--chart-expense` ring. */
+export const chartVisitorPointClasses = tw('fill-surface stroke-chart-expense stroke-2');
+
+/** The legend key for the unique-visitor line: a 16 x 2px `--chart-expense` bar with a 6px dot in its middle. */
+export const chartVisitorSwatchClasses = tw(
+  "relative inline-block h-0.5 w-4 bg-chart-expense after:absolute after:top-1/2 after:left-1/2 after:size-1.5 after:-translate-1/2 after:rounded-full after:bg-chart-expense after:content-['']",
+);
+
 /* ───────────── ActorName and RecordMeta (SEC-08) ───────────── */
 
 /** The deleted-actor suffix: muted, so the name stays the loud part (D-11, OQ-8). */

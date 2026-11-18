@@ -1,6 +1,7 @@
 using System.Globalization;
 using Csps.Application.Analytics;
 using Csps.Application.Ports;
+using Csps.Domain.Analytics;
 using Csps.Domain.Common;
 using Csps.Domain.Time;
 using NSubstitute;
@@ -134,13 +135,46 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Totals.ShouldBe(new VisitorTotalsDto(0, 0, 0, null));
     }
 
+    [Fact]
+    public async Task ADayRangeHasOneBucketPerDayWithTheStoreCountsOnTheirDaysAndZerosElsewhere()
+    {
+        var harness = new Harness(now: Noon, trend: [new TrendCount(new DateOnly(2026, 11, 12), 4, 2)]);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2026-11-10", "2026-11-14"), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe("day");
+        result.Value.Trend.ShouldBe([
+            new TrendBucketDto("2026-11-10", 0, 0),
+            new TrendBucketDto("2026-11-11", 0, 0),
+            new TrendBucketDto("2026-11-12", 4, 2),
+            new TrendBucketDto("2026-11-13", 0, 0),
+            new TrendBucketDto("2026-11-14", 0, 0),
+        ]);
+        await harness.Reader.Received(1).ReadTrendAsync(
+            new DateOnly(2026, 11, 10), new DateOnly(2026, 11, 14), new DateOnly(2025, 10, 15), StatsBucketKind.Day, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TheDefaultRangeHasThirtyDayBuckets()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Bucket.ShouldBe("day");
+        result.Value.Trend.Count.ShouldBe(30);
+        (result.Value.Trend[0].Start, result.Value.Trend[^1].Start).ShouldBe(("2026-10-17", "2026-11-15"));
+    }
+
     private sealed class Harness
     {
-        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null)
+        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null)
         {
             Reader = Substitute.For<IVisitorStatsReader>();
             Reader.ReadTotalsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(totals ?? new VisitorTotals(0, 0, 0)));
+            Reader.ReadTrendAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<StatsBucketKind>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(trend ?? []));
             var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, now ?? ManilaMidnight));
             Handler = new GetVisitorStatsHandler(Reader, calendar, new VisitorStatsRequestValidator(calendar));
         }

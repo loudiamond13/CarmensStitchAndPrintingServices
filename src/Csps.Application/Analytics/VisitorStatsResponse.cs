@@ -7,10 +7,25 @@ namespace Csps.Application.Analytics;
 /// <param name="CountedFrom">The business day visits and unique visitors are counted from, <c>YYYY-MM-DD</c>, when the range starts before the raw cut; otherwise null.</param>
 public sealed record VisitorTotalsDto(int? UniqueVisitors, int? Visits, int PageViews, string? CountedFrom);
 
+/// <summary>One bar of the visits chart (ANL-08): a day, or a month of the range.</summary>
+/// <param name="Start">The first business day of the bar inside the range, <c>YYYY-MM-DD</c>: the day itself, or the month's first day in the range.</param>
+/// <param name="PageViews">The page views of the bar; a bar with no data is 0.</param>
+/// <param name="UniqueVisitors">The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).</param>
+public sealed record TrendBucketDto(string Start, int PageViews, int? UniqueVisitors);
+
 /// <summary>The visitor stats answer (ANL-08). Dates are business days as <c>YYYY-MM-DD</c>.</summary>
 /// <param name="Range">The range that was read: a preset name or <c>custom</c>.</param>
 /// <param name="From">The first business day of the range, resolved on the server.</param>
 /// <param name="To">The last business day of the range, resolved on the server.</param>
 /// <param name="CutDate">The oldest business day that still has visits (13 months back); older days keep page views only.</param>
 /// <param name="Totals">The three totals.</param>
-public sealed record VisitorStatsResponse(string Range, string From, string To, string CutDate, VisitorTotalsDto Totals);
+/// <param name="Bucket">The bar size the server chose: <c>day</c> for a range of up to 62 days, otherwise <c>month</c>.</param>
+/// <param name="Trend">One bar per day or month from the start of the range to its end, oldest first.</param>
+public sealed record VisitorStatsResponse(
+    string Range,
+    string From,
+    string To,
+    string CutDate,
+    VisitorTotalsDto Totals,
+    string Bucket,
+    IReadOnlyList<TrendBucketDto> Trend);
