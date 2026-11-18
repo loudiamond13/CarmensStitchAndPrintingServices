@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T16:40:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T17:30:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -88,6 +88,12 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-50:** **Referrer names are checked as real host names (code review WR-G1-03, option 1).** A referrer name is kept only when it looks like a real web address: labels of 1 to 63 characters, no leading or trailing hyphen, at least one dot, no trailing dot, no bare IP address. Other names are not stored. Signing the visitor id is not done now. (owner, 2026-11-18)
 - **D-51:** **One site-wide ceiling on the anonymous write routes (code review WR-G2-04, option 1).** The consent, page view, speed sample and clear routes get one shared limit across all callers (about 600 a minute), chained to the existing per-address limit. IPv6 grouping stays at /64. (owner, 2026-11-18)
 - **D-52:** **The address hash is no longer saved (code review WR-G1-02, option 1).** A new visit stores no `IpHash`, and the page view handler no longer reads the address or the day salt. Rate limiting is unaffected: it reads the live connection and keeps its counts in memory. Removing the `IpHash` column, and the now unused day salt table, cache and purge, is a schema drop that needs its own owner approval later. The Privacy Policy never mentioned the address, so its wording is unchanged. (owner, 2026-11-18)
+- **D-53:** **Visitor stats keep only the daily page tally (option B, replaces the per-visit records).** The site stops saving visits, page views and speed samples. Only `DailyPageCounts` (date, page, count, no personal data) is written. Unique visitors, sources, devices and page speed are removed from Visitor Stats. Reason: the per-visit rows are what a script could flood, and the owner does not need the detail. Cloudflare analytics was considered and not chosen. Planned and built as Phase 12.1. (owner, 2026-11-18)
+- **D-54:** **No cookie banner.** With visitor stats gone, the Google map is the only optional item, and it stays off until the visitor taps "Show map"; that tap is the choice. The cookie bar, the Cookie Settings window and the footer "Cookie settings" link are removed. Phase 12.1. (owner, 2026-11-18)
+- **D-55:** **The map tap lasts for that visit only.** Nothing is saved, so the site sets no optional cookies at all. "Always show maps?" and "Clear my cookies & data" are removed. Phase 12.1. (owner, 2026-11-18)
+- **D-56:** **The unused visit, page view, speed sample and salt tables stay for now.** Nothing writes to them after D-53, and the monthly cleanup keeps removing old rows. Dropping them, and the `IpHash` column, needs a separate owner yes. (owner, 2026-11-18)
+- **D-57:** **The smaller Visitor Stats page shows total page views, the most viewed pages and a page views per day or month chart, with CSV export.** (owner, 2026-11-18)
+- **D-58:** **The D-53 to D-57 work is a new Phase 12.1,** with its own plan and review, and the owner approves the new Privacy and Cookie Policy wording there. Phase 12 records stay as they are. D-50 (referrer name check) no longer applies once referrers are not stored. D-51 (site-wide ceiling) still applies to the anonymous routes that remain. (owner, 2026-11-18)
 - These rulings settle wording only. Each page stays DRAFT until the owner approves it page by page (D-09, D-14, plan 12-22 Task 1).
 
 ### Claude's Discretion
