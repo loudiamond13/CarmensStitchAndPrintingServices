@@ -28,7 +28,27 @@ public interface IVisitorStatsReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>Only the buckets that have data, oldest first; the caller fills the rest with zeros.</returns>
     Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the grouped counts behind the ranked lists for the business days <paramref name="first"/> to <paramref name="last"/>. Page views
+    /// per page key come from the daily counts for the whole range.
+    /// </summary>
+    /// <param name="first">The first business day.</param>
+    /// <param name="last">The last business day.</param>
+    /// <param name="cut">The first business day raw visits are still kept for.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>One count per name, in no set order; a name with no count is left out. The caller orders, shares and trims.</returns>
+    Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
 }
+
+/// <summary>The grouped counts behind the ranked lists.</summary>
+/// <param name="Pages">Page views per page key.</param>
+public sealed record VisitorLists(IReadOnlyList<NamedCount> Pages);
+
+/// <summary>One grouped count.</summary>
+/// <param name="Name">The name as stored.</param>
+/// <param name="Count">The count.</param>
+public sealed record NamedCount(string Name, long Count);
 
 /// <summary>The three totals of a range.</summary>
 /// <param name="UniqueVisitors">The distinct visitors with a visit in the raw span.</param>

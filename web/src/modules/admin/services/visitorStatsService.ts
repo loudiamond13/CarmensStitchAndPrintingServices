@@ -23,6 +23,13 @@ export interface VisitorTotals {
   countedFrom: string | null;
 }
 
+/** One row of a ranked list: the name as the server stored it, its count and the server's whole-percent share. */
+export interface RankedItem {
+  name: string;
+  count: number;
+  share: number;
+}
+
 /** The answer once the browser has checked it: the range the server read and its totals. */
 export interface VisitorStats {
   range: string;
@@ -34,6 +41,8 @@ export interface VisitorStats {
   bucket: TrendBucketSize;
   /** One bar per day or month from the start of the range to its end, oldest first. */
   trend: TrendPoint[];
+  /** Up to 10 pages by page views, highest first; each name is a page key. */
+  topPages: RankedItem[];
 }
 
 /** A stats answer the browser cannot show, so the page shows its failure instead of a wrong figure. */
@@ -81,6 +90,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     },
     bucket: bucketSize(response.bucket),
     trend: response.trend.map(trendPoint),
+    topPages: [],
   };
 }
 

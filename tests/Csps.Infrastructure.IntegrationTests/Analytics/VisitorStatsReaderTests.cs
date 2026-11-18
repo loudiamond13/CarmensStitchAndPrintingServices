@@ -200,6 +200,40 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         trend.ShouldBe([new TrendCount(new DateOnly(2026, 11, 1), 4, 1)]);
     }
 
+    [Fact]
+    public async Task TopPagesSumEachPagesViewsOverTheRangeOnly()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Day.AddDays(-1), PageKeys.Home, 100);
+        await SeedViewsAsync(Day, PageKeys.Home, 3);
+        await SeedViewsAsync(Day.AddDays(1), PageKeys.Home, 4);
+        await SeedViewsAsync(Day, PageKeys.Gallery, 5);
+        await SeedViewsAsync(Day.AddDays(2), PageKeys.Contact, 9);
+
+        var lists = await ReadListsAsync(Day, Day.AddDays(1));
+
+        lists.Pages.OrderBy(static row => row.Name, StringComparer.Ordinal)
+            .ShouldBe([new NamedCount(PageKeys.Gallery, 5), new NamedCount(PageKeys.Home, 7)]);
+    }
+
+    [Fact]
+    public async Task TopPagesKeepPageViewsFromBeforeTheCut()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Cut.AddDays(-10), PageKeys.NotFound, 6);
+        await SeedViewsAsync(Cut, PageKeys.NotFound, 1);
+
+        var lists = await ReadListsAsync(Cut.AddDays(-30), Cut);
+
+        lists.Pages.ShouldBe([new NamedCount(PageKeys.NotFound, 7)]);
+    }
+
+    private async Task<VisitorLists> ReadListsAsync(DateOnly from, DateOnly to)
+    {
+        await using var context = database.CreateContext();
+        return await new VisitorStatsReader(context).ReadListsAsync(from, to, Cut, TestContext.Current.CancellationToken);
+    }
+
     private async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly from, DateOnly to, StatsBucketKind bucket)
     {
         await using var context = database.CreateContext();

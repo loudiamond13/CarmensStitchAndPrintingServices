@@ -72,6 +72,9 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
             .Select(day => new TrendCount(day, viewsByStart.GetValueOrDefault(day), visitorsByStart.GetValueOrDefault(day)))];
     }
 
+    public Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken) =>
+        Task.FromResult(new VisitorLists([]));
+
     /// <summary>One aggregate of a bucket: the day, or the month on its first day.</summary>
     private sealed record BucketFigure(int Year, int Month, int Day, long Value)
     {

@@ -248,15 +248,48 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Trend[0].Start.ShouldBe(from);
     }
 
+    [Fact]
+    public async Task TopPagesAreOrderedByViewsThenNameWithSharesThatAddUpTo100()
+    {
+        var harness = new Harness(now: Noon, lists: new VisitorLists([new("home", 1), new("gallery", 3), new("contact", 1)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBe([new RankedItemDto("gallery", 3, 60), new RankedItemDto("contact", 1, 20), new RankedItemDto("home", 1, 20)]);
+        await harness.Reader.Received(1).ReadListsAsync(new DateOnly(2026, 10, 17), new DateOnly(2026, 11, 15), new DateOnly(2025, 10, 15), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnePageIsAFullShare()
+    {
+        var harness = new Harness(now: Noon, lists: new VisitorLists([new("home", 9)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBe([new RankedItemDto("home", 9, 100)]);
+    }
+
+    [Fact]
+    public async Task NoPageViewsIsAnEmptyList()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBeEmpty();
+    }
+
     private sealed class Harness
     {
-        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null)
+        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null, VisitorLists? lists = null)
         {
             Reader = Substitute.For<IVisitorStatsReader>();
             Reader.ReadTotalsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(totals ?? new VisitorTotals(0, 0, 0)));
             Reader.ReadTrendAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<StatsBucketKind>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(trend ?? []));
+            Reader.ReadListsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(lists ?? new VisitorLists([])));
             var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, now ?? ManilaMidnight));
             Handler = new GetVisitorStatsHandler(Reader, calendar, new VisitorStatsRequestValidator(calendar));
         }

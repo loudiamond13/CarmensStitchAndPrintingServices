@@ -45,6 +45,7 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var totals = await reader.ReadTotalsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
         var bucket = StatsBucket.For(from, to);
         var counts = await reader.ReadTrendAsync(from, to, cut, bucket, cancellationToken).ConfigureAwait(false);
+        _ = await reader.ReadListsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
 
         // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
         var wholeRangeIsOld = to < cut;
@@ -60,7 +61,8 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 totals.PageViews,
                 crossesTheCut ? Format(cut) : null),
             bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
-            Fill(from, to, cut, bucket, counts)));
+            Fill(from, to, cut, bucket, counts),
+            []));
     }
 
     /// <summary>

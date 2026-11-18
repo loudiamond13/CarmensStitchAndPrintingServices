@@ -13,6 +13,12 @@ public sealed record VisitorTotalsDto(int? UniqueVisitors, int? Visits, int Page
 /// <param name="UniqueVisitors">The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).</param>
 public sealed record TrendBucketDto(string Start, int PageViews, int? UniqueVisitors);
 
+/// <summary>One row of a ranked stats list (ANL-08, D-28): a page key, source, device class or browser with its count and share.</summary>
+/// <param name="Name">The name as stored: a page key, a source such as <c>Facebook</c> or a host, a device class, or a browser family.</param>
+/// <param name="Count">The page views (top pages) or visits (the other lists).</param>
+/// <param name="Share">The whole percent of the list's total; a full list's shares add up to 100.</param>
+public sealed record RankedItemDto(string Name, int Count, int Share);
+
 /// <summary>The visitor stats answer (ANL-08). Dates are business days as <c>YYYY-MM-DD</c>.</summary>
 /// <param name="Range">The range that was read: a preset name or <c>custom</c>.</param>
 /// <param name="From">The first business day of the range, resolved on the server.</param>
@@ -21,6 +27,7 @@ public sealed record TrendBucketDto(string Start, int PageViews, int? UniqueVisi
 /// <param name="Totals">The three totals.</param>
 /// <param name="Bucket">The bar size the server chose: <c>day</c> for a range of up to 62 days, otherwise <c>month</c>.</param>
 /// <param name="Trend">One bar per day or month from the start of the range to its end, oldest first.</param>
+/// <param name="TopPages">Up to 10 pages by page views, highest first; each name is a page key.</param>
 public sealed record VisitorStatsResponse(
     string Range,
     string From,
@@ -28,4 +35,5 @@ public sealed record VisitorStatsResponse(
     string CutDate,
     VisitorTotalsDto Totals,
     string Bucket,
-    IReadOnlyList<TrendBucketDto> Trend);
+    IReadOnlyList<TrendBucketDto> Trend,
+    IReadOnlyList<RankedItemDto> TopPages);

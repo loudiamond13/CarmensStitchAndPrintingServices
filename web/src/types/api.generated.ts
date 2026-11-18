@@ -5457,6 +5457,21 @@ export interface components {
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
         };
+        /** @description One row of a ranked stats list (ANL-08, D-28): a page key, source, device class or browser with its count and share. */
+        RankedItemDto: {
+            /**
+             * Format: int32
+             * @description The page views (top pages) or visits (the other lists).
+             */
+            count: number | string;
+            /** @description The name as stored: a page key, a source such as `Facebook` or a host, a device class, or a browser family. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The whole percent of the list's total; a full list's shares add up to 100.
+             */
+            share: number | string;
+        };
         /**
          * @description One cookie decision as the browser sends it (ANL-07). Stats is null for a map-only save (D-18). The browser never sends the GPC signal
          *     in the body: the server reads the `Sec-GPC` header (D-20).
@@ -6292,6 +6307,8 @@ export interface components {
             range: string;
             /** @description The last business day of the range, resolved on the server. */
             to: string;
+            /** @description Up to 10 pages by page views, highest first; string RankedItemDto.Name is the page key. */
+            topPages: components["schemas"]["RankedItemDto"][];
             /** @description The three totals. */
             totals: components["schemas"]["VisitorTotalsDto"];
             /** @description One bar per day or month from the start of the range to its end, oldest first. */

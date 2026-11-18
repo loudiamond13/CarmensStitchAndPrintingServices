@@ -40,6 +40,12 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
     totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null, ...totals },
     bucket: 'day',
     trend: dayTrend('2026-10-17', 30),
+    topPages: [
+      { name: 'gallery', count: 412, share: 38 },
+      { name: 'home', count: 300, share: 28 },
+      { name: 'contact', count: 200, share: 18 },
+      { name: 'not-found', count: 172, share: 16 },
+    ],
     ...rest,
   };
 }
@@ -307,6 +313,54 @@ describe('V1 the Trend card', () => {
     within(trendCard()).getByRole('group');
 
     await expectNoAxeViolations(container);
+  });
+});
+
+/** A list card, found by its title. */
+function listCard(title: string): HTMLElement {
+  const section = screen.getByRole('heading', { level: 2, name: title }).closest('section');
+  if (section === null) throw new Error(`No card ${title}`);
+  return section;
+}
+
+describe('V1 the Most viewed pages card', () => {
+  it('shows "Most viewed pages" with its sub line and the server rows by page name', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Most viewed pages' })).not.toBeNull();
+    const card = listCard('Most viewed pages');
+    expect(within(card).getByText('Every page opened')).toBeInTheDocument();
+    const rows = within(within(card).getByRole('list')).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(within(rows[0] ?? card).getByText('Gallery')).toBeInTheDocument();
+    expect(within(rows[0] ?? card).getByText('412 · 38%')).toBeInTheDocument();
+    expect(within(rows[3] ?? card).getByText('Page not found')).toBeInTheDocument();
+  });
+
+  it('fills each bar to the share the server sent', async () => {
+    backend();
+    await openPage();
+
+    const fills = listCard('Most viewed pages').querySelectorAll<HTMLElement>('li [style]');
+    expect([...fills].map((bar) => bar.style.getPropertyValue('--bar-w'))).toEqual(['38%', '28%', '18%', '16%']);
+  });
+
+  it.each([
+    ['home', 'Home'],
+    ['products', 'Products'],
+    ['gallery', 'Gallery'],
+    ['contact', 'Contact'],
+    ['privacy', 'Privacy Policy'],
+    ['cookies', 'Cookie Policy'],
+    ['terms', 'Terms of Use'],
+    ['accessibility', 'Accessibility Statement'],
+    ['not-found', 'Page not found'],
+  ])('names the page key %s "%s"', async (key, label) => {
+    backend(statsAnswer({}, { topPages: [{ name: key, count: 1, share: 100 }] }));
+    await openPage();
+
+    expect(within(listCard('Most viewed pages')).getByText(label)).toBeInTheDocument();
   });
 });
 

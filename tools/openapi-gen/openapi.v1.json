@@ -6410,6 +6410,39 @@
         ],
         "type": "object"
       },
+      "RankedItemDto": {
+        "description": "One row of a ranked stats list (ANL-08, D-28): a page key, source, device class or browser with its count and share.",
+        "properties": {
+          "count": {
+            "description": "The page views (top pages) or visits (the other lists).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "The name as stored: a page key, a source such as `Facebook` or a host, a device class, or a browser family.",
+            "type": "string"
+          },
+          "share": {
+            "description": "The whole percent of the list's total; a full list's shares add up to 100.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "share"
+        ],
+        "type": "object"
+      },
       "RecordConsentRequest": {
         "description": "One cookie decision as the browser sends it (ANL-07). Stats is null for a map-only save (D-18). The browser never sends the GPC signal\nin the body: the server reads the `Sec-GPC` header (D-20).",
         "properties": {
@@ -8495,6 +8528,13 @@
             "description": "The last business day of the range, resolved on the server.",
             "type": "string"
           },
+          "topPages": {
+            "description": "Up to 10 pages by page views, highest first; string RankedItemDto.Name is the page key.",
+            "items": {
+              "$ref": "#/components/schemas/RankedItemDto"
+            },
+            "type": "array"
+          },
           "totals": {
             "$ref": "#/components/schemas/VisitorTotalsDto",
             "description": "The three totals."
@@ -8514,7 +8554,8 @@
           "cutDate",
           "totals",
           "bucket",
-          "trend"
+          "trend",
+          "topPages"
         ],
         "type": "object"
       },
