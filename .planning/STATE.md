@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 9 merged and gated
+last_activity_desc: Phase 12 wave 10 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 351
+  completed_plans: 352
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T02:30:00-06:00"
+updated: "2026-11-18T05:00:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 9 (12-26) merged and gated
+Last activity: 2026-11-17 — Phase 12 wave 10 (12-27) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1062,6 +1062,8 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [x] **Wave 9 post-merge gate (2026-11-18; plan 12-26, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3278, Infrastructure 1314 of 1315 (1 skipped, 0 failed), Server 3060 passed; openapi types match; web `verify` exit 0 (425 files, 11391 tests, branches 90.33%); `build:budget` exit 0: Privacy 149.60 KB (0.40 KB left), admin 223.25 KB, CSS 20.50 KB.
 - [ ] **12-26 stats lists choices (your review; recommendation first):** (1) the empty "Most viewed pages" card uses the plan line "No visitors allowed visitor stats in these dates.", which is not quite true because page views count with or without cookies: use "No page views in these dates." for that card only; (2) with more than 10 sources the 10 rows shown can add up to under 100%: keep, so each bar shows its true share; (3) the browser "Other" row is always last: keep; (4) all four lists use one `{ name, count, share }` shape although the plan goals name other fields: keep one shape.
 - [ ] **Public pages grow 0.02 KB per admin plan (not traced):** 12-25 and 12-26 changed no public code, yet every public page grew 0.02 KB each time. Likely a shared chunk map; worth a look before 12-28/12-29, since Privacy has 0.40 KB left.
+- [x] **Wave 10 post-merge gate (2026-11-18; plan 12-27, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3282, Infrastructure 1319 of 1320 (1 skipped, 0 failed), Server 3061 passed; openapi types match; web `verify` exit 0 (426 files, 11428 tests, branches 90.33%); `build:budget` exit 0: Privacy 149.60 KB (no growth this time), admin 223.22 KB, CSS 20.50 KB.
+- [ ] **12-27 page speed and states choices (your review; recommendation first):** (1) a missing measure (iPhones send no layout-shift score) reads "Not measured": keep; (2) the "No visits" empty state shows when page views are 0 (plan): show it only when both page views and visits are 0, so it never sits under a Visits card that reads 1; (3) loading shows 3 skeleton lines per list, not the plan's 5, because the shared `SkeletonText` draws at most 3 and changing it could add public bytes: keep 3; (4) with no page views the empty state replaces every list card, so the 12-26 "Most viewed pages" empty line can no longer appear (that 12-26 question becomes moot); (5) "From N page views" counts only page views that sent speed figures: keep.
 
 ### Blockers/Concerns
 
