@@ -79,6 +79,43 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task TopPagesAreOrderedByViewsWithWholeSharesThatAddUpTo100()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Gallery, 400);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 14), PageKeys.Gallery, 12);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Home, 300);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Contact, 200);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Products, 172);
+        await rig.SeedViewsAsync(new DateOnly(2026, 10, 16), PageKeys.Terms, 999);
+
+        using var response = await rig.GetAsync(string.Empty, rig.Manager.AccessToken);
+
+        var pages = (await ReadAsync(response)).GetProperty("topPages").EnumerateArray().Select(Ranked).ToList();
+        pages.ShouldBe([("gallery", 412, 38), ("home", 300, 28), ("contact", 200, 18), ("products", 172, 16)]);
+        pages.Sum(static row => row.Share).ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task ARangeCrossingTheCutListsSourcesDevicesAndBrowsersFromBothSidesNamedAsStored()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedVisitAsync(1, new DateOnly(2025, 10, 15), "Facebook", DeviceKind.Phone, "Chrome");
+        await rig.SeedVisitAsync(2, new DateOnly(2026, 3, 1), "basketball-league.ph", DeviceKind.Computer, "Safari");
+        await rig.SeedVisitAsync(3, new DateOnly(2026, 3, 2), ReferrerName.Direct, DeviceKind.Phone, "Chrome");
+        await rig.SeedDailyAsync(DailyReferrerCount.Of(new DateOnly(2025, 10, 14), "Facebook", 3));
+        await rig.SeedDailyAsync(DailyDeviceCount.Of(new DateOnly(2025, 10, 14), DeviceDimension.Device, "Phone", 3));
+        await rig.SeedDailyAsync(DailyDeviceCount.Of(new DateOnly(2025, 10, 14), DeviceDimension.Browser, "Facebook in-app", 3));
+
+        using var response = await rig.GetAsync("range=custom&from=2025-10-01&to=2026-11-15", rig.Manager.AccessToken);
+
+        var body = await ReadAsync(response);
+        body.GetProperty("referrers").EnumerateArray().Select(Ranked).ShouldBe([("Facebook", 4, 67), ("Direct", 1, 17), ("basketball-league.ph", 1, 16)]);
+        body.GetProperty("devices").EnumerateArray().Select(Ranked).ShouldBe([("Phone", 5, 83), ("Computer", 1, 17)]);
+        body.GetProperty("browsers").EnumerateArray().Select(Ranked).ShouldBe([("Facebook in-app", 3, 50), ("Chrome", 2, 33), ("Safari", 1, 17)]);
+    }
+
+    [Fact]
     public async Task TheAnswerIsNeverCached()
     {
         await using var rig = await Rig.StartAsync(database, Noon);
@@ -209,7 +246,11 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
 
         var names = new List<string>();
         CollectNames(await ReadAsync(response), names);
-        string[] allowed = ["range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom", "bucket", "trend", "start"];
+        string[] allowed =
+        [
+            "range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom", "bucket", "trend", "start",
+            "topPages", "referrers", "devices", "browsers", "name", "count", "share",
+        ];
         names.Except(allowed).ShouldBeEmpty("later plans extend this list on purpose, one reviewed name at a time");
         names.ShouldNotContain(name => ForbiddenWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)));
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -247,6 +288,9 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         var unique = bucket.GetProperty("uniqueVisitors");
         return (bucket.GetProperty("pageViews").GetInt32(), unique.ValueKind == JsonValueKind.Null ? null : unique.GetInt32());
     }
+
+    private static (string? Name, int Count, int Share) Ranked(JsonElement row) =>
+        (row.GetProperty("name").GetString(), row.GetProperty("count").GetInt32(), row.GetProperty("share").GetInt32());
 
     private static bool IsNullOrMissing(JsonElement element, string name) =>
         !element.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null;
@@ -321,12 +365,22 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
                 .ExecuteUpdateAsync(set => set.SetProperty(row => row.Views, views), TestContext.Current.CancellationToken);
         }
 
-        public async Task SeedVisitAsync(byte visitor, DateOnly day)
+        public Task SeedVisitAsync(byte visitor, DateOnly day) => SeedVisitAsync(visitor, day, ReferrerName.Direct, DeviceKind.Phone, "Chrome");
+
+        public async Task SeedVisitAsync(byte visitor, DateOnly day, string referrer, DeviceKind device, string browser)
         {
             await using var context = _database.CreateContext();
             var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
             context.AnalyticsVisits.Add(
-                AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, ReferrerName.Direct, DeviceKind.Phone, "Chrome", "Android", null));
+                AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, referrer, device, browser, "Android", null));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        public async Task SeedDailyAsync<T>(T row)
+            where T : class
+        {
+            await using var context = _database.CreateContext();
+            context.Add(row);
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 

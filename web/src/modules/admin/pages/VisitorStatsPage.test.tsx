@@ -40,6 +40,28 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
     totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null, ...totals },
     bucket: 'day',
     trend: dayTrend('2026-10-17', 30),
+    topPages: [
+      { name: 'gallery', count: 412, share: 38 },
+      { name: 'home', count: 300, share: 28 },
+      { name: 'contact', count: 200, share: 18 },
+      { name: 'not-found', count: 172, share: 16 },
+    ],
+    referrers: [
+      { name: 'Facebook', count: 300, share: 62 },
+      { name: 'Direct', count: 120, share: 25 },
+      { name: 'basketball-league.ph', count: 64, share: 13 },
+    ],
+    devices: [
+      { name: 'Phone', count: 400, share: 82 },
+      { name: 'Computer', count: 70, share: 14 },
+      { name: 'Tablet', count: 20, share: 4 },
+    ],
+    browsers: [
+      { name: 'Chrome', count: 200, share: 41 },
+      { name: 'Facebook in-app', count: 150, share: 31 },
+      { name: 'Safari', count: 90, share: 18 },
+      { name: 'Other', count: 50, share: 10 },
+    ],
     ...rest,
   };
 }
@@ -305,6 +327,152 @@ describe('V1 the Trend card', () => {
     backend();
     const { container } = await openPage();
     within(trendCard()).getByRole('group');
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+/** A list card, found by its title. */
+function listCard(title: string): HTMLElement {
+  const section = screen.getByRole('heading', { level: 2, name: title }).closest('section');
+  if (section === null) throw new Error(`No card ${title}`);
+  return section;
+}
+
+describe('V1 the Most viewed pages card', () => {
+  it('shows "Most viewed pages" with its sub line and the server rows by page name', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Most viewed pages' })).not.toBeNull();
+    const card = listCard('Most viewed pages');
+    expect(within(card).getByText('Every page opened')).toBeInTheDocument();
+    const rows = within(within(card).getByRole('list')).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(within(rows[0] ?? card).getByText('Gallery')).toBeInTheDocument();
+    expect(within(rows[0] ?? card).getByText('412 · 38%')).toBeInTheDocument();
+    expect(within(rows[3] ?? card).getByText('Page not found')).toBeInTheDocument();
+  });
+
+  it('fills each bar to the share the server sent', async () => {
+    backend();
+    await openPage();
+
+    const fills = listCard('Most viewed pages').querySelectorAll<HTMLElement>('li [style]');
+    expect([...fills].map((bar) => bar.style.getPropertyValue('--bar-w'))).toEqual(['38%', '28%', '18%', '16%']);
+  });
+
+  it.each([
+    ['home', 'Home'],
+    ['products', 'Products'],
+    ['gallery', 'Gallery'],
+    ['contact', 'Contact'],
+    ['privacy', 'Privacy Policy'],
+    ['cookies', 'Cookie Policy'],
+    ['terms', 'Terms of Use'],
+    ['accessibility', 'Accessibility Statement'],
+    ['not-found', 'Page not found'],
+  ])('names the page key %s "%s"', async (key, label) => {
+    backend(statsAnswer({}, { topPages: [{ name: key, count: 1, share: 100 }] }));
+    await openPage();
+
+    expect(within(listCard('Most viewed pages')).getByText(label)).toBeInTheDocument();
+  });
+});
+
+/** The shown names of a list, in order. */
+function names(list: HTMLElement): (string | null)[] {
+  return within(list)
+    .getAllByRole('listitem')
+    .map((row) => row.querySelector('[data-stat-name]')?.textContent ?? null);
+}
+
+describe('V1 the Where visitors came from card', () => {
+  it('shows the sources exactly as the server stored them, with their figures', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Where visitors came from' })).not.toBeNull();
+    const card = listCard('Where visitors came from');
+    expect(within(card).getByText('Visitors who allowed visitor stats')).toBeInTheDocument();
+    expect(names(within(card).getByRole('list'))).toEqual(['Facebook', 'Direct', 'basketball-league.ph']);
+    expect(within(card).getByText('300 · 62%')).toBeInTheDocument();
+    expect(within(card).queryByRole('link')).toBeNull();
+  });
+
+  it('sits beside Most viewed pages in a row that becomes one column at 1023px and below', async () => {
+    backend();
+    await openPage();
+
+    const row = listCard('Where visitors came from').parentElement;
+    expect(row).toContainElement(listCard('Most viewed pages'));
+    expect(row?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['grid-cols-[repeat(2,minmax(0,1fr))]', 'pg-lt-lg:grid-cols-[minmax(0,1fr)]']),
+    );
+  });
+
+  it('shows the empty line when no visitor allowed visitor stats', async () => {
+    backend(statsAnswer({}, { referrers: [] }));
+    await openPage();
+
+    expect(
+      within(listCard('Where visitors came from')).getByText('No visitors allowed visitor stats in these dates.'),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('V1 the Devices and browsers card', () => {
+  it('shows Device and Browser lists under their h3s with the server order', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Devices and browsers' })).not.toBeNull();
+    const card = listCard('Devices and browsers');
+    expect(within(card).getByText('Visitors who allowed visitor stats')).toBeInTheDocument();
+    const device = within(card).getByRole('heading', { level: 3, name: 'Device' });
+    const browser = within(card).getByRole('heading', { level: 3, name: 'Browser' });
+    expect(names(device.parentElement ?? card)).toEqual(['Phone', 'Computer', 'Tablet']);
+    expect(names(browser.parentElement ?? card)).toEqual(['Chrome', 'Facebook in-app', 'Safari', 'Other']);
+    expect(within(browser.parentElement ?? card).getByText('50 · 10%')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['Phone', 'Phone'],
+    ['Tablet', 'Tablet'],
+    ['Computer', 'Computer'],
+    ['Other', 'Other'],
+  ])('names the device %s "%s" from the copy', async (stored, label) => {
+    backend(statsAnswer({}, { devices: [{ name: stored, count: 1, share: 100 }] }));
+    await openPage();
+
+    const device = within(listCard('Devices and browsers')).getByRole('heading', { level: 3, name: 'Device' });
+    expect(names(device.parentElement ?? document.body)).toEqual([label]);
+  });
+
+  it('puts the two lists side by side at 1280px and up and stacks them below', async () => {
+    backend();
+    await openPage();
+
+    const device = within(listCard('Devices and browsers')).getByRole('heading', { level: 3, name: 'Device' });
+    const grid = device.parentElement?.parentElement;
+    expect(grid?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['grid-cols-[repeat(2,minmax(0,1fr))]', 'pg-lt-xl:grid-cols-[minmax(0,1fr)]']),
+    );
+  });
+
+  it('shows the empty line in each list with no rows', async () => {
+    backend(statsAnswer({}, { devices: [], browsers: [] }));
+    await openPage();
+
+    expect(
+      within(listCard('Devices and browsers')).getAllByText('No visitors allowed visitor stats in these dates.'),
+    ).toHaveLength(2);
+  });
+
+  it('has no axe violations with every list shown', async () => {
+    backend();
+    const { container } = await openPage();
+    listCard('Devices and browsers');
 
     await expectNoAxeViolations(container);
   });

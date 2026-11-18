@@ -248,15 +248,141 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Trend[0].Start.ShouldBe(from);
     }
 
+    [Fact]
+    public async Task TopPagesAreOrderedByViewsThenNameWithSharesThatAddUpTo100()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(pages: [new("home", 1), new("gallery", 3), new("contact", 1)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBe([new RankedItemDto("gallery", 3, 60), new RankedItemDto("contact", 1, 20), new RankedItemDto("home", 1, 20)]);
+        await harness.Reader.Received(1).ReadListsAsync(new DateOnly(2026, 10, 17), new DateOnly(2026, 11, 15), new DateOnly(2025, 10, 15), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task OnePageIsAFullShare()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(pages: [new("home", 9)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBe([new RankedItemDto("home", 9, 100)]);
+    }
+
+    [Fact]
+    public async Task NoPageViewsIsAnEmptyList()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.TopPages.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task EqualVisitCountsComeInNameOrderSoTheOrderNeverChanges()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(referrers: [new("Messenger", 5), new("Direct", 9), new("Facebook", 5), new("facebook.com", 5)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Referrers.Select(static row => row.Name).ShouldBe(["Direct", "Facebook", "Messenger", "facebook.com"]);
+        result.Value.Referrers.Sum(static row => row.Share).ShouldBe(100);
+    }
+
+    [Fact]
+    public async Task ReferrersKeepTheTopTenAsStoredWithSharesOfAllVisits()
+    {
+        string[] hosts = ["basketball-league.ph", "Direct", "Facebook", "Google", "Instagram", "Messenger", "a.example", "b.example", "c.example", "d.example", "e.example", "f.example"];
+        var harness = new Harness(now: Noon, lists: Lists(referrers: [.. hosts.Select(static (name, index) => new NamedCount(name, 20 - index))]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Referrers.Count.ShouldBe(10);
+        result.Value.Referrers[0].ShouldBe(new RankedItemDto("basketball-league.ph", 20, 12));
+        result.Value.Referrers.Select(static row => row.Name).ShouldBe(hosts.Take(10));
+        result.Value.Referrers.Sum(static row => row.Share).ShouldBe(89, "the two rows past the tenth keep their share of all visits");
+    }
+
+    [Fact]
+    public async Task DevicesAreListedByVisitsWithTheirStoredNames()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(devices: [new("Tablet", 1), new("Phone", 7), new("Computer", 2)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Devices.ShouldBe([new RankedItemDto("Phone", 7, 70), new RankedItemDto("Computer", 2, 20), new RankedItemDto("Tablet", 1, 10)]);
+    }
+
+    [Fact]
+    public async Task SevenBrowsersAreTheTopFiveThenOtherWithSharesThatAddUpTo100()
+    {
+        var harness = new Harness(
+            now: Noon,
+            lists: Lists(browsers: [new("Edge", 5), new("Chrome", 41), new("Opera", 4), new("Safari", 20), new("Firefox", 6), new("Facebook in-app", 15), new("Samsung Internet", 10)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Browsers.ShouldBe([
+            new RankedItemDto("Chrome", 41, 40),
+            new RankedItemDto("Safari", 20, 20),
+            new RankedItemDto("Facebook in-app", 15, 15),
+            new RankedItemDto("Samsung Internet", 10, 10),
+            new RankedItemDto("Firefox", 6, 6),
+            new RankedItemDto("Other", 9, 9),
+        ]);
+    }
+
+    [Fact]
+    public async Task AStoredOtherBrowserJoinsTheOtherRowWhichComesLast()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(browsers: [new("Other", 4), new("Chrome", 1)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Browsers.ShouldBe([new RankedItemDto("Chrome", 1, 20), new RankedItemDto("Other", 4, 80)]);
+    }
+
+    [Fact]
+    public async Task FiveBrowsersOrFewerHaveNoOtherRow()
+    {
+        var harness = new Harness(now: Noon, lists: Lists(browsers: [new("Chrome", 3), new("Safari", 1)]));
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Browsers.ShouldBe([new RankedItemDto("Chrome", 3, 75), new RankedItemDto("Safari", 1, 25)]);
+    }
+
+    [Fact]
+    public async Task NoVisitsGiveEmptyReferrerDeviceAndBrowserLists()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Referrers.ShouldBeEmpty();
+        result.Value.Devices.ShouldBeEmpty();
+        result.Value.Browsers.ShouldBeEmpty();
+    }
+
+    private static VisitorLists Lists(
+        NamedCount[]? pages = null,
+        NamedCount[]? referrers = null,
+        NamedCount[]? devices = null,
+        NamedCount[]? browsers = null) =>
+        new(pages ?? [], referrers ?? [], devices ?? [], browsers ?? []);
+
     private sealed class Harness
     {
-        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null)
+        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null, VisitorLists? lists = null)
         {
             Reader = Substitute.For<IVisitorStatsReader>();
             Reader.ReadTotalsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(totals ?? new VisitorTotals(0, 0, 0)));
             Reader.ReadTrendAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<StatsBucketKind>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(trend ?? []));
+            Reader.ReadListsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(lists ?? Lists()));
             var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, now ?? ManilaMidnight));
             Handler = new GetVisitorStatsHandler(Reader, calendar, new VisitorStatsRequestValidator(calendar));
         }

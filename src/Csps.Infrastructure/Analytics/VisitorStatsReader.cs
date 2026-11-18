@@ -72,6 +72,70 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
             .Select(day => new TrendCount(day, viewsByStart.GetValueOrDefault(day), visitorsByStart.GetValueOrDefault(day)))];
     }
 
+    public async Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
+    {
+        var pages = await context.DailyPageCounts
+            .AsNoTracking()
+            .Where(row => row.BusinessDay >= first && row.BusinessDay <= last)
+            .GroupBy(row => row.PageKey)
+            .Select(group => new NamedCount(group.Key, group.Sum(row => (long)row.Views)))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // D-27: raw visits on the days from the cut on, the rolled-up daily rows on the days before it.
+        var rawFirst = first > cut ? first : cut;
+        var rolledLast = last < cut ? last : cut.AddDays(-1);
+        List<NamedCount> rawReferrers = [], rawDevices = [], rawBrowsers = [], rolledReferrers = [], rolledDevices = [], rolledBrowsers = [];
+        if (rawFirst <= last)
+        {
+            var visits = context.AnalyticsVisits.AsNoTracking().Where(row => row.BusinessDay >= rawFirst && row.BusinessDay <= last);
+            rawReferrers = await visits
+                .GroupBy(row => row.Referrer)
+                .Select(group => new NamedCount(group.Key, group.LongCount()))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var devices = await visits
+                .GroupBy(row => row.Device)
+                .Select(group => new { Device = group.Key, Count = group.LongCount() })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            rawDevices = [.. devices.Select(static row => new NamedCount(row.Device.ToString(), row.Count))];
+            rawBrowsers = await visits
+                .GroupBy(row => row.Browser)
+                .Select(group => new NamedCount(group.Key, group.LongCount()))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (first <= rolledLast)
+        {
+            rolledReferrers = await context.DailyReferrerCounts
+                .AsNoTracking()
+                .Where(row => row.BusinessDay >= first && row.BusinessDay <= rolledLast)
+                .GroupBy(row => row.Referrer)
+                .Select(group => new NamedCount(group.Key, group.Sum(row => (long)row.Visits)))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            var labels = context.DailyDeviceCounts.AsNoTracking().Where(row => row.BusinessDay >= first && row.BusinessDay <= rolledLast);
+            rolledDevices = await RolledLabelsAsync(labels, DeviceDimension.Device, cancellationToken).ConfigureAwait(false);
+            rolledBrowsers = await RolledLabelsAsync(labels, DeviceDimension.Browser, cancellationToken).ConfigureAwait(false);
+        }
+
+        return new VisitorLists(pages, Merge(rawReferrers, rolledReferrers), Merge(rawDevices, rolledDevices), Merge(rawBrowsers, rolledBrowsers));
+    }
+
+    private static Task<List<NamedCount>> RolledLabelsAsync(IQueryable<DailyDeviceCount> rows, DeviceDimension dimension, CancellationToken cancellationToken) =>
+        rows.Where(row => row.Dimension == dimension)
+            .GroupBy(row => row.Name)
+            .Select(group => new NamedCount(group.Key, group.Sum(row => (long)row.Visits)))
+            .ToListAsync(cancellationToken);
+
+    /// <summary>One count per name: the raw and the rolled-up counts of the same name are added.</summary>
+    private static List<NamedCount> Merge(List<NamedCount> raw, List<NamedCount> rolled) =>
+        [.. raw.Concat(rolled)
+            .GroupBy(static row => row.Name, StringComparer.Ordinal)
+            .Select(static group => new NamedCount(group.Key, group.Sum(static row => row.Count)))];
+
     /// <summary>One aggregate of a bucket: the day, or the month on its first day.</summary>
     private sealed record BucketFigure(int Year, int Month, int Day, long Value)
     {

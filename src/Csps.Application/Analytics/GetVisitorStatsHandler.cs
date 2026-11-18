@@ -3,6 +3,7 @@ using Csps.Application.Audit;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
+using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using FluentValidation;
 
@@ -10,7 +11,7 @@ namespace Csps.Application.Analytics;
 
 /// <summary>
 /// Use case: a Manager reads unique visitors, visits and page views for a date range (ANL-08, D-24, D-33), with the trend per day for up to
-/// 62 days, else per month (<see cref="StatsBucket.For"/>). Presets are resolved against the business calendar, never the device clock. The
+/// 62 days, else per month (<see cref="StatsBucket.For"/>), and the ranked lists with whole-percent shares. Presets are resolved against the business calendar, never the device clock. The
 /// read runs on demand with no cache.
 /// </summary>
 /// <param name="reader">The visitor stats read port.</param>
@@ -21,6 +22,8 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
     private const string DateFormat = "yyyy-MM-dd";
     private const string DayBucket = "day";
     private const string MonthBucket = "month";
+    private const int ListLength = 10;
+    private const int TopBrowsers = 5;
 
     /// <summary>Reads the totals.</summary>
     /// <param name="request">The query.</param>
@@ -45,6 +48,7 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var totals = await reader.ReadTotalsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
         var bucket = StatsBucket.For(from, to);
         var counts = await reader.ReadTrendAsync(from, to, cut, bucket, cancellationToken).ConfigureAwait(false);
+        var lists = await reader.ReadListsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
 
         // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
         var wholeRangeIsOld = to < cut;
@@ -60,7 +64,41 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 totals.PageViews,
                 crossesTheCut ? Format(cut) : null),
             bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
-            Fill(from, to, cut, bucket, counts)));
+            Fill(from, to, cut, bucket, counts),
+            Rank(Order(lists.Pages), ListLength),
+            Rank(Order(lists.Referrers), ListLength),
+            Rank(Order(lists.Devices), ListLength),
+            Rank(FoldBrowsers(lists.Browsers), ListLength)));
+    }
+
+    /// <summary>By count, highest first, then by name (ordinal), so equal counts always come in the same order. Zero counts are left out.</summary>
+    private static List<NamedCount> Order(IEnumerable<NamedCount> counts) =>
+        [.. counts.Where(static row => row.Count > 0)
+            .OrderByDescending(static row => row.Count)
+            .ThenBy(static row => row.Name, StringComparer.Ordinal)];
+
+    /// <summary>The top browsers in order, then one Other row, last, for the rest and for any browser already stored as Other.</summary>
+    private static List<NamedCount> FoldBrowsers(IEnumerable<NamedCount> counts)
+    {
+        var all = counts.ToList();
+        var named = Order(all.Where(static row => !IsOther(row.Name)));
+        var other = all.Where(static row => IsOther(row.Name)).Sum(static row => row.Count) + named.Skip(TopBrowsers).Sum(static row => row.Count);
+        var rows = named.Take(TopBrowsers).ToList();
+        if (other > 0)
+        {
+            rows.Add(new NamedCount(UserAgentFamily.Other, other));
+        }
+
+        return rows;
+    }
+
+    private static bool IsOther(string name) => string.Equals(name, UserAgentFamily.Other, StringComparison.Ordinal);
+
+    /// <summary>Whole-percent shares over the full ordered list (<see cref="Shares.LargestRemainder"/>), then the first <paramref name="take"/> rows.</summary>
+    private static List<RankedItemDto> Rank(List<NamedCount> ordered, int take)
+    {
+        var shares = Shares.LargestRemainder([.. ordered.Select(static row => row.Count)]);
+        return [.. ordered.Take(take).Select((row, index) => new RankedItemDto(row.Name, (int)Math.Min(row.Count, int.MaxValue), shares[index]))];
     }
 
     /// <summary>

@@ -28,7 +28,35 @@ public interface IVisitorStatsReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>Only the buckets that have data, oldest first; the caller fills the rest with zeros.</returns>
     Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the grouped counts behind the ranked lists for the business days <paramref name="first"/> to <paramref name="last"/>. Page views
+    /// per page key come from the daily counts for the whole range. D-27: visits per source, device class and browser come from the raw
+    /// visits on the days from <paramref name="cut"/> on and from the rolled-up daily rows on the days before it, summed per name.
+    /// </summary>
+    /// <param name="first">The first business day.</param>
+    /// <param name="last">The last business day.</param>
+    /// <param name="cut">The first business day raw visits are still kept for.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>One count per name, in no set order; a name with no count is left out. The caller orders, shares and trims.</returns>
+    Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
 }
+
+/// <summary>The grouped counts behind the ranked lists.</summary>
+/// <param name="Pages">Page views per page key.</param>
+/// <param name="Referrers">Visits per source name as stored.</param>
+/// <param name="Devices">Visits per device class name (Phone, Tablet, Computer, Other).</param>
+/// <param name="Browsers">Visits per browser family label.</param>
+public sealed record VisitorLists(
+    IReadOnlyList<NamedCount> Pages,
+    IReadOnlyList<NamedCount> Referrers,
+    IReadOnlyList<NamedCount> Devices,
+    IReadOnlyList<NamedCount> Browsers);
+
+/// <summary>One grouped count.</summary>
+/// <param name="Name">The name as stored.</param>
+/// <param name="Count">The count.</param>
+public sealed record NamedCount(string Name, long Count);
 
 /// <summary>The three totals of a range.</summary>
 /// <param name="UniqueVisitors">The distinct visitors with a visit in the raw span.</param>

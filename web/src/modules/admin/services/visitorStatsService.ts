@@ -23,6 +23,13 @@ export interface VisitorTotals {
   countedFrom: string | null;
 }
 
+/** One row of a ranked list: the name as the server stored it, its count and the server's whole-percent share. */
+export interface RankedItem {
+  name: string;
+  count: number;
+  share: number;
+}
+
 /** The answer once the browser has checked it: the range the server read and its totals. */
 export interface VisitorStats {
   range: string;
@@ -34,6 +41,14 @@ export interface VisitorStats {
   bucket: TrendBucketSize;
   /** One bar per day or month from the start of the range to its end, oldest first. */
   trend: TrendPoint[];
+  /** Up to 10 pages by page views, highest first; each name is a page key. */
+  topPages: RankedItem[];
+  /** Up to 10 sources by visits, highest first, named as the server stored them (D-28). */
+  referrers: RankedItem[];
+  /** The device classes with visits, highest first. */
+  devices: RankedItem[];
+  /** The top 5 browsers, then "Other" for the rest. */
+  browsers: RankedItem[];
 }
 
 /** A stats answer the browser cannot show, so the page shows its failure instead of a wrong figure. */
@@ -65,6 +80,10 @@ function trendPoint(item: VisitorStatsResponse['trend'][number]): TrendPoint {
   };
 }
 
+function rankedItem(item: VisitorStatsResponse['topPages'][number], what: string): RankedItem {
+  return { name: item.name, count: count(item.count, `${what} count`), share: count(item.share, `${what} share`) };
+}
+
 /** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
@@ -81,6 +100,10 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     },
     bucket: bucketSize(response.bucket),
     trend: response.trend.map(trendPoint),
+    topPages: response.topPages.map((item) => rankedItem(item, 'page')),
+    referrers: response.referrers.map((item) => rankedItem(item, 'source')),
+    devices: response.devices.map((item) => rankedItem(item, 'device')),
+    browsers: response.browsers.map((item) => rankedItem(item, 'browser')),
   };
 }
 
