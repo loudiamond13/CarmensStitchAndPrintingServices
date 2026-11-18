@@ -26,17 +26,17 @@ async function sectionOf(name: string): Promise<HTMLElement> {
 
 const RETENTION: readonly (readonly [string, string])[] = [
   ['Orders, payments, discounts and expenses', 'Kept for good. They are our bookkeeping and tax records.'],
-  ["Quote requests that didn't become an order, and their files", 'Deleted 6 months after we receive them.'],
+  ["Quote requests that didn't become an order, and their files", 'Kept for about 6 months after we receive them; removed at the next monthly cleanup.'],
   [
     'Visitor stats (visits, pages and page speed)',
     'Kept for about 13 months; removed at the next monthly cleanup. After that we keep only daily totals, which have no visitor id.',
   ],
-  ['Daily visitor totals', 'Deleted after 3 years. They have no visitor id.'],
+  ['Daily visitor totals', 'Kept for about 3 years; removed at the next monthly cleanup. They have no visitor id.'],
   [
     'Your cookie choice',
     'Kept for about 13 months; removed at the next monthly cleanup. A choice lasts 12 months, plus 1 month.',
   ],
-  ['Staff account activity log', 'Kept for 8 months.'],
+  ['Staff account activity log', 'Kept for about 8 months; removed at the next monthly cleanup.'],
 ];
 
 describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => {

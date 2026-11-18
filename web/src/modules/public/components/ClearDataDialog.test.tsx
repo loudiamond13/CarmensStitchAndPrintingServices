@@ -11,7 +11,7 @@ import { ClearDataDialog } from './ClearDataDialog';
 
 const TITLE = 'Clear your cookies and data?';
 const MESSAGE =
-  "This deletes this site's cookies and saved settings in this browser, and the visit records linked to them on our server. This can't be undone.";
+  "This deletes the optional cookies and saved settings in this browser, and the visit records linked to them on our server. The cookies the site needs stay. This can't be undone.";
 const FAILED = "Couldn't clear your data. Check your internet connection and try again.";
 const THROTTLED = 'Too many tries. Wait a minute and try again.';
 

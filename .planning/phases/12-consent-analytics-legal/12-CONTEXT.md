@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-16T21:10:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T12:50:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -77,6 +77,14 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 ### Execution rulings (owner, 2026-11-16, answered in chat during wave 1)
 - **D-42:** **Free about 1 KB of the public first download before wave 2.** Plan 12-05 (four legal routes) pushes `build:budget` to Home 150.09 KB and Contact 150.13 KB, over the 150 KB limit; the production build stays under (about 149.9 KB). A small recovery plan runs before any wave 2 plan, for example by keeping the admin route chunk list out of the public entry. The 150 KB limit is not raised. Later entry-touching plans (footer legal row, consent bar loader) must fit inside the freed room. (12-05 checkpoint option 1, owner, 2026-11-16)
 - **D-43:** **A consent cookie dated in the future is rejected and the visitor is asked again.** Both codecs (`ConsentCookie.cs`, `consentCookie.ts`) treat a decision date later than now as no choice, with fixture cases in `tests/fixtures/consent-cookie-cases.json`. A crafted cookie cannot stretch its own 12-month life. (12-03 open point, owner, 2026-11-16)
+
+### Legal review rulings (owner, 2026-11-18, answered in chat for plan 12-22)
+- **D-44:** **Clear my data says it clears the optional cookies (option B).** The Cookie Settings Clear section, the Clear dialog, the Done line and the Cookie Policy say Clear deletes the optional cookies and saved settings, and that the necessary cookies stay (a signed-in staff member stays signed in). Clear itself does not change. (owner, 2026-11-18)
+- **D-45:** **"Admin settings in this browser" stays under Necessary** in the Cookie Policy, as drafted; no separate "Staff only" group. (owner, 2026-11-18)
+- **D-46:** **Privacy Policy retention lines follow D-36.** The cleanup runs monthly, so quote requests read "Kept for about 6 months after we receive them; removed at the next monthly cleanup." and the staff activity log reads "Kept for about 8 months; removed at the next monthly cleanup." The daily visitor totals line gets the same style ("about 3 years"), because the monthly job deletes those too. The rest of the drafted Privacy wording is kept. (owner, 2026-11-18)
+- **D-47:** **Terms of Use kept as drafted**, including "By using the website, you agree to them", "offered as it is", no notice period for changes, and the shop name and address in the contact block. (owner, 2026-11-18)
+- **D-48:** **Accessibility Statement kept as drafted:** "We will reply as soon as we can", no reply time and no full-accessibility promise. (owner, 2026-11-18)
+- These rulings settle wording only. Each page stays DRAFT until the owner approves it page by page (D-09, D-14, plan 12-22 Task 1).
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.

@@ -190,7 +190,7 @@ test('@consent Clear my cookies & data removes the visitor id and storage, leave
   await expect(dialog).toHaveCount(0);
   await expect(
     settings.getByText(
-      "Done. This site's cookies and your visit records are deleted. Visitor stats and the map are now off.",
+      "Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.",
     ),
   ).toBeVisible();
   await expect(settings.getByRole('button', { name: 'Clear My Cookies & Data' })).toBeFocused();

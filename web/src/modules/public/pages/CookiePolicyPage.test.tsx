@@ -189,10 +189,18 @@ describe('CookiePolicyPage Clear your cookies and data (D-19, D-31, D-36, D-41)'
     await renderCookies();
     const section = await sectionOf('Clear your cookies and data');
     expect(
-      within(section).getByText(/deletes this site's cookies and saved settings in this browser/),
+      within(section).getByText(/deletes the optional cookies and saved settings in this browser/),
     ).toBeInTheDocument();
     expect(within(section).getByText(/the visit records linked to them on our server/)).toBeInTheDocument();
     expect(within(section).getByText(/turns visitor stats and the Google map off/)).toBeInTheDocument();
+  });
+
+  it('says the necessary cookies stay, so a signed-in staff member stays signed in (D-44)', async () => {
+    await renderCookies();
+    const section = await sectionOf('Clear your cookies and data');
+    expect(
+      within(section).getByText('The necessary cookies stay, so a signed-in staff member stays signed in.'),
+    ).toBeInTheDocument();
   });
 
   it("says Clear also resets a staff member's admin theme and orders view in that browser", async () => {
