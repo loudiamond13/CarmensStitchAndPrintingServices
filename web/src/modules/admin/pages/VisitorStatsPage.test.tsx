@@ -1105,4 +1105,99 @@ describe('V1 CSV export (D-25)', () => {
     expect(saved[0]?.href).toBe('blob:csps/1');
     expect(saved[0]?.blob.type).toBe('text/csv;charset=utf-8');
   });
+
+  it('exports the custom range the page shows', async () => {
+    backend(echo);
+    const { calls } = exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    renderPage('?range=custom&from=2026-10-01&to=2026-10-31');
+    await screen.findByText('4,567');
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+    expect(lastQuery(calls)).toEqual({ range: 'custom', from: '2026-10-01', to: '2026-10-31' });
+  });
+
+  it('says "Visitor stats exported" with the file name once the file is saved', async () => {
+    backend();
+    exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const title = await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
+    expect(title?.textContent).toBe('Visitor stats exported');
+    expect(screen.getByText('visitor-stats-2026-10-17-to-2026-11-15.csv is in your downloads.')).toBeInTheDocument();
+  });
+
+  it('shows "Exporting" on a busy button while the file is made, then returns to rest', async () => {
+    backend();
+    let release: (() => void) | undefined;
+    const { calls } = exportBackend(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = () => {
+            resolve(csvResponse());
+          };
+        }),
+    );
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const busy = await screen.findByRole('button', { name: 'Exporting' }, { timeout: 3000 }).catch(() => null);
+    expect(busy?.getAttribute('aria-busy')).toBe('true');
+    expect(busy?.getAttribute('aria-disabled')).toBe('true');
+    if (busy !== null) await user.click(busy);
+    await waitFor(() => {
+      expect(calls).toHaveLength(1);
+    });
+    release?.();
+    const rest = await screen.findByRole('button', { name: 'Export CSV' });
+    expect(rest.getAttribute('aria-busy')).toBeNull();
+    expect(rest.getAttribute('aria-disabled')).toBeNull();
+    expect(saved).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('shows the failure toast and saves nothing when the export fails', async () => {
+    backend();
+    exportBackend(() => new HttpResponse(null, { status: 500 }));
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const title = await screen
+      .findByText("Couldn't export the visitor stats.", {}, { timeout: 3000 })
+      .catch(() => null);
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toBe("Couldn't export the visitor stats.");
+    expect(screen.getByText('Check your internet connection and try again.')).toBeInTheDocument();
+    expect(saved).toHaveLength(0);
+    const rest = screen.getByRole('button', { name: 'Export CSV' });
+    expect(rest.getAttribute('aria-disabled')).toBeNull();
+  });
+
+  it('has no axe violations with the export toast shown', async () => {
+    backend();
+    exportBackend();
+    captureDownloads();
+    const user = userEvent.setup();
+    const { container } = await openPage();
+
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
+
+    await expectNoAxeViolations(container);
+  });
 });
