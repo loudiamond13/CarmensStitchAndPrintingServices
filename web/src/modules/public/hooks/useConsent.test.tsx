@@ -419,6 +419,70 @@ describe('a failed save keeps the choice (UI-SPEC error, ANL-07)', () => {
   });
 });
 
+describe('two choices made close together (ANL-07)', () => {
+  it('sends the second choice only after the first was answered, so the older answer can never overwrite the newer choice', async () => {
+    const releases: (() => void)[] = [];
+    const bodies: { stats: boolean | null }[] = [];
+    const record = vi.fn(
+      (body: { stats: boolean | null }) =>
+        new Promise<typeof demoDecision>((resolve) => {
+          bodies.push(body);
+          releases.push(() => {
+            resolve(demoDecision);
+          });
+        }),
+    );
+    let value: string | undefined;
+    const store = createConsentStore({
+      readCookie: () => value,
+      writeCookie: (next) => {
+        value = next ?? undefined;
+      },
+      gpc: false,
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
+    });
+
+    const first = store.acceptAll('bar');
+    await waitFor(() => {
+      expect(record).toHaveBeenCalledTimes(1);
+    });
+    const second = store.rejectAll('settings');
+    await waitFor(() => {
+      expect(parseConsentCookie(value)).toMatchObject({ stats: false, pending: true });
+    });
+    expect(record).toHaveBeenCalledTimes(1);
+
+    releases[0]?.();
+    await first;
+    await waitFor(() => {
+      expect(record).toHaveBeenCalledTimes(2);
+    });
+    releases[1]?.();
+    await second;
+
+    expect(bodies.map((body) => body.stats)).toEqual([true, false]);
+  });
+
+  it('still sends again after the last of two choices fails', async () => {
+    const record = vi.fn(() => Promise.reject(new Error('network')));
+    let value: string | undefined;
+    const store = createConsentStore({
+      readCookie: () => value,
+      writeCookie: (next) => {
+        value = next ?? undefined;
+      },
+      gpc: false,
+      loadService: () => Promise.resolve({ record, clear: unusedClear }),
+    });
+
+    await Promise.all([store.acceptAll('bar'), store.rejectAll('settings')]);
+    expect(record).toHaveBeenCalledTimes(2);
+    await store.resendPending();
+
+    expect(record).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('a stale policy version (409, D-22)', () => {
   it('removes the provisional cookie and shows the bar again', async () => {
     server.use(

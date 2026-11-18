@@ -90,7 +90,12 @@ export interface ConsentStore extends ConsentActions {
 
 type Rules = typeof import('../consentRules');
 
-const freshMemory = (): SendMemory => ({ inFlight: false, answeredValue: undefined, lastSource: 'bar' });
+const freshMemory = (): SendMemory => ({
+  inFlight: 0,
+  chain: Promise.resolve(),
+  answeredValue: undefined,
+  lastSource: 'bar',
+});
 
 const loadConsentService = (): Promise<ConsentService> =>
   import('../services/consentService').then((module) => module.consentService);

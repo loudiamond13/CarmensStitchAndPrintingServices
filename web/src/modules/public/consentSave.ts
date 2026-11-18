@@ -21,7 +21,10 @@ const POLICY_CHANGED = 'consent.policy-changed';
 
 /** What the save path remembers between sends, per store. */
 export interface SendMemory {
-  inFlight: boolean;
+  /** How many sends are running or waiting their turn. */
+  inFlight: number;
+  /** The send that was queued last. Sends run one after another, so an older answer never lands after a newer one. */
+  chain: Promise<void>;
   /** The cookie text found after the server last answered; a pending cookie that is still there is not sent again. */
   answeredValue: string | undefined;
   /** Where the last choice was made, for a resend after a reload. */
@@ -68,13 +71,22 @@ function isPolicyConflict(error: unknown): boolean {
   return shape.status === 409 && shape.code === POLICY_CHANGED;
 }
 
+/** Queues a send behind the ones already on their way. `send` catches every error, so the chain never rejects. */
+function enqueue(host: SaveHost, body: ConsentRecordBody): Promise<void> {
+  const memory = host.memory();
+  memory.inFlight += 1;
+  const run = memory.chain.then(() => send(host, body));
+  memory.chain = run;
+  return run;
+}
+
 async function send(host: SaveHost, body: ConsentRecordBody): Promise<void> {
   const memory = host.memory();
-  memory.inFlight = true;
   try {
     const service = await (host.options().loadService ?? loadConsentService)();
     const answer = await service.record(body);
-    memory.answeredValue = host.read();
+    // Only the last queued send knows the cookie it answered for; an earlier one would hide a newer choice from a resend.
+    if (memory.inFlight === 1) memory.answeredValue = host.read();
     if (answer.gpc) host.markGpc();
   } catch (error) {
     if (isPolicyConflict(error)) {
@@ -87,7 +99,7 @@ async function send(host: SaveHost, body: ConsentRecordBody): Promise<void> {
     }
     // Any other failure: the choice already applies in this browser and is sent again on a later page view.
   } finally {
-    memory.inFlight = false;
+    memory.inFlight -= 1;
     host.refresh();
   }
 }
@@ -115,7 +127,7 @@ export async function commitChoice(
   host.memory().lastSource = source;
   if (announce !== null) host.announce(announce);
   host.refresh();
-  await send(host, {
+  await enqueue(host, {
     ...(prior === null ? {} : { consentId: prior.consentId }),
     policyVersion: decision.policyVersion,
     stats,
@@ -129,8 +141,8 @@ export async function resendChoice(host: SaveHost): Promise<void> {
   const raw = host.read();
   const cookie = parseConsentCookie(raw);
   const memory = host.memory();
-  if (cookie?.pending !== true || memory.inFlight || raw === memory.answeredValue) return;
-  await send(host, {
+  if (cookie?.pending !== true || memory.inFlight > 0 || raw === memory.answeredValue) return;
+  await enqueue(host, {
     consentId: cookie.consentId,
     policyVersion: cookie.policyVersion,
     stats: cookie.stats,
