@@ -124,6 +124,9 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
         return new VisitorLists(pages, Merge(rawReferrers, rolledReferrers), Merge(rawDevices, rolledDevices), Merge(rawBrowsers, rolledBrowsers));
     }
 
+    public Task<VisitorSpeed> ReadSpeedAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken) =>
+        Task.FromResult(new VisitorSpeed(null, null, null));
+
     private static Task<List<NamedCount>> RolledLabelsAsync(IQueryable<DailyDeviceCount> rows, DeviceDimension dimension, CancellationToken cancellationToken) =>
         rows.Where(row => row.Dimension == dimension)
             .GroupBy(row => row.Name)

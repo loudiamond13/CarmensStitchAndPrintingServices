@@ -236,6 +236,26 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
     }
 
     [Fact]
+    public async Task PageSpeedIsTheNearestRankSeventyFifthPercentileOfEachMetricWithItsRating()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedSamplesAsync(new DateOnly(2026, 11, 14), VitalMetric.Lcp, 1800m, 3000m, 2100m, 2400m);
+        await rig.SeedSamplesAsync(new DateOnly(2026, 11, 14), VitalMetric.Inp, 150m, 300m);
+        await rig.SeedSamplesAsync(new DateOnly(2026, 10, 16), VitalMetric.Lcp, 9000m);
+
+        using var response = await rig.GetAsync(string.Empty, rig.Manager.AccessToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var speed = (await ReadAsync(response)).GetProperty("speed");
+        speed.GetProperty("lcp").ValueKind.ShouldBe(JsonValueKind.Object);
+        Vital(speed.GetProperty("lcp")).ShouldBe((2400m, "good", 4));
+        Vital(speed.GetProperty("inp")).ShouldBe((300m, "needs-work", 2));
+        speed.GetProperty("cls").ValueKind.ShouldBe(JsonValueKind.Null);
+        speed.GetProperty("pageViews").GetInt32().ShouldBe(4);
+        speed.GetProperty("available").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task TheAnswerHoldsOnlyTotalsNeverAHashAnIdOrATime()
     {
         await using var rig = await Rig.StartAsync(database, Noon);
@@ -250,6 +270,7 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         [
             "range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom", "bucket", "trend", "start",
             "topPages", "referrers", "devices", "browsers", "name", "count", "share",
+            "speed", "lcp", "cls", "inp", "p75", "rating", "samples", "available",
         ];
         names.Except(allowed).ShouldBeEmpty("later plans extend this list on purpose, one reviewed name at a time");
         names.ShouldNotContain(name => ForbiddenWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)));
@@ -288,6 +309,9 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         var unique = bucket.GetProperty("uniqueVisitors");
         return (bucket.GetProperty("pageViews").GetInt32(), unique.ValueKind == JsonValueKind.Null ? null : unique.GetInt32());
     }
+
+    private static (decimal P75, string? Rating, int Samples) Vital(JsonElement vital) =>
+        (vital.GetProperty("p75").GetDecimal(), vital.GetProperty("rating").GetString(), vital.GetProperty("samples").GetInt32());
 
     private static (string? Name, int Count, int Share) Ranked(JsonElement row) =>
         (row.GetProperty("name").GetString(), row.GetProperty("count").GetInt32(), row.GetProperty("share").GetInt32());
@@ -373,6 +397,18 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
             var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
             context.AnalyticsVisits.Add(
                 AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, referrer, device, browser, "Android", null));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        /// <summary>One visit on the day, with one sample of the metric per value.</summary>
+        public async Task SeedSamplesAsync(DateOnly day, VitalMetric metric, params decimal[] values)
+        {
+            await using var context = _database.CreateContext();
+            var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
+            var visit = AnalyticsVisit.Start(
+                Enumerable.Repeat((byte)7, 32).ToArray(), day, startedAt, ReferrerName.Direct, DeviceKind.Phone, "Chrome", "Android", null);
+            context.AnalyticsVisits.Add(visit);
+            context.AnalyticsVitalSamples.AddRange(values.Select(value => AnalyticsVitalSample.Of(visit.Id, day, metric, value, PageKeys.Home)));
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 

@@ -68,7 +68,8 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
             Rank(Order(lists.Pages), ListLength),
             Rank(Order(lists.Referrers), ListLength),
             Rank(Order(lists.Devices), ListLength),
-            Rank(FoldBrowsers(lists.Browsers), ListLength)));
+            Rank(FoldBrowsers(lists.Browsers), ListLength),
+            new SpeedDto(null, null, null, 0, true)));
     }
 
     /// <summary>By count, highest first, then by name (ordinal), so equal counts always come in the same order. Zero counts are left out.</summary>

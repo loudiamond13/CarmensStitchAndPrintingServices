@@ -727,6 +727,7 @@ function visitorStatsBackend(): URL[] {
         referrers: [],
         devices: [],
         browsers: [],
+        speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
       });
     }),
   );

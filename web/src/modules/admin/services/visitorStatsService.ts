@@ -30,6 +30,28 @@ export interface RankedItem {
   share: number;
 }
 
+/** Google's rating of a speed figure (D-26), worked out on the server. */
+export type VitalRatingName = 'good' | 'needs-work' | 'poor';
+
+/** One Core Web Vital: the server's nearest-rank 75th percentile, its rating and the samples behind it. */
+export interface Vital {
+  /** Milliseconds for loading speed and tap response; a score for layout shifting. */
+  p75: number;
+  rating: VitalRatingName;
+  samples: number;
+}
+
+/** Page speed of the range; a measure with no sample is null. */
+export interface PageSpeed {
+  lcp: Vital | null;
+  cls: Vital | null;
+  inp: Vital | null;
+  /** The page views the figures come from. */
+  pageViews: number;
+  /** False when the whole range is older than 13 months, so no sample can exist (D-27). */
+  available: boolean;
+}
+
 /** The answer once the browser has checked it: the range the server read and its totals. */
 export interface VisitorStats {
   range: string;
@@ -49,6 +71,7 @@ export interface VisitorStats {
   devices: RankedItem[];
   /** The top 5 browsers, then "Other" for the rest. */
   browsers: RankedItem[];
+  speed: PageSpeed;
 }
 
 /** A stats answer the browser cannot show, so the page shows its failure instead of a wrong figure. */
@@ -104,6 +127,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     referrers: response.referrers.map((item) => rankedItem(item, 'source')),
     devices: response.devices.map((item) => rankedItem(item, 'device')),
     browsers: response.browsers.map((item) => rankedItem(item, 'browser')),
+    speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
   };
 }
 

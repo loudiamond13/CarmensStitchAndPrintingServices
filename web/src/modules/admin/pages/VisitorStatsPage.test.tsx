@@ -62,6 +62,13 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
       { name: 'Safari', count: 90, share: 18 },
       { name: 'Other', count: 50, share: 10 },
     ],
+    speed: {
+      lcp: { p75: 2100, rating: 'good', samples: 412 },
+      cls: { p75: 0.04, rating: 'good', samples: 380 },
+      inp: { p75: 180, rating: 'good', samples: 200 },
+      pageViews: 412,
+      available: true,
+    },
     ...rest,
   };
 }
@@ -492,6 +499,22 @@ function lastUrl(onUrlUpdate: UrlUpdateSpy): string | undefined {
 function rangeSelect(): HTMLElement {
   return screen.getByLabelText('Date range');
 }
+
+describe('V1 the Page speed card', () => {
+  it('shows "Page speed" beside Devices and browsers with the server ratings and values', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByRole('heading', { level: 2, name: 'Page speed' })).not.toBeNull();
+    const speed = listCard('Page speed');
+    expect(within(speed).getByText('2.1 s')).toBeInTheDocument();
+    expect(within(speed).getByText('0.04')).toBeInTheDocument();
+    expect(within(speed).getByText('180 ms')).toBeInTheDocument();
+    expect(within(speed).getAllByText('Good')).toHaveLength(3);
+    expect(within(speed).getByText('From 412 page views')).toBeInTheDocument();
+    expect(speed.parentElement).toBe(listCard('Devices and browsers').parentElement);
+  });
+});
 
 describe('V1 the date range toolbar (D-24, WEB-10)', () => {
   it('offers the five server presets and Custom range in a Date range select, with Last 30 days chosen', async () => {

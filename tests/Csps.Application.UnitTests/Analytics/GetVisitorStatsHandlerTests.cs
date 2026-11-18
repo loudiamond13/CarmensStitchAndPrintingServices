@@ -365,6 +365,33 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Browsers.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task EachVitalIsRatedByGooglesThresholdsAndPageViewsIsTheLargestSampleCount()
+    {
+        var speed = new VisitorSpeed(new VitalPercentile(2400m, 4), new VitalPercentile(0.3m, 3), new VitalPercentile(300m, 2));
+        var harness = new Harness(now: Noon, speed: speed);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Speed.ShouldBe(new SpeedDto(
+            new VitalDto(2400m, "good", 4),
+            new VitalDto(0.3m, "poor", 3),
+            new VitalDto(300m, "needs-work", 2),
+            4,
+            true));
+        await harness.Reader.Received(1).ReadSpeedAsync(new DateOnly(2026, 10, 17), new DateOnly(2026, 11, 15), new DateOnly(2025, 10, 15), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task NoSamplesGiveNullVitalsAndZeroPageViewsButTheSpeedIsAvailable()
+    {
+        var harness = new Harness(now: Noon);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest(), TestContext.Current.CancellationToken);
+
+        result.Value.Speed.ShouldBe(new SpeedDto(null, null, null, 0, true));
+    }
+
     private static VisitorLists Lists(
         NamedCount[]? pages = null,
         NamedCount[]? referrers = null,
@@ -374,7 +401,12 @@ public sealed class GetVisitorStatsHandlerTests
 
     private sealed class Harness
     {
-        public Harness(VisitorTotals? totals = null, DateTimeOffset? now = null, IReadOnlyList<TrendCount>? trend = null, VisitorLists? lists = null)
+        public Harness(
+            VisitorTotals? totals = null,
+            DateTimeOffset? now = null,
+            IReadOnlyList<TrendCount>? trend = null,
+            VisitorLists? lists = null,
+            VisitorSpeed? speed = null)
         {
             Reader = Substitute.For<IVisitorStatsReader>();
             Reader.ReadTotalsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
@@ -383,6 +415,8 @@ public sealed class GetVisitorStatsHandlerTests
                 .Returns(Task.FromResult(trend ?? []));
             Reader.ReadListsAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
                 .Returns(Task.FromResult(lists ?? Lists()));
+            Reader.ReadSpeedAsync(Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+                .Returns(Task.FromResult(speed ?? new VisitorSpeed(null, null, null)));
             var calendar = new FixedCalendar(new BusinessClock(Manila, ZoneSource.Stored, now ?? ManilaMidnight));
             Handler = new GetVisitorStatsHandler(Reader, calendar, new VisitorStatsRequestValidator(calendar));
         }

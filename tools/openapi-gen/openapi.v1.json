@@ -7162,6 +7162,65 @@
         ],
         "type": "object"
       },
+      "SpeedDto": {
+        "description": "Page speed of a range (ANL-08, D-26), from the samples kept for 13 months.",
+        "properties": {
+          "available": {
+            "description": "False when the whole range is older than the raw cut, so no sample can exist (D-27).",
+            "type": "boolean"
+          },
+          "cls": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VitalDto",
+                "description": "Layout shifting; null when no sample was measured (Safari sends none)."
+              }
+            ]
+          },
+          "inp": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VitalDto",
+                "description": "Response to taps; null when no sample was measured."
+              }
+            ]
+          },
+          "lcp": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/VitalDto",
+                "description": "Loading speed; null when no sample was measured."
+              }
+            ]
+          },
+          "pageViews": {
+            "description": "The page views the figures come from: the largest sample count of the three.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "lcp",
+          "cls",
+          "inp",
+          "pageViews",
+          "available"
+        ],
+        "type": "object"
+      },
       "StaffBalanceRow": {
         "description": "One person's row in the all-staff list.",
         "properties": {
@@ -8545,6 +8604,10 @@
             },
             "type": "array"
           },
+          "speed": {
+            "$ref": "#/components/schemas/SpeedDto",
+            "description": "Page speed: the 75th percentile and rating of each Core Web Vital."
+          },
           "to": {
             "description": "The last business day of the range, resolved on the server.",
             "type": "string"
@@ -8579,7 +8642,8 @@
           "topPages",
           "referrers",
           "devices",
-          "browsers"
+          "browsers",
+          "speed"
         ],
         "type": "object"
       },
@@ -8628,6 +8692,39 @@
           "visits",
           "pageViews",
           "countedFrom"
+        ],
+        "type": "object"
+      },
+      "VitalDto": {
+        "description": "One Core Web Vital of a range (D-26): the 75th percentile of the visitors' samples and its rating.",
+        "properties": {
+          "p75": {
+            "description": "The nearest-rank 75th percentile: milliseconds for loading speed and tap response, a score for layout shifting.",
+            "format": "double",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "rating": {
+            "description": "Google's rating of the percentile: `good`, `needs-work` or `poor`.",
+            "type": "string"
+          },
+          "samples": {
+            "description": "The samples the percentile was taken from.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "p75",
+          "rating",
+          "samples"
         ],
         "type": "object"
       },

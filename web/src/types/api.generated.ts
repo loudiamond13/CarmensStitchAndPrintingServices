@@ -5757,6 +5757,19 @@ export interface components {
             /** @description The base64 of the eight-byte row version a save must send back (409 on a stale one). */
             version: string;
         };
+        /** @description Page speed of a range (ANL-08, D-26), from the samples kept for 13 months. */
+        SpeedDto: {
+            /** @description False when the whole range is older than the raw cut, so no sample can exist (D-27). */
+            available: boolean;
+            cls: null | components["schemas"]["VitalDto"];
+            inp: null | components["schemas"]["VitalDto"];
+            lcp: null | components["schemas"]["VitalDto"];
+            /**
+             * Format: int32
+             * @description The page views the figures come from: the largest sample count of the three.
+             */
+            pageViews: number | string;
+        };
         /** @description One person's row in the all-staff list. */
         StaffBalanceRow: {
             /**
@@ -6311,6 +6324,8 @@ export interface components {
             range: string;
             /** @description Up to 10 sources by visits, highest first, named as stored (D-28). */
             referrers: components["schemas"]["RankedItemDto"][];
+            /** @description Page speed: the 75th percentile and rating of each Core Web Vital. */
+            speed: components["schemas"]["SpeedDto"];
             /** @description The last business day of the range, resolved on the server. */
             to: string;
             /** @description Up to 10 pages by page views, highest first; each name is a page key. */
@@ -6339,6 +6354,21 @@ export interface components {
              * @description The visits in the counted span: one sitting, ended by 30 minutes of silence; null when the whole range is older than the raw cut (D-27).
              */
             visits: null | number | string;
+        };
+        /** @description One Core Web Vital of a range (D-26): the 75th percentile of the visitors' samples and its rating. */
+        VitalDto: {
+            /**
+             * Format: double
+             * @description The nearest-rank 75th percentile: milliseconds for loading speed and tap response, a score for layout shifting.
+             */
+            p75: number | string;
+            /** @description Google's rating of the percentile: `good`, `needs-work` or `poor`. */
+            rating: string;
+            /**
+             * Format: int32
+             * @description The samples the percentile was taken from.
+             */
+            samples: number | string;
         };
         /**
          * @description One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or
