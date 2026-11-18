@@ -1030,3 +1030,79 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+const CSV_FILE = 'Date,Unique visitors,Visits,Page views\r\n2026-10-17,1,2,3\r\n2026-11-15,4,5,6\r\n';
+
+/** The fake export call; returns the calls it answered. */
+function exportBackend(respond: () => Response | Promise<Response> = () => csvResponse()): { calls: URL[] } {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/visitor-stats/export', async ({ request }) => {
+      calls.push(new URL(request.url));
+      return respond();
+    }),
+  );
+  return { calls };
+}
+
+function csvResponse(): Response {
+  return new HttpResponse(CSV_FILE, { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+}
+
+interface SavedFile {
+  blob: Blob;
+  href: string;
+  download: string;
+}
+
+/** Stubs the object URL calls and the link click, and records each file the page saves. */
+function captureDownloads(): { saved: SavedFile[]; revoked: string[] } {
+  const saved: SavedFile[] = [];
+  const revoked: string[] = [];
+  const blobs: Blob[] = [];
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: (blob: Blob) => {
+      blobs.push(blob);
+      return `blob:csps/${String(blobs.length)}`;
+    },
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: (url: string) => {
+      revoked.push(url);
+    },
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    const blob = blobs.at(-1);
+    if (blob !== undefined) saved.push({ blob, href: this.href, download: this.download });
+  });
+  return { saved, revoked };
+}
+
+describe('V1 CSV export (D-25)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('pressing Export CSV asks the server for the range shown and saves the file under its name', async () => {
+    backend();
+    const { calls } = exportBackend();
+    const { saved } = captureDownloads();
+    const user = userEvent.setup();
+    await openPage();
+
+    const button = screen.queryByRole('button', { name: 'Export CSV' });
+    expect(button).not.toBeNull();
+    if (button === null) return;
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(saved).toHaveLength(1);
+    });
+    expect(lastQuery(calls)).toEqual({ range: 'last-30-days' });
+    expect(saved[0]?.download).toBe('visitor-stats-2026-10-17-to-2026-11-15.csv');
+    expect(saved[0]?.href).toBe('blob:csps/1');
+    expect(saved[0]?.blob.type).toBe('text/csv;charset=utf-8');
+  });
+});

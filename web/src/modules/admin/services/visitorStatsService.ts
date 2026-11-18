@@ -155,9 +155,17 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
   };
 }
 
+/** The CSV file of a range and the name to save it under. */
+export interface VisitorStatsFile {
+  text: string;
+  fileName: string;
+}
+
 export interface VisitorStatsService {
   /** `GET /api/v1/visitor-stats`: the totals of a range. 400 field errors on `from` and `to` for a custom range. */
   get(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStats>;
+  /** `GET /api/v1/visitor-stats/export`: one CSV row per business day of the range (D-25). */
+  exportCsv(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStatsFile>;
 }
 
 export function createVisitorStatsService(client: HttpClient): VisitorStatsService {
@@ -169,6 +177,7 @@ export function createVisitorStatsService(client: HttpClient): VisitorStatsServi
           signal,
         }),
       ),
+    exportCsv: () => Promise.resolve({ text: '', fileName: '' }),
   };
 }
 

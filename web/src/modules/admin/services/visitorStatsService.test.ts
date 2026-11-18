@@ -225,3 +225,42 @@ describe('visitorStatsService.get', () => {
     expect(await pending).toMatchObject({ kind: 'aborted' });
   });
 });
+
+describe('visitorStatsService.exportCsv', () => {
+  const csv = 'Date,Unique visitors,Visits,Page views\r\n2026-11-13,1,1,7\r\n2026-11-14,0,0,0\r\n2026-11-15,2,3,15\r\n';
+  const csvAnswer = { body: csv, headers: { 'Content-Type': 'text/csv; charset=utf-8' } };
+
+  it('asks GET /api/v1/visitor-stats/export for text/csv with the range and names the file from its first and last day', async () => {
+    const { fake, service } = serviceWith([csvAnswer]);
+
+    const file = await service.exportCsv({ range: 'custom', from: '2026-11-13', to: '2026-11-15' });
+
+    expect(file.fileName).toBe('visitor-stats-2026-11-13-to-2026-11-15.csv');
+    expect(file).toEqual({ text: csv, fileName: 'visitor-stats-2026-11-13-to-2026-11-15.csv' });
+    const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
+    expect(url.pathname).toBe('/api/v1/visitor-stats/export');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ range: 'custom', from: '2026-11-13', to: '2026-11-15' });
+    expect(fake.calls[0]?.headers.get('Accept')).toBe('text/csv');
+  });
+
+  it('sends a preset by name only', async () => {
+    const { fake, service } = serviceWith([csvAnswer]);
+
+    await service.exportCsv({ range: 'last-7-days', from: null, to: null });
+
+    const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ range: 'last-7-days' });
+  });
+
+  it.each([
+    ['a file with no day rows', 'Date,Unique visitors,Visits,Page views\r\n'],
+    ['a file with another header', 'Day,Views\r\n2026-11-15,3\r\n'],
+    ['a row that does not start with a date', 'Date,Unique visitors,Visits,Page views\r\nyesterday,1,1,1\r\n'],
+  ])('refuses %s, so the page shows the failure', async (_case, text) => {
+    const { service } = serviceWith([{ body: text, headers: { 'Content-Type': 'text/csv' } }]);
+
+    await expect(service.exportCsv({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
+      VisitorStatsContractError,
+    );
+  });
+});

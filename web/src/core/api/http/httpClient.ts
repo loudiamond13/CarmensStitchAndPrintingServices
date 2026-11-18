@@ -38,6 +38,8 @@ export interface RequestConfig {
   readonly skipAuthRefresh?: boolean | undefined;
   /** Lets the request finish after the page is hidden or closed (fetch `keepalive`). Off unless set. */
   readonly keepalive?: boolean | undefined;
+  /** 'text' asks for a text/csv file and resolves to its text; any other answer is still a parse error. Defaults to 'json'. */
+  readonly responseType?: 'json' | 'text' | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;
