@@ -707,6 +707,41 @@ describe('Site Content for Managers (D-27; plan 11-12)', () => {
   }, 30_000);
 });
 
+/** Answers the visitor stats read with the last 30 days; returns the calls it answered. */
+function visitorStatsBackend(): URL[] {
+  const calls: URL[] = [];
+  server.use(
+    http.get('*/api/v1/visitor-stats', ({ request }) => {
+      calls.push(new URL(request.url));
+      return HttpResponse.json({
+        range: 'last-30-days',
+        from: '2026-10-17',
+        to: '2026-11-15',
+        cutDate: '2025-10-15',
+        totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+      });
+    }),
+  );
+  return calls;
+}
+
+describe('Visitor Stats for Managers (ANL-08, D-23; plan 12-23)', () => {
+  it('a Manager who opens /admin/visitor-stats stays and sees the three totals', async () => {
+    answerRefresh(sessionResponse());
+    const calls = visitorStatsBackend();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Visitor Stats' }, { timeout: 10_000 })).toBeVisible();
+    expect(await screen.findByText('4,567')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/visitor-stats');
+    expect(calls).toHaveLength(1);
+    await waitFor(() => {
+      expect(document.title).toBe('Visitor Stats · CSPS Admin');
+    });
+  }, 30_000);
+});
+
 describe('the component showcase for Managers (D-30, D-31, D-32)', () => {
   it('a Manager who opens /admin/components stays and sees the showcase marked as demo data, with no nav item current', async () => {
     answerRefresh(sessionResponse());

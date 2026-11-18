@@ -837,6 +837,16 @@ describe('KpiCard empty and text values (OR-4, D-39; plan 06-09)', () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
+  it('gives the empty value its own hidden label when one is passed (SPEC-DEVIATION EMPTY-LABEL)', () => {
+    const { container } = render(
+      <KpiCard label="Visits" value={0} money={false} empty emptyLabel="Not available" />,
+    );
+    const value = container.firstElementChild?.children[1];
+
+    expect(value?.textContent).toBe('Not available');
+    expect(value?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('changes nothing when empty is false or left out', () => {
     const { container, rerender } = render(<KpiCard label="Total receivables" value={1250} />);
     const first = container.innerHTML;
