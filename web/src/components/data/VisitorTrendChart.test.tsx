@@ -1,4 +1,5 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { VisitorTrendChart, type TrendPoint } from '@/components/data';
@@ -8,6 +9,7 @@ import {
   chartLegendClasses,
   chartSvgClasses,
   chartSwatchClasses,
+  chartTipClasses,
   chartVisitorHaloClasses,
   chartVisitorLineClasses,
   chartVisitorSwatchClasses,
@@ -288,5 +290,136 @@ describe('VisitorTrendChart: month buckets and the 13-month line', () => {
     expect(labels.at(-1)).toBe('Nov 15');
     expect(labels.at(-2)).toBeNull();
     expect(labels.at(-4)).toBe('Nov 12');
+  });
+});
+
+/** The open tooltip card, found by its date heading. */
+function tooltip(date: string): HTMLElement | null {
+  return screen.queryByText(date, { selector: 'strong' })?.parentElement ?? null;
+}
+
+function openTip(date: string): HTMLElement {
+  const tip = tooltip(date);
+  if (tip === null) throw new Error(`No tooltip for ${date}.`);
+  return tip;
+}
+
+/** The tooltip's rows, each as its text. */
+function tipRows(tip: HTMLElement): string[] {
+  return [...tip.children].map((row) => row.textContent);
+}
+
+/** The polite live text that reads the active bucket. */
+function announcement(container: HTMLElement): string | null | undefined {
+  return container.querySelector('[aria-live="polite"]')?.textContent;
+}
+
+describe('VisitorTrendChart: keyboard and tooltip (SPEC-DEVIATION A11Y-CHART)', () => {
+  it('is one tab stop: the plot, not each bucket', async () => {
+    const user = userEvent.setup();
+    const { container } = renderThirty();
+
+    expect(container.querySelectorAll('[tabindex]')).toHaveLength(1);
+    await user.tab();
+    expect(plot()).toHaveFocus();
+    await user.tab();
+    expect(plot()).not.toHaveFocus();
+  });
+
+  it('shows the first bucket on focus: the full date, page views and unique visitors', async () => {
+    const user = userEvent.setup();
+    renderThirty();
+
+    await user.tab();
+
+    expect(tipRows(openTip('Oct 17, 2026'))).toEqual(['Oct 17, 2026', 'Page views 0', 'Unique visitors 0']);
+  });
+
+  it('moves with Left and Right, and Home and End jump to the ends', async () => {
+    const user = userEvent.setup();
+    renderThirty();
+    await user.tab();
+
+    await user.keyboard('{ArrowRight}');
+    expect(tipRows(openTip('Oct 18, 2026'))).toEqual(['Oct 18, 2026', 'Page views 2', 'Unique visitors 1']);
+    await user.keyboard('{ArrowRight}{ArrowLeft}{ArrowLeft}{ArrowLeft}');
+    expect(tooltip('Oct 17, 2026')).not.toBeNull();
+    await user.keyboard('{End}');
+    expect(tipRows(openTip('Nov 15, 2026'))).toEqual(['Nov 15, 2026', 'Page views 58', 'Unique visitors 29']);
+    await user.keyboard('{ArrowRight}');
+    expect(tooltip('Nov 15, 2026')).not.toBeNull();
+    await user.keyboard('{Home}');
+    expect(tooltip('Oct 17, 2026')).not.toBeNull();
+    expect(tooltip('Nov 15, 2026')).toBeNull();
+  });
+
+  it('hides the tooltip on Escape and shows it again on the next arrow key', async () => {
+    const user = userEvent.setup();
+    renderThirty();
+    await user.tab();
+
+    await user.keyboard('{Escape}');
+    expect(tooltip('Oct 17, 2026')).toBeNull();
+    expect(plot()).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(tooltip('Oct 18, 2026')).not.toBeNull();
+  });
+
+  it('hides the tooltip when the plot loses focus', async () => {
+    const user = userEvent.setup();
+    renderThirty();
+    await user.tab();
+
+    await user.tab();
+
+    expect(tooltip('Oct 17, 2026')).toBeNull();
+  });
+
+  it('announces each bucket as its tooltip text', async () => {
+    const user = userEvent.setup();
+    const { container } = renderThirty();
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+
+    expect(announcement(container)).toBe(tipRows(openTip('Oct 18, 2026')).join(', '));
+    expect(announcement(container)).toBe('Oct 18, 2026, Page views 2, Unique visitors 1');
+  });
+
+  it('says "Unique visitors: not available" for a month the server has no count for, in the tooltip and the announcement', async () => {
+    const user = userEvent.setup();
+    const buckets = months(2023, 10, 3, (i) => [1200 + i, i === 0 ? null : 4]);
+    const { container } = render(
+      <VisitorTrendChart buckets={buckets} bucket="month" from="2023-10-01" to="2023-12-31" />,
+    );
+
+    await user.tab();
+
+    expect(tipRows(openTip('Oct 2023'))).toEqual(['Oct 2023', 'Page views 1,200', 'Unique visitors: not available']);
+    expect(announcement(container)).toBe('Oct 2023, Page views 1,200, Unique visitors: not available');
+  });
+
+  it('shows the tooltip over the hovered bucket at its centre and hides it when the pointer leaves', () => {
+    const { container } = renderThirty();
+    const [, second] = bucketGroups(container);
+    if (second === undefined) throw new Error('No second bucket');
+
+    fireEvent.mouseEnter(second);
+
+    const tip = openTip('Oct 18, 2026');
+    expect(classTokens(tip)).toEqual(tokens(chartTipClasses));
+    // The second of 30 buckets over (640 - 52) / 30: (52 + 19.6 * 1.5) / 640.
+    expect(Number.parseFloat(tip.style.getPropertyValue('--tip-x'))).toBeCloseTo(((52 + 19.6 * 1.5) / 640) * 100, 6);
+    expect(announcement(container)).toBe('');
+    fireEvent.mouseLeave(plot());
+    expect(tooltip('Oct 18, 2026')).toBeNull();
+  });
+
+  it('has no axe violations with the tooltip open from the keyboard', async () => {
+    const user = userEvent.setup();
+    const { container } = renderThirty();
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+
+    await expectNoAxeViolations(container);
   });
 });
