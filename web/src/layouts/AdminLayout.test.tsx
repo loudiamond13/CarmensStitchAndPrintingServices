@@ -211,7 +211,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(screen.getAllByText('Carmen Reyes').length).toBeGreaterThan(0);
   });
 
-  it('gives the Manager My Money after Company Expenses and an Audit Log, a Settings and a Site Content item after Users in the sidebar and the drawer, but no tab (D-39, D-40, OQ-2, OQ-3, D-27)', async () => {
+  it('gives the Manager My Money after Company Expenses and an Audit Log, a Settings, a Site Content and a Visitor Stats item after Users in the sidebar and the drawer, but no tab (D-39, D-40, OQ-2, OQ-3, D-27, D-23)', async () => {
     await renderAt('/admin');
     const labels = within(sidebarNav())
       .getAllByRole('link')
@@ -225,12 +225,14 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
       'Audit Log',
       'Settings',
       'Site Content',
+      'Visitor Stats',
       'My Profile',
     ]);
     expect(sidebarLink('My Money')).toHaveAttribute('href', '/admin/money');
     expect(sidebarLink('Audit Log')).toHaveAttribute('href', '/admin/audit-log');
     expect(sidebarLink('Settings')).toHaveAttribute('href', '/admin/settings');
     expect(sidebarLink('Site Content')).toHaveAttribute('href', '/admin/site-content');
+    expect(sidebarLink('Visitor Stats')).toHaveAttribute('href', '/admin/visitor-stats');
 
     await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     const drawer = screen.getByRole('dialog', { name: 'Navigation' });
@@ -238,6 +240,10 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(within(drawer).getByRole('link', { name: /^Audit Log/ })).toHaveAttribute('href', '/admin/audit-log');
     expect(within(drawer).getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '/admin/settings');
     expect(within(drawer).getByRole('link', { name: /^Site Content/ })).toHaveAttribute('href', '/admin/site-content');
+    expect(within(drawer).getByRole('link', { name: /^Visitor Stats/ })).toHaveAttribute(
+      'href',
+      '/admin/visitor-stats',
+    );
 
     const tabBar = document.querySelectorAll('nav[aria-label="Admin"]');
     const tabs = [...tabBar].filter((nav) => !nav.closest('aside'));

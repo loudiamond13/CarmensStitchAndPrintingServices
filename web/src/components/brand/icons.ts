@@ -2,7 +2,7 @@
 // App. D.5 shipped Lucide 0.460.0 node data for these icons; the design system draws them with lucide-react's own
 // components instead (per-icon named imports, so unused icons are tree-shaken). The keys are the 56 App. D.5 names (the
 // spec prose says 57; its ICONS object holds 56), then `minus`, the owner's empty-value icon (OR-4), the six Phase 5 icons (copy, lock-open, key-round, user-x,
-// user-check, history; UI-SPEC OQ-9) and the five Phase 6 icons (settings, rotate-ccw, archive, archive-restore, eraser; UI-SPEC OQ-12) and the Phase 9 camera icon (D-26, "Take Photo") and the two Phase 11 icons (D-37: the Site Content globe and the move-up chevron). The 20 redrawn icons are owner-approved as the new
+// user-check, history; UI-SPEC OQ-9) and the five Phase 6 icons (settings, rotate-ccw, archive, archive-restore, eraser; UI-SPEC OQ-12) and the Phase 9 camera icon (D-26, "Take Photo") and the two Phase 11 icons (D-37: the Site Content globe and the move-up chevron) and the three Phase 12 icons (D-32: chart-column, circle-x, download). The 20 redrawn icons are owner-approved as the new
 // drawing (D-32). Two spec names are lucide aliases and keep their spec name here: `trash-2` draws lucide's Trash
 // and `filter` draws lucide's Funnel (D-32).
 import {
@@ -12,16 +12,19 @@ import {
   ArrowUpRight,
   Calendar,
   Camera,
+  ChartColumn,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   CircleCheck,
+  CircleX,
   ClipboardList,
   Clock,
   CloudUpload,
   Copy,
+  Download,
   Ellipsis,
   Eraser,
   Eye,
@@ -153,6 +156,9 @@ export const ICONS = {
   camera: Camera,
   'chevron-up': ChevronUp,
   globe: Globe,
+  'chart-column': ChartColumn,
+  'circle-x': CircleX,
+  download: Download,
 } as const satisfies Record<string, LucideIcon>;
 
 /** The icon names the design uses; `<Icon name="trahs-2" />` is a compile error. */
