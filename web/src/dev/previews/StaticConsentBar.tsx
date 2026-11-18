@@ -4,7 +4,7 @@
 // button there sends nothing.
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ConsentBar } from '@/modules/public/components/ConsentBar';
-import { seedDemoConsent } from './demoConsent';
+import { restoreDemoConsent, seedDemoConsent } from './demoConsent';
 
 export function StaticConsentBar() {
   const box = useRef<HTMLDivElement>(null);
@@ -14,6 +14,7 @@ export function StaticConsentBar() {
   }, []);
   useEffect(() => {
     seedDemoConsent('no-choice');
+    return restoreDemoConsent;
   }, []);
   return (
     <div ref={box} data-theme="light">

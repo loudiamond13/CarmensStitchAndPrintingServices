@@ -86,8 +86,8 @@ export interface ConsentStoreOptions {
 export interface ConsentStore extends ConsentActions {
   getSnapshot: () => ConsentState;
   subscribe: (listener: () => void) => () => void;
-  /** Tests only: points the store at another jar and clears what it remembers. */
-  reconfigure: (options: ConsentStoreOptions) => void;
+  /** Tests and the dev showcase only: points the store at another jar and clears what it remembers. Returns the options it had. */
+  reconfigure: (options: ConsentStoreOptions) => ConsentStoreOptions;
 }
 
 type Rules = typeof import('../consentRules');
@@ -206,6 +206,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       };
     },
     reconfigure: (next) => {
+      const previous = options;
       options = next;
       settingsOpen = false;
       settingsLoading = false;
@@ -217,6 +218,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       mapRefusals = 0;
       memory = freshMemory();
       refresh();
+      return previous;
     },
     acceptAll: async (source) => {
       await (await loadSave()).commitChoice(host, { stats: true, map: true }, source, CONSENT_SAVED_LINE);
@@ -278,8 +280,8 @@ export const consentStore: ConsentStore = createConsentStore({
     (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true,
 });
 
-export function resetConsentStore(next: ConsentStoreOptions): void {
-  consentStore.reconfigure(next);
+export function resetConsentStore(next: ConsentStoreOptions): ConsentStoreOptions {
+  return consentStore.reconfigure(next);
 }
 
 const ACTIONS: ConsentActions = {

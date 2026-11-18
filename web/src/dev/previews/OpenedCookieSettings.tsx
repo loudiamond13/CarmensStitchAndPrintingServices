@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react';
 import { CONSENT_COPY } from '@/modules/public/consentCopy';
 import { CookieSettingsDialog } from '@/modules/public/components/CookieSettingsDialog';
 import { consentStore, useConsent } from '@/modules/public/hooks/useConsent';
-import { seedDemoConsent, type DemoConsentState } from './demoConsent';
+import { restoreDemoConsent, seedDemoConsent, type DemoConsentState } from './demoConsent';
 
 export interface OpenedCookieSettingsProps {
   state: DemoConsentState;
@@ -32,6 +32,7 @@ export function OpenedCookieSettings({ state, onClosed }: OpenedCookieSettingsPr
   useEffect(() => {
     seedDemoConsent(state);
     consentStore.openSettings();
+    return restoreDemoConsent;
   }, [state]);
 
   useEffect(() => {

@@ -3,7 +3,7 @@
 // is written, and a demo clear puts this browser's storage back afterwards (the admin keeps its theme and list views).
 import { formatConsentCookie } from '@/modules/public/consentCookie';
 import { COOKIE_POLICY_VERSION } from '@/modules/public/consentPolicy';
-import { resetConsentStore } from '@/modules/public/hooks/useConsent';
+import { resetConsentStore, type ConsentStoreOptions } from '@/modules/public/hooks/useConsent';
 import type { ConsentDecision, ConsentService } from '@/modules/public/services/consentService';
 import { serverError } from './serverError';
 
@@ -49,6 +49,16 @@ function keepStorage(): () => void {
   };
 }
 
+/** The store's options from before the first demo, so leaving a demo can put the real cookie and the real GPC signal back. */
+let browserOptions: ConsentStoreOptions | undefined;
+
+/** Points the shared consent store at this browser again, when a demo leaves. */
+export function restoreDemoConsent(): void {
+  if (browserOptions === undefined) return;
+  resetConsentStore(browserOptions);
+  browserOptions = undefined;
+}
+
 /** Resets the shared consent store to the state, over an in-memory cookie and a stand-in service. */
 export function seedDemoConsent(state: DemoConsentState): void {
   const gpc = state === 'gpc';
@@ -64,7 +74,7 @@ export function seedDemoConsent(state: DemoConsentState): void {
       return Promise.resolve(decision(false, false, gpc));
     },
   };
-  resetConsentStore({
+  const previous = resetConsentStore({
     readCookie: () => jar,
     writeCookie: (value) => {
       jar = value ?? undefined;
@@ -74,4 +84,5 @@ export function seedDemoConsent(state: DemoConsentState): void {
     loadService: () => Promise.resolve(service),
     newConsentId: () => DEMO_CONSENT_ID,
   });
+  browserOptions ??= previous;
 }
