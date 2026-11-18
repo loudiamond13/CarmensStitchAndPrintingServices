@@ -33,6 +33,7 @@ const SECTIONS = [
   'Dashboard and staff money',
   'Site content and public website',
   'Visitor stats',
+  'Cookies and legal',
 ];
 
 /**
