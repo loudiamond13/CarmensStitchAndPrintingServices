@@ -33,6 +33,7 @@ const SECTION_TITLES = [
   'Order photos',
   'Dashboard and staff money',
   'Site content and public website',
+  'Visitor stats',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -180,6 +181,7 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Expenses and settings')).toContainElement(caseFrame('settings-category-rows'));
     expect(section('Orders')).toContainElement(caseFrame('orders-totals-states'));
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
+    expect(section('Visitor stats')).toContainElement(caseFrame('page-speed-ratings'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {

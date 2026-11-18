@@ -17,7 +17,7 @@ function scenario(id: string, group: string): Scenario {
 }
 
 describe('scenariosBySection', () => {
-  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos, Dashboard and staff money and Site content and public website', () => {
+  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos, Dashboard and staff money, Site content and public website and Visitor stats', () => {
     expect(SHOWCASE_SECTIONS.map((section) => section.title)).toEqual([
       'Brand & icons',
       'Buttons',
@@ -35,6 +35,7 @@ describe('scenariosBySection', () => {
       'Order photos',
       'Dashboard and staff money',
       'Site content and public website',
+      'Visitor stats',
     ]);
   });
 
