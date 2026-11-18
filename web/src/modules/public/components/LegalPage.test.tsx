@@ -37,10 +37,13 @@ const SECTIONS: readonly LegalSectionData[] = [
   },
 ];
 
+/** A draft page built here: the real pages are approved, so the DRAFT notice is tested on this one. */
+const DRAFT_TERMS: LegalPageMeta = { ...LEGAL_PAGES.terms, version: '0.1', lastUpdated: '2026-11-15', approved: false };
+
 function renderPage(sections: readonly LegalSectionData[] | undefined = SECTIONS) {
   return render(
     <MemoryRouter>
-      <LegalPage page={LEGAL_PAGES.terms} sections={sections} />
+      <LegalPage page={DRAFT_TERMS} sections={sections} />
     </MemoryRouter>,
   );
 }
@@ -167,8 +170,8 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
 });
 
 describe('LegalPage head (D-14)', () => {
-  const DRAFT = LEGAL_PAGES.terms;
-  const APPROVED = { ...LEGAL_PAGES.privacy, approved: true };
+  const DRAFT = DRAFT_TERMS;
+  const APPROVED = LEGAL_PAGES.privacy;
 
   function wrap(page: LegalPageMeta, sections?: readonly LegalSectionData[]) {
     return (
@@ -186,8 +189,10 @@ describe('LegalPage head (D-14)', () => {
 
   it('shows no DRAFT notice once the page is approved', () => {
     render(wrap(APPROVED));
+    expect(APPROVED.approved).toBe(true);
     expect(screen.queryByText('Draft: this text is not final yet.')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Privacy policy.');
+    expect(screen.getByText('Version 1.0 · Last updated Nov 18, 2026')).toBeInTheDocument();
   });
 
   it('shows the breadcrumb, eyebrow, version line and lead of the page it is given', () => {

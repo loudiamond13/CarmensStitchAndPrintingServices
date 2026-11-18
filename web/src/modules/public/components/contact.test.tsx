@@ -8,6 +8,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { consentCookie, consentProbe, setConsent } from '@/test/consentFixtures';
 import { closedWeek, demoSite, mixedWeek, siteWithoutOptionals, siteWithThreePhones } from '@/test/publicFixtures';
 import { parseConsentCookie } from '../consentCookie';
+import { COOKIE_POLICY_VERSION } from '../consentPolicy';
 import { consentStore } from '../hooks/useConsent';
 import { BigContactButton } from './BigContactButton';
 import CallHoursNote from './CallHoursNote';
@@ -395,7 +396,12 @@ describe('MapCard Always show maps (D-18, D-20, ANL-07)', () => {
     await waitFor(() => {
       expect(probe.requests).toHaveLength(1);
     });
-    expect(probe.requests[0]?.body).toEqual({ policyVersion: '0.1', stats: null, map: true, source: 'map-link' });
+    expect(probe.requests[0]?.body).toEqual({
+      policyVersion: COOKIE_POLICY_VERSION,
+      stats: null,
+      map: true,
+      source: 'map-link',
+    });
     expect(parseConsentCookie(jar.value)).toMatchObject({ stats: null, map: true });
     expect(consentStore.getSnapshot()).toMatchObject({ needsChoice: true, statsAllowed: false, mapAllowed: true });
   });

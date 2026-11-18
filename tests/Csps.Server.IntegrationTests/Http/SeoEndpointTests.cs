@@ -32,9 +32,9 @@ public sealed class SeoEndpointTests
     }
 
     [Fact]
-    public async Task SitemapListsTheFourPublicPagesUnderTheConfiguredOrigin()
+    public async Task SitemapListsTheFourPublicPagesUnderTheConfiguredOriginWhileEveryLegalPageIsADraft()
     {
-        await using var factory = new ShellTestFactory();
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(ShellTestFactory.DefaultBusinessName), new ApprovedLegalPages());
         using var client = factory.CreateClient();
 
         using var response = await client.GetAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -48,6 +48,19 @@ public sealed class SeoEndpointTests
             [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact"]);
     }
 
+    [Fact]
+    public async Task SitemapListsThePublicPagesAndTheFourApprovedLegalPagesInRouteOrder()
+    {
+        await using var factory = new ShellTestFactory();
+        using var client = factory.CreateClient();
+
+        var document = XDocument.Parse(await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken));
+
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "loc")!.Value).ShouldBe(
+            [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/privacy", $"{Origin}/cookies", $"{Origin}/terms", $"{Origin}/accessibility"]);
+    }
+
     [Theory]
     [InlineData("/privacy")]
     [InlineData("/cookies")]
@@ -55,7 +68,7 @@ public sealed class SeoEndpointTests
     [InlineData("/accessibility")]
     public async Task TheSitemapLeavesOutEveryLegalPageWhileItIsADraft(string path)
     {
-        await using var factory = new ShellTestFactory();
+        await using var factory = new ShellTestFactory(new StubPublicContentReader("Sample Shop"), new ApprovedLegalPages());
         using var client = factory.CreateClient();
 
         var body = await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
@@ -87,7 +100,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            ["2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10"]);
+            ["2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10"]);
     }
 
     [Fact]
@@ -101,7 +114,7 @@ public sealed class SeoEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var document = XDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(4);
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(8);
         document.Descendants(ns + "lastmod").ShouldBeEmpty();
     }
 

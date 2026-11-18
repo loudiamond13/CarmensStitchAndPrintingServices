@@ -23,6 +23,9 @@ const PAGES: readonly PublicUrl[] = [
   { path: '/contact', title: 'Contact Us and Get a Quote · CSPS' },
 ];
 
+/** The four legal pages, approved at version 1.0 (LEGAL-05), so the sitemap lists them after the public pages. */
+const LEGAL_PATHS = ['/privacy', '/cookies', '/terms', '/accessibility'] as const;
+
 // An email address; a social handle in a link (tiktok.com/@name) is not one and is public.
 const EMAIL_LIKE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
 
@@ -161,7 +164,7 @@ test('@link-preview /admin answers with the X-Robots-Tag header and a robots met
   }
 });
 
-test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages with the configured origin', async ({
+test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages and the four legal pages with the configured origin', async ({
   request,
   baseURL,
 }) => {
@@ -176,7 +179,7 @@ test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four 
   const sitemap = await request.get('/sitemap.xml');
   expect(sitemap.status()).toBe(200);
   const locs = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  expect(locs).toEqual(PAGES.map(({ path }) => `${origin}${path}`));
+  expect(locs).toEqual([...PAGES.map(({ path }) => path), ...LEGAL_PATHS].map((path) => `${origin}${path}`));
 });
 
 test('@link-preview the JSON-LD and csps-boot blocks of every page raise no CSP report with JavaScript on', async ({
