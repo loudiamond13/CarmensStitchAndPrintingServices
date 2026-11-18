@@ -42,6 +42,7 @@ import {
   iconGridClasses,
   iconNameClasses,
   loadedImageClasses,
+  publicDemoClasses,
   triggersClasses,
 } from './showcase.recipe';
 import { Phase5Demos } from './Phase5Demos';
@@ -282,12 +283,12 @@ function SignOutDemo({ kind, fails }: { kind: 'others' | 'device'; fails: boolea
 function CookieSettingsDemo({ state }: { state: DemoConsentState }) {
   const [open, show, close] = useOpen();
   return (
-    <>
-      <Button variant="secondary" onClick={show}>
+    <div className={publicDemoClasses}>
+      <Button variant="secondary" size="sm" onClick={show}>
         {SHOWCASE_COPY.openCookieSettings[state]}
       </Button>
       {open && <OpenedCookieSettings state={state} onClosed={close} />}
-    </>
+    </div>
   );
 }
 

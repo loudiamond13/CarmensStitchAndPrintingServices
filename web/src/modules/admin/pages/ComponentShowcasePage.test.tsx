@@ -275,11 +275,11 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     renderShowcase();
 
     for (const [id, label] of [
-      ['cookie-settings-no-choice', 'Open Cookie Settings: no choice yet'],
-      ['cookie-settings-saved', 'Open Cookie Settings: choice saved'],
-      ['cookie-settings-gpc', 'Open Cookie Settings: browser asks not to track'],
-      ['cookie-settings-cleared', 'Open Cookie Settings: cleared'],
-      ['cookie-settings-clear-failed', 'Open Cookie Settings: clear failed'],
+      ['cookie-settings-no-choice', 'Cookie Settings: no choice'],
+      ['cookie-settings-saved', 'Cookie Settings: saved'],
+      ['cookie-settings-gpc', 'Cookie Settings: GPC'],
+      ['cookie-settings-cleared', 'Cookie Settings: cleared'],
+      ['cookie-settings-clear-failed', 'Cookie Settings: clear fails'],
     ] as const) {
       const frame = caseFrame(id);
       expect(frame).toHaveAttribute('data-theme', 'light');

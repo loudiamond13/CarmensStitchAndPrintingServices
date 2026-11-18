@@ -23,13 +23,13 @@ export const SHOWCASE_COPY = {
   openSignOutOthersFailed: 'Open Sign Out Others (fails)',
   openSignOutDevice: 'Open Sign Out Device',
   openSignOutDeviceFailed: 'Open Sign Out Device (fails)',
-  /** SPEC-GAP dev wording: the triggers of the five Cookie Settings demos (plan 12-29). */
+  /** SPEC-GAP dev wording: the triggers of the five Cookie Settings demos (plan 12-29); short, so each fits at 320px. */
   openCookieSettings: {
-    'no-choice': 'Open Cookie Settings: no choice yet',
-    saved: 'Open Cookie Settings: choice saved',
-    gpc: 'Open Cookie Settings: browser asks not to track',
-    cleared: 'Open Cookie Settings: cleared',
-    'clear-failed': 'Open Cookie Settings: clear failed',
+    'no-choice': 'Cookie Settings: no choice',
+    saved: 'Cookie Settings: saved',
+    gpc: 'Cookie Settings: GPC',
+    cleared: 'Cookie Settings: cleared',
+    'clear-failed': 'Cookie Settings: clear fails',
   },
   /** SPEC-GAP dev wording: the session toast triggers, each with the app's own copy (plan 04-32). */
   sessionToastTriggers: [
