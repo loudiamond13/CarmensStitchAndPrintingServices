@@ -81,7 +81,7 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
             .Select(group => new NamedCount(group.Key, group.Sum(row => (long)row.Views)))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new VisitorLists(pages);
+        return new VisitorLists(pages, [], [], []);
     }
 
     /// <summary>One aggregate of a bucket: the day, or the month on its first day.</summary>

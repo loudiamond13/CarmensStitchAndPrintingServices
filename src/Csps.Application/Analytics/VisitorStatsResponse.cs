@@ -28,6 +28,9 @@ public sealed record RankedItemDto(string Name, int Count, int Share);
 /// <param name="Bucket">The bar size the server chose: <c>day</c> for a range of up to 62 days, otherwise <c>month</c>.</param>
 /// <param name="Trend">One bar per day or month from the start of the range to its end, oldest first.</param>
 /// <param name="TopPages">Up to 10 pages by page views, highest first; each name is a page key.</param>
+/// <param name="Referrers">Up to 10 sources by visits, highest first, named as stored (D-28).</param>
+/// <param name="Devices">The device classes with visits, highest first.</param>
+/// <param name="Browsers">The top 5 browsers by visits, then <c>Other</c> for the rest.</param>
 public sealed record VisitorStatsResponse(
     string Range,
     string From,
@@ -36,4 +39,7 @@ public sealed record VisitorStatsResponse(
     VisitorTotalsDto Totals,
     string Bucket,
     IReadOnlyList<TrendBucketDto> Trend,
-    IReadOnlyList<RankedItemDto> TopPages);
+    IReadOnlyList<RankedItemDto> TopPages,
+    IReadOnlyList<RankedItemDto> Referrers,
+    IReadOnlyList<RankedItemDto> Devices,
+    IReadOnlyList<RankedItemDto> Browsers);

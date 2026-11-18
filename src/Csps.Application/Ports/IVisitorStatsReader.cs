@@ -31,7 +31,8 @@ public interface IVisitorStatsReader
 
     /// <summary>
     /// Reads the grouped counts behind the ranked lists for the business days <paramref name="first"/> to <paramref name="last"/>. Page views
-    /// per page key come from the daily counts for the whole range.
+    /// per page key come from the daily counts for the whole range. D-27: visits per source, device class and browser come from the raw
+    /// visits on the days from <paramref name="cut"/> on and from the rolled-up daily rows on the days before it, summed per name.
     /// </summary>
     /// <param name="first">The first business day.</param>
     /// <param name="last">The last business day.</param>
@@ -43,7 +44,14 @@ public interface IVisitorStatsReader
 
 /// <summary>The grouped counts behind the ranked lists.</summary>
 /// <param name="Pages">Page views per page key.</param>
-public sealed record VisitorLists(IReadOnlyList<NamedCount> Pages);
+/// <param name="Referrers">Visits per source name as stored.</param>
+/// <param name="Devices">Visits per device class name (Phone, Tablet, Computer, Other).</param>
+/// <param name="Browsers">Visits per browser family label.</param>
+public sealed record VisitorLists(
+    IReadOnlyList<NamedCount> Pages,
+    IReadOnlyList<NamedCount> Referrers,
+    IReadOnlyList<NamedCount> Devices,
+    IReadOnlyList<NamedCount> Browsers);
 
 /// <summary>One grouped count.</summary>
 /// <param name="Name">The name as stored.</param>

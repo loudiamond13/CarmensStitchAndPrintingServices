@@ -228,6 +228,91 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         lists.Pages.ShouldBe([new NamedCount(PageKeys.NotFound, 7)]);
     }
 
+    [Fact]
+    public async Task ReferrersAddRawVisitsFromTheCutOnToTheDailyRowsBeforeIt()
+    {
+        await database.ResetAsync();
+        await SeedVisitAsync(1, Cut, "Facebook", DeviceKind.Phone, "Chrome");
+        await SeedVisitAsync(2, Cut.AddDays(1), "Facebook", DeviceKind.Phone, "Chrome");
+        await SeedVisitAsync(3, Cut.AddDays(1), "basketball-league.ph", DeviceKind.Phone, "Chrome");
+        await SeedVisitAsync(4, Cut.AddDays(-1), "Facebook", DeviceKind.Phone, "Chrome");
+        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-1), "Facebook", 4));
+        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-3), ReferrerName.Direct, 2));
+        await SeedDailyAsync(DailyReferrerCount.Of(Cut, "Facebook", 50));
+        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-30), "Google", 70));
+
+        var lists = await ReadListsAsync(Cut.AddDays(-5), Cut.AddDays(1));
+
+        lists.Referrers.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([
+            new NamedCount("Direct", 2),
+            new NamedCount("Facebook", 6),
+            new NamedCount("basketball-league.ph", 1),
+        ]);
+    }
+
+    [Fact]
+    public async Task DevicesAndBrowsersAddRawVisitsFromTheCutOnToTheDailyRowsBeforeIt()
+    {
+        await database.ResetAsync();
+        await SeedVisitAsync(1, Cut, ReferrerName.Direct, DeviceKind.Phone, "Chrome");
+        await SeedVisitAsync(2, Cut, ReferrerName.Direct, DeviceKind.Computer, "Safari");
+        await SeedVisitAsync(3, Cut.AddDays(-1), ReferrerName.Direct, DeviceKind.Tablet, "Firefox");
+        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-1), DeviceDimension.Device, "Phone", 3));
+        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-1), DeviceDimension.Browser, "Safari", 2));
+        await SeedDailyAsync(DailyDeviceCount.Of(Cut, DeviceDimension.Device, "Tablet", 40));
+        await SeedDailyAsync(DailyDeviceCount.Of(Cut, DeviceDimension.Browser, "Opera", 40));
+
+        var lists = await ReadListsAsync(Cut.AddDays(-2), Cut);
+
+        lists.Devices.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([new NamedCount("Computer", 1), new NamedCount("Phone", 4)]);
+        lists.Browsers.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([new NamedCount("Chrome", 1), new NamedCount("Safari", 3)]);
+    }
+
+    [Fact]
+    public async Task ARangeWhollyBeforeTheCutReadsOnlyTheDailyRows()
+    {
+        await database.ResetAsync();
+        await SeedVisitAsync(1, Cut.AddDays(-2), "Instagram", DeviceKind.Phone, "Chrome");
+        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-2), "Messenger", 5));
+        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-2), DeviceDimension.Device, "Other", 5));
+
+        var lists = await ReadListsAsync(Cut.AddDays(-10), Cut.AddDays(-1));
+
+        lists.Referrers.ShouldBe([new NamedCount("Messenger", 5)]);
+        lists.Devices.ShouldBe([new NamedCount("Other", 5)]);
+        lists.Browsers.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ARangeWithNoVisitsHasEmptyLists()
+    {
+        await database.ResetAsync();
+
+        var lists = await ReadListsAsync(Day, Day.AddDays(5));
+
+        lists.ShouldSatisfyAllConditions(
+            () => lists.Pages.ShouldBeEmpty(),
+            () => lists.Referrers.ShouldBeEmpty(),
+            () => lists.Devices.ShouldBeEmpty(),
+            () => lists.Browsers.ShouldBeEmpty());
+    }
+
+    private async Task SeedDailyAsync<T>(T row)
+        where T : class
+    {
+        await using var context = database.CreateContext();
+        context.Add(row);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private async Task SeedVisitAsync(byte visitor, DateOnly day, string referrer, DeviceKind device, string browser)
+    {
+        await using var context = database.CreateContext();
+        var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
+        context.AnalyticsVisits.Add(AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, referrer, device, browser, "Android", null));
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     private async Task<VisitorLists> ReadListsAsync(DateOnly from, DateOnly to)
     {
         await using var context = database.CreateContext();

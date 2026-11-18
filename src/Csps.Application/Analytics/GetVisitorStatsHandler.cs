@@ -63,7 +63,10 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
                 crossesTheCut ? Format(cut) : null),
             bucket == StatsBucketKind.Day ? DayBucket : MonthBucket,
             Fill(from, to, cut, bucket, counts),
-            Rank(lists.Pages, ListLength)));
+            Rank(lists.Pages, ListLength),
+            [],
+            [],
+            []));
     }
 
     /// <summary>
