@@ -154,9 +154,12 @@ test.describe('a visitor who allows visitor stats', () => {
     browser,
     baseURL,
     request,
-  }) => {
+  }, testInfo) => {
+    testInfo.setTimeout(180_000);
     // The first test of a worker can wait up to 6 minutes for the site content lock (the Gallery needs the demo photos).
-    test.setTimeout(isDemoSeeded() ? 180_000 : 660_000);
+    if (!isDemoSeeded()) {
+      testInfo.setTimeout(testInfo.timeout + 480_000);
+    }
     await ensureDemoSiteContent(request);
 
     const landing = nextPageView(page);
