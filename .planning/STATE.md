@@ -15,7 +15,7 @@ progress:
   completed_plans: 355
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T12:30:00-06:00"
+updated: "2026-11-18T13:30:00-06:00"
 ---
 
 # Project State
@@ -1071,6 +1071,8 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **Wave 11 load flakes (recorded; each passed alone, none failed in the gate re-run):** new: `OrderRefundModal`, the routes test, the third-party-notices script, `ProductsPage`, `DashboardPage`, and one Firefox `@showcase` load timeout; repeat: `OrderFormPage` (now fails one test in nearly every full run on a busy machine: worth a look), `GalleryPage`, `EditUserPanel`.
 - [x] **Wave 12 post-merge gate (2026-11-18; plan 12-30, no merge conflicts, test and Testing-only code only):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3302, Infrastructure 1322 of 1323 (1 skipped) passed; Server 3087 of 3088: the one failure is the known intermittent 500 in `ParallelCallersEachGetTheirOwnStatus` (see that item; passed alone); openapi types match; web `verify` 11509 of 11510: the one failure is the known `OrderFormPage` "cannot be left through the dialog while a save is pending" load flake (the file passed alone 84 of 84); `build:budget` exit 0: Privacy 149.58 KB, admin 223.32 KB, CSS 20.50 KB, unchanged. 12-30 ran `@visitor-stats` in all five Playwright projects (40 passed) and `@consent|@gpc` (85 passed). The Testing seed is absent from the Release build.
 - [ ] **12-30 choices (your review; recommendation first):** (1) the plan wants Back and Forward to restore the previous range, but the UI spec says a range change replaces the history entry, so the test checks Back and Forward across a trip to the Dashboard: keep replace; (2) Firefox logs a console line when a visitor leaves a page while a font is still downloading: no app change (the tests wait for fonts); (3) the "today" range is still open; today's figures are checked inside the default Last 30 days. Also: `dotnet build Csps.slnx -c Release` fails with 27 errors in two test projects that use Testing-only image types (not caused by 12-30; logged in `deferred-items.md`). Recommended: exclude those tests from Release builds in a small follow-up.
+- [x] **12-22 wording answered (owner, 2026-11-18; D-44 to D-48 in 12-CONTEXT.md):** Clear says it removes the optional cookies and the needed ones stay (B); "Admin settings" stays under Necessary; Privacy retention lines follow D-36 (about 6 months, about 8 months, and about 3 years for daily totals, each "removed at the next monthly cleanup"); Terms and Accessibility kept as drafted. Applied in c62467f9 (tests) and the following feat commit; web `verify` 11511 passed, branches 90.32%; `build:budget` Privacy 149.59 KB, Cookies 149.50 KB. `@consent` Chromium and WebKit 29 of 30: the WebKit 320px Clear dialog focus test failed once (the 12-24 animation timing) and passed alone 3 of 3.
+- [ ] **12-22 page approvals (needs your yes, page by page):** the four pages stay DRAFT until you approve each one (D-09, D-14). Approving the Cookie Policy moves the consent version to 1.0, so every visitor sees the cookie bar once more. Also check the daily visitor totals line, which now reads "Kept for about 3 years; removed at the next monthly cleanup." (applied under D-36; say if you want "Deleted after 3 years." back).
 
 ### Blockers/Concerns
 
