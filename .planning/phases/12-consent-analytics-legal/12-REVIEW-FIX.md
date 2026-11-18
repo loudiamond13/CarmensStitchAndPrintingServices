@@ -1,7 +1,7 @@
 ---
 phase: 12-consent-analytics-legal
 created: 2026-11-18T15:10:00-05:00
-updated: 2026-11-18T16:40:00-05:00
+updated: 2026-11-18T17:40:00-05:00
 fixed_at: 2026-11-18T15:10:00-05:00
 review_path: .planning/phases/12-consent-analytics-legal/12-REVIEW.md
 iteration: 1
@@ -120,6 +120,7 @@ All four need an owner decision, so none was changed.
 ### WR-G1-03: The visitor id and consent cookie gates can be forged, so referrer names and unique visitors can be poisoned
 
 **File:** `src/Csps.Domain/Analytics/ReferrerName.cs:40-58`, `src/Csps.Application/Analytics/IdentifiedCollection.cs:17-22`, `src/Csps.Application/Analytics/CollectPageViewHandler.cs:104-112`
+**Owner ruling:** D-50 (owner, 2026-11-18) chose option 1, then D-53 removed stored referrers and the visitor id, so this is resolved by Phase 12.1 instead.
 **Reason:** needs owner decision. Signing the visitor id changes the cookie format and the security posture (old cookies stop working). Limiting referrer names changes what the Manager sees and what is stored.
 **Options:**
 1. Check referrer names as real host names (labels 1 to 63 characters, no leading or trailing hyphen, at least one dot, no trailing dot) and keep them. Recommended first step: it stops junk such as `a`, `..` and bare IP addresses and keeps real source names.
@@ -130,6 +131,7 @@ All four need an owner decision, so none was changed.
 ### WR-G2-03: One visitor id can write unlimited page view and speed sample rows, and anyone can get a visitor id
 
 **File:** `src/Csps.Infrastructure/Analytics/AnalyticsVisits.cs:36-51, 63-74`, `src/Csps.Server/Controllers/AnalyticsController.cs:36-74`
+**Owner ruling:** D-53 (owner, 2026-11-18). Page view and speed rows are no longer written, so there is nothing to cap. Resolved by Phase 12.1.
 **Reason:** needs owner decision. A cap needs a number you choose (for example 200 page views per visit), and one speed sample per visit, page and metric needs a unique index (a schema change, additive but still a migration).
 **Options:**
 1. Add a unique index on (visit, page, metric) so a visit keeps one sample each, and cap page views per visit (for example 200). Recommended: it closes both growth paths. The answer stays 204.
@@ -140,6 +142,7 @@ All four need an owner decision, so none was changed.
 ### WR-G2-04: Row-creating anonymous endpoints are limited per address only, and an IPv6 /64 is trivially rotated
 
 **File:** `src/Csps.Server/Security/RateLimitingRegistration.cs:109-146`
+**Owner ruling:** D-51 (owner, 2026-11-18), option 1: a site-wide ceiling of about 600 a minute on the anonymous write routes that remain. Built in Phase 12.1.
 **Reason:** needs owner decision. A site-wide ceiling is a rate-limit number you pick (the review suggests 600 a minute), and a /48 grouping changes who shares a bucket.
 **Options:**
 1. Add one site-wide ceiling chained to the per-address limit for the four anonymous write routes, for example 600 a minute. Recommended: simple, and it protects the one small database.
