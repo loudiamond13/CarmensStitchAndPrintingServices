@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { StatBarList } from '@/modules/admin/components/StatBarList';
 import type { RankedItem } from '@/modules/admin/services/visitorStatsService';
+import { expectNoAxeViolations } from '@/test/axe';
 
 // StatBarList (UI-SPEC V1 items 5 to 7; ANL-08, D-28): a ranked list with the server's counts and shares. The browser only formats.
 
@@ -53,5 +54,60 @@ describe('StatBarList: rows', () => {
 
     expect(screen.getByText('GALLERY')).toBeInTheDocument();
     expect(screen.getByText('HOME')).toBeInTheDocument();
+  });
+});
+
+describe('StatBarList: empty, one and long rows', () => {
+  it('shows the empty line and no list when there are no rows', () => {
+    render(<StatBarList items={[]} emptyText={EMPTY} />);
+
+    expect(screen.getByText(EMPTY)).toBeInTheDocument();
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
+  it('draws one row as a full bar at 100%', () => {
+    render(<StatBarList items={[{ name: 'Facebook', count: 1, share: 100 }]} emptyText={EMPTY} />);
+
+    expect(rows()).toHaveLength(1);
+    expect(screen.getByText('1 · 100%')).toBeInTheDocument();
+    expect(fill(rows()[0] ?? document.body).style.getPropertyValue('--bar-w')).toBe('100%');
+  });
+
+  it('shows up to 10 rows as the server sent them', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => ({ name: `host-${String(i)}.example`, count: 10 - i, share: 10 }));
+    render(<StatBarList items={ten} emptyText={EMPTY} />);
+
+    expect(rows()).toHaveLength(10);
+  });
+
+  it('wraps a 200-character host anywhere and keeps its figure whole on its own line', () => {
+    const host = `${'a'.repeat(196)}.com`;
+    expect(host).toHaveLength(200);
+    render(<StatBarList items={[{ name: host, count: 3, share: 100 }]} emptyText={EMPTY} />);
+
+    const name = screen.getByText(host);
+    const figure = screen.getByText('3 · 100%');
+    expect(name.className.split(/\s+/)).toEqual(expect.arrayContaining(['wrap-anywhere', 'min-w-0']));
+    expect(figure.className.split(/\s+/)).toContain('whitespace-nowrap');
+    expect(name).not.toContainElement(figure);
+    expect(name.parentElement?.className.split(/\s+/)).toContain('flex-wrap');
+  });
+
+  it('shows a referrer host as plain text, never as a link', () => {
+    render(<StatBarList items={[{ name: 'basketball-league.ph', count: 2, share: 100 }]} emptyText={EMPTY} />);
+
+    expect(screen.getByText('basketball-league.ph').closest('a')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it.each(['light', 'dark'])('has no axe violations in the %s theme', async (theme) => {
+    const { container } = render(
+      <div data-theme={theme}>
+        <StatBarList items={PAGES} emptyText={EMPTY} />
+        <StatBarList items={[]} emptyText={EMPTY} />
+      </div>,
+    );
+
+    await expectNoAxeViolations(container);
   });
 });
