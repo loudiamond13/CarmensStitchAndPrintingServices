@@ -111,6 +111,101 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         totals.ShouldBe(new VisitorTotals(0, 0, 9));
     }
 
+    [Fact]
+    public async Task ADayTrendHasEachDaysPageViewsAndDistinctVisitorsAndOnlyDaysWithData()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Day.AddDays(-1), PageKeys.Home, 100);
+        await SeedViewsAsync(Day, PageKeys.Home, 3);
+        await SeedViewsAsync(Day, PageKeys.Gallery, 5);
+        await SeedViewsAsync(Day.AddDays(2), PageKeys.Home, 4);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(2, Day);
+        await SeedVisitAsync(1, Day.AddDays(1));
+        await SeedVisitAsync(4, Day.AddDays(3));
+
+        var trend = await ReadTrendAsync(Day, Day.AddDays(2), StatsBucketKind.Day);
+
+        trend.ShouldBe([new TrendCount(Day, 8, 2), new TrendCount(Day.AddDays(1), 0, 1), new TrendCount(Day.AddDays(2), 4, 0)]);
+    }
+
+    [Fact]
+    public async Task ADayTrendCountsVisitorsOnlyFromTheCutDayOnAndKeepsOlderPageViews()
+    {
+        await database.ResetAsync();
+        await SeedVisitAsync(1, Cut.AddDays(-1));
+        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Home, 10);
+        await SeedVisitAsync(2, Cut);
+
+        var trend = await ReadTrendAsync(Cut.AddDays(-1), Cut, StatsBucketKind.Day);
+
+        trend.ShouldBe([new TrendCount(Cut.AddDays(-1), 10, 0), new TrendCount(Cut, 0, 1)]);
+    }
+
+    [Fact]
+    public async Task ATrendWithNoRowsIsEmpty()
+    {
+        await database.ResetAsync();
+
+        var trend = await ReadTrendAsync(Day, Day.AddDays(29), StatsBucketKind.Day);
+
+        trend.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AMonthTrendSumsPageViewsPerMonthAndCountsAVisitorOnTwoDaysOfAMonthOnce()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(new DateOnly(2026, 10, 20), PageKeys.Home, 5);
+        await SeedViewsAsync(Day, PageKeys.Home, 3);
+        await SeedViewsAsync(Day.AddDays(5), PageKeys.Gallery, 4);
+        await SeedVisitAsync(1, new DateOnly(2026, 10, 20));
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(1, Day.AddDays(5));
+        await SeedVisitAsync(2, Day);
+
+        var trend = await ReadTrendAsync(new DateOnly(2026, 10, 1), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 10, 1), 5, 1), new TrendCount(new DateOnly(2026, 11, 1), 7, 2)]);
+    }
+
+    [Fact]
+    public async Task AMonthTrendCountsVisitorsFromTheCutOnlyAndKeepsOlderPageViews()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(new DateOnly(2025, 9, 20), PageKeys.Home, 8);
+        await SeedViewsAsync(new DateOnly(2025, 10, 10), PageKeys.Home, 6);
+        await SeedVisitAsync(3, new DateOnly(2025, 9, 20));
+        await SeedVisitAsync(1, Cut.AddDays(-1));
+        await SeedVisitAsync(2, Cut);
+        await SeedVisitAsync(1, Cut.AddDays(5));
+
+        var trend = await ReadTrendAsync(new DateOnly(2025, 9, 1), new DateOnly(2025, 10, 31), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2025, 9, 1), 8, 0), new TrendCount(new DateOnly(2025, 10, 1), 6, 2)]);
+    }
+
+    [Fact]
+    public async Task AMonthTrendReadsOnlyTheDaysOfAPartMonthInsideTheRange()
+    {
+        await database.ResetAsync();
+        await SeedViewsAsync(Day, PageKeys.Home, 100);
+        await SeedViewsAsync(Day.AddDays(5), PageKeys.Home, 4);
+        await SeedVisitAsync(1, Day);
+        await SeedVisitAsync(2, Day.AddDays(5));
+
+        var trend = await ReadTrendAsync(Day.AddDays(2), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
+
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 11, 1), 4, 1)]);
+    }
+
+    private async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly from, DateOnly to, StatsBucketKind bucket)
+    {
+        await using var context = database.CreateContext();
+        return await new VisitorStatsReader(context).ReadTrendAsync(from, to, Cut, bucket, TestContext.Current.CancellationToken);
+    }
+
     private async Task<VisitorTotals> ReadAsync(DateOnly from, DateOnly to)
     {
         await using var context = database.CreateContext();

@@ -1,6 +1,7 @@
 // V1 Visitor Stats, /admin/visitor-stats (UI-SPEC V1; ANL-08, D-23, D-24, D-27, D-33, WEB-10). SPEC-GAP: V1.
 // SPEC-DEVIATION: D-23 (a Manager-only page with its own menu item after Site Content).
-// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row. Every count is the server's.
+// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row and the Trend card. Every count
+// is the server's.
 //   - The range lives in the URL through useVisitorStatsParams and nowhere else. A preset is sent by name; a custom range is
 //     sent only once both dates pass the checks, and until then the page keeps the range it last applied.
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
@@ -17,6 +18,7 @@ import { CUSTOM_RANGE } from '@/lib/url-state/parsers';
 import { visitorStatsBodyClasses } from '@/modules/admin/components/visitorStats.recipe';
 import { VisitorKpiRow } from '@/modules/admin/components/VisitorKpiRow';
 import { VisitorStatsToolbar } from '@/modules/admin/components/VisitorStatsToolbar';
+import { VisitorTrendCard } from '@/modules/admin/components/VisitorTrendCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
 import { useVisitorStatsParams } from '@/modules/admin/hooks/useVisitorStatsParams';
@@ -79,6 +81,7 @@ export function VisitorStatsPage({
       ) : (
         <LoadingRegion loading={loading} things={COPY.things} className={visitorStatsBodyClasses}>
           <VisitorKpiRow totals={stats?.totals} />
+          <VisitorTrendCard stats={stats} />
         </LoadingRegion>
       )}
     </>

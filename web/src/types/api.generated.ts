@@ -5888,6 +5888,21 @@ export interface components {
             /** @description One of `active`, `deactivated` or `deleted`. */
             status: string;
         };
+        /** @description One bar of the visits chart (ANL-08): a day, or a month of the range. */
+        TrendBucketDto: {
+            /**
+             * Format: int32
+             * @description The page views of the bar; a bar with no data is 0.
+             */
+            pageViews: number | string;
+            /** @description The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range. */
+            start: string;
+            /**
+             * Format: int32
+             * @description The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).
+             */
+            uniqueVisitors: null | number | string;
+        };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
          *     forged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when
@@ -6267,6 +6282,8 @@ export interface components {
         };
         /** @description The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`. */
         VisitorStatsResponse: {
+            /** @description The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`. */
+            bucket: string;
             /** @description The oldest business day that still has visits (13 months back); older days keep page views only. */
             cutDate: string;
             /** @description The first business day of the range, resolved on the server. */
@@ -6277,6 +6294,8 @@ export interface components {
             to: string;
             /** @description The three totals. */
             totals: components["schemas"]["VisitorTotalsDto"];
+            /** @description One bar per day or month from the start of the range to its end, oldest first. */
+            trend: components["schemas"]["TrendBucketDto"][];
         };
         /** @description The three headline totals of a range (ANL-08, D-33). Totals only: no visitor, visit or time is ever listed. */
         VisitorTotalsDto: {

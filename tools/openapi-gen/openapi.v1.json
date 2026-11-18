@@ -7446,6 +7446,40 @@
         ],
         "type": "object"
       },
+      "TrendBucketDto": {
+        "description": "One bar of the visits chart (ANL-08): a day, or a month of the range.",
+        "properties": {
+          "pageViews": {
+            "description": "The page views of the bar; a bar with no data is 0.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "start": {
+            "description": "The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range.",
+            "type": "string"
+          },
+          "uniqueVisitors": {
+            "description": "The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "start",
+          "pageViews",
+          "uniqueVisitors"
+        ],
+        "type": "object"
+      },
       "UpdateCompanyExpenseRequest": {
         "description": "The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a\nforged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when\ncome from the token and the clock (SEC-08).",
         "properties": {
@@ -8441,6 +8475,10 @@
       "VisitorStatsResponse": {
         "description": "The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`.",
         "properties": {
+          "bucket": {
+            "description": "The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`.",
+            "type": "string"
+          },
           "cutDate": {
             "description": "The oldest business day that still has visits (13 months back); older days keep page views only.",
             "type": "string"
@@ -8460,6 +8498,13 @@
           "totals": {
             "$ref": "#/components/schemas/VisitorTotalsDto",
             "description": "The three totals."
+          },
+          "trend": {
+            "description": "One bar per day or month from the start of the range to its end, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/TrendBucketDto"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -8467,7 +8512,9 @@
           "from",
           "to",
           "cutDate",
-          "totals"
+          "totals",
+          "bucket",
+          "trend"
         ],
         "type": "object"
       },

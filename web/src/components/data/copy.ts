@@ -25,3 +25,13 @@ export const RECORD_META_COPY = {
   /** Between the actor and the time. */
   separator: ' · ',
 } as const;
+
+/** The visits trend chart's words (UI-SPEC V1 item 4, Copywriting "Trend card"). No long dash (OR-4). */
+export const VISITOR_TREND_COPY = {
+  pageViews: 'Page views',
+  uniqueVisitors: 'Unique visitors',
+  /** The tooltip row of a bar the server has no unique visitors for (D-27). */
+  uniqueVisitorsNotAvailable: 'Unique visitors: not available',
+  /** "Page views and unique visitors, Oct 17 to Nov 15, 2026": the name of the plot. */
+  groupName: (from: string, to: string): string => `Page views and unique visitors, ${from} to ${to}`,
+} as const;

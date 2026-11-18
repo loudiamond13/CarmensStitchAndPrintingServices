@@ -11,6 +11,8 @@ const answer: VisitorStatsResponse = {
   to: '2026-11-15',
   cutDate: '2025-10-15',
   totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+  bucket: 'day',
+  trend: [{ start: '2026-10-17', pageViews: 3, uniqueVisitors: 2 }],
 };
 
 afterEach(() => {
@@ -54,7 +56,43 @@ describe('visitorStatsService.get', () => {
       to: '2026-11-15',
       cutDate: '2025-10-15',
       totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+      bucket: 'day',
+      trend: [{ start: '2026-10-17', pageViews: 3, uniqueVisitors: 2 }],
     });
+  });
+
+  it('narrows each trend bucket to plain numbers and keeps a unique-visitor count the server does not have as null', async () => {
+    const { service } = serviceWith([
+      {
+        body: {
+          ...answer,
+          bucket: 'month',
+          trend: [
+            { start: '2025-09-01', pageViews: '40', uniqueVisitors: null },
+            { start: '2025-10-01', pageViews: 12, uniqueVisitors: '5' },
+          ],
+        },
+      },
+    ]);
+
+    const stats = await service.get({ range: 'custom', from: '2025-09-01', to: '2025-10-31' });
+
+    expect(stats.bucket).toBe('month');
+    expect(stats.trend).toEqual([
+      { start: '2025-09-01', pageViews: 40, uniqueVisitors: null },
+      { start: '2025-10-01', pageViews: 12, uniqueVisitors: 5 },
+    ]);
+  });
+
+  it.each([
+    ['a bucket size it does not know', { bucket: 'week' }],
+    ['a trend count that is not a number', { trend: [{ start: '2026-10-17', pageViews: 'lots', uniqueVisitors: 1 }] }],
+  ])('refuses an answer with %s', async (_, change) => {
+    const { service } = serviceWith([{ body: { ...answer, ...change } }]);
+
+    await expect(service.get({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
+      VisitorStatsContractError,
+    );
   });
 
   it('keeps a count the server says is not available as null, with the counted-from day', async () => {

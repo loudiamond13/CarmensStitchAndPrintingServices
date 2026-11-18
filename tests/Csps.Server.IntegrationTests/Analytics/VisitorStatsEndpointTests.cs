@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -51,6 +52,30 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
         totals.GetProperty("visits").GetInt32().ShouldBe(3);
         totals.GetProperty("pageViews").GetInt32().ShouldBe(19);
         IsNullOrMissing(totals, "countedFrom").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task TheLastThirtyDaysAnswerOneDayBucketPerDayWithZerosForEmptyDays()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Home, 10);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 15), PageKeys.Gallery, 5);
+        await rig.SeedVisitAsync(1, new DateOnly(2026, 11, 15));
+        await rig.SeedVisitAsync(1, new DateOnly(2026, 11, 15));
+        await rig.SeedVisitAsync(2, new DateOnly(2026, 11, 15));
+        await rig.SeedVisitAsync(3, new DateOnly(2026, 10, 17));
+
+        using var response = await rig.GetAsync(string.Empty, rig.Manager.AccessToken);
+
+        var body = await ReadAsync(response);
+        body.GetProperty("bucket").GetString().ShouldBe("day");
+        var trend = body.GetProperty("trend").EnumerateArray().ToList();
+        trend.Count.ShouldBe(30);
+        trend.Select(static b => b.GetProperty("start").GetString())
+            .ShouldBe(Enumerable.Range(0, 30).Select(static i => new DateOnly(2026, 10, 17).AddDays(i).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+        Figures(trend[0]).ShouldBe((0, 1));
+        Figures(trend[1]).ShouldBe((0, 0));
+        Figures(trend[29]).ShouldBe((15, 2));
     }
 
     [Fact]
@@ -184,7 +209,7 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
 
         var names = new List<string>();
         CollectNames(await ReadAsync(response), names);
-        string[] allowed = ["range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom"];
+        string[] allowed = ["range", "from", "to", "cutDate", "totals", "uniqueVisitors", "visits", "pageViews", "countedFrom", "bucket", "trend", "start"];
         names.Except(allowed).ShouldBeEmpty("later plans extend this list on purpose, one reviewed name at a time");
         names.ShouldNotContain(name => ForbiddenWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase)));
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -215,6 +240,12 @@ public sealed class VisitorStatsEndpointTests(CspsDatabase database) : IClassFix
     {
         var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         return JsonDocument.Parse(text).RootElement.Clone();
+    }
+
+    private static (int PageViews, int? UniqueVisitors) Figures(JsonElement bucket)
+    {
+        var unique = bucket.GetProperty("uniqueVisitors");
+        return (bucket.GetProperty("pageViews").GetInt32(), unique.ValueKind == JsonValueKind.Null ? null : unique.GetInt32());
     }
 
     private static bool IsNullOrMissing(JsonElement element, string name) =>

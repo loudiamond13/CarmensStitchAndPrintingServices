@@ -1,5 +1,6 @@
 // Visitor stats calls (ANL-08, D-24, D-27, D-33; OR-5). Manager only: an Admin gets 403. Every count is the server's; the
 // browser only checks that each one is a number it can show.
+import type { TrendBucketSize, TrendPoint } from '@/components';
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
 import type { components } from '@/types/api.generated';
 import { requireFigure } from '@/utils/toFiniteFigure';
@@ -29,6 +30,10 @@ export interface VisitorStats {
   to: string;
   cutDate: string;
   totals: VisitorTotals;
+  /** The bar size the server chose: per day up to 62 days, else per month. */
+  bucket: TrendBucketSize;
+  /** One bar per day or month from the start of the range to its end, oldest first. */
+  trend: TrendPoint[];
 }
 
 /** A stats answer the browser cannot show, so the page shows its failure instead of a wrong figure. */
@@ -47,7 +52,20 @@ function optionalCount(value: unknown, what: string): number | null {
   return value === null ? null : count(value, what);
 }
 
-/** Narrows a stats answer: a count that is not a plain number refuses the whole answer. */
+function bucketSize(value: string): TrendBucketSize {
+  if (value === 'day' || value === 'month') return value;
+  throw new VisitorStatsContractError(`The bucket size "${value}" is not one the page knows.`);
+}
+
+function trendPoint(item: VisitorStatsResponse['trend'][number]): TrendPoint {
+  return {
+    start: item.start,
+    pageViews: count(item.pageViews, 'trend page view count'),
+    uniqueVisitors: optionalCount(item.uniqueVisitors, 'trend unique visitor count'),
+  };
+}
+
+/** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
   return {
@@ -61,6 +79,8 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
       pageViews: count(totals.pageViews, 'page view count'),
       countedFrom: totals.countedFrom,
     },
+    bucket: bucketSize(response.bucket),
+    trend: response.trend.map(trendPoint),
   };
 }
 
