@@ -36,6 +36,8 @@ export interface ConsentState {
   /** True from the first open of the settings window until its chunk has mounted (the opener shows it pending). */
   settingsLoading: boolean;
   announcement: string | null;
+  /** How many saved choices on this page turned the map off. A map shown for one tap is unloaded when it rises. */
+  mapRefusals: number;
 }
 
 /** How a clear ended: done, refused by the rate limit (429), or any other failure. */
@@ -124,6 +126,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
   let serverGpc = false;
   // The choice written this page, kept in memory too, so a browser that will not store the cookie still closes the bar for this page.
   let held: string | undefined;
+  let mapRefusals = 0;
   let memory: SendMemory = freshMemory();
   let settingsOpener: HTMLElement | undefined;
   let announcement: string | null = null;
@@ -131,7 +134,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
 
   function compute(raw: string | undefined): ConsentState {
     const gpc = options.gpc || serverGpc;
-    const shared = { gpc, settingsOpen, settingsLoading, announcement };
+    const shared = { gpc, settingsOpen, settingsLoading, announcement, mapRefusals };
     if (rules === undefined) {
       return {
         ...shared,
@@ -178,6 +181,9 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
     hold: (value) => {
       held = value;
     },
+    choseMap: (map) => {
+      if (!map) mapRefusals += 1;
+    },
     memory: () => memory,
     // A repeat of the same line gets a trailing no-break space, so the live region's text changes and is read again.
     announce: (line) => {
@@ -208,6 +214,7 @@ export function createConsentStore(initial: ConsentStoreOptions): ConsentStore {
       announcement = null;
       serverGpc = false;
       held = undefined;
+      mapRefusals = 0;
       memory = freshMemory();
       refresh();
     },

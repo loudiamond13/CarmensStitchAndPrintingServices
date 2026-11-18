@@ -37,6 +37,8 @@ export interface SaveHost {
   /** The saved cookie text: the browser's, else the choice held in memory for this page. */
   read: () => string | undefined;
   hold: (value: string | undefined) => void;
+  /** A choice was saved: the map part of it. */
+  choseMap: (map: boolean) => void;
   memory: () => SendMemory;
   announce: (line: string | null) => void;
   /** The server saw Global Privacy Control (D-20): stats stay off and the bar stays away. */
@@ -124,6 +126,7 @@ export async function commitChoice(
   const value = formatConsentCookie(decision);
   (options.writeCookie ?? writeBrowserCookie)(value);
   host.hold(value);
+  host.choseMap(choice.map);
   host.memory().lastSource = source;
   if (announce !== null) host.announce(announce);
   host.refresh();

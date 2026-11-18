@@ -451,6 +451,34 @@ describe('MapCard Always show maps (D-18, D-20, ANL-07)', () => {
     expect(status).toHaveFocus();
   });
 
+  it('unloads a frame that was loaded by the one-time tap when a saved choice turns the map off', async () => {
+    consentProbe();
+    setConsent({ cookie: null });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+    await tapShowMap();
+    expect(container.querySelector('iframe')).not.toBeNull();
+
+    await act(async () => {
+      await consentStore.rejectAll('settings');
+    });
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+  });
+
+  it('keeps a frame loaded by the one-time tap when a saved choice leaves the map on', async () => {
+    consentProbe();
+    setConsent({ cookie: null });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+    await tapShowMap();
+
+    await act(async () => {
+      await consentStore.save({ stats: false, map: true }, 'settings');
+    });
+
+    expect(container.querySelector('iframe')).not.toBeNull();
+  });
+
   it('unloads the frame when the map is later turned off in Cookie Settings', async () => {
     consentProbe();
     setConsent({ cookie: null });

@@ -52,8 +52,14 @@ export interface MapCardProps {
 }
 
 export function MapCard({ site }: MapCardProps) {
-  const { mapAllowed, allowMaps, openSettings, settingsLoading } = useConsent();
+  const { mapAllowed, mapRefusals, allowMaps, openSettings, settingsLoading } = useConsent();
   const [tapped, setTapped] = useState(false);
+  // A saved choice that turns the map off also ends the one-time tap, so the frame unloads.
+  const [seenRefusals, setSeenRefusals] = useState(mapRefusals);
+  if (seenRefusals !== mapRefusals) {
+    setSeenRefusals(mapRefusals);
+    setTapped(false);
+  }
   // "Always show maps?" was pressed; the map choice is saved once mapAllowed turns true.
   const [asked, setAsked] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
