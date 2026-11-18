@@ -22,6 +22,9 @@ internal static class SqlErrors
     /// <summary>The number of a unique index that a second row would break.</summary>
     public const int DuplicateKey = 2601;
 
+    /// <summary>The number of a foreign key that a row points at a missing parent.</summary>
+    public const int ForeignKeyViolation = 547;
+
     /// <summary>Tells whether the error or one of its inner errors is a SQL Server error with one of the numbers.</summary>
     /// <param name="error">The caught error.</param>
     /// <param name="numbers">The SQL Server error numbers.</param>

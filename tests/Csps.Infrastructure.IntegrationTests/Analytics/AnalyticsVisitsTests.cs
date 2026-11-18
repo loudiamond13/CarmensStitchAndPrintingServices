@@ -161,6 +161,38 @@ public sealed class AnalyticsVisitsTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task APageViewForAVisitClearedAMomentAgoIsDroppedWithoutAnError()
+    {
+        await database.ResetAsync();
+        var visit = NewVisit(Hash(1), Start);
+        await StartAsync(visit);
+        await using var context = database.CreateContext();
+        var store = new AnalyticsVisits(context);
+        await store.DeleteForVisitorAsync(Hash(1), TestContext.Current.CancellationToken);
+
+        await store.AddPageViewAsync(AnalyticsPageView.Of(visit.Id, Day, Start, PageKeys.Gallery), TestContext.Current.CancellationToken);
+
+        await using var check = database.CreateContext();
+        (await check.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task SamplesForAVisitClearedAMomentAgoAreDroppedWithoutAnError()
+    {
+        await database.ResetAsync();
+        var visit = NewVisit(Hash(1), Start);
+        await StartAsync(visit);
+        await using var context = database.CreateContext();
+        var store = new AnalyticsVisits(context);
+        await store.DeleteForVisitorAsync(Hash(1), TestContext.Current.CancellationToken);
+
+        await store.AddSamplesAsync([AnalyticsVitalSample.Of(visit.Id, Day, VitalMetric.Lcp, 2100m, PageKeys.Gallery)], TestContext.Current.CancellationToken);
+
+        await using var check = database.CreateContext();
+        (await check.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task NoSamplesWritesNothingAndDoesNotFail()
     {
         await database.ResetAsync();

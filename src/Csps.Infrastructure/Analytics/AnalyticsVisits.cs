@@ -47,7 +47,7 @@ internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
         ArgumentNullException.ThrowIfNull(view);
 
         context.AnalyticsPageViews.Add(view);
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveUnlessVisitWasClearedAsync(cancellationToken).ConfigureAwait(false);
     }
 
     // The page views and speed samples go by the database cascade, so one delete removes everything linked to the visitor.
@@ -70,6 +70,22 @@ internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
         }
 
         context.AnalyticsVitalSamples.AddRange(samples);
-        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await SaveUnlessVisitWasClearedAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    // The visitor may clear their data between the visit lookup and this insert. The missing visit then refuses the row, and the row is dropped.
+    private async Task SaveUnlessVisitWasClearedAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateException error) when (SqlErrors.Has(error, SqlErrors.ForeignKeyViolation))
+        {
+            foreach (var entry in context.ChangeTracker.Entries().ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+        }
     }
 }
