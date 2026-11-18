@@ -34,6 +34,9 @@ export const VISITOR_STATS_COPY = {
     /** "Choose a date from Nov 15, 2023 to today." */
     outsideWindow: (floor: string): string => `Choose a date from ${floor} to today.`,
   },
+  /** The 13-month Note (D-27), shown when the range starts before the cut: "Before Oct 15, 2025, ...". */
+  cutNote: (date: string): string =>
+    `Unique visitors and visits are kept for 13 months. Before ${date}, this range shows page views, pages, referrers and devices only.`,
   kpis: {
     uniqueVisitors: 'Unique visitors',
     uniqueVisitorsHint: 'Visitors who allowed visitor stats',
@@ -92,6 +95,11 @@ export const VISITOR_STATS_COPY = {
     millisecondsSpoken: (value: string): string => (value === '1' ? '1 millisecond' : `${value} milliseconds`),
     /** The hidden text of a measure with no sample in the range. */
     notMeasured: 'Not measured',
+    /** The card line when no measure has a sample. */
+    empty: 'No speed data for these dates yet.',
+    /** The hidden text of each measure, and the card line, for a range wholly over 13 months ago (D-27). */
+    notAvailable: 'Not available',
+    notAvailableLine: 'Not available for dates over 13 months ago',
     /** "From 412 page views"; "From 1 page view" for one. */
     from: (count: number, formatted: string): string =>
       count === 1 ? 'From 1 page view' : `From ${formatted} page views`,

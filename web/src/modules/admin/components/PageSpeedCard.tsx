@@ -71,7 +71,7 @@ const MEASURES: readonly Measure[] = [
   },
 ];
 
-function Row({ measure, vital }: { measure: Measure; vital: Vital | null }) {
+function Row({ measure, vital, emptyLabel }: { measure: Measure; vital: Vital | null; emptyLabel: string }) {
   const value = vital === null ? null : measure.format(vital.p75);
   return (
     <li className={pageSpeedRowClasses}>
@@ -88,7 +88,7 @@ function Row({ measure, vital }: { measure: Measure; vital: Vital | null }) {
       <p className={pageSpeedMutedClasses}>{measure.meaning}</p>
       <p className={pageSpeedValueClasses}>
         {value === null ? (
-          <EmptyValue label={COPY.notMeasured} />
+          <EmptyValue label={emptyLabel} />
         ) : (
           <>
             <span aria-hidden="true">{value.shown}</span>
@@ -98,6 +98,13 @@ function Row({ measure, vital }: { measure: Measure; vital: Vital | null }) {
       </p>
     </li>
   );
+}
+
+/** The line under the rows: where the figures come from, or why there are none. */
+function footLine(speed: PageSpeed): string {
+  if (!speed.available) return COPY.notAvailableLine;
+  if (speed.lcp === null && speed.cls === null && speed.inp === null) return COPY.empty;
+  return COPY.from(speed.pageViews, formatCount(speed.pageViews));
 }
 
 export interface PageSpeedCardProps {
@@ -121,10 +128,15 @@ export function PageSpeedCard({ speed }: PageSpeedCardProps) {
           <>
             <ul className={pageSpeedListClasses}>
               {MEASURES.map((measure) => (
-                <Row key={measure.key} measure={measure} vital={speed[measure.key]} />
+                <Row
+                  key={measure.key}
+                  measure={measure}
+                  vital={speed[measure.key]}
+                  emptyLabel={speed.available ? COPY.notMeasured : COPY.notAvailable}
+                />
               ))}
             </ul>
-            <p className={pageSpeedMutedClasses}>{COPY.from(speed.pageViews, formatCount(speed.pageViews))}</p>
+            <p className={pageSpeedMutedClasses}>{footLine(speed)}</p>
           </>
         )}
       </div>

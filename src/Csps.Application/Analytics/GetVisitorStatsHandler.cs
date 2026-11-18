@@ -73,12 +73,20 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
             Rank(Order(lists.Referrers), ListLength),
             Rank(Order(lists.Devices), ListLength),
             Rank(FoldBrowsers(lists.Browsers), ListLength),
-            Speed(speed)));
+            Speed(speed, wholeRangeIsOld)));
     }
 
-    /// <summary>D-26: each metric's percentile with Google's rating; the page views are the largest sample count of the three.</summary>
-    private static SpeedDto Speed(VisitorSpeed speed)
+    /// <summary>
+    /// D-26: each metric's percentile with Google's rating; the page views are the largest sample count of the three. D-27: samples go
+    /// with their visits, so a range wholly before the cut has none and says so.
+    /// </summary>
+    private static SpeedDto Speed(VisitorSpeed speed, bool wholeRangeIsOld)
     {
+        if (wholeRangeIsOld)
+        {
+            return new SpeedDto(null, null, null, 0, false);
+        }
+
         var pageViews = Math.Max(speed.Lcp?.Samples ?? 0, Math.Max(speed.Cls?.Samples ?? 0, speed.Inp?.Samples ?? 0));
         return new SpeedDto(Vital(VitalMetric.Lcp, speed.Lcp), Vital(VitalMetric.Cls, speed.Cls), Vital(VitalMetric.Inp, speed.Inp), pageViews, true);
     }

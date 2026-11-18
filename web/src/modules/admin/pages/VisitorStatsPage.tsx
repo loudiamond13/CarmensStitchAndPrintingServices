@@ -7,7 +7,7 @@
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 either way.
 import { useEffect, useState } from 'react';
-import { ErrorState, LoadingRegion, SkeletonText } from '@/components';
+import { ErrorState, LoadingRegion, Note, SkeletonText } from '@/components';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -52,6 +52,12 @@ function rangeText(from: string, to: string): string | null {
   if (first === null || last === null) return null;
   const sameYear = from.slice(0, 4) === to.slice(0, 4);
   return COPY.dates(sameYear ? first.replace(/, \d{4}$/, '') : first, last);
+}
+
+/** D-27: the Note's cut date when the range starts before the 13-month cut; otherwise null. */
+function cutNoteDate(stats: VisitorStats | undefined): string | null {
+  if (stats === undefined || stats.from >= stats.cutDate) return null;
+  return formatCalendarDate(stats.cutDate);
 }
 
 function pageLabel(key: string): string {
@@ -113,6 +119,7 @@ export function VisitorStatsPage({
   onRetry,
 }: VisitorStatsPageProps) {
   const dates = stats === undefined ? null : rangeText(stats.from, stats.to);
+  const cutDate = cutNoteDate(stats);
   return (
     <>
       <div className={pageHeadClasses}>
@@ -126,6 +133,7 @@ export function VisitorStatsPage({
         <ErrorState things={COPY.things} align="start" error={error} onRetry={onRetry} />
       ) : (
         <LoadingRegion loading={loading} things={COPY.things} className={visitorStatsBodyClasses}>
+          {cutDate !== null && <Note icon="info">{COPY.cutNote(cutDate)}</Note>}
           <VisitorKpiRow totals={stats?.totals} />
           <VisitorTrendCard stats={stats} />
           <div className={visitorStatsListRowClasses}>
