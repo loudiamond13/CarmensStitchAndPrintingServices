@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T12:50:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T15:10:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -84,6 +84,7 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-46:** **Privacy Policy retention lines follow D-36.** The cleanup runs monthly, so quote requests read "Kept for about 6 months after we receive them; removed at the next monthly cleanup." and the staff activity log reads "Kept for about 8 months; removed at the next monthly cleanup." The daily visitor totals line gets the same style ("about 3 years"), because the monthly job deletes those too. The rest of the drafted Privacy wording is kept. (owner, 2026-11-18)
 - **D-47:** **Terms of Use kept as drafted**, including "By using the website, you agree to them", "offered as it is", no notice period for changes, and the shop name and address in the contact block. (owner, 2026-11-18)
 - **D-48:** **Accessibility Statement kept as drafted:** "We will reply as soon as we can", no reply time and no full-accessibility promise. (owner, 2026-11-18)
+- **D-49:** **The live Gallery photo check (plan 12-01, carried from Phase 11 as D-133) moves to Phase 13.** It needs the live site, which is not deployed yet. Phase 12 closes without it; the check is not marked passed. (owner, 2026-11-18)
 - These rulings settle wording only. Each page stays DRAFT until the owner approves it page by page (D-09, D-14, plan 12-22 Task 1).
 
 ### Claude's Discretion

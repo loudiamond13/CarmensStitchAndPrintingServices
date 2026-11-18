@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 plan 12-22 done (legal pages approved); 12-01 photo check remains
+last_activity_desc: Phase 12 all plans closed; 12-01 live photo check moved to Phase 13
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 356
+  completed_plans: 357
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T14:40:00-06:00"
+updated: "2026-11-18T15:10:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-18: Phase 12 plan 12-22 done, all four legal pages approved at 1.0; phase close waits on the owner's 12-01 photo check
+Last activity: 2026-11-18: Phase 12 all 32 plans closed (12-01 live photo check moved to Phase 13, D-49); next: phase close (verify, security, UI review, ship)
 
 Progress: [█████░░░░░] 50%
 
@@ -1014,7 +1014,7 @@ Phase 9 execution backlog (away mode, parked 2026-11-03; nothing here was auto-a
 
 Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-approved):
 
-- [ ] **12-01 live Gallery photo (D-133, blocking-human, owner only, no code).** In the live admin (Manager): Site Content, Gallery tab, add one photo of finished work the customer said is OK to show, mark it shown. On a phone open the live `/gallery` and check it appears. On a computer with developer tools: the Network tab shows it loading from `res.cloudinary.com`, and the Console has no red Content Security Policy error. Reply "approved" or describe the problem; the answer goes word for word into `12-01-SUMMARY.md`. Nothing else in Phase 12 waits on it.
+- [ ] **Moved to Phase 13 (D-49, owner, 2026-11-18).** **12-01 live Gallery photo (D-133, blocking-human, owner only, no code).** In the live admin (Manager): Site Content, Gallery tab, add one photo of finished work the customer said is OK to show, mark it shown. On a phone open the live `/gallery` and check it appears. On a computer with developer tools: the Network tab shows it loading from `res.cloudinary.com`, and the Console has no red Content Security Policy error. Reply "approved" or describe the problem; the answer goes word for word into `12-01-SUMMARY.md`. Nothing else in Phase 12 waits on it.
 - [ ] **12-03 / 12-04 commit sign-off lines:** the 12-04 executor signed its commits with a different model name in the Co-Authored-By line than the one you asked for. Only the trailer text differs. Not rewritten (that would rewrite history); say if you want it changed.
 - [ ] **12-03 possible stray npx download:** one lint command ran from the wrong folder and npx offered to fetch `eslint@10.15.0` into its own cache. No project file or lockfile changed; later runs used the installed eslint. Whether the download happened cannot be told from the cache. If it did, it is only in the npm cache (`npm cache clean --force` clears it).
 - [ ] **12-04 "today" date preset:** the web client has a `today` preset that the server preset list does not; the server reads `today` as last 30 days. Decide in the stats plans (12-21 / 12-23) whether the page offers "Today".

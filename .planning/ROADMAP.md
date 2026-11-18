@@ -1269,7 +1269,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08, ANL-09, LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05
-**Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21).
+**Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21). **Moved to Phase 13 (D-49, owner, 2026-11-18).**
 **Success Criteria** (what must be TRUE):
   1. **Consent banner:**
      - On a first visit, visitors see Accept all and Reject all with equal prominence, plus Customize. Nothing non-essential is set before they choose.
@@ -1299,9 +1299,9 @@ Plans:
 
 **Research flag:** Standard patterns. The PRD and NPC guidance are already detailed.
 
-**Plans**: 31/32 plans executed
+**Plans**: 32/32 plans executed
 - [x] 12-32-PLAN.md
-- [ ] 12-01-PLAN.md
+- [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
 - [x] 12-03-PLAN.md
 - [x] 12-04-PLAN.md
@@ -1340,6 +1340,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 12 (Privacy Policy for the collection notice), Phase 8 (order creation), Phase 9 (private storage and jobs)
 **Requirements**: INQ-01, INQ-02, INQ-03, INQ-04, INQ-05, INQ-06, INQ-07, INQ-08
+**Carried over from Phase 12 (D-49, first D-133):** after the deploy, the owner adds the first public Gallery photo on the live site and checks it loads on a phone from res.cloudinary.com with no CSP error in the console (old plan 12-01; the gallery part of UAT 11-21). Owner only, no code.
 **Success Criteria** (what must be TRUE):
   1. **Quote form.** A visitor can submit "Get a Quote" (name, team, PH mobile, email, product type, quantity range, message), with the UI-spec validation copy and success state.
      - They see a privacy notice that links to the Privacy Policy.
@@ -1575,7 +1576,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
-| 12. Consent, Analytics & Legal | 31/32 | In Progress | - |
+| 12. Consent, Analytics & Legal | 32/32 | In Progress | - |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
