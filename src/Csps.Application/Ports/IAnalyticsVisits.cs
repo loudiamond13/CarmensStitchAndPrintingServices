@@ -18,6 +18,15 @@ public interface IAnalyticsVisits
     /// <returns>The visit id.</returns>
     Task<Guid> StartAsync(AnalyticsVisit visit, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Starts a visit unless the visitor already has a current one, in one step, so two first page views at the same moment make one visit.
+    /// </summary>
+    /// <param name="visit">The new visit, made by <see cref="AnalyticsVisit.Start"/>.</param>
+    /// <param name="since">The oldest last-seen time that still counts as the current visit.</param>
+    /// <param name="cancellationToken">Cancels the work.</param>
+    /// <returns>The visit id, and whether <paramref name="visit"/> was saved (false when the visitor's current visit was found).</returns>
+    Task<(Guid VisitId, bool Started)> StartUnlessCurrentAsync(AnalyticsVisit visit, DateTimeOffset since, CancellationToken cancellationToken);
+
     /// <summary>Adds one page view to a visit's count and moves its last-seen time forward. Many callers may touch one visit at once.</summary>
     /// <param name="visitId">The visit.</param>
     /// <param name="at">The server time of the page view.</param>

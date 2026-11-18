@@ -229,7 +229,7 @@ public sealed class CollectPageViewHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         await harness.Counts.Received(1).IncrementAsync(BusinessDay, PageKeys.Gallery, Arg.Any<CancellationToken>());
-        await harness.Visits.Received(1).StartAsync(
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(
             Arg.Is<AnalyticsVisit>(visit =>
                 visit.VisitorHash.SequenceEqual(SHA256.HashData(Encoding.UTF8.GetBytes(Token)))
                 && visit.BusinessDay == BusinessDay
@@ -240,7 +240,7 @@ public sealed class CollectPageViewHandlerTests
                 && visit.Os == "Windows"
                 && visit.IpHash == null
                 && visit.PageViews == 1),
-            Arg.Any<CancellationToken>());
+            Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Visits.Received(1).AddPageViewAsync(
             Arg.Is<AnalyticsPageView>(view => view.VisitId == harness.StartedVisitId && view.PageKey == "gallery" && view.BusinessDay == BusinessDay && view.OccurredAtUtc == Now),
             Arg.Any<CancellationToken>());
@@ -262,7 +262,24 @@ public sealed class CollectPageViewHandlerTests
             Arg.Any<CancellationToken>());
         await harness.Visits.Received(1).TouchAsync(current, Now, Arg.Any<CancellationToken>());
         await harness.Visits.Received(1).AddPageViewAsync(Arg.Is<AnalyticsPageView>(view => view.VisitId == current && view.PageKey == "home"), Arg.Any<CancellationToken>());
-        await harness.Visits.DidNotReceive().StartAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<CancellationToken>());
+        await harness.Visits.DidNotReceive().StartUnlessCurrentAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AFirstViewThatLosesTheRaceJoinsTheVisitTheOtherCallStartedAndTouchesIt()
+    {
+        var harness = new Harness();
+        var winner = Guid.CreateVersion7();
+        harness.Visits.StartUnlessCurrentAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns((winner, false));
+
+        await harness.Handler.HandleAsync(new PageViewRequest("/gallery"), Consented(), TestContext.Current.CancellationToken);
+
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(
+            Arg.Any<AnalyticsVisit>(),
+            Now.AddMinutes(-AnalyticsRetention.SessionMinutes),
+            Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).TouchAsync(winner, Now, Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).AddPageViewAsync(Arg.Is<AnalyticsPageView>(view => view.VisitId == winner), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -273,9 +290,9 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(Phone), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(
             Arg.Is<AnalyticsVisit>(visit => visit.Device == DeviceKind.Phone && visit.Browser == "Chrome" && visit.Os == "Android"),
-            Arg.Any<CancellationToken>());
+            Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -348,7 +365,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/", host), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == expected), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == expected), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -358,7 +375,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -369,9 +386,9 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(FacebookApp), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(
             Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Facebook" && visit.Browser == "Facebook in-app" && visit.Device == DeviceKind.Phone),
-            Arg.Any<CancellationToken>());
+            Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -382,7 +399,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/", "shop.example.test"), context, TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -395,7 +412,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/", value), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.Referrer == "Direct"), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -406,7 +423,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Salts.Received(1).ForDayAsync(BusinessDay, Arg.Any<CancellationToken>());
     }
 
@@ -418,7 +435,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash != null && visit.IpHash.SequenceEqual(expected)), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -450,7 +467,7 @@ public sealed class CollectPageViewHandlerTests
 
         await harness.Handler.HandleAsync(new PageViewRequest("/"), Consented(), TestContext.Current.CancellationToken);
 
-        await harness.Visits.Received(1).StartAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash == null), Arg.Any<CancellationToken>());
+        await harness.Visits.Received(1).StartUnlessCurrentAsync(Arg.Is<AnalyticsVisit>(visit => visit.IpHash == null), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
         await harness.Salts.DidNotReceive().ForDayAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
     }
 
@@ -463,7 +480,7 @@ public sealed class CollectPageViewHandlerTests
         await harness.Handler.HandleAsync(new PageViewRequest("/", "m.facebook.com"), Consented(), TestContext.Current.CancellationToken);
 
         await harness.Salts.DidNotReceive().ForDayAsync(Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
-        await harness.Visits.DidNotReceive().StartAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<CancellationToken>());
+        await harness.Visits.DidNotReceive().StartUnlessCurrentAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -505,11 +522,11 @@ public sealed class CollectPageViewHandlerTests
             RequestContext = Substitute.For<IRequestContext>();
             RequestContext.RemoteIp.Returns(remoteIp);
             Visits = Substitute.For<IAnalyticsVisits>();
-            Visits.StartAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<CancellationToken>()).Returns(call =>
+            Visits.StartUnlessCurrentAsync(Arg.Any<AnalyticsVisit>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
                 StartedVisit = call.Arg<AnalyticsVisit>();
                 StartedVisitId = StartedVisit.Id;
-                return Task.FromResult(StartedVisitId);
+                return Task.FromResult((StartedVisitId, true));
             });
             Pages = Substitute.For<IPublicPageResolver>();
             Pages.PageKeyFor(Arg.Any<string>()).Returns(call => call.Arg<string>() switch

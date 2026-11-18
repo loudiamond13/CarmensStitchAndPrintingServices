@@ -161,6 +161,60 @@ public sealed class AnalyticsVisitsTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
+    public async Task ParallelFirstViewsOfOneVisitorStartOneVisit()
+    {
+        await database.ResetAsync();
+        var since = Start.AddMinutes(-30);
+        var results = await Task.WhenAll(
+            Enumerable.Range(0, 3 * 8).Select(async index =>
+            {
+                await Task.Yield();
+                var hash = Hash((byte)(index % 8));
+                await using var context = database.CreateContext();
+                var store = new AnalyticsVisits(context);
+                return (Hash: hash[0], Result: await store.StartUnlessCurrentAsync(NewVisit(hash, Start), since, TestContext.Current.CancellationToken));
+            }));
+
+        await using var check = database.CreateContext();
+        (await check.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(8);
+        foreach (var group in results.GroupBy(result => result.Hash))
+        {
+            group.Count(result => result.Result.Started).ShouldBe(1);
+            group.Select(result => result.Result.VisitId).Distinct().Count().ShouldBe(1);
+        }
+    }
+
+    [Fact]
+    public async Task AFirstViewJoinsTheCurrentVisitInsteadOfStartingAnother()
+    {
+        await database.ResetAsync();
+        var current = NewVisit(Hash(1), Start);
+        await StartAsync(current);
+        await using var context = database.CreateContext();
+
+        var result = await new AnalyticsVisits(context).StartUnlessCurrentAsync(NewVisit(Hash(1), Start.AddMinutes(5)), Start.AddMinutes(-25), TestContext.Current.CancellationToken);
+
+        result.Started.ShouldBeFalse();
+        result.VisitId.ShouldBe(current.Id);
+        await using var check = database.CreateContext();
+        (await check.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AFirstViewStartsAVisitWhenTheOldOneIsOutsideTheWindow()
+    {
+        await database.ResetAsync();
+        await StartAsync(NewVisit(Hash(1), Start));
+        await using var context = database.CreateContext();
+        var fresh = NewVisit(Hash(1), Start.AddMinutes(45));
+
+        var result = await new AnalyticsVisits(context).StartUnlessCurrentAsync(fresh, Start.AddMinutes(15), TestContext.Current.CancellationToken);
+
+        result.Started.ShouldBeTrue();
+        result.VisitId.ShouldBe(fresh.Id);
+    }
+
+    [Fact]
     public async Task APageViewForAVisitClearedAMomentAgoIsDroppedWithoutAnError()
     {
         await database.ResetAsync();

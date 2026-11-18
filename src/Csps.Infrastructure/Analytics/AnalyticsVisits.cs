@@ -1,3 +1,4 @@
+using System.Data;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Infrastructure.Persistence;
@@ -12,6 +13,8 @@ namespace Csps.Infrastructure.Analytics;
 /// <param name="context">The database context.</param>
 internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
 {
+    private const int StartAttempts = 5;
+
     public Task<Guid?> FindCurrentAsync(byte[] visitorHash, DateTimeOffset since, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(visitorHash);
@@ -31,6 +34,43 @@ internal sealed class AnalyticsVisits(CspsDbContext context) : IAnalyticsVisits
         context.AnalyticsVisits.Add(visit);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return visit.Id;
+    }
+
+    public async Task<(Guid VisitId, bool Started)> StartUnlessCurrentAsync(AnalyticsVisit visit, DateTimeOffset since, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(visit);
+
+        // A transaction the caller already opened could be weaker, so it is refused.
+        if (context.Database.CurrentTransaction is not null)
+        {
+            throw new InvalidOperationException("Starting a visit opens its own serializable transaction and cannot run inside another transaction.");
+        }
+
+        // The find and the insert run as one serializable step, so a second caller waits and then finds the first caller's visit. Two callers
+        // may lock each other out: the server picks one as the deadlock victim and that caller starts again, now finding the winner's visit.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
+                await using (transaction.ConfigureAwait(false))
+                {
+                    var current = await FindCurrentAsync(visit.VisitorHash, since, cancellationToken).ConfigureAwait(false);
+                    if (current is null)
+                    {
+                        context.AnalyticsVisits.Add(visit);
+                        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    return current is { } existing ? (existing, false) : (visit.Id, true);
+                }
+            }
+            catch (Exception error) when (attempt < StartAttempts && SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+            {
+                context.Entry(visit).State = EntityState.Detached;
+            }
+        }
     }
 
     public Task TouchAsync(Guid visitId, DateTimeOffset at, CancellationToken cancellationToken) =>

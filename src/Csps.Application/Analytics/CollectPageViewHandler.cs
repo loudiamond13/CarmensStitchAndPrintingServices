@@ -78,17 +78,24 @@ public sealed class CollectPageViewHandler(
         }
 
         var now = clock.UtcNow;
+        var since = now.AddMinutes(-AnalyticsRetention.SessionMinutes);
         var visitorHash = VisitorKey.HashVisitor(context.VisitorToken!);
         Guid visitId;
-        if (await visits.FindCurrentAsync(visitorHash, now.AddMinutes(-AnalyticsRetention.SessionMinutes), cancellationToken).ConfigureAwait(false) is { } current)
+        if (await visits.FindCurrentAsync(visitorHash, since, cancellationToken).ConfigureAwait(false) is { } current)
         {
             await visits.TouchAsync(current, now, cancellationToken).ConfigureAwait(false);
             visitId = current;
         }
         else
         {
+            // The store starts the visit only when none is current, so a parallel first view cannot start a second one.
             var visit = await NewVisitAsync(request, context, visitorHash, clock, cancellationToken).ConfigureAwait(false);
-            visitId = await visits.StartAsync(visit, cancellationToken).ConfigureAwait(false);
+            bool started;
+            (visitId, started) = await visits.StartUnlessCurrentAsync(visit, since, cancellationToken).ConfigureAwait(false);
+            if (!started)
+            {
+                await visits.TouchAsync(visitId, now, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         await visits.AddPageViewAsync(AnalyticsPageView.Of(visitId, clock.Today, now, pageKey), cancellationToken).ConfigureAwait(false);
