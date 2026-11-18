@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 6 merged and gated
+last_activity_desc: Phase 12 wave 7 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 347
+  completed_plans: 349
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-17T13:10:00-06:00"
+updated: "2026-11-17T22:05:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 6 (12-20, 12-21) merged and gated
+Last activity: 2026-11-17 — Phase 12 wave 7 (12-23, 12-24) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1049,6 +1049,13 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-21 "today" range (needs your choice):** the stats totals accept the 5 server ranges; the UI-SPEC also shows a "today" choice the server does not offer. Choose: (A) drop "today" from the page (recommended: 12-23 already uses the 5 server ranges), (B) add "today" to the server.
 - [ ] **12-21 daily bars (FYI, 12-22/12-23):** the daily figures count visits, not unique visitors (same as the 12-18 row); page copy must say "visits".
 - [ ] **12-20 map card notes (UI review):** (1) after "Always show maps?" the status line stays until the page changes (recommended: leave); (2) the status line takes focus and shows the default focus ring (recommended: leave for the UI review to judge). Commits carry a `Claude Sonnet 5.5` trailer, not rewritten.
+- [x] **Wave 7 post-merge gate (2026-11-17; plans 12-23, 12-24, no merge conflicts; web, e2e and docs only, so the .NET suites were not re-run):** `build:budget` exit 0; web `verify` exit 0 (423 files, 11321 tests, branches 90.34%). 12-24 ran `@consent|@gpc` (85 passed) and `@public-sweep` (75 passed) in all five Playwright projects.
+- [ ] **Budget room after wave 7:** Privacy 149.56 KB (0.44 KB left), Cookies 149.46, Contact 149.36, Terms 148.67, Accessibility 148.22, Home 147.82; every public page grew about 0.16 KB (12-23 icons in the shared icon set); admin 220.97 KB; CSS 20.45 KB. Do not raise the limit (D-42).
+- [ ] **12-24 Lighthouse gate red on /gallery (needs your choice):** performance 0.91 to 0.94 in three runs on `CSPS_Dev`, because the Gallery LCP is a real Cloudinary photo; on seeded `CSPS_E2E` every page scored 0.95 to 0.97 with the bar showing. Choose: (A) run the gate host on seeded `CSPS_E2E` as 11-36 did (recommended, small tooling change), (B) keep `CSPS_Dev` and plan a Gallery photo speed fix, (C) accept the miss for now. Logged in WINDOWS.md entry 9.
+- [ ] **`CSPS_Dev` one migration behind (needs your yes):** `AddDailyAnalyticsCounts` (12-18) is not applied, so the Development host returns 500 for page views. Recommended: apply it with the EF tool to `CSPS_Dev` only.
+- [ ] **12-23 open items:** (1) the "today" range is the row above (`?range=today` falls back to Last 30 days); (2) if the business-day call fails with a custom range chosen, the cards stay loading: 12-28 (states) should show an error. Outside its file list 12-23 added a `KpiCard` `emptyLabel` prop and updated the nav order and icon count tests.
+- [ ] **12-24 notes:** the Clear test pins the "Done. This site's cookies ..." line, so a 12-22 rewording changes `consent.spec.ts` too. Firefox left 20 tall cards partly under the bar during the focus walk (recorded, not failed, as @public-sweep does). Test-only fixes: wait for the dialog animation at 320 px, scroll the lazy map frame into view for WebKit.
+- [ ] **Wave 7 load flakes (recorded):** `OrderItemModal.test.tsx` "sends one request for a double click" got 2 requests in 2 of 4 full runs in the 12-23 worktree (new; passed alone 4 of 4); `PublicLayout` bar and beacon tests and an `OrderFormPage` axe test failed once each and passed alone. All ran while 12-24 drove browsers. None failed in the gate.
 
 ### Blockers/Concerns
 
