@@ -240,17 +240,17 @@ public sealed class AnalyticsVisitsTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
-    public void TheCacheDropsDaysOlderThanTheSaltLifetimeWhenANewerDayIsAdded()
+    public void TheCacheKeepsOnlyTodayAndYesterdayLikeThePurgeJobDoes()
     {
         var cache = new AnalyticsSaltCache();
         cache.Set(Day, Hash(1));
-        cache.Set(Day.AddDays(AnalyticsRetention.SaltDays), Hash(2));
-        cache.TryGet(Day, out _).ShouldBeTrue("a day exactly at the lifetime is kept");
+        cache.Set(Day.AddDays(AnalyticsRetention.SaltDays - 1), Hash(2));
+        cache.TryGet(Day, out _).ShouldBeTrue("yesterday is kept");
 
-        cache.Set(Day.AddDays(AnalyticsRetention.SaltDays + 1), Hash(3));
+        cache.Set(Day.AddDays(AnalyticsRetention.SaltDays), Hash(3));
 
-        cache.TryGet(Day, out _).ShouldBeFalse();
-        cache.TryGet(Day.AddDays(AnalyticsRetention.SaltDays), out var kept).ShouldBeTrue();
+        cache.TryGet(Day, out _).ShouldBeFalse("the purge job deletes this day, so the process must not hold it");
+        cache.TryGet(Day.AddDays(AnalyticsRetention.SaltDays - 1), out var kept).ShouldBeTrue();
         kept.ShouldBe(Hash(2));
     }
 
