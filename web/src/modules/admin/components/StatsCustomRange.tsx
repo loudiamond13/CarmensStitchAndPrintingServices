@@ -4,7 +4,7 @@
 // that date was touched, or the other one filled, so choosing "Custom range" does not open with errors.
 import { useState } from 'react';
 import { DateInput } from '@/components';
-import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
+import { useVisitorStatsToday } from '@/modules/admin/hooks/useVisitorStatsToday';
 import { VISITOR_STATS_COPY } from '@/modules/admin/visitorStatsCopy';
 import { statsCustomRangeErrors, statsFloor } from '@/modules/admin/visitorStatsRange';
 
@@ -23,7 +23,7 @@ type Field = 'from' | 'to';
 const NO_ERRORS = { from: null, to: null } as const;
 
 export function StatsCustomRange({ from, to, onApply }: StatsCustomRangeProps) {
-  const today = useBusinessToday();
+  const { today } = useVisitorStatsToday(true);
   const [draft, setDraft] = useState({ from: from ?? '', to: to ?? '' });
   const [touched, setTouched] = useState({ from: false, to: false });
   // The URL moved (Back, a shared link): the inputs follow it. Adjusted during render, not in an effect.

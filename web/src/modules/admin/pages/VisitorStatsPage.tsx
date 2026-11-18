@@ -35,7 +35,7 @@ import { VisitorKpiRow } from '@/modules/admin/components/VisitorKpiRow';
 import { VisitorStatsToolbar } from '@/modules/admin/components/VisitorStatsToolbar';
 import { VisitorTrendCard } from '@/modules/admin/components/VisitorTrendCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
-import { useBusinessToday } from '@/modules/admin/hooks/useBusinessToday';
+import { useVisitorStatsToday } from '@/modules/admin/hooks/useVisitorStatsToday';
 import { useVisitorStatsParams } from '@/modules/admin/hooks/useVisitorStatsParams';
 import { useVisitorStatsQuery } from '@/modules/admin/hooks/useVisitorStatsQuery';
 import type { RankedItem, VisitorStats, VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
@@ -184,7 +184,8 @@ export function VisitorStatsPage({
 export function VisitorStatsRoute() {
   const [values, set] = useVisitorStatsParams();
   // The business today bounds a custom range; it is asked for only when the range is custom.
-  const today = useBusinessToday(values.range === CUSTOM_RANGE);
+  const custom = values.range === CUSTOM_RANGE;
+  const { today, isError: todayFailed, error: todayError, refetch: refetchToday } = useVisitorStatsToday(custom);
   const wanted = statsQueryFor(values, today);
   // The range last applied: a custom range that does not pass yet keeps it. Adjusted during render, not in an effect.
   const [applied, setApplied] = useState<VisitorStatsQuery>(wanted ?? DEFAULT_QUERY);
@@ -193,7 +194,9 @@ export function VisitorStatsRoute() {
   }
   // A custom range waits for today, so a shared link asks for its own dates, not the default first.
   const read = wanted ?? applied;
-  const query = useVisitorStatsQuery(read, !(values.range === CUSTOM_RANGE && today === null));
+  const query = useVisitorStatsQuery(read, !(custom && today === null));
+  // Without the date a custom range cannot be asked for: that is a failure to show, not a page that loads for ever.
+  const noToday = custom && todayFailed;
 
   useEffect(() => {
     document.title = `${COPY.title}${ADMIN_COPY.titleSuffix}`;
@@ -207,16 +210,17 @@ export function VisitorStatsRoute() {
       }}
       exportQuery={read}
       stats={query.data}
-      loading={query.isPending || query.isPlaceholderData}
-      error={query.error}
-      failed={query.isError && query.data === undefined}
+      loading={!noToday && (query.isPending || query.isPlaceholderData)}
+      error={noToday ? todayError : query.error}
+      failed={noToday || (query.isError && query.data === undefined)}
       staleAt={
         query.isError && query.data !== undefined && !query.isFetching
           ? formatBusinessTime(new Date(query.dataUpdatedAt).toISOString())
           : null
       }
       onRetry={() => {
-        void query.refetch();
+        if (noToday) refetchToday();
+        else void query.refetch();
       }}
     />
   );
