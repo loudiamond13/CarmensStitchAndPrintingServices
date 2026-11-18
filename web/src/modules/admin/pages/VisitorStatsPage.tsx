@@ -1,7 +1,7 @@
 // V1 Visitor Stats, /admin/visitor-stats (UI-SPEC V1; ANL-08, D-23, D-24, D-27, D-33, WEB-10). SPEC-GAP: V1.
 // SPEC-DEVIATION: D-23 (a Manager-only page with its own menu item after Site Content).
-// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row, the Trend card and the list
-// cards. Every count and share is the server's.
+// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row, the Trend card, the list
+// cards and Page speed. Every count and share is the server's.
 //   - The range lives in the URL through useVisitorStatsParams and nowhere else. A preset is sent by name; a custom range is
 //     sent only once both dates pass the checks, and until then the page keeps the range it last applied.
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
@@ -22,6 +22,7 @@ import {
   dashboardCardTitleClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import { DeviceBrowserCard } from '@/modules/admin/components/DeviceBrowserCard';
+import { PageSpeedCard } from '@/modules/admin/components/PageSpeedCard';
 import { StatBarList } from '@/modules/admin/components/StatBarList';
 import {
   statListBodyClasses,
@@ -138,6 +139,7 @@ export function VisitorStatsPage({
           </div>
           <div className={visitorStatsListRowClasses}>
             <DeviceBrowserCard devices={stats?.devices} browsers={stats?.browsers} />
+            <PageSpeedCard speed={stats?.speed} />
           </div>
         </LoadingRegion>
       )}

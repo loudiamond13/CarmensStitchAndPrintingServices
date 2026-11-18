@@ -64,3 +64,24 @@ export const deviceBrowserColumnClasses = tw('flex min-w-0 flex-col gap-3');
 
 /** The h3 "Device" or "Browser": Label 14/600. */
 export const deviceBrowserHeadingClasses = tw('m-0 text-[14px] leading-5 font-semibold');
+
+/** The body of the Page speed card: the three rows, then the page view line 16px under them. */
+export const pageSpeedBodyClasses = tw('flex flex-col gap-4 p-5');
+
+/** The three measures, 16px apart (UI-SPEC V1 item 8). */
+export const pageSpeedListClasses = tw('m-0 flex list-none flex-col gap-4 p-0');
+
+/** One measure: its name and rating on one line, then the meaning and the value. */
+export const pageSpeedRowClasses = tw('flex flex-col gap-1');
+
+/** The name and the rating badge; the badge moves under a long name. */
+export const pageSpeedHeadClasses = tw('flex flex-wrap items-center justify-between gap-x-3 gap-y-1');
+
+/** The name: Label 14/600. */
+export const pageSpeedNameClasses = tw('text-[14px] leading-5 font-semibold');
+
+/** The meaning line and the page view line: Small 14/400 muted. */
+export const pageSpeedMutedClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
+
+/** The value: Small 14/400. */
+export const pageSpeedValueClasses = tw('m-0 text-[14px] leading-5 tabular-nums');

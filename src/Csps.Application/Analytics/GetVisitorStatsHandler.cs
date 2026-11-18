@@ -24,6 +24,9 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
     private const string MonthBucket = "month";
     private const int ListLength = 10;
     private const int TopBrowsers = 5;
+    private const string GoodRating = "good";
+    private const string NeedsWorkRating = "needs-work";
+    private const string PoorRating = "poor";
 
     /// <summary>Reads the totals.</summary>
     /// <param name="request">The query.</param>
@@ -49,6 +52,7 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
         var bucket = StatsBucket.For(from, to);
         var counts = await reader.ReadTrendAsync(from, to, cut, bucket, cancellationToken).ConfigureAwait(false);
         var lists = await reader.ReadListsAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
+        var speed = await reader.ReadSpeedAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
 
         // D-27: visits are kept only from the cut day on. A range wholly before it has no visit figures; one that crosses it counts from the cut.
         var wholeRangeIsOld = to < cut;
@@ -69,8 +73,25 @@ public sealed class GetVisitorStatsHandler(IVisitorStatsReader reader, IBusiness
             Rank(Order(lists.Referrers), ListLength),
             Rank(Order(lists.Devices), ListLength),
             Rank(FoldBrowsers(lists.Browsers), ListLength),
-            new SpeedDto(null, null, null, 0, true)));
+            Speed(speed)));
     }
+
+    /// <summary>D-26: each metric's percentile with Google's rating; the page views are the largest sample count of the three.</summary>
+    private static SpeedDto Speed(VisitorSpeed speed)
+    {
+        var pageViews = Math.Max(speed.Lcp?.Samples ?? 0, Math.Max(speed.Cls?.Samples ?? 0, speed.Inp?.Samples ?? 0));
+        return new SpeedDto(Vital(VitalMetric.Lcp, speed.Lcp), Vital(VitalMetric.Cls, speed.Cls), Vital(VitalMetric.Inp, speed.Inp), pageViews, true);
+    }
+
+    private static VitalDto? Vital(VitalMetric metric, VitalPercentile? percentile) =>
+        percentile is null ? null : new VitalDto(percentile.P75, RatingName(VitalRating.Rate(metric, percentile.P75)), percentile.Samples);
+
+    private static string RatingName(VitalGrade grade) => grade switch
+    {
+        VitalGrade.Good => GoodRating,
+        VitalGrade.NeedsWork => NeedsWorkRating,
+        _ => PoorRating,
+    };
 
     /// <summary>By count, highest first, then by name (ordinal), so equal counts always come in the same order. Zero counts are left out.</summary>
     private static List<NamedCount> Order(IEnumerable<NamedCount> counts) =>

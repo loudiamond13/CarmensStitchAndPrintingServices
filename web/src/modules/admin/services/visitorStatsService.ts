@@ -107,6 +107,30 @@ function rankedItem(item: VisitorStatsResponse['topPages'][number], what: string
   return { name: item.name, count: count(item.count, `${what} count`), share: count(item.share, `${what} share`) };
 }
 
+function vitalRating(value: string): VitalRatingName {
+  if (value === 'good' || value === 'needs-work' || value === 'poor') return value;
+  throw new VisitorStatsContractError(`The speed rating "${value}" is not one the page knows.`);
+}
+
+function vital(item: VisitorStatsResponse['speed']['lcp'], what: string): Vital | null {
+  if (item === null) return null;
+  return {
+    p75: count(item.p75, `${what} figure`),
+    rating: vitalRating(item.rating),
+    samples: count(item.samples, `${what} sample count`),
+  };
+}
+
+function pageSpeed(speed: VisitorStatsResponse['speed']): PageSpeed {
+  return {
+    lcp: vital(speed.lcp, 'loading speed'),
+    cls: vital(speed.cls, 'layout shifting'),
+    inp: vital(speed.inp, 'tap response'),
+    pageViews: count(speed.pageViews, 'speed page view count'),
+    available: speed.available,
+  };
+}
+
 /** Narrows a stats answer: a count that is not a plain number, or a bucket size it does not know, refuses the whole answer. */
 export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats {
   const { totals } = response;
@@ -127,7 +151,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     referrers: response.referrers.map((item) => rankedItem(item, 'source')),
     devices: response.devices.map((item) => rankedItem(item, 'device')),
     browsers: response.browsers.map((item) => rankedItem(item, 'browser')),
-    speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
+    speed: pageSpeed(response.speed),
   };
 }
 

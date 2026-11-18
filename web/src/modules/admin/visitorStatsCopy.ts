@@ -67,6 +67,35 @@ export const VISITOR_STATS_COPY = {
     /** "412 · 38%": the count and the server's share. */
     figure: (count: string, share: number): string => `${count} · ${String(share)}%`,
   },
+  /** The Page speed card (UI-SPEC V1 item 8, Copywriting "Page speed"; D-26). */
+  speed: {
+    title: 'Page speed',
+    sub: "Measured on visitors' own phones and computers. 3 in 4 page views were this good or better.",
+    lcp: 'Loading speed',
+    lcpMeaning: 'How fast the main picture or text shows.',
+    cls: 'Layout shifting',
+    clsMeaning: 'How much the page jumps while it loads.',
+    inp: 'Response to taps',
+    inpMeaning: 'How fast the page reacts when you tap or click.',
+    ratings: {
+      good: 'Good',
+      'needs-work': 'Needs work',
+      poor: 'Poor',
+    },
+    /** "2.1 s", read as "2.1 seconds". */
+    seconds: (value: string): string => `${value} s`,
+    secondsSpoken: (value: string): string => `${value} seconds`,
+    /** "0.04", read as "score 0.04". */
+    scoreSpoken: (value: string): string => `score ${value}`,
+    /** "180 ms", read as "180 milliseconds". */
+    milliseconds: (value: string): string => `${value} ms`,
+    millisecondsSpoken: (value: string): string => (value === '1' ? '1 millisecond' : `${value} milliseconds`),
+    /** The hidden text of a measure with no sample in the range. */
+    notMeasured: 'Not measured',
+    /** "From 412 page views"; "From 1 page view" for one. */
+    from: (count: number, formatted: string): string =>
+      count === 1 ? 'From 1 page view' : `From ${formatted} page views`,
+  },
   /** The name of each page key the server sends (D-28). */
   pages: {
     home: 'Home',
