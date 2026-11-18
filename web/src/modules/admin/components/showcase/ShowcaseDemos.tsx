@@ -28,7 +28,9 @@ import { ICONS, type IconName } from '@/components/brand/icons';
 import { AUTH_COPY } from '@/modules/admin/authCopy';
 import { SignOutDeviceDialog } from '@/modules/admin/components/SignOutDeviceDialog';
 import { SignOutDialog } from '@/modules/admin/components/SignOutDialog';
+import type { DemoConsentState } from '@/dev/previews/demoConsent';
 import { FailedConfirmDialog } from '@/dev/previews/FailedConfirmDialog';
+import { OpenedCookieSettings } from '@/dev/previews/OpenedCookieSettings';
 import { OpenedDialog } from '@/dev/previews/OpenedDialog';
 import { LONG_DEVICE_LABEL, SAMPLE_DEVICE } from '@/dev/previews/SessionScreens';
 import { serverError } from '@/dev/previews/serverError';
@@ -273,6 +275,22 @@ function SignOutDemo({ kind, fails }: { kind: 'others' | 'device'; fails: boolea
   );
 }
 
+/**
+ * The Cookie Settings window in one state (plan 12-29), opened on a seeded consent store with no network. Each open mounts
+ * a fresh window; Esc or a choice closes it and focus returns to the trigger.
+ */
+function CookieSettingsDemo({ state }: { state: DemoConsentState }) {
+  const [open, show, close] = useOpen();
+  return (
+    <>
+      <Button variant="secondary" onClick={show}>
+        {SHOWCASE_COPY.openCookieSettings[state]}
+      </Button>
+      {open && <OpenedCookieSettings state={state} onClosed={close} />}
+    </>
+  );
+}
+
 /** One trigger per session toast: the session-cap warning and the S7 and password toasts, with the app's own copy. */
 function SessionToastTriggers() {
   const toast = useToast();
@@ -325,6 +343,11 @@ export const VIEWPORT_DEMOS: Readonly<Record<string, ComponentType>> = {
   'signout-others-failed': () => <SignOutDemo kind="others" fails />,
   'signout-device-open': () => <SignOutDemo kind="device" fails={false} />,
   'signout-device-failed': () => <SignOutDemo kind="device" fails />,
+  'cookie-settings-no-choice': () => <CookieSettingsDemo state="no-choice" />,
+  'cookie-settings-saved': () => <CookieSettingsDemo state="saved" />,
+  'cookie-settings-gpc': () => <CookieSettingsDemo state="gpc" />,
+  'cookie-settings-cleared': () => <CookieSettingsDemo state="cleared" />,
+  'cookie-settings-clear-failed': () => <CookieSettingsDemo state="clear-failed" />,
 };
 
 /**
