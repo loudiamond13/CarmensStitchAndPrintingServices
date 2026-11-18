@@ -516,6 +516,79 @@ describe('V1 the Page speed card', () => {
   });
 });
 
+const NOTE =
+  'Unique visitors and visits are kept for 13 months. Before Oct 15, 2025, this range shows page views, pages, referrers and devices only.';
+
+/** A month trend from Sep 2025 to Nov 2026 with no unique visitors before the cut month. */
+function crossingTrend(): Trend {
+  return ['2025-09-01', '2025-10-01', '2025-11-01'].map((start, i) => ({
+    start,
+    pageViews: 100 + i,
+    uniqueVisitors: i === 0 ? null : 10 + i,
+  }));
+}
+
+describe('V1 ranges over 13 months (D-27)', () => {
+  it('shows the 13-month Note with the cut date when the range crosses it, with the partial hints and the line gap', async () => {
+    backend(
+      statsAnswer(
+        { uniqueVisitors: 300, visits: 410, countedFrom: '2025-10-15' },
+        { range: 'custom', from: '2025-09-01', to: '2025-11-30', bucket: 'month', trend: crossingTrend() },
+      ),
+    );
+    await openPage('?range=custom&from=2025-09-01&to=2025-11-30');
+
+    expect(screen.queryByText(NOTE)).not.toBeNull();
+    expect(screen.getByText(NOTE).closest('div')?.querySelector('svg.lucide-info')).not.toBeNull();
+    expect(within(card('Unique visitors')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
+    expect(within(card('Visits')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
+    const plot = within(trendCard()).getByRole('group');
+    expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(3);
+    expect(plot.querySelectorAll('circle')).toHaveLength(2);
+  });
+
+  it('shows no Note when the range is inside the last 13 months', async () => {
+    backend();
+    await openPage();
+
+    expect(screen.queryByText(NOTE)).toBeNull();
+  });
+
+  it('shows Not available for visitors, visits and speed on a wholly old range, and the daily counts for the rest', async () => {
+    backend(
+      statsAnswer(
+        { uniqueVisitors: null, visits: null, pageViews: 4567 },
+        {
+          range: 'custom',
+          from: '2024-01-01',
+          to: '2024-12-31',
+          bucket: 'month',
+          trend: [{ start: '2024-01-01', pageViews: 4567, uniqueVisitors: null }],
+          speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: false },
+        },
+      ),
+    );
+    await openPage('?range=custom&from=2024-01-01&to=2024-12-31');
+
+    expect(screen.queryByText(NOTE)).not.toBeNull();
+    expect(within(card('Unique visitors')).getByText('Not available')).toBeInTheDocument();
+    expect(within(card('Visits')).getByText('Not available')).toBeInTheDocument();
+    const speed = listCard('Page speed');
+    expect(within(speed).getByText('Not available for dates over 13 months ago')).toBeInTheDocument();
+    expect(within(speed).queryByText('Good')).toBeNull();
+    expect(within(listCard('Most viewed pages')).getByText('Gallery')).toBeInTheDocument();
+    expect(within(listCard('Where visitors came from')).getByText('Facebook')).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the Note shown', async () => {
+    backend(statsAnswer({ countedFrom: '2025-10-15' }, { from: '2025-09-01' }));
+    const { container } = await openPage();
+    screen.getByText(NOTE);
+
+    await expectNoAxeViolations(container);
+  });
+});
+
 describe('V1 the date range toolbar (D-24, WEB-10)', () => {
   it('offers the five server presets and Custom range in a Date range select, with Last 30 days chosen', async () => {
     backend(echo);

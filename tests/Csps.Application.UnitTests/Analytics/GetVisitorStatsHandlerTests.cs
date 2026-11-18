@@ -392,6 +392,29 @@ public sealed class GetVisitorStatsHandlerTests
         result.Value.Speed.ShouldBe(new SpeedDto(null, null, null, 0, true));
     }
 
+    [Fact]
+    public async Task ARangeWhollyBeforeTheCutHasNoSpeedAndSaysItIsNotAvailable()
+    {
+        var speed = new VisitorSpeed(new VitalPercentile(2400m, 4), null, null);
+        var harness = new Harness(now: Noon, speed: speed);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2024-01-01", "2025-10-14"), TestContext.Current.CancellationToken);
+
+        result.Value.Speed.ShouldBe(new SpeedDto(null, null, null, 0, false));
+    }
+
+    [Fact]
+    public async Task ARangeThatEndsOnTheCutDayStillHasItsSpeed()
+    {
+        var speed = new VisitorSpeed(new VitalPercentile(2400m, 4), null, null);
+        var harness = new Harness(now: Noon, speed: speed);
+
+        var result = await harness.Handler.HandleAsync(new VisitorStatsRequest("custom", "2025-09-01", "2025-10-15"), TestContext.Current.CancellationToken);
+
+        result.Value.Speed.ShouldBe(new SpeedDto(new VitalDto(2400m, "good", 4), null, null, 4, true));
+        await harness.Reader.Received(1).ReadSpeedAsync(new DateOnly(2025, 9, 1), new DateOnly(2025, 10, 15), new DateOnly(2025, 10, 15), Arg.Any<CancellationToken>());
+    }
+
     private static VisitorLists Lists(
         NamedCount[]? pages = null,
         NamedCount[]? referrers = null,

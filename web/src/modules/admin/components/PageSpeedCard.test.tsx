@@ -136,3 +136,38 @@ describe('PageSpeedCard: ratings and values', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('PageSpeedCard: no samples and old ranges', () => {
+  it('says "No speed data for these dates yet." with empty values and no badge when there is no sample', () => {
+    render(<PageSpeedCard speed={{ lcp: null, cls: null, inp: null, pageViews: 0, available: true }} />);
+
+    expect(screen.queryByText('No speed data for these dates yet.')).not.toBeNull();
+    expect(screen.getAllByText('Not measured')).toHaveLength(3);
+    expect(screen.queryByText('Good')).toBeNull();
+    expect(screen.queryByText(/^From /)).toBeNull();
+  });
+
+  it('says "Not available for dates over 13 months ago" with empty values and no badge for an old range', () => {
+    render(<PageSpeedCard speed={{ lcp: null, cls: null, inp: null, pageViews: 0, available: false }} />);
+
+    expect(screen.queryByText('Not available for dates over 13 months ago')).not.toBeNull();
+    expect(screen.getAllByText('Not available')).toHaveLength(3);
+    expect(screen.queryByText('Good')).toBeNull();
+    expect(screen.queryByText('No speed data for these dates yet.')).toBeNull();
+    expect(screen.queryByText(/^From /)).toBeNull();
+  });
+
+  it.each(['light', 'dark'])(
+    'has no axe violations with no samples and an old range in the %s theme',
+    async (theme) => {
+      const { container } = render(
+        <div data-theme={theme}>
+          <PageSpeedCard speed={{ lcp: null, cls: null, inp: null, pageViews: 0, available: true }} />
+          <PageSpeedCard speed={{ lcp: null, cls: null, inp: null, pageViews: 0, available: false }} />
+        </div>,
+      );
+
+      await expectNoAxeViolations(container);
+    },
+  );
+});
