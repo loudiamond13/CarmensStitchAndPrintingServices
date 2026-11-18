@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T16:10:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T16:40:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -87,6 +87,7 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-49:** **The live Gallery photo check (plan 12-01, carried from Phase 11 as D-133) moves to Phase 13.** It needs the live site, which is not deployed yet. Phase 12 closes without it; the check is not marked passed. (owner, 2026-11-18)
 - **D-50:** **Referrer names are checked as real host names (code review WR-G1-03, option 1).** A referrer name is kept only when it looks like a real web address: labels of 1 to 63 characters, no leading or trailing hyphen, at least one dot, no trailing dot, no bare IP address. Other names are not stored. Signing the visitor id is not done now. (owner, 2026-11-18)
 - **D-51:** **One site-wide ceiling on the anonymous write routes (code review WR-G2-04, option 1).** The consent, page view, speed sample and clear routes get one shared limit across all callers (about 600 a minute), chained to the existing per-address limit. IPv6 grouping stays at /64. (owner, 2026-11-18)
+- **D-52:** **The address hash is no longer saved (code review WR-G1-02, option 1).** A new visit stores no `IpHash`, and the page view handler no longer reads the address or the day salt. Rate limiting is unaffected: it reads the live connection and keeps its counts in memory. Removing the `IpHash` column, and the now unused day salt table, cache and purge, is a schema drop that needs its own owner approval later. The Privacy Policy never mentioned the address, so its wording is unchanged. (owner, 2026-11-18)
 - These rulings settle wording only. Each page stays DRAFT until the owner approves it page by page (D-09, D-14, plan 12-22 Task 1).
 
 ### Claude's Discretion

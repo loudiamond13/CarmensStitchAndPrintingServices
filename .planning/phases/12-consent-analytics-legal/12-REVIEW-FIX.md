@@ -1,7 +1,7 @@
 ---
 phase: 12-consent-analytics-legal
 created: 2026-11-18T15:10:00-05:00
-updated: 2026-11-18T15:10:00-05:00
+updated: 2026-11-18T16:40:00-05:00
 fixed_at: 2026-11-18T15:10:00-05:00
 review_path: .planning/phases/12-consent-analytics-legal/12-REVIEW.md
 iteration: 1
@@ -109,7 +109,8 @@ All four need an owner decision, so none was changed.
 ### WR-G1-02: The hashed address prefix is stored for 13 months and nothing reads it
 
 **File:** `src/Csps.Application/Analytics/CollectPageViewHandler.cs:100-112`, `src/Csps.Domain/Analytics/AnalyticsVisit.cs:52-53`
-**Reason:** needs owner decision. Dropping `IpHash` is a schema drop (a one-way door), and keeping it changes what the Privacy Policy must say.
+**Owner ruling:** D-52 (owner, 2026-11-18), option 1. Fixed after this pass: a new visit no longer stores the address hash. Dropping the column is still a separate decision.
+**Reason (at the time of this pass):** needs owner decision. Dropping `IpHash` is a schema drop (a one-way door), and keeping it changes what the Privacy Policy must say.
 **Options:**
 1. Stop writing it now and drop the column in a later migration after you approve. Recommended: nothing reads it, and storing less personal data is the safer privacy position.
 2. Keep it and write down its purpose (in the decision log and the Privacy Policy).
