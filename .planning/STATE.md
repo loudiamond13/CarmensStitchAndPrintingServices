@@ -6,16 +6,16 @@ status: executing
 stopped_at: Phase 12 UI-SPEC approved
 last_updated: "2026-11-17T02:15:25.492Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 12 wave 10 merged and gated
+last_activity_desc: Phase 12 wave 11 merged and gated
 state_head: 284cb997bcb66735f8076bf5357201b7fd0e73f8
 progress:
   total_phases: 18
   completed_phases: 9
   total_plans: 371
-  completed_plans: 352
+  completed_plans: 354
   percent: 50
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T05:00:00-06:00"
+updated: "2026-11-18T09:40:00-06:00"
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12 (Consent, Analytics & Legal) — EXECUTING
 Plan: 1 of 30
 Status: Executing Phase 12
-Last activity: 2026-11-17 — Phase 12 wave 10 (12-27) merged and gated
+Last activity: 2026-11-18: Phase 12 wave 11 (12-28, 12-29) merged and gated
 
 Progress: [█████░░░░░] 50%
 
@@ -1064,6 +1064,11 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **Public pages grow 0.02 KB per admin plan (not traced):** 12-25 and 12-26 changed no public code, yet every public page grew 0.02 KB each time. Likely a shared chunk map; worth a look before 12-28/12-29, since Privacy has 0.40 KB left.
 - [x] **Wave 10 post-merge gate (2026-11-18; plan 12-27, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3282, Infrastructure 1319 of 1320 (1 skipped, 0 failed), Server 3061 passed; openapi types match; web `verify` exit 0 (426 files, 11428 tests, branches 90.33%); `build:budget` exit 0: Privacy 149.60 KB (no growth this time), admin 223.22 KB, CSS 20.50 KB.
 - [ ] **12-27 page speed and states choices (your review; recommendation first):** (1) a missing measure (iPhones send no layout-shift score) reads "Not measured": keep; (2) the "No visits" empty state shows when page views are 0 (plan): show it only when both page views and visits are 0, so it never sits under a Visits card that reads 1; (3) loading shows 3 skeleton lines per list, not the plan's 5, because the shared `SkeletonText` draws at most 3 and changing it could add public bytes: keep 3; (4) with no page views the empty state replaces every list card, so the 12-26 "Most viewed pages" empty line can no longer appear (that 12-26 question becomes moot); (5) "From N page views" counts only page views that sent speed figures: keep.
+- [x] **Wave 11 post-merge gate (2026-11-18; plans 12-28, 12-29, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3302, Infrastructure 1322 of 1323 (1 skipped, 0 failed), Server 3069 passed; openapi types match; `build:budget` exit 0: Privacy about 149.58 KB, admin 223.32 KB, CSS 20.50 KB. Web `verify` first failed 37 tests in `renderScenario.test.tsx` and `ComponentShowcasePage.test.tsx` because the stale `web/node_modules/.vitest-cache` hid the two new scenario group files; after deleting the cache it passed (427 files, 11510 tests, branches 90.32%).
+- [ ] **Tooling follow-up: stale Vitest cache (recommended small fix):** `web/node_modules/.vitest-cache` keeps an old file list, so a newly added scenario group file is not seen until the cache is deleted (hit by 12-29 and by the wave 11 gate). Recommended: clear that cache at the start of `verify`, or stop caching the scenario glob.
+- [ ] **12-28 CSV export choices (your review; recommendation first):** (1) each row counts that day's distinct visitors, so a column sum counts a returning visitor more than once: keep (D-25 asks for one row per day), or rename the column (changes the D-33 header); (2) no rate limit on `GET /api/v1/visitor-stats/export`, as the stats read has none: keep none; (3) the download link is freed 10 seconds after the click, because Safari can fail if it is freed at once: keep. Outside its file list 12-28 changed `VisitorStatsPage.tsx`, made `GetVisitorStatsHandler.Resolve` internal and added one OpenAPI transform for the `text/csv` answer. Still owed: a real-browser download check (Chrome, Firefox, Safari) and opening the file in Excel and Sheets.
+- [ ] **12-29 showcase choices (your review; recommendation first):** (1) section names "Visitor stats" and "Cookies and legal": keep, or one section per phase; (2) the "Cookie Settings: GPC" trigger label: keep, or say "do not track"; (3) keep these parts in the showcase rather than /dev/public: keep; (4) the cleared demo shows today's Clear wording, so the 12-22 wording choice updates it too. Budget fix in 12-29: the showcase now imports LegalPage and LEGAL_PAGES so the legal pages' shared chunk stays whole (Privacy had reached 150.03 KB). The parity suite was not run (new cases are `parity: false`; the 12-13 footer question is open).
+- [ ] **Wave 11 load flakes (recorded; each passed alone, none failed in the gate re-run):** new: `OrderRefundModal`, the routes test, the third-party-notices script, `ProductsPage`, `DashboardPage`, and one Firefox `@showcase` load timeout; repeat: `OrderFormPage` (now fails one test in nearly every full run on a busy machine: worth a look), `GalleryPage`, `EditUserPanel`.
 
 ### Blockers/Concerns
 
