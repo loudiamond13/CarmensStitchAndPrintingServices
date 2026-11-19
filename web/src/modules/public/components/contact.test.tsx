@@ -1,6 +1,6 @@
 // The Contact parts (UI-SPEC C1; PUB-02, PUB-06, D-17, D-18, D-20, D-23): ContactNowCard, BigContactButton, PhoneListCard,
 // MapCard and ContactBar, each from the stored shop facts.
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -280,6 +280,111 @@ describe('MapCard saved setting (D-65, D-66)', () => {
     expect(screen.getByText('The map loads from Google when you tap Show Map.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Directions/ })).toBeInTheDocument();
     expect(screen.queryByText('Always show maps?')).not.toBeInTheDocument();
+  });
+
+  it('ignores a saved value that is not show', () => {
+    localStorage.setItem('csps-maps', 'yes');
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Map placeholder showing the shop location' })).toBeInTheDocument();
+  });
+
+  it('shows the drawing and Show Map when reading the storage throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+  });
+
+  it('shows the map after a tap when storage is blocked', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show Map' }));
+
+    expect(container.querySelector('iframe')).not.toBeNull();
+    expect(container.querySelector('iframe')).toHaveFocus();
+  });
+
+  it('does not move focus into the frame when the saved setting loads it', () => {
+    localStorage.setItem('csps-maps', 'show');
+    const { container } = inRouter(<MapCard site={demoSite} />);
+
+    expect(container.querySelector('iframe')).not.toBeNull();
+    expect(container.querySelector('iframe')).not.toHaveFocus();
+  });
+
+  it('unloads an automatic map when the setting is cleared elsewhere', () => {
+    localStorage.setItem('csps-maps', 'show');
+    const { container } = inRouter(<MapCard site={demoSite} />);
+    expect(container.querySelector('iframe')).not.toBeNull();
+
+    act(() => {
+      localStorage.removeItem('csps-maps');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'csps-maps', newValue: null }));
+    });
+
+    expect(container.querySelector('iframe')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show Map' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Map placeholder showing the shop location' })).toBeInTheDocument();
+  });
+
+  it('keeps a map the visitor tapped in this view when the setting is cleared elsewhere', async () => {
+    const { container } = inRouter(<MapCard site={demoSite} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Show Map' }));
+
+    act(() => {
+      localStorage.removeItem('csps-maps');
+      window.dispatchEvent(new StorageEvent('storage', { key: 'csps-maps', newValue: null }));
+    });
+
+    expect(container.querySelector('iframe')).not.toBeNull();
+  });
+
+  it('saves the tap under GPC too', async () => {
+    Object.defineProperty(navigator, 'globalPrivacyControl', { configurable: true, value: true });
+    try {
+      inRouter(<MapCard site={demoSite} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'Show Map' }));
+
+      expect(localStorage.getItem('csps-maps')).toBe('show');
+    } finally {
+      Reflect.deleteProperty(navigator, 'globalPrivacyControl');
+    }
+  });
+
+  it('offers no map without an embed link and saves nothing', () => {
+    inRouter(<MapCard site={{ ...demoSite, mapEmbedUrl: null }} />);
+
+    expect(screen.queryByRole('button', { name: 'Show Map' })).not.toBeInTheDocument();
+    expect(localStorage.getItem('csps-maps')).toBeNull();
+  });
+
+  it('keeps a saved setting from loading a link outside the Google embed path', () => {
+    localStorage.setItem('csps-maps', 'show');
+    const { container } = inRouter(<MapCard site={{ ...demoSite, mapEmbedUrl: 'https://example.test/map' }} />);
+
+    expect(container.querySelector('iframe')).toBeNull();
+  });
+
+  it('has no axe violations in the drawing and the frame states', async () => {
+    const drawing = inRouter(<MapCard site={demoSite} />);
+    await expectNoAxeViolations(drawing.container);
+    drawing.unmount();
+
+    localStorage.setItem('csps-maps', 'show');
+    const framed = inRouter(<MapCard site={demoSite} />);
+    // jsdom has no frame to talk to, so axe checks the card without the frame.
+    framed.container.querySelector('iframe')?.remove();
+    await expectNoAxeViolations(framed.container);
   });
 });
 
