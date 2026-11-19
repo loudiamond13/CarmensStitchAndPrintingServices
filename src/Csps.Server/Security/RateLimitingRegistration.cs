@@ -17,7 +17,6 @@ public static class RateLimitingRegistration
     public const string RateLimitedCode = "rate-limited";
 
     internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
-    internal const string ClearBusyDetail = "Too many tries. Wait a minute and try again.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
     private const string PageViewEndpointName = "RecordPageView";
@@ -27,7 +26,7 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy, the <c>analytics-consent</c> policy, the <c>analytics-collect</c> policy and the <c>analytics-clear</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs before the per-address limit, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the <c>analytics-collect</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs before the per-address limit, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -46,19 +45,13 @@ public static class RateLimitingRegistration
         configuration.GetSection(ImageUploadRateLimit.SectionName).Bind(images);
         var publicRead = PublicReadRateLimit.Default();
         configuration.GetSection(PublicReadRateLimit.SectionName).Bind(publicRead);
-        var consent = ConsentRateLimit.Default();
-        configuration.GetSection(ConsentRateLimit.SectionName).Bind(consent);
         var collect = AnalyticsCollectRateLimit.Default();
         configuration.GetSection(AnalyticsCollectRateLimit.SectionName).Bind(collect);
-        var clear = AnalyticsClearRateLimit.Default();
-        configuration.GetSection(AnalyticsClearRateLimit.SectionName).Bind(clear);
         var ceiling = AnalyticsCeilingRateLimit.Default();
         configuration.GetSection(AnalyticsCeilingRateLimit.SectionName).Bind(ceiling);
         var problems = settings.Validate()
             .Concat(AnalyticsCeilingRateLimit.Validate(ceiling))
-            .Concat(ConsentRateLimit.Validate(consent))
             .Concat(AnalyticsCollectRateLimit.Validate(collect))
-            .Concat(AnalyticsClearRateLimit.Validate(clear))
             .Concat(MaintenanceRateLimit.Validate(maintenance))
             .Concat(ImageUploadRateLimit.Validate(images))
             .Concat(PublicReadRateLimit.Validate(publicRead))
@@ -79,9 +72,7 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.Maintenance] = maintenance.Window,
             [RateLimitPolicies.ImageUpload] = images.Window,
             [RateLimitPolicies.PublicRead] = publicRead.Window,
-            [RateLimitPolicies.Consent] = consent.Window,
             [RateLimitPolicies.AnalyticsCollect] = collect.Window,
-            [RateLimitPolicies.AnalyticsClear] = clear.Window,
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
@@ -99,9 +90,7 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.Maintenance, maintenance);
             AddPolicy(options, RateLimitPolicies.ImageUpload, images);
             AddPolicy(options, RateLimitPolicies.PublicRead, publicRead);
-            AddPolicy(options, RateLimitPolicies.Consent, consent);
             AddPolicy(options, RateLimitPolicies.AnalyticsCollect, collect);
-            AddPolicy(options, RateLimitPolicies.AnalyticsClear, clear);
         });
         return services;
     }
@@ -189,7 +178,6 @@ public static class RateLimitingRegistration
         var detail = policy switch
         {
             RateLimitPolicies.ImageUpload => UploadsBusyDetail,
-            RateLimitPolicies.AnalyticsClear => ClearBusyDetail,
             _ => AttemptsDetail,
         };
         var problem = CspsProblemDetails.Build(http, StatusCodes.Status429TooManyRequests, detail, code: RateLimitedCode);

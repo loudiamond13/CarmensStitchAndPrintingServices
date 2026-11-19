@@ -1,14 +1,18 @@
 using System.Net;
+using System.Reflection;
 using Csps.Application.Analytics;
 using Csps.Server.IntegrationTests.Analytics;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.RateLimiting;
 
 /// <summary>
-/// ANL-06, T-12-20: the analytics rate limits. The numbers can be changed in configuration, and an unusable setting stops the host at
+/// ANL-06, D-51, D-74: the analytics rate limits (the page view limit and the site-wide ceiling). The numbers can be changed in configuration, and an unusable setting stops the host at
 /// start-up naming the setting and never the value.
 /// </summary>
 public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixture<CspsDatabase>
@@ -16,32 +20,26 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     private const int CollectPerMinute = 120;
 
     [Fact]
-    public void TheDefaultIsThirtyAMinuteInTheConsentSection()
+    public async Task OnlyThePageViewAndCeilingRulesRemainForAnalytics()
     {
-        var rule = ConsentRateLimit.Default();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var analytics = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("api/v1/analytics", StringComparison.Ordinal))
+            .ToList();
+        var analyticsPolicyNames = typeof(RateLimitPolicies)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)
+            .Where(name => name.Contains("analytics", StringComparison.Ordinal))
+            .ToList();
 
-        (rule.PermitLimit, rule.Window).ShouldBe((30, TimeSpan.FromMinutes(1)));
-        ConsentRateLimit.Validate(rule).ShouldBeEmpty();
-        ConsentRateLimit.SectionName.ShouldBe("RateLimits:Consent");
-        RateLimitPolicies.Consent.ShouldBe("analytics-consent");
-    }
-
-    [Fact]
-    public void AnUnusableConsentLimitIsNamedAndNeverEchoed()
-    {
-        var problems = ConsentRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
-
-        problems.ShouldBe(["RateLimits:Consent:PermitLimit must be at least 1.", "RateLimits:Consent:Window must be at least 6 seconds."]);
-    }
-
-    [Fact]
-    public async Task AHostWithAnUnusableConsentLimitDoesNotStartAndNamesTheSetting()
-    {
-        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { ["RateLimits:Consent:PermitLimit"] = "0" });
-
-        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
-
-        failure.Message.ShouldContain("RateLimits:Consent:PermitLimit must be at least 1.");
+        analytics.ShouldNotBeEmpty();
+        analytics.SelectMany(endpoint => endpoint.Metadata.GetOrderedMetadata<EnableRateLimitingAttribute>())
+            .Select(attribute => attribute.PolicyName)
+            .Distinct()
+            .ShouldBe([RateLimitPolicies.AnalyticsCollect]);
+        analyticsPolicyNames.ShouldBe([RateLimitPolicies.AnalyticsCollect]);
+        AnalyticsCollectRateLimit.Default().PermitLimit.ShouldBe(CollectPerMinute);
     }
 
     [Fact]
@@ -190,35 +188,6 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
 
         failure.Message.ShouldContain("RateLimits:AnalyticsCeiling:PermitLimit must be at least 1.");
         failure.Message.ShouldNotContain("=0");
-    }
-
-    [Fact]
-    public void TheClearDefaultIsFiveAMinuteInTheAnalyticsClearSection()
-    {
-        var rule = AnalyticsClearRateLimit.Default();
-
-        (rule.PermitLimit, rule.Window).ShouldBe((5, TimeSpan.FromMinutes(1)));
-        AnalyticsClearRateLimit.Validate(rule).ShouldBeEmpty();
-        AnalyticsClearRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsClear");
-        RateLimitPolicies.AnalyticsClear.ShouldBe("analytics-clear");
-    }
-
-    [Fact]
-    public void AnUnusableClearLimitIsNamedAndNeverEchoed()
-    {
-        var problems = AnalyticsClearRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
-
-        problems.ShouldBe(["RateLimits:AnalyticsClear:PermitLimit must be at least 1.", "RateLimits:AnalyticsClear:Window must be at least 6 seconds."]);
-    }
-
-    [Fact]
-    public async Task AHostWithAnUnusableClearLimitDoesNotStartAndNamesTheSetting()
-    {
-        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { ["RateLimits:AnalyticsClear:PermitLimit"] = "0" });
-
-        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
-
-        failure.Message.ShouldContain("RateLimits:AnalyticsClear:PermitLimit must be at least 1.");
     }
 
     private static async Task<HttpResponseMessage> PostPageViewAsync(HttpClient client, string address)

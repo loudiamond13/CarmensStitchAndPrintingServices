@@ -30,45 +30,8 @@ public static class RateLimitPolicies
     /// <summary>Anonymous reads of <c>/api/v1/public/*</c> (SEC-03, P-10): a generous per-address window. The shell, robots.txt and sitemap.xml have no limit.</summary>
     public const string PublicRead = "public-read";
 
-    /// <summary>A visitor's cookie decision (ANL-07, T-12-20): a per-address window so the consent table cannot be flooded.</summary>
-    public const string Consent = "analytics-consent";
-
     /// <summary>The anonymous page view beacon (ANL-06, T-12-28): a per-address window so the counts cannot be inflated by one address.</summary>
     public const string AnalyticsCollect = "analytics-collect";
-
-    /// <summary>A visitor clearing their cookies and data (ANL-04, T-12-49): a small per-address window, as the call deletes rows.</summary>
-    public const string AnalyticsClear = "analytics-clear";
-}
-
-/// <summary>The per-address limit on Clear my cookies and data, read from <c>RateLimits:AnalyticsClear</c>: 5 a minute by default.</summary>
-public static class AnalyticsClearRateLimit
-{
-    /// <summary>The configuration section the rule binds from.</summary>
-    public const string SectionName = "RateLimits:AnalyticsClear";
-
-    /// <summary>Creates the rule with its default numbers.</summary>
-    /// <returns>A new rule.</returns>
-    public static RateLimitRule Default() => new() { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) };
-
-    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
-    /// <param name="rule">The rule to check.</param>
-    /// <returns>One message per problem; empty when the rule is usable.</returns>
-    public static IReadOnlyList<string> Validate(RateLimitRule rule)
-    {
-        ArgumentNullException.ThrowIfNull(rule);
-        var problems = new List<string>();
-        if (rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
-        }
-
-        if (rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
-        }
-
-        return problems;
-    }
 }
 
 /// <summary>The per-address limit on page view beacons, read from <c>RateLimits:AnalyticsCollect</c>: 120 a minute by default.</summary>
@@ -111,37 +74,6 @@ public static class AnalyticsCeilingRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
-
-    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
-    /// <param name="rule">The rule to check.</param>
-    /// <returns>One message per problem; empty when the rule is usable.</returns>
-    public static IReadOnlyList<string> Validate(RateLimitRule rule)
-    {
-        ArgumentNullException.ThrowIfNull(rule);
-        var problems = new List<string>();
-        if (rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
-        }
-
-        if (rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
-        }
-
-        return problems;
-    }
-}
-
-/// <summary>The per-address limit on consent decisions, read from <c>RateLimits:Consent</c>: 30 decisions per minute by default.</summary>
-public static class ConsentRateLimit
-{
-    /// <summary>The configuration section the rule binds from.</summary>
-    public const string SectionName = "RateLimits:Consent";
-
-    /// <summary>Creates the rule with its default numbers.</summary>
-    /// <returns>A new rule.</returns>
-    public static RateLimitRule Default() => new() { PermitLimit = 30, Window = TimeSpan.FromMinutes(1) };
 
     /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
     /// <param name="rule">The rule to check.</param>

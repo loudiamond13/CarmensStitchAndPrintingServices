@@ -146,17 +146,11 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The public reads too; RealLimitsFactory restores the real 600 a minute.
         builder.UseSetting("RateLimits:PublicRead:PermitLimit", "100000");
 
-        // The consent decisions too; RealLimitsFactory restores the real 30 a minute.
-        builder.UseSetting("RateLimits:Consent:PermitLimit", "100000");
-
         // The page view beacons too; RealLimitsFactory restores the real 120 a minute.
         builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", "100000");
 
         // The site-wide page view ceiling too; RealLimitsFactory restores the real 600 a minute.
         builder.UseSetting("RateLimits:AnalyticsCeiling:PermitLimit", "100000");
-
-        // Clear my cookies and data too; RealLimitsFactory restores the real 5 a minute.
-        builder.UseSetting("RateLimits:AnalyticsClear:PermitLimit", "100000");
 
         ConfigureSettings(builder);
     }

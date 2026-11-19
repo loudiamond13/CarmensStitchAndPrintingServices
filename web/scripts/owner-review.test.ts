@@ -260,10 +260,8 @@ describe('planReview: the run', () => {
       RateLimits__Auth__Reset__PermitLimit: '100000',
       RateLimits__Auth__Refresh__PermitLimit: '100000',
       RateLimits__Images__PermitLimit: '100000',
-      RateLimits__Consent__PermitLimit: '100000',
       RateLimits__AnalyticsCollect__PermitLimit: '100000',
       RateLimits__AnalyticsCeiling__PermitLimit: '100000',
-      RateLimits__AnalyticsClear__PermitLimit: '100000',
     });
   });
 
