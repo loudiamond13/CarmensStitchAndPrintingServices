@@ -67,6 +67,45 @@ describe('the consent components and the consent store are gone (D-59)', () => {
   });
 });
 
+const CONSENT_MODULE_FILES = [
+  'modules/public/consentCookie.ts',
+  'modules/public/consentCookie.test.ts',
+  'modules/public/consentJar.ts',
+  'modules/public/consentPolicy.ts',
+  'modules/public/consentRules.ts',
+  'modules/public/consentCopy.ts',
+  'modules/public/services/consentService.ts',
+  'modules/public/services/consentService.test.ts',
+  'modules/public/components/consent.recipe.ts',
+  'test/consent-look.node.test.ts',
+];
+const CONSENT_MODULES = [
+  ...CONSENT_COMPONENT_AND_STORE_MODULES,
+  'consentCookie',
+  'consentJar',
+  'consentPolicy',
+  'consentRules',
+  'consentCopy',
+  'consentService',
+  'consent\\.recipe',
+];
+
+describe('the consent modules and the cookie bar height token are gone (D-59, D-54)', () => {
+  it('has no consent module file', () => {
+    const found = CONSENT_MODULE_FILES.filter((path) => existsSync(join(srcDir, path)));
+    expect(found.join(', ')).toBe('');
+  });
+
+  it('imports no consent module', () => {
+    expect(consentImporters(CONSENT_MODULES).join(', ')).toBe('');
+  });
+
+  it('has no cookie bar height token', () => {
+    const css = readFileSync(join(srcDir, 'ui/app.css'), 'utf8');
+    expect(css.includes('--spacing-consent-bar')).toBe(false);
+  });
+});
+
 describe('the speed reader is gone (D-59)', () => {
   it('has no speed reader file', () => {
     const found = ['modules/public/speedReport.ts', 'modules/public/hooks/useSpeedReport.ts'].filter((path) =>
