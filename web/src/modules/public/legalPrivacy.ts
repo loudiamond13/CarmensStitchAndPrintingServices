@@ -2,6 +2,8 @@
 // drafted for the owner's review (D-09). It claims no lawyer review and promises nothing the owner has not ruled. The business and the
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
+// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72). It stays a draft
+// until the owner approves the wording (D-71, D-73).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
 
@@ -36,7 +38,7 @@ export const PRIVACY_TEXT: LegalText = {
             ],
             ['Photos of your order that our staff add to it.'],
             [
-              'Visitor stats, only if you allow them: the pages you open, where you came from, the kind of device and browser you use, how fast our pages load, and a random visitor id in a cookie. If you say no, we only count the page and the day, with no visitor id. We also keep a record of your cookie choice.',
+              'A daily page count: each time a page is opened, we add one to the count for that page and that day. We keep only the page and the day, and nothing about who opened it.',
             ],
             [
               "For our staff accounts: each staff member's name, email and sign-in details, and a log of what they do in the admin area.",
@@ -65,11 +67,15 @@ export const PRIVACY_TEXT: LegalText = {
               ],
             },
             {
-              term: 'Visitor stats and the map',
+              term: 'Page counts',
               parts: [
-                'To learn which pages people use and how fast they load, and to show the Google map on the Contact page. Our basis is your consent. We use them only if you allow them, and you can change your choice at any time in Cookie Settings. The ',
-                { text: 'Cookie Policy', href: '/cookies' },
-                ' says more.',
+                'To learn which pages people open. A count is only a number for a page and a day. It holds no personal information.',
+              ],
+            },
+            {
+              term: 'The map',
+              parts: [
+                'To show the Google map on the Contact page. The map loads from Google only after you tap Show Map. Our basis is your consent: that tap is your choice.',
               ],
             },
             {
@@ -105,7 +111,7 @@ export const PRIVACY_TEXT: LegalText = {
             ['The web host that runs this website.'],
             ['Cloudinary, which stores and shows our photos.'],
             ['The email sender, which delivers the emails we send.'],
-            ['Google, for the map on the Contact page. This happens only if you allow it.'],
+            ['Google, for the map on the Contact page. This happens only when you tap Show Map.'],
           ],
         },
       ],
@@ -126,25 +132,118 @@ export const PRIVACY_TEXT: LegalText = {
               parts: ['Kept for about 6 months after we receive them; removed at the next monthly cleanup.'],
             },
             {
-              term: 'Visitor stats (visits, pages and page speed)',
-              parts: [
-                'Kept for about 13 months; removed at the next monthly cleanup. After that we keep only daily totals, which have no visitor id.',
-              ],
-            },
-            {
-              term: 'Daily visitor totals',
-              parts: ['Kept for about 3 years; removed at the next monthly cleanup. They have no visitor id.'],
-            },
-            {
-              term: 'Your cookie choice',
-              parts: [
-                'Kept for about 13 months; removed at the next monthly cleanup. A choice lasts 12 months, plus 1 month.',
-              ],
+              term: 'Daily page counts',
+              parts: ['Kept for about 3 years; removed at the next monthly cleanup.'],
             },
             {
               term: 'Staff account activity log',
               parts: ['Kept for about 8 months; removed at the next monthly cleanup.'],
             },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'cookies-and-saved-settings',
+      heading: 'Cookies and saved settings',
+      blocks: [
+        {
+          kind: 'p',
+          parts: [
+            'This website sets no optional cookies, so it shows no cookie banner. Nothing optional is saved in your browser unless you choose it.',
+          ],
+        },
+        { kind: 'h3', text: 'Necessary cookies' },
+        {
+          kind: 'p',
+          parts: [
+            'Only our staff get these cookies, to sign in to the admin area. A visitor who is not staff does not get them.',
+          ],
+        },
+        {
+          kind: 'dl',
+          items: [
+            {
+              term: '__Secure-csps_rt',
+              parts: ['What it does: Staff sign-in only. Keeps a staff member signed in to the admin area.'],
+              more: [
+                [
+                  'How long it lasts: Until the browser closes, or 90 days if the staff member chose "Keep me signed in". A sign-in that is not kept also ends after 12 hours.',
+                ],
+              ],
+            },
+            {
+              term: '__Secure-csps_2fa',
+              parts: ['What it does: Staff sign-in only. Holds a sign-in that is waiting for its sign-in code.'],
+              more: [['How long it lasts: 30 minutes.']],
+            },
+            {
+              term: '__Secure-csps_staff',
+              parts: [
+                'What it does: Staff sign-in only. Tells the site that this browser belongs to signed-in staff, so staff visits are left out of the page counts.',
+              ],
+              more: [
+                [
+                  'How long it lasts: The same as the staff sign-in: until the browser closes, or 90 days if the staff member chose "Keep me signed in".',
+                ],
+              ],
+            },
+          ],
+        },
+        { kind: 'h3', text: 'Settings saved in this browser' },
+        {
+          kind: 'p',
+          parts: ['These two settings are not cookies. They stay in your browser and are never sent to us.'],
+        },
+        {
+          kind: 'dl',
+          items: [
+            {
+              term: 'Admin settings in this browser',
+              parts: [
+                'What it does: Staff only. Saves the admin theme and the orders view that a staff member picked, in this browser only. It is not a cookie.',
+              ],
+              more: [['How long it lasts: Until it is changed or cleared. Clearing your cookies and data removes it.']],
+            },
+            {
+              term: 'Saved map setting',
+              parts: [
+                'What it does: Saved after you tap Show Map, so the map loads by itself the next time you visit from this browser. One setting covers every Google map on this site.',
+              ],
+              more: [
+                ['How long it lasts: It has no expiry. It stays until you clear your browser data.'],
+                [
+                  'It is saved even when your browser sends Global Privacy Control, because tapping Show Map is your clear choice. It is never sent to us.',
+                ],
+              ],
+            },
+          ],
+        },
+        { kind: 'h3', text: 'Google' },
+        {
+          kind: 'p',
+          parts: [
+            'Google may set its own cookies when the map loads. We do not set or control them, so they are not listed above. To see what they do and how long they last, read ',
+            {
+              text: "Google's cookie policy",
+              href: 'https://policies.google.com/technologies/cookies',
+              external: true,
+            },
+            '.',
+          ],
+        },
+        { kind: 'h3', text: 'How to clear them' },
+        {
+          kind: 'p',
+          parts: [
+            "You can clear cookies and site data in your browser's settings. This also removes the saved map setting, so the map asks for your tap again, and it signs staff out.",
+          ],
+        },
+        { kind: 'h3', text: 'Global Privacy Control' },
+        {
+          kind: 'p',
+          parts: [
+            'Global Privacy Control is a signal that some browsers send to ask websites not to track you. This website tracks no one, so it honors the signal by default.',
           ],
         },
       ],
@@ -164,7 +263,7 @@ export const PRIVACY_TEXT: LegalText = {
             { term: 'To access', parts: ['You can ask for a copy of the personal information we hold about you.'] },
             {
               term: 'To object',
-              parts: ['You can say no to some uses of your information, such as visitor stats.'],
+              parts: ['You can say no to some uses of your information, such as the details of a quote request.'],
             },
             {
               term: 'To erasure or blocking',
