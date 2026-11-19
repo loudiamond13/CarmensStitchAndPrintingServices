@@ -1,8 +1,8 @@
 // @vitest-environment node
 // SPEC-GAP: LEGAL-05, D-10. Guards the shape of every legal text module: at least one section, unique kebab-case ids, a heading on
-// each section, only safe link targets and no long dash. A text module is any web/src/modules/public/legal*.ts apart from the shared
-// files below, so the plans that add the Privacy, Terms and Cookie texts never edit this test.
-import { readdirSync } from 'node:fs';
+// each section, only safe link targets and no long dash. Every internal link points at a public path (D-72). A text module is any
+// web/src/modules/public/legal*.ts apart from the shared files below, so the plans that add a text never edit this test.
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legalContent';
@@ -21,6 +21,12 @@ async function textsOf(file: string): Promise<LegalText[]> {
   const loaded: unknown = await import(/* @vite-ignore */ `../modules/public/${file}`);
   return typeof loaded === 'object' && loaded !== null ? Object.values(loaded).filter(isLegalText) : [];
 }
+
+const PUBLIC_PATHS: readonly string[] = (
+  JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../../tests/fixtures/public-paths.json', import.meta.url)), 'utf8'),
+  ) as { pages: string[] }
+).pages;
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LONG_DASH = new RegExp(`[${String.fromCharCode(0x2012)}-${String.fromCharCode(0x2015)}]`);
@@ -67,6 +73,35 @@ function blockProblems(where: string, block: LegalBlock): string[] {
     case 'facts':
       return block.show.length === 0 ? [`${where}: facts block shows nothing`] : [];
   }
+}
+
+/** The internal links of a text (not external, starting with /) that are not a listed public path; the query and hash are ignored. */
+export function internalLinkProblems(text: LegalText, publicPaths: readonly string[]): string[] {
+  const hrefs: string[] = [];
+  const collect = (parts: readonly LegalInline[]) => {
+    for (const part of parts) {
+      if (typeof part !== 'string' && part.external !== true && part.href.startsWith('/')) {
+        hrefs.push(part.href);
+      }
+    }
+  };
+  for (const section of text.sections) {
+    for (const block of section.blocks) {
+      if (block.kind === 'p') {
+        collect(block.parts);
+      } else if (block.kind === 'ul') {
+        block.items.forEach(collect);
+      } else if (block.kind === 'dl') {
+        for (const item of block.items) {
+          collect(item.parts);
+          (item.more ?? []).forEach(collect);
+        }
+      }
+    }
+  }
+  return hrefs
+    .filter((href) => !publicPaths.includes(href.split(/[?#]/)[0] ?? ''))
+    .map((href) => `${href} is not a public path`);
 }
 
 /** Every way a text module breaks the shape; an empty list means it is sound. */
@@ -130,6 +165,12 @@ describe('legal text modules (LEGAL-05, D-10)', () => {
     }
   });
 
+  it.each(textFiles)('%s links only to public paths (D-72)', async (file) => {
+    for (const text of await textsOf(file)) {
+      expect(internalLinkProblems(text, PUBLIC_PATHS)).toEqual([]);
+    }
+  });
+
   it.each(textFiles)('%s has no block that opens Cookie Settings (D-54)', async (file) => {
     const kinds: string[] = (await textsOf(file)).flatMap((text) =>
       text.sections.flatMap((section) => section.blocks.map((block) => block.kind)),
@@ -141,6 +182,33 @@ describe('legal text modules (LEGAL-05, D-10)', () => {
     const { LEGAL_PAGES } = await import('../modules/public/legalPages');
     const { ACCESSIBILITY_TEXT } = await import('../modules/public/legalAccessibility');
     expect(ACCESSIBILITY_TEXT.meta).toBe(LEGAL_PAGES.accessibility);
+  });
+});
+
+describe('internalLinkProblems (the guard itself)', () => {
+  const paths = ['/', '/privacy'];
+
+  it('passes a link to a public path, with or without a hash, and leaves external and mailto links alone', () => {
+    const text = sample([
+      {
+        id: 'one',
+        heading: 'One',
+        blocks: [
+          para(
+            { text: 'a', href: '/privacy' },
+            { text: 'b', href: '/privacy#cookies' },
+            { text: 'c', href: '/.well-known/gpc.json', external: true },
+            { text: 'd', href: 'mailto:someone@example.test' },
+          ),
+        ],
+      },
+    ]);
+    expect(internalLinkProblems(text, paths)).toEqual([]);
+  });
+
+  it('fails a link to a page that does not exist, such as the removed Cookie Policy', () => {
+    const text = sample([{ id: 'one', heading: 'One', blocks: [para({ text: 'cookies', href: '/cookies' })] }]);
+    expect(internalLinkProblems(text, paths)).toEqual(['/cookies is not a public path']);
   });
 });
 
