@@ -5,7 +5,6 @@ import {
   Camera,
   ChartColumn,
   ChevronUp,
-  CircleX,
   Copy,
   Download,
   Eraser,
@@ -106,7 +105,6 @@ const OWNER_ICON_NAMES = [
   'chevron-up',
   'globe',
   'chart-column',
-  'circle-x',
   'download',
 ] as const;
 
@@ -244,10 +242,13 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
     expect(ICONS.globe).toBe(Globe);
   });
 
-  it('draws chart-column, circle-x and download with the lucide components of the same name (Phase 12, D-32)', () => {
+  it('draws chart-column and download with the lucide components of the same name (Phase 12, D-32)', () => {
     expect(ICONS['chart-column']).toBe(ChartColumn);
-    expect(ICONS['circle-x']).toBe(CircleX);
     expect(ICONS.download).toBe(Download);
+  });
+
+  it('has no circle-x icon: page speed is gone (D-76)', () => {
+    expect(Object.keys(ICONS).includes('circle-x')).toBe(false);
   });
 
   it('renders the History icon as a named image', () => {

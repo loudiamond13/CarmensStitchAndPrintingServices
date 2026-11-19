@@ -1,4 +1,4 @@
-// The Trend card of Visitor Stats (UI-SPEC V1 item 4; ANL-08). SPEC-GAP: V1. "Visits over time", per day or per month as the
+// The Trend card of Visitor Stats (UI-SPEC V1 item 4; ANL-08). SPEC-GAP: V1. "Page views over time", per day or per month as the
 // server chose, around VisitorTrendChart. Every figure is the server's. Until the first answer the chart frame keeps its
 // 220 height with a skeleton.
 import { Skeleton } from '@/components';

@@ -10,13 +10,10 @@ import {
   chartSvgClasses,
   chartSwatchClasses,
   chartTipClasses,
-  chartVisitorHaloClasses,
-  chartVisitorLineClasses,
-  chartVisitorSwatchClasses,
 } from './data.recipe';
 
-// The visits trend (UI-SPEC V1 item 4; ANL-08): hand-rolled SVG page-view bars and a unique-visitor line on the
-// IncomeExpenseChart geometry. Every figure is the server's; the chart only draws and formats it.
+// The page views trend (UI-SPEC V1 item 4; ANL-08, D-68): hand-rolled SVG page-view bars on the IncomeExpenseChart geometry.
+// Every figure is the server's; the chart only draws and formats it.
 
 function tokens(classes: string): string[] {
   return classes.split(/\s+/).filter(Boolean).sort();
@@ -32,29 +29,20 @@ function dayAfter(start: string, offset: number): string {
   return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + offset)).toISOString().slice(0, 10);
 }
 
-/** `count` day buckets from `start`, with figures from `figures`. */
-function days(start: string, count: number, figures: (i: number) => [number, number | null]): TrendPoint[] {
-  return Array.from({ length: count }, (_, i) => {
-    const [pageViews, uniqueVisitors] = figures(i);
-    return { start: dayAfter(start, i), pageViews, uniqueVisitors };
-  });
+/** `count` day buckets from `start`, with page views from `figures`. */
+function days(start: string, count: number, figures: (i: number) => number): TrendPoint[] {
+  return Array.from({ length: count }, (_, i) => ({ start: dayAfter(start, i), pageViews: figures(i) }));
 }
 
 /** 30 days from Oct 17, 2026: every third day has no page views, the rest grow. */
-const THIRTY = days('2026-10-17', 30, (i) => (i % 3 === 0 ? [0, 0] : [i * 2, i]));
+const THIRTY = days('2026-10-17', 30, (i) => (i % 3 === 0 ? 0 : i * 2));
 
 function renderThirty() {
   return render(<VisitorTrendChart buckets={THIRTY} bucket="day" from="2026-10-17" to="2026-11-15" />);
 }
 
 function plot(): HTMLElement {
-  return screen.getByRole('group', { name: 'Page views and unique visitors, Oct 17 to Nov 15, 2026' });
-}
-
-/** The paths whose class list is exactly `classes`. */
-function pathsWith(container: HTMLElement, classes: string): Element[] {
-  const wanted = tokens(classes).join(' ');
-  return [...container.querySelectorAll('path')].filter((path) => classTokens(path).join(' ') === wanted);
+  return screen.getByRole('group', { name: 'Page views, Oct 17 to Nov 15, 2026' });
 }
 
 function bucketGroups(container: HTMLElement): Element[] {
@@ -80,15 +68,24 @@ describe('VisitorTrendChart: 30 day buckets', () => {
     expect(bars[0]?.getAttribute('d')).toBe('');
   });
 
-  it('draws the unique-visitor line over the bars with its surface halo', () => {
+  it('draws page view bars only: no line, no points and no unique visitor swatch or tooltip row', async () => {
+    const user = userEvent.setup();
     const { container } = renderThirty();
-    const [halo] = pathsWith(container, chartVisitorHaloClasses);
-    const [line] = pathsWith(container, chartVisitorLineClasses);
+    await user.tab();
 
-    expect(halo?.getAttribute('d')).toMatch(/^M/);
-    expect(line?.getAttribute('d')).toBe(halo?.getAttribute('d'));
-    // One point per day with a unique-visitor count.
-    expect(container.querySelectorAll('circle')).toHaveLength(30);
+    expect(container.querySelectorAll('path')).toHaveLength(30);
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+    expect(container.querySelectorAll('svg > g[aria-hidden="true"]')).toHaveLength(0);
+    expect(container.querySelectorAll('i')).toHaveLength(2);
+    expect(container.textContent).not.toMatch(/unique visitors:|Unique visitors \d/i);
+  });
+
+  it('ignores a unique visitor figure left in the data: no line, no points', () => {
+    const stale = THIRTY.map((point) => ({ ...point, uniqueVisitors: 7 }));
+    const { container } = render(<VisitorTrendChart buckets={stale} bucket="day" from="2026-10-17" to="2026-11-15" />);
+
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+    expect(container.querySelectorAll('path')).toHaveLength(30);
   });
 
   it('draws three gridlines with count ticks up to the largest figure rounded up to one significant digit', () => {
@@ -114,17 +111,14 @@ describe('VisitorTrendChart: 30 day buckets', () => {
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 640 220');
   });
 
-  it('shows the legend: a Page views swatch and a Unique visitors line swatch', () => {
+  it('shows the legend: a Page views swatch and nothing else', () => {
     renderThirty();
     const legend = screen.getByText('Page views').parentElement;
 
     expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
     const swatches = [...(legend?.querySelectorAll('i') ?? [])];
-    expect(swatches.map((swatch) => classTokens(swatch))).toEqual([
-      tokens(chartSwatchClasses.income),
-      tokens(chartVisitorSwatchClasses),
-    ]);
-    expect(screen.getByText('Unique visitors')).toBeTruthy();
+    expect(swatches.map((swatch) => classTokens(swatch))).toEqual([tokens(chartSwatchClasses.income)]);
+    expect(screen.queryByText('Unique visitors')).toBeNull();
   });
 
   it('has no axe violations', async () => {
@@ -134,22 +128,16 @@ describe('VisitorTrendChart: 30 day buckets', () => {
   });
 });
 
-/** `count` month buckets from the first of `year`-`month`, with figures from `figures`. */
-function months(
-  year: number,
-  month: number,
-  count: number,
-  figures: (i: number) => [number, number | null],
-): TrendPoint[] {
-  return Array.from({ length: count }, (_, i) => {
-    const [pageViews, uniqueVisitors] = figures(i);
-    const start = new Date(Date.UTC(year, month - 1 + i, 1)).toISOString().slice(0, 10);
-    return { start, pageViews, uniqueVisitors };
-  });
+/** `count` month buckets from the first of `year`-`month`, with page views from `figures`. */
+function months(year: number, month: number, count: number, figures: (i: number) => number): TrendPoint[] {
+  return Array.from({ length: count }, (_, i) => ({
+    start: new Date(Date.UTC(year, month - 1 + i, 1)).toISOString().slice(0, 10),
+    pageViews: figures(i),
+  }));
 }
 
-/** Dec 2025 to Nov 2026, page views and visitors every month. */
-const TWELVE = months(2025, 12, 12, (i) => [100 + i * 10, 20 + i]);
+/** Dec 2025 to Nov 2026, page views every month. */
+const TWELVE = months(2025, 12, 12, (i) => 100 + i * 10);
 
 /** A ResizeObserver stand-in: the test reports the frame width. */
 function stubResizeObserver() {
@@ -177,7 +165,7 @@ function bucketLabels(container: HTMLElement): (string | null)[] {
   return bucketGroups(container).map((group) => group.querySelector('text')?.textContent ?? null);
 }
 
-describe('VisitorTrendChart: month buckets and the 13-month line', () => {
+describe('VisitorTrendChart: month buckets', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -201,45 +189,20 @@ describe('VisitorTrendChart: month buckets and the 13-month line', () => {
       'Oct',
       'Nov',
     ]);
-    expect(screen.getByRole('group').getAttribute('aria-label')).toBe(
-      'Page views and unique visitors, Dec 1, 2025 to Nov 30, 2026',
-    );
+    expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Page views, Dec 1, 2025 to Nov 30, 2026');
   });
 
-  it('stops the line where unique visitors are not available: no point and no zero there', () => {
-    // Oct 2023 to Dec 2023 are wholly before the cut; the rest have counts.
-    const buckets = months(2023, 10, 6, (i) => (i < 3 ? [50, null] : [60, 10 + i]));
+  it('draws a bar for every month that has page views, with no line over them', () => {
+    const buckets = months(2023, 10, 6, () => 50);
     const { container } = render(
       <VisitorTrendChart buckets={buckets} bucket="month" from="2023-10-01" to="2024-03-31" />,
     );
-    const [line] = pathsWith(container, chartVisitorLineClasses);
 
-    expect(container.querySelectorAll('circle')).toHaveLength(3);
-    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(1);
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
     expect(bucketGroups(container).map((group) => group.querySelector('path')?.getAttribute('d') !== '')).toEqual(
       Array.from({ length: 6 }, () => true),
     );
-  });
-
-  it('breaks the line into one run per stretch of buckets with a count', () => {
-    const buckets = months(2025, 1, 5, (i) => [10, i === 2 ? null : 5]);
-    const { container } = render(
-      <VisitorTrendChart buckets={buckets} bucket="month" from="2025-01-01" to="2025-05-31" />,
-    );
-    const [line] = pathsWith(container, chartVisitorLineClasses);
-
-    expect(line?.getAttribute('d')?.match(/M/g)).toHaveLength(2);
-    expect(container.querySelectorAll('circle')).toHaveLength(4);
-  });
-
-  it('draws nothing for the line when no bucket has a count', () => {
-    const buckets = months(2023, 1, 3, () => [10, null]);
-    const { container } = render(
-      <VisitorTrendChart buckets={buckets} bucket="month" from="2023-01-01" to="2023-03-31" />,
-    );
-
-    expect(pathsWith(container, chartVisitorLineClasses)[0]?.getAttribute('d')).toBe('');
-    expect(container.querySelectorAll('circle')).toHaveLength(0);
+    expect(container.querySelectorAll('path')).toHaveLength(6);
   });
 
   it('keeps every month label when a group is 28px or wider', () => {
@@ -326,13 +289,13 @@ describe('VisitorTrendChart: keyboard and tooltip (SPEC-DEVIATION A11Y-CHART)', 
     expect(plot()).not.toHaveFocus();
   });
 
-  it('shows the first bucket on focus: the full date, page views and unique visitors', async () => {
+  it('shows the first bucket on focus: the full date and the page views', async () => {
     const user = userEvent.setup();
     renderThirty();
 
     await user.tab();
 
-    expect(tipRows(openTip('Oct 17, 2026'))).toEqual(['Oct 17, 2026', 'Page views 0', 'Unique visitors 0']);
+    expect(tipRows(openTip('Oct 17, 2026'))).toEqual(['Oct 17, 2026', 'Page views 0']);
   });
 
   it('moves with Left and Right, and Home and End jump to the ends', async () => {
@@ -341,11 +304,11 @@ describe('VisitorTrendChart: keyboard and tooltip (SPEC-DEVIATION A11Y-CHART)', 
     await user.tab();
 
     await user.keyboard('{ArrowRight}');
-    expect(tipRows(openTip('Oct 18, 2026'))).toEqual(['Oct 18, 2026', 'Page views 2', 'Unique visitors 1']);
+    expect(tipRows(openTip('Oct 18, 2026'))).toEqual(['Oct 18, 2026', 'Page views 2']);
     await user.keyboard('{ArrowRight}{ArrowLeft}{ArrowLeft}{ArrowLeft}');
     expect(tooltip('Oct 17, 2026')).not.toBeNull();
     await user.keyboard('{End}');
-    expect(tipRows(openTip('Nov 15, 2026'))).toEqual(['Nov 15, 2026', 'Page views 58', 'Unique visitors 29']);
+    expect(tipRows(openTip('Nov 15, 2026'))).toEqual(['Nov 15, 2026', 'Page views 58']);
     await user.keyboard('{ArrowRight}');
     expect(tooltip('Nov 15, 2026')).not.toBeNull();
     await user.keyboard('{Home}');
@@ -382,20 +345,20 @@ describe('VisitorTrendChart: keyboard and tooltip (SPEC-DEVIATION A11Y-CHART)', 
     await user.keyboard('{ArrowRight}');
 
     expect(announcement(container)).toBe(tipRows(openTip('Oct 18, 2026')).join(', '));
-    expect(announcement(container)).toBe('Oct 18, 2026, Page views 2, Unique visitors 1');
+    expect(announcement(container)).toBe('Oct 18, 2026, Page views 2');
   });
 
-  it('says "Unique visitors: not available" for a month the server has no count for, in the tooltip and the announcement', async () => {
+  it('names a month bucket by its month and year and groups a large count', async () => {
     const user = userEvent.setup();
-    const buckets = months(2023, 10, 3, (i) => [1200 + i, i === 0 ? null : 4]);
+    const buckets = months(2023, 10, 3, (i) => 1200 + i);
     const { container } = render(
       <VisitorTrendChart buckets={buckets} bucket="month" from="2023-10-01" to="2023-12-31" />,
     );
 
     await user.tab();
 
-    expect(tipRows(openTip('Oct 2023'))).toEqual(['Oct 2023', 'Page views 1,200', 'Unique visitors: not available']);
-    expect(announcement(container)).toBe('Oct 2023, Page views 1,200, Unique visitors: not available');
+    expect(tipRows(openTip('Oct 2023'))).toEqual(['Oct 2023', 'Page views 1,200']);
+    expect(announcement(container)).toBe('Oct 2023, Page views 1,200');
   });
 
   it('shows the tooltip over the hovered bucket at its centre and hides it when the pointer leaves', () => {

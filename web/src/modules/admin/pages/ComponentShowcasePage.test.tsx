@@ -182,7 +182,7 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Expenses and settings')).toContainElement(caseFrame('settings-category-rows'));
     expect(section('Orders')).toContainElement(caseFrame('orders-totals-states'));
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
-    expect(section('Visitor stats')).toContainElement(caseFrame('page-speed-ratings'));
+    expect(section('Visitor stats')).toContainElement(caseFrame('visitor-trend-30-days'));
     expect(section('Legal')).toContainElement(caseFrame('legal-notice'));
   });
 
@@ -194,11 +194,11 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 74 icons in a grid with their names', () => {
+  it('shows all 73 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(74);
+    expect(names).toHaveLength(73);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();
