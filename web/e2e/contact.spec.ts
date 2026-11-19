@@ -106,6 +106,21 @@ test('@contact the map loads from Google only after Show Map, with no CSP report
   });
 });
 
+test('@contact a saved Show Map tap loads the map by itself after a reload', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.route(MAP_EMBED, (route) => route.fulfill({ contentType: 'text/html', body: MAP_STUB }));
+    await page.goto('/contact');
+    await page.getByRole('button', { name: 'Show Map' }).click();
+    await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
+
+    await page.reload();
+
+    await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Show Map' })).toHaveCount(0);
+  });
+});
+
 test('@contact at 320px the map actions wrap under the address and the page has no sideways scroll', async ({
   page,
   request,
