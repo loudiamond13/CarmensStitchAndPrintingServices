@@ -5406,18 +5406,18 @@ export interface components {
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
         };
-        /** @description One row of a ranked stats list (ANL-08, D-28): a page key, source, device class or browser with its count and share. */
+        /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
             /**
              * Format: int32
-             * @description The page views (top pages) or visits (the other lists).
+             * @description The page views of the page in the range.
              */
             count: number | string;
-            /** @description The name as stored: a page key, a source such as `Facebook` or a host, a device class, or a browser family. */
+            /** @description The page key as stored. */
             name: string;
             /**
              * Format: int32
-             * @description The whole percent of the list's total; a full list's shares add up to 100.
+             * @description The whole percent of all page views in the list's range; a full list's shares add up to 100.
              */
             share: number | string;
         };
@@ -5687,19 +5687,6 @@ export interface components {
             /** @description The base64 of the eight-byte row version a save must send back (409 on a stale one). */
             version: string;
         };
-        /** @description Page speed of a range (ANL-08, D-26), from the samples kept for 13 months. */
-        SpeedDto: {
-            /** @description False when the whole range is older than the raw cut, so no sample can exist (D-27). */
-            available: boolean;
-            cls: null | components["schemas"]["VitalDto"];
-            inp: null | components["schemas"]["VitalDto"];
-            lcp: null | components["schemas"]["VitalDto"];
-            /**
-             * Format: int32
-             * @description The page views the figures come from: the largest sample count of the three.
-             */
-            pageViews: number | string;
-        };
         /** @description One person's row in the all-staff list. */
         StaffBalanceRow: {
             /**
@@ -5846,7 +5833,7 @@ export interface components {
             /** @description One of `active`, `deactivated` or `deleted`. */
             status: string;
         };
-        /** @description One bar of the visits chart (ANL-08): a day, or a month of the range. */
+        /** @description One bar of the page views chart (ANL-08, D-68): a day, or a month of the range. */
         TrendBucketDto: {
             /**
              * Format: int32
@@ -5855,11 +5842,6 @@ export interface components {
             pageViews: number | string;
             /** @description The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range. */
             start: string;
-            /**
-             * Format: int32
-             * @description The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).
-             */
-            uniqueVisitors: null | number | string;
         };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
@@ -6238,67 +6220,25 @@ export interface components {
             reason: null | string;
             session: null | components["schemas"]["SessionResponse"];
         };
-        /** @description The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`. */
+        /** @description The visitor stats answer (ANL-08, D-57). Dates are business days as `YYYY-MM-DD`; every figure comes from the daily page counts. */
         VisitorStatsResponse: {
-            /** @description The top 5 browsers by visits, then `Other` for the rest. */
-            browsers: components["schemas"]["RankedItemDto"][];
             /** @description The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`. */
             bucket: string;
-            /** @description The oldest business day that still has visits (13 months back); older days keep page views only. */
-            cutDate: string;
-            /** @description The device classes with visits, highest first. */
-            devices: components["schemas"]["RankedItemDto"][];
             /** @description The first business day of the range, resolved on the server. */
             from: string;
-            /** @description The range that was read: a preset name or `custom`. */
-            range: string;
-            /** @description Up to 10 sources by visits, highest first, named as stored (D-28). */
-            referrers: components["schemas"]["RankedItemDto"][];
-            /** @description Page speed: the 75th percentile and rating of each Core Web Vital. */
-            speed: components["schemas"]["SpeedDto"];
-            /** @description The last business day of the range, resolved on the server. */
-            to: string;
-            /** @description Up to 10 pages by page views, highest first; each name is a page key. */
-            topPages: components["schemas"]["RankedItemDto"][];
-            /** @description The three totals. */
-            totals: components["schemas"]["VisitorTotalsDto"];
-            /** @description One bar per day or month from the start of the range to its end, oldest first. */
-            trend: components["schemas"]["TrendBucketDto"][];
-        };
-        /** @description The three headline totals of a range (ANL-08, D-33). Totals only: no visitor, visit or time is ever listed. */
-        VisitorTotalsDto: {
-            /** @description The business day visits and unique visitors are counted from, `YYYY-MM-DD`, when the range starts before the raw cut; otherwise null. */
-            countedFrom: null | string;
             /**
              * Format: int32
-             * @description Every page view in the range, from the daily counts, which are kept longer than the visits.
+             * @description Every page view in the range.
              */
             pageViews: number | string;
-            /**
-             * Format: int32
-             * @description The distinct visitors who had a visit in the counted span; null when the whole range is older than the raw cut (D-27).
-             */
-            uniqueVisitors: null | number | string;
-            /**
-             * Format: int32
-             * @description The visits in the counted span: one sitting, ended by 30 minutes of silence; null when the whole range is older than the raw cut (D-27).
-             */
-            visits: null | number | string;
-        };
-        /** @description One Core Web Vital of a range (D-26): the 75th percentile of the visitors' samples and its rating. */
-        VitalDto: {
-            /**
-             * Format: double
-             * @description The nearest-rank 75th percentile: milliseconds for loading speed and tap response, a score for layout shifting.
-             */
-            p75: number | string;
-            /** @description Google's rating of the percentile: `good`, `needs-work` or `poor`. */
-            rating: string;
-            /**
-             * Format: int32
-             * @description The samples the percentile was taken from.
-             */
-            samples: number | string;
+            /** @description The range that was read: a preset name or `custom`. */
+            range: string;
+            /** @description The last business day of the range, resolved on the server. */
+            to: string;
+            /** @description Up to 5 pages by page views, highest first; each name is a page key. */
+            topPages: components["schemas"]["RankedItemDto"][];
+            /** @description One bar per day or month from the start of the range to its end, oldest first. */
+            trend: components["schemas"]["TrendBucketDto"][];
         };
     };
     responses: never;

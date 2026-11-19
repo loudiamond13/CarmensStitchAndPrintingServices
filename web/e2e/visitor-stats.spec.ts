@@ -1,8 +1,8 @@
-// Visitor Stats end to end (PRD §14 "metrics dashboard shows recorded visits"; ANL-05, ANL-06, ANL-08, ANL-09, D-21, D-23 to
-// D-27, D-33, WEB-10), in all five projects. A visitor with no cookie choice (there is no cookie bar) opens three public pages; a Manager
-// in a separate browser context then sees each page count rise on Visitor Stats. Pages a signed-in Manager opens add nothing (D-21). An Admin never
-// reaches the page (D-23). The range lives in the URL, a custom range that does not pass sends nothing, a range over 13 months ago
-// shows what is missing, and Export CSV saves the range. Other specs and the other projects record visits on the same CSPS_E2E
+// Visitor Stats end to end (PRD §14 "metrics dashboard shows recorded page views"; ANL-08, D-21, D-23, D-57, D-67, D-68, D-70, WEB-10),
+// in all five projects. A visitor with no cookie choice (there is no cookie bar) opens three public pages; a Manager in a separate
+// browser context then sees each page count rise on Visitor Stats. Pages a signed-in Manager opens add nothing (D-21). An Admin never
+// reaches the page (D-23). The range lives in the URL, a custom range that does not pass sends nothing, a range two years back shows
+// the seeded page views, and Export CSV saves the range. Other specs and the other projects count page views on the same CSPS_E2E
 // database at the same time, so live counts are "at least"; days seeded through the Testing route are exact, and each project
 // seeds its own days.
 import { readFileSync } from 'node:fs';
@@ -28,37 +28,21 @@ function projectSlot(): number {
 }
 
 /**
- * Six days well over 13 months ago (the cut is 13 calendar months back, 393 to 397 days): day k has k + 1 Home views and one
- * Facebook visit, and the first day also has 4 Products views and one Messenger visit. Page views 25, Home 21, Products 4.
+ * Six days about two years ago (inside the 3 year reach of the date picker): day k has k + 1 Home views, and the first day also has
+ * 4 Products views. Page views 25, Home 21, Products 4. `cells` is each day's date and page view count, as the CSV lists them.
  */
-function oldRange(): { from: string; to: string; days: AnalyticsSeedDay[]; rows: string[] } {
-  const start = -(420 + projectSlot() * 10) - 5;
+function oldRange(): { from: string; to: string; days: AnalyticsSeedDay[]; cells: string[][] } {
+  const start = -(730 + projectSlot() * 10) - 5;
   const offsets = [0, 1, 2, 3, 4, 5].map((k) => start + k);
-  const days: AnalyticsSeedDay[] = offsets.map((offsetDays, k) => ({
-    offsetDays,
-    pageKey: 'home',
-    views: k + 1,
-    visits: [{ referrer: 'Facebook', device: 'Phone', browser: 'Chrome', os: 'Android', pageViews: 1 }],
-  }));
-  days.push({
-    offsetDays: start,
-    pageKey: 'products',
-    views: 4,
-    visits: [{ referrer: 'Messenger', device: 'Computer', browser: 'Firefox', os: 'Windows', pageViews: 2 }],
-  });
-  // Before the cut the two visit cells are empty (D-27, D-33).
-  const rows = offsets.map((offsetDays, k) => `${manilaDate(offsetDays)},,,${String(k + 1 + (k === 0 ? 4 : 0))}`);
-  return { from: manilaDate(start), to: manilaDate(start + 5), days, rows };
+  const days: AnalyticsSeedDay[] = offsets.map((offsetDays, k) => ({ offsetDays, pageKey: 'home', views: k + 1 }));
+  days.push({ offsetDays: start, pageKey: 'products', views: 4 });
+  const cells = offsets.map((offsetDays, k) => [manilaDate(offsetDays), String(k + 1 + (k === 0 ? 4 : 0))]);
+  return { from: manilaDate(start), to: manilaDate(start + 5), days, cells };
 }
 
-/** A day of the last 30 with views and a raw visit, so the default range always has a chart. */
+/** A day of the last 30 with views, so the default range always has a chart. */
 function recentDay(): AnalyticsSeedDay {
-  return {
-    offsetDays: -(5 + projectSlot()),
-    pageKey: 'contact',
-    views: 3,
-    visits: [{ referrer: 'Google', device: 'Phone', browser: 'Chrome', os: 'Android', pageViews: 2 }],
-  };
+  return { offsetDays: -(5 + projectSlot()), pageKey: 'contact', views: 3 };
 }
 
 function query(page: Page): URLSearchParams {
@@ -275,7 +259,7 @@ test('@visitor-stats This year is written to the URL, a reload keeps it, and Bac
   await range.selectOption('this-year');
   await read;
   await expect.poll(() => query(page).get('range')).toBe('this-year');
-  const subline = page.getByText(/^Jan 1 to [A-Z][a-z]{2} \d{1,2}, \d{4} · Visits to the public website\./);
+  const subline = page.getByText(/^Jan 1 to [A-Z][a-z]{2} \d{1,2}, \d{4} · Page views on the public website\./);
   await expect(subline).toBeVisible();
 
   await settle(page);
@@ -335,11 +319,7 @@ test('@visitor-stats a custom range with From after To shows the message and sen
   await expect.poll(() => query(page).get('from')).toBe(manilaDate(0));
 });
 
-test('@visitor-stats a range wholly over 13 months ago shows the Note, Not available for the two counts, and the seeded figures', async ({
-  page,
-  request,
-  guard,
-}) => {
+test('@visitor-stats a custom range two years back shows the seeded page views', async ({ page, request, guard }) => {
   const old = oldRange();
   await seedAnalytics(request, old.days);
   await signInManager(page, request, guard);
@@ -348,19 +328,10 @@ test('@visitor-stats a range wholly over 13 months ago shows the Note, Not avail
 
   await expect(page.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeVisible();
   expect(await kpiCount(page, 'Page views')).toBe(25);
-  await expect(
-    page.getByText(
-      /^Unique visitors and visits are kept for 13 months\. Before [A-Z][a-z]{2} \d{1,2}, \d{4}, this range shows page views, pages, referrers and devices only\.$/,
-    ),
-  ).toBeVisible();
-  for (const label of ['Unique visitors', 'Visits']) {
-    await expect(kpiValue(page, label), label).toHaveText('Not available');
-  }
-  await expect(page.getByText('Not available for dates over 13 months ago').first()).toBeVisible();
   expect(await listCount(page, 'Most viewed pages', 'Home')).toBe(21);
   expect(await listCount(page, 'Most viewed pages', 'Products')).toBe(4);
-  expect(await listCount(page, 'Where visitors came from', 'Facebook')).toBe(6);
-  expect(await listCount(page, 'Where visitors came from', 'Messenger')).toBe(1);
+  await expect(page.getByText(/13 months/)).toHaveCount(0);
+  await expect(page.getByText(/Not available/)).toHaveCount(0);
   await expect(page.getByLabel('Date range', { exact: true })).toHaveValue('custom');
   await expect(page.getByLabel('From', { exact: true })).toHaveValue(old.from);
   await expect(page.getByLabel('To', { exact: true })).toHaveValue(old.to);
@@ -387,8 +358,15 @@ test('@visitor-stats Export CSV saves the range with a byte-order mark, the head
   const bytes = readFileSync(await file.path());
   expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
   const text = bytes.subarray(3).toString('utf8');
-  expect(text.split('\r\n')[0]).toBe(CSV_HEADER);
-  expect(text).toBe(`${[CSV_HEADER, ...old.rows].join('\r\n')}\r\n`);
+  const lines = text.split('\r\n');
+  expect(lines[0]).toBe(CSV_HEADER);
+  expect(lines.at(-1), 'the file ends with a line break').toBe('');
+  // The visit cells change in plan 12.1-15, so only the date and page view cells of each day are checked.
+  const cells = lines.slice(1, -1).map((line) => {
+    const columns = line.split(',');
+    return [columns[0], columns[3]];
+  });
+  expect(cells).toEqual(old.cells);
   await expect(page.getByText(`${name} is in your downloads.`)).toBeVisible();
 });
 
@@ -400,7 +378,7 @@ test('@visitor-stats one h1 and no axe violations at 390 and 1440 in Blush and E
   await seedAnalytics(request, [recentDay()]);
   await signInManager(page, request, guard);
   await openStats(page);
-  const chart = page.getByRole('group', { name: /^Page views and unique visitors, / });
+  const chart = page.getByRole('group', { name: /^Page views, / });
   await expect(chart).toBeVisible();
 
   for (const width of [390, 1440]) {
@@ -420,7 +398,7 @@ test('@visitor-stats one h1 and no axe violations at 390 and 1440 in Blush and E
   const figure = page.locator('figure', { has: chart });
   expect(await figure.locator('a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])').count()).toBe(1);
   const live = figure.locator('p[aria-live="polite"]');
-  const tip = /^[A-Z][a-z]{2} \d{1,2}, \d{4}, Page views [\d,]+, Unique visitors [\d,]+$/;
+  const tip = /^[A-Z][a-z]{2} \d{1,2}, \d{4}, Page views [\d,]+$/;
   await page.getByRole('button', { name: 'Export CSV' }).focus();
   await page.keyboard.press('Tab');
   await expect(chart).toBeFocused();

@@ -69,4 +69,13 @@ public sealed class AnalyticsSurfaceTests
         retention.GetMember("SessionMinutes").ShouldBeEmpty();
         retention.GetMember("ConsentLifetimeMonths").ShouldBeEmpty();
     }
+
+    [Fact]
+    public void HasNoSpeedRatingHelper()
+    {
+        var names = typeof(DailyPageCount).Assembly.GetTypes().Select(type => type.Name).ToList();
+
+        names.Intersect(["VitalRating", "VitalGrade", "NearestRank"], StringComparer.Ordinal).Order(StringComparer.Ordinal).ShouldBeEmpty();
+        names.ShouldContain("VitalBounds");
+    }
 }

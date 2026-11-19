@@ -10,15 +10,10 @@ const answer: VisitorStatsResponse = {
   range: 'last-30-days',
   from: '2026-10-17',
   to: '2026-11-15',
-  cutDate: '2025-10-15',
-  totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+  pageViews: 4567,
   bucket: 'day',
-  trend: [{ start: '2026-10-17', pageViews: 3, uniqueVisitors: 2 }],
+  trend: [{ start: '2026-10-17', pageViews: 3 }],
   topPages: [{ name: 'gallery', count: 412, share: 100 }],
-  referrers: [],
-  devices: [],
-  browsers: [],
-  speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
 };
 
 afterEach(() => {
@@ -52,9 +47,7 @@ describe('visitorStatsService.get', () => {
   });
 
   it('maps the answer to page views, the trend and the top pages', async () => {
-    const { service } = serviceWith([
-      { body: { ...answer, totals: { uniqueVisitors: '1234', visits: 980, pageViews: '4567', countedFrom: null } } },
-    ]);
+    const { service } = serviceWith([{ body: { ...answer, pageViews: '4567' } }]);
 
     const stats = await service.get({ range: 'last-30-days', from: null, to: null });
 
@@ -98,8 +91,8 @@ describe('visitorStatsService.get', () => {
           ...answer,
           bucket: 'month',
           trend: [
-            { start: '2025-09-01', pageViews: '40', uniqueVisitors: null },
-            { start: '2025-10-01', pageViews: 12, uniqueVisitors: '5' },
+            { start: '2025-09-01', pageViews: '40' },
+            { start: '2025-10-01', pageViews: 12 },
           ],
         },
       },
@@ -116,13 +109,10 @@ describe('visitorStatsService.get', () => {
 
   it.each([
     ['a bucket size it does not know', { bucket: 'week' }],
-    ['no page view total', { totals: { uniqueVisitors: 1, visits: 1, countedFrom: null } }],
-    [
-      'a page view total that is not a number',
-      { totals: { uniqueVisitors: 1, visits: 1, pageViews: 'many', countedFrom: null } },
-    ],
-    ['a trend bucket with no page view count', { trend: [{ start: '2026-10-17', uniqueVisitors: 1 }] }],
-    ['a trend count that is not a number', { trend: [{ start: '2026-10-17', pageViews: 'lots', uniqueVisitors: 1 }] }],
+    ['no page view total', { pageViews: undefined }],
+    ['a page view total that is not a number', { pageViews: 'many' }],
+    ['a trend bucket with no page view count', { trend: [{ start: '2026-10-17' }] }],
+    ['a trend count that is not a number', { trend: [{ start: '2026-10-17', pageViews: 'lots' }] }],
     ['a page count that is not a number', { topPages: [{ name: 'home', count: 'lots', share: 100 }] }],
     ['a share that is not a number', { topPages: [{ name: 'home', count: 1, share: 'all' }] }],
   ])('refuses an answer with %s', async (_, change) => {

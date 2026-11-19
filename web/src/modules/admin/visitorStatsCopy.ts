@@ -70,7 +70,8 @@ export const VISITOR_STATS_COPY = {
   /** The Most viewed pages list (UI-SPEC V1 item 5, Copywriting "Lists"). */
   lists: {
     topPages: 'Most viewed pages',
-    topPagesSub: 'Every page opened',
+    /** SPEC-GAP. */
+    topPagesSub: 'The top 5. Export CSV for every page.',
     /** SPEC-GAP. */
     empty: 'No pages were opened in these dates.',
     /** "412 · 38%": the count and the server's share. */

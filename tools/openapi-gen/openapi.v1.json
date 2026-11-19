@@ -6363,10 +6363,10 @@
         "type": "object"
       },
       "RankedItemDto": {
-        "description": "One row of a ranked stats list (ANL-08, D-28): a page key, source, device class or browser with its count and share.",
+        "description": "One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share.",
         "properties": {
           "count": {
-            "description": "The page views (top pages) or visits (the other lists).",
+            "description": "The page views of the page in the range.",
             "format": "int32",
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -6375,11 +6375,11 @@
             ]
           },
           "name": {
-            "description": "The name as stored: a page key, a source such as `Facebook` or a host, a device class, or a browser family.",
+            "description": "The page key as stored.",
             "type": "string"
           },
           "share": {
-            "description": "The whole percent of the list's total; a full list's shares add up to 100.",
+            "description": "The whole percent of all page views in the list's range; a full list's shares add up to 100.",
             "format": "int32",
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -7075,65 +7075,6 @@
         ],
         "type": "object"
       },
-      "SpeedDto": {
-        "description": "Page speed of a range (ANL-08, D-26), from the samples kept for 13 months.",
-        "properties": {
-          "available": {
-            "description": "False when the whole range is older than the raw cut, so no sample can exist (D-27).",
-            "type": "boolean"
-          },
-          "cls": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VitalDto",
-                "description": "Layout shifting; null when no sample was measured (Safari sends none)."
-              }
-            ]
-          },
-          "inp": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VitalDto",
-                "description": "Response to taps; null when no sample was measured."
-              }
-            ]
-          },
-          "lcp": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/VitalDto",
-                "description": "Loading speed; null when no sample was measured."
-              }
-            ]
-          },
-          "pageViews": {
-            "description": "The page views the figures come from: the largest sample count of the three.",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "lcp",
-          "cls",
-          "inp",
-          "pageViews",
-          "available"
-        ],
-        "type": "object"
-      },
       "StaffBalanceRow": {
         "description": "One person's row in the all-staff list.",
         "properties": {
@@ -7452,7 +7393,7 @@
         "type": "object"
       },
       "TrendBucketDto": {
-        "description": "One bar of the visits chart (ANL-08): a day, or a month of the range.",
+        "description": "One bar of the page views chart (ANL-08, D-68): a day, or a month of the range.",
         "properties": {
           "pageViews": {
             "description": "The page views of the bar; a bar with no data is 0.",
@@ -7466,22 +7407,11 @@
           "start": {
             "description": "The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range.",
             "type": "string"
-          },
-          "uniqueVisitors": {
-            "description": "The distinct visitors of the bar, counted once per bar from the raw cut on; null when the whole bar is older than the cut (D-27).",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ]
           }
         },
         "required": [
           "start",
-          "pageViews",
-          "uniqueVisitors"
+          "pageViews"
         ],
         "type": "object"
       },
@@ -8478,63 +8408,39 @@
         "type": "object"
       },
       "VisitorStatsResponse": {
-        "description": "The visitor stats answer (ANL-08). Dates are business days as `YYYY-MM-DD`.",
+        "description": "The visitor stats answer (ANL-08, D-57). Dates are business days as `YYYY-MM-DD`; every figure comes from the daily page counts.",
         "properties": {
-          "browsers": {
-            "description": "The top 5 browsers by visits, then `Other` for the rest.",
-            "items": {
-              "$ref": "#/components/schemas/RankedItemDto"
-            },
-            "type": "array"
-          },
           "bucket": {
             "description": "The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`.",
             "type": "string"
-          },
-          "cutDate": {
-            "description": "The oldest business day that still has visits (13 months back); older days keep page views only.",
-            "type": "string"
-          },
-          "devices": {
-            "description": "The device classes with visits, highest first.",
-            "items": {
-              "$ref": "#/components/schemas/RankedItemDto"
-            },
-            "type": "array"
           },
           "from": {
             "description": "The first business day of the range, resolved on the server.",
             "type": "string"
           },
+          "pageViews": {
+            "description": "Every page view in the range.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
           "range": {
             "description": "The range that was read: a preset name or `custom`.",
             "type": "string"
-          },
-          "referrers": {
-            "description": "Up to 10 sources by visits, highest first, named as stored (D-28).",
-            "items": {
-              "$ref": "#/components/schemas/RankedItemDto"
-            },
-            "type": "array"
-          },
-          "speed": {
-            "$ref": "#/components/schemas/SpeedDto",
-            "description": "Page speed: the 75th percentile and rating of each Core Web Vital."
           },
           "to": {
             "description": "The last business day of the range, resolved on the server.",
             "type": "string"
           },
           "topPages": {
-            "description": "Up to 10 pages by page views, highest first; each name is a page key.",
+            "description": "Up to 5 pages by page views, highest first; each name is a page key.",
             "items": {
               "$ref": "#/components/schemas/RankedItemDto"
             },
             "type": "array"
-          },
-          "totals": {
-            "$ref": "#/components/schemas/VisitorTotalsDto",
-            "description": "The three totals."
           },
           "trend": {
             "description": "One bar per day or month from the start of the range to its end, oldest first.",
@@ -8548,96 +8454,10 @@
           "range",
           "from",
           "to",
-          "cutDate",
-          "totals",
+          "pageViews",
           "bucket",
           "trend",
-          "topPages",
-          "referrers",
-          "devices",
-          "browsers",
-          "speed"
-        ],
-        "type": "object"
-      },
-      "VisitorTotalsDto": {
-        "description": "The three headline totals of a range (ANL-08, D-33). Totals only: no visitor, visit or time is ever listed.",
-        "properties": {
-          "countedFrom": {
-            "description": "The business day visits and unique visitors are counted from, `YYYY-MM-DD`, when the range starts before the raw cut; otherwise null.",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "pageViews": {
-            "description": "Every page view in the range, from the daily counts, which are kept longer than the visits.",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ]
-          },
-          "uniqueVisitors": {
-            "description": "The distinct visitors who had a visit in the counted span; null when the whole range is older than the raw cut (D-27).",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ]
-          },
-          "visits": {
-            "description": "The visits in the counted span: one sitting, ended by 30 minutes of silence; null when the whole range is older than the raw cut (D-27).",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "uniqueVisitors",
-          "visits",
-          "pageViews",
-          "countedFrom"
-        ],
-        "type": "object"
-      },
-      "VitalDto": {
-        "description": "One Core Web Vital of a range (D-26): the 75th percentile of the visitors' samples and its rating.",
-        "properties": {
-          "p75": {
-            "description": "The nearest-rank 75th percentile: milliseconds for loading speed and tap response, a score for layout shifting.",
-            "format": "double",
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ]
-          },
-          "rating": {
-            "description": "Google's rating of the percentile: `good`, `needs-work` or `poor`.",
-            "type": "string"
-          },
-          "samples": {
-            "description": "The samples the percentile was taken from.",
-            "format": "int32",
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ]
-          }
-        },
-        "required": [
-          "p75",
-          "rating",
-          "samples"
+          "topPages"
         ],
         "type": "object"
       }
