@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net;
-using System.Security.Cryptography;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
@@ -9,12 +8,9 @@ using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Csps.Server.IntegrationTests.Analytics;
 
@@ -268,195 +264,43 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
-    public async Task AVisitorWhoAcceptedStatsOpensTwoPagesAndOneVisitWithTwoPageViewsIsRecorded()
+    public async Task OldCookiesWriteNoVisitRows()
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = NewClient(factory);
-        var cookie = await ConsentedCookieAsync(factory);
-
-        using var first = await PostWithCookieAsync(client, PathBody("/"), cookie);
-        using var second = await PostWithCookieAsync(client, PathBody("/gallery"), cookie);
-
-        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var context = database.CreateContext();
-        var visit = (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
-        visit.PageViews.ShouldBe(2);
-        visit.VisitorHash.ShouldBe(SHA256.HashData(Encoding.UTF8.GetBytes(Vid)));
-        visit.Referrer.ShouldBe("Direct");
-        visit.Device.ShouldBe(DeviceKind.Computer);
-        visit.Browser.ShouldBe("Chrome");
-        visit.Os.ShouldBe("Windows");
-        visit.LastSeenAtUtc.ShouldBeGreaterThanOrEqualTo(visit.StartedAtUtc);
-        var views = await context.AnalyticsPageViews.AsNoTracking().OrderBy(view => view.Id).ToListAsync(TestContext.Current.CancellationToken);
-        views.Select(view => view.PageKey).ShouldBe(["home", "gallery"]);
-        views.ShouldAllBe(view => view.VisitId == visit.Id);
-        (await ReadRowsAsync()).Sum(row => row.Views).ShouldBe(2);
-    }
-
-    [Theory]
-    [InlineData("no-vid")]
-    [InlineData("rejected")]
-    [InlineData("not-chosen")]
-    [InlineData("gpc")]
-    [InlineData("malformed-vid")]
-    [InlineData("pending")]
-    [InlineData("unreadable-consent")]
-    public async Task WithoutTheVidAnAcceptedChoiceAndNoGpcOnlyTheAnonymousCountChanges(string scenario)
-    {
-        await database.ResetAsync();
-        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
-        var day = await BusinessDayAsync(factory);
-        var cookie = scenario switch
-        {
-            "no-vid" => $"__Host-csps_consent={ConsentValue(true, day)}",
-            "rejected" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(false, day)}",
-            "not-chosen" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(null, day)}",
-            "malformed-vid" => $"__Secure-csps_vid=short; __Host-csps_consent={ConsentValue(true, day)}",
-            "pending" => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, day)}_p",
-            "unreadable-consent" => $"__Secure-csps_vid={Vid}; __Host-csps_consent=1_zz_1.0_1_1_garbage",
-            _ => $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, day)}",
-        };
+        var day = (await BusinessDayAsync(factory)).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         using var request = NewPost(PathBody("/gallery"));
-        request.Headers.Add("Cookie", cookie);
-        if (scenario == "gpc")
-        {
-            request.Headers.Add("Sec-GPC", "1");
-        }
+        request.Headers.Add("Cookie", $"__Secure-csps_vid={OldVisitorId}; __Host-csps_consent=1_0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d_{LegalPages.CookiePolicyVersion}_1_1_{day}");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        (await ReadRowsAsync()).ShouldHaveSingleItem().Views.ShouldBe(1);
+        var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("gallery");
+        row.Views.ShouldBe(1);
         await using var context = database.CreateContext();
         (await context.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
         (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     [Fact]
-    public async Task APageViewTwentyNineMinutesAfterTheLastReusesTheVisitAndOneThirtyOneMinutesAfterStartsANewOne()
-    {
-        await database.ResetAsync();
-        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        var clock = new FakeTimeProvider(TimeProvider.System.GetUtcNow());
-        await using var factory = AuthClient.WithClock(baseFactory, clock);
-        using var client = NewClient(factory);
-        var cookie = await ConsentedCookieAsync(factory);
-
-        using var first = await PostWithCookieAsync(client, PathBody("/"), cookie);
-        clock.Advance(TimeSpan.FromMinutes(29));
-        using var second = await PostWithCookieAsync(client, PathBody("/gallery"), cookie);
-        await using (var context = database.CreateContext())
-        {
-            (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().PageViews.ShouldBe(2);
-        }
-
-        clock.Advance(TimeSpan.FromMinutes(31));
-        using var third = await PostWithCookieAsync(client, PathBody("/contact"), cookie);
-
-        first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        third.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var check = database.CreateContext();
-        var visits = await check.AnalyticsVisits.AsNoTracking().OrderBy(visit => visit.StartedAtUtc).ToListAsync(TestContext.Current.CancellationToken);
-        visits.Select(visit => visit.PageViews).ShouldBe([2, 1]);
-        (await check.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(3);
-    }
-
-    [Theory]
-    [InlineData("m.facebook.com", DesktopChrome, "Facebook")]
-    [InlineData(null, "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 [FBAN/FB4A;FBAV/450.0.0.0;]", "Facebook")]
-    [InlineData(null, DesktopChrome, "Direct")]
-    [InlineData("localhost", DesktopChrome, "Direct")]
-    [InlineData("www.google.com", DesktopChrome, "Google")]
-    [InlineData("https://evil.example/a?b=1", DesktopChrome, "Direct")]
-    public async Task ANewVisitStoresTheSourceNameNeverTheRawReferrer(string? referrerHost, string userAgent, string expected)
+    public async Task AnExtraReferrerHostPropertyStillCounts()
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = NewClient(factory);
-        var cookie = await ConsentedCookieAsync(factory);
-        var body = referrerHost is null ? PathBody("/") : $"{{\"path\":\"/\",\"referrerHost\":\"{referrerHost}\"}}";
 
-        using var response = await PostWithCookieAsync(client, body, cookie, userAgent);
+        using var response = await PostAsync(client, "{\"path\":\"/gallery\",\"referrerHost\":\"m.facebook.com\"}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var context = database.CreateContext();
-        (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().Referrer.ShouldBe(expected);
+        var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("gallery");
+        row.Views.ShouldBe(1);
     }
 
-    [Fact]
-    public async Task AVisitFromAKnownAddressStoresNoAddressHashAndMakesNoSalt()
-    {
-        await database.ResetAsync();
-        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        await using var factory = WithRemoteIp(baseFactory);
-        using var client = NewClient(factory);
-
-        using var response = await PostWithAddressAsync(client, "192.0.2.10", 'a');
-
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var context = database.CreateContext();
-        (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem().IpHash.ShouldBeNull();
-        (await context.AnalyticsSalts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task NoStoredColumnHoldsTheRawAddressTheUserAgentTheReferrerOrTheVisitorId()
-    {
-        await database.ResetAsync();
-        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        await using var factory = WithRemoteIp(baseFactory);
-        using var client = NewClient(factory);
-        const string Marker = "zq7agent91";
-        using var request = NewPost("{\"path\":\"/gallery?token=zq7query91\",\"referrerHost\":\"m.facebook.com\"}", $"{DesktopChrome} {Marker}");
-        request.Headers.Add("Cookie", await ConsentedCookieAsync(factory));
-        request.Headers.Add(RemoteIpStartupFilter.HeaderName, "192.0.2.10");
-
-        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await using var context = database.CreateContext();
-        var visit = (await context.AnalyticsVisits.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
-        var view = (await context.AnalyticsPageViews.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken)).ShouldHaveSingleItem();
-        string[] forbidden = [Vid, "192.0.2", Marker, "zq7query91", "Mozilla"];
-        string[] texts = [visit.Referrer, visit.Browser, visit.Os, view.PageKey, Convert.ToHexString(visit.VisitorHash)];
-        foreach (var text in texts)
-        {
-            forbidden.ShouldAllBe(value => !text.Contains(value, StringComparison.OrdinalIgnoreCase));
-        }
-
-        visit.VisitorHash.ShouldNotBe(Encoding.UTF8.GetBytes(Vid));
-    }
-
-    internal static WebApplicationFactory<Program> WithRemoteIp(WebApplicationFactory<Program> factory) =>
-        factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>()));
-
-    private static async Task<HttpResponseMessage> PostWithAddressAsync(HttpClient client, string address, char vidFill)
-    {
-        var day = DateOnly.FromDateTime(TimeProvider.System.GetUtcNow().AddHours(8).DateTime);
-        using var request = NewPost(PathBody("/"));
-        request.Headers.Add("Cookie", $"__Secure-csps_vid={new string(vidFill, 43)}; __Host-csps_consent={ConsentValue(true, day)}");
-        request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
-        return await client.SendAsync(request, TestContext.Current.CancellationToken);
-    }
-
-    internal const string Vid = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
-
-    internal static string ConsentValue(bool? stats, DateOnly day) =>
-        new ConsentCookie(Guid.Parse("0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"), LegalPages.CookiePolicyVersion, stats, true, day, false).Format();
-
-    internal static async Task<string> ConsentedCookieAsync(WebApplicationFactory<Program> factory) =>
-        $"__Secure-csps_vid={Vid}; __Host-csps_consent={ConsentValue(true, await BusinessDayAsync(factory))}";
-
-    internal static async Task<HttpResponseMessage> PostWithCookieAsync(HttpClient client, string json, string cookie, string? userAgent = DesktopChrome)
-    {
-        using var request = NewPost(json, userAgent);
-        request.Headers.Add("Cookie", cookie);
-        return await client.SendAsync(request, TestContext.Current.CancellationToken);
-    }
+    private const string OldVisitorId = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 
     internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";
 
