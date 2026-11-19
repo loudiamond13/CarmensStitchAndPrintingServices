@@ -49,9 +49,6 @@ public static class IdempotencyAllowList
         new("POST /api/v1/auth/password/set-new", "The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.", Decision),
         new("POST /api/v1/maintenance/run", "A scheduled machine call with no body; each run is guarded by a database lease, so a repeat is harmless.", Decision),
         new("POST /api/v1/analytics/page-views", "An analytics beacon: a repeat only adds one page view, and beacons are exempt by SEC-06.", Decision),
-        new("POST /api/v1/analytics/vitals", "An analytics beacon: a repeat only adds one more speed sample, and beacons are exempt by SEC-06.", Decision),
-        new("POST /api/v1/analytics/clear", "Deletes this browser's visit records and sets cookies; a repeat finds nothing more to delete.", Decision),
-        new("POST /api/v1/analytics/consent","Each consent decision is logged as its own proof record and the answer sets cookies; a repeat records the same choice again.", Decision),
     ];
 
     // The Testing-only staff, expense, order and photo-failure fixtures exist in Debug builds in the Testing environment only (QUAL-05).
