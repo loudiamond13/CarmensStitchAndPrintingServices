@@ -4,7 +4,7 @@ import { downloadCsv } from './downloadCsv';
 // The CSV download (ANL-08, D-25; Pitfall 3): a Blob that starts with the UTF-8 byte-order mark, saved through a temporary object URL and
 // an a[download] click, then the URL is let go.
 
-const CSV = 'Date,Unique visitors,Visits,Page views\r\n2026-11-15,1,2,3\r\n';
+const CSV = 'Date,Page,Page views\r\n2026-11-15,Home,3\r\n';
 
 let blobs: Blob[];
 let revoked: string[];

@@ -331,7 +331,7 @@ describe('createHttpClient: request interceptors', () => {
 });
 
 describe('createHttpClient: text mode for a CSV file (Pitfall 2)', () => {
-  const csv = 'Date,Unique visitors,Visits,Page views\r\n2026-11-15,1,2,3\r\n';
+  const csv = 'Date,Page,Page views\r\n2026-11-15,Home,3\r\n';
 
   it('asks for text/csv and resolves to the body text when responseType is text', async () => {
     const fake = createFakeFetch([{ body: csv, headers: { 'Content-Type': 'text/csv; charset=utf-8' } }]);

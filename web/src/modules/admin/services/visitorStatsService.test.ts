@@ -197,7 +197,7 @@ describe('visitorStatsService.exportCsv', () => {
   });
 
   it('drops a byte-order mark the transport kept', async () => {
-    const { service } = serviceWith([{ ...csvAnswer, body: `﻿${csv}` }]);
+    const { service } = serviceWith([{ ...csvAnswer, body: `\uFEFF${csv}` }]);
 
     const file = await service.exportCsv({ range: 'last-30-days', from: null, to: null });
 

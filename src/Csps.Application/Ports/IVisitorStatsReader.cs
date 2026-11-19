@@ -27,24 +27,19 @@ public interface IVisitorStatsReader
     /// <returns>One count per page key, in no set order; a page with no row is left out. The caller orders, shares and trims.</returns>
     Task<IReadOnlyList<NamedCount>> ReadPagesAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Reads the figures of each business day from <paramref name="first"/> to <paramref name="last"/> for the CSV export (D-25). Page views
-    /// come from the daily counts. Visits and unique visitors come from the raw visits on the days from <paramref name="cut"/> on.
-    /// </summary>
+    /// <summary>Reads the page views of each page on each business day from <paramref name="first"/> to <paramref name="last"/> for the CSV export (D-69).</summary>
     /// <param name="first">The first business day.</param>
     /// <param name="last">The last business day.</param>
-    /// <param name="cut">The first business day raw visits are still kept for.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>Only the days that have data, oldest first; the caller fills the rest.</returns>
-    Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
+    /// <returns>One row per day and page key that has views above zero, in no set order; the caller names, orders and writes them.</returns>
+    Task<IReadOnlyList<DailyPageViews>> ReadDailyPagesAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken);
 }
 
-/// <summary>The figures of one business day that has data.</summary>
+/// <summary>The page views of one page on one business day.</summary>
 /// <param name="Day">The business day.</param>
-/// <param name="PageViews">The page views of the day.</param>
-/// <param name="Visits">The visits of the day; zero before the cut.</param>
-/// <param name="UniqueVisitors">The distinct visitors of the day; zero before the cut.</param>
-public sealed record DailyCount(DateOnly Day, int PageViews, int Visits, int UniqueVisitors);
+/// <param name="PageKey">The stored page key.</param>
+/// <param name="Views">The page views, above zero.</param>
+public sealed record DailyPageViews(DateOnly Day, string PageKey, int Views);
 
 /// <summary>One grouped count.</summary>
 /// <param name="Name">The name as stored.</param>

@@ -2813,9 +2813,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Downloads the same range as a CSV file (D-25, D-33): UTF-8 with a byte-order mark, the header `Date,Unique visitors,Visits,Page views`,
-         *     then one CRLF line per business day from the first day to the last. A day with no data is zeros. Before the 13-month cut the unique
-         *     visitor and visit cells are empty. The file name is `visitor-stats-{from}-to-{to}.csv` with the dates the server used.
+         * Downloads the same range as a CSV file (D-69, D-75): UTF-8 with a byte-order mark, the header `Date,Page,Page views`, then one CRLF
+         *     line per day and page that had views, with the page's name, ordered by date and then the fixed page order. A day or page with no views has
+         *     no line, so a range with no views is the header alone. The file name is `visitor-stats-{from}-to-{to}.csv` with the dates the server used.
          */
         get: operations["ExportVisitorStats"];
         put?: never;
