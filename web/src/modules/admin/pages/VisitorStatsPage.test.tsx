@@ -211,62 +211,44 @@ describe('V1 the page head', () => {
 });
 
 describe('V1 the KPI row', () => {
-  it('shows the three totals with en-PH grouping, each with its icon and hint', async () => {
+  it('shows one Page views card and no source, device or speed card', async () => {
     backend();
     await openPage();
-
-    const unique = card('Unique visitors');
-    expect(within(unique).getByText('1,234')).toBeInTheDocument();
-    expect(within(unique).getByText('Visitors who allowed visitor stats')).toBeInTheDocument();
-    expect(unique.querySelector('svg.lucide-users')).not.toBeNull();
-
-    const visits = card('Visits');
-    expect(within(visits).getByText('980')).toBeInTheDocument();
-    expect(
-      within(visits).getByText('One sitting on the website. A new one starts after 30 minutes away.'),
-    ).toBeInTheDocument();
-    expect(visits.querySelector('svg.lucide-clock')).not.toBeNull();
 
     const views = card('Page views');
     expect(within(views).getByText('4,567')).toBeInTheDocument();
     expect(within(views).getByText('Every page opened, with or without cookies')).toBeInTheDocument();
     expect(views.querySelector('svg.lucide-eye')).not.toBeNull();
+    expect(document.querySelectorAll('[data-kpi-value]').length).toBe(1);
+    expect(screen.queryAllByText('Unique visitors').length).toBe(0);
+    expect(screen.queryAllByText('Visits').length).toBe(0);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Where visitors came from' }).length).toBe(0);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Devices and browsers' }).length).toBe(0);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Page speed' }).length).toBe(0);
+    expect(screen.queryAllByText(/13 months/).length).toBe(0);
+    expect(screen.queryAllByText(/Not available/).length).toBe(0);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Visits over time' }).length).toBe(1);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Most viewed pages' }).length).toBe(1);
   });
 
-  it('shows "Not available" and its hint when the server has no count for those dates', async () => {
-    backend(statsAnswer({ uniqueVisitors: null, visits: null }));
+  it('shows no 13-month note and no counted-from hint when the range starts before the old cut date', async () => {
+    backend(statsAnswer({ countedFrom: '2025-10-15' }, { from: '2025-09-01' }));
     await openPage();
 
-    for (const label of ['Unique visitors', 'Visits']) {
-      const element = card(label);
-      expect(within(element).getByText('Not available')).toBeInTheDocument();
-      expect(within(element).getByText('Not available for dates over 13 months ago')).toBeInTheDocument();
-      expect(within(element).queryByText('0')).toBeNull();
-    }
-    expect(within(card('Page views')).getByText('Every page opened, with or without cookies')).toBeInTheDocument();
+    expect(screen.queryAllByText(/13 months/).length).toBe(0);
+    expect(screen.queryAllByText(/Counted from/).length).toBe(0);
   });
 
-  it('shows the partial hint when the counts start at the 13-month line', async () => {
-    backend(statsAnswer({ uniqueVisitors: 300, visits: 410, countedFrom: '2025-10-15' }));
-    await openPage();
-
-    expect(within(card('Unique visitors')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
-    expect(within(card('Visits')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
-    expect(within(card('Page views')).getByText('Every page opened, with or without cookies')).toBeInTheDocument();
-  });
-
-  it('shows real zeros as "0"', async () => {
-    backend(statsAnswer({ uniqueVisitors: 0, visits: 0, pageViews: 0 }));
+  it('shows a real zero as "0"', async () => {
+    backend(statsAnswer({ pageViews: 0 }));
     renderPage();
 
     await waitFor(() => {
       expect(within(card('Page views')).getByText('0')).toBeInTheDocument();
     });
-    expect(within(card('Visits')).getByText('0')).toBeInTheDocument();
-    expect(within(card('Unique visitors')).getByText('0')).toBeInTheDocument();
   });
 
-  it('shows the cards loading inside one region named the visitor stats', async () => {
+  it('shows the card loading inside one region named the visitor stats', async () => {
     backend(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return statsAnswer();
@@ -275,7 +257,7 @@ describe('V1 the KPI row', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeInTheDocument();
     expect(screen.getByText('Loading the visitor stats…')).toBeInTheDocument();
-    expect(card('Visits')).toHaveAttribute('aria-busy', 'true');
+    expect(card('Page views')).toHaveAttribute('aria-busy', 'true');
     expect(await screen.findByText('4,567')).toBeInTheDocument();
     expect(screen.getByText('The visitor stats loaded.')).toBeInTheDocument();
   });
@@ -288,8 +270,16 @@ describe('V1 the KPI row', () => {
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
   });
 
+  it('shows the error state, not a wrong figure, when the answer has no page view total', async () => {
+    backend(statsAnswer({ pageViews: undefined as unknown as number }));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the visitor stats.")).toBeInTheDocument();
+    expect(screen.queryByText('4,567')).toBeNull();
+  });
+
   it('has no axe violations with the figures shown', async () => {
-    backend(statsAnswer({ uniqueVisitors: null, visits: null }));
+    backend();
     const { container } = await openPage();
 
     await expectNoAxeViolations(container);
@@ -389,104 +379,6 @@ describe('V1 the Most viewed pages card', () => {
   });
 });
 
-/** The shown names of a list, in order. */
-function names(list: HTMLElement): (string | null)[] {
-  return within(list)
-    .getAllByRole('listitem')
-    .map((row) => row.querySelector('[data-stat-name]')?.textContent ?? null);
-}
-
-describe('V1 the Where visitors came from card', () => {
-  it('shows the sources exactly as the server stored them, with their figures', async () => {
-    backend();
-    await openPage();
-
-    expect(screen.queryByRole('heading', { level: 2, name: 'Where visitors came from' })).not.toBeNull();
-    const card = listCard('Where visitors came from');
-    expect(within(card).getByText('Visitors who allowed visitor stats')).toBeInTheDocument();
-    expect(names(within(card).getByRole('list'))).toEqual(['Facebook', 'Direct', 'basketball-league.ph']);
-    expect(within(card).getByText('300 · 62%')).toBeInTheDocument();
-    expect(within(card).queryByRole('link')).toBeNull();
-  });
-
-  it('sits beside Most viewed pages in a row that becomes one column at 1023px and below', async () => {
-    backend();
-    await openPage();
-
-    const row = listCard('Where visitors came from').parentElement;
-    expect(row).toContainElement(listCard('Most viewed pages'));
-    expect(row?.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['grid-cols-[repeat(2,minmax(0,1fr))]', 'pg-lt-lg:grid-cols-[minmax(0,1fr)]']),
-    );
-  });
-
-  it('shows the empty line when no visitor allowed visitor stats', async () => {
-    backend(statsAnswer({}, { referrers: [] }));
-    await openPage();
-
-    expect(
-      within(listCard('Where visitors came from')).getByText('No visitors allowed visitor stats in these dates.'),
-    ).toBeInTheDocument();
-  });
-});
-
-describe('V1 the Devices and browsers card', () => {
-  it('shows Device and Browser lists under their h3s with the server order', async () => {
-    backend();
-    await openPage();
-
-    expect(screen.queryByRole('heading', { level: 2, name: 'Devices and browsers' })).not.toBeNull();
-    const card = listCard('Devices and browsers');
-    expect(within(card).getByText('Visitors who allowed visitor stats')).toBeInTheDocument();
-    const device = within(card).getByRole('heading', { level: 3, name: 'Device' });
-    const browser = within(card).getByRole('heading', { level: 3, name: 'Browser' });
-    expect(names(device.parentElement ?? card)).toEqual(['Phone', 'Computer', 'Tablet']);
-    expect(names(browser.parentElement ?? card)).toEqual(['Chrome', 'Facebook in-app', 'Safari', 'Other']);
-    expect(within(browser.parentElement ?? card).getByText('50 · 10%')).toBeInTheDocument();
-  });
-
-  it.each([
-    ['Phone', 'Phone'],
-    ['Tablet', 'Tablet'],
-    ['Computer', 'Computer'],
-    ['Other', 'Other'],
-  ])('names the device %s "%s" from the copy', async (stored, label) => {
-    backend(statsAnswer({}, { devices: [{ name: stored, count: 1, share: 100 }] }));
-    await openPage();
-
-    const device = within(listCard('Devices and browsers')).getByRole('heading', { level: 3, name: 'Device' });
-    expect(names(device.parentElement ?? document.body)).toEqual([label]);
-  });
-
-  it('puts the two lists side by side at 1280px and up and stacks them below', async () => {
-    backend();
-    await openPage();
-
-    const device = within(listCard('Devices and browsers')).getByRole('heading', { level: 3, name: 'Device' });
-    const grid = device.parentElement?.parentElement;
-    expect(grid?.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(['grid-cols-[repeat(2,minmax(0,1fr))]', 'pg-lt-xl:grid-cols-[minmax(0,1fr)]']),
-    );
-  });
-
-  it('shows the empty line in each list with no rows', async () => {
-    backend(statsAnswer({}, { devices: [], browsers: [] }));
-    await openPage();
-
-    expect(
-      within(listCard('Devices and browsers')).getAllByText('No visitors allowed visitor stats in these dates.'),
-    ).toHaveLength(2);
-  });
-
-  it('has no axe violations with every list shown', async () => {
-    backend();
-    const { container } = await openPage();
-    listCard('Devices and browsers');
-
-    await expectNoAxeViolations(container);
-  });
-});
-
 /** The last stats request's query, as an object. */
 function lastQuery(calls: URL[]): Record<string, string> {
   return Object.fromEntries(calls.at(-1)?.searchParams ?? []);
@@ -502,96 +394,7 @@ function rangeSelect(): HTMLElement {
   return screen.getByLabelText('Date range');
 }
 
-describe('V1 the Page speed card', () => {
-  it('shows "Page speed" beside Devices and browsers with the server ratings and values', async () => {
-    backend();
-    await openPage();
-
-    expect(screen.queryByRole('heading', { level: 2, name: 'Page speed' })).not.toBeNull();
-    const speed = listCard('Page speed');
-    expect(within(speed).getByText('2.1 s')).toBeInTheDocument();
-    expect(within(speed).getByText('0.04')).toBeInTheDocument();
-    expect(within(speed).getByText('180 ms')).toBeInTheDocument();
-    expect(within(speed).getAllByText('Good')).toHaveLength(3);
-    expect(within(speed).getByText('From 412 page views')).toBeInTheDocument();
-    expect(speed.parentElement).toBe(listCard('Devices and browsers').parentElement);
-  });
-});
-
-const NOTE =
-  'Unique visitors and visits are kept for 13 months. Before Oct 15, 2025, this range shows page views, pages, referrers and devices only.';
-
-/** A month trend from Sep 2025 to Nov 2026 with no unique visitors before the cut month. */
-function crossingTrend(): Trend {
-  return ['2025-09-01', '2025-10-01', '2025-11-01'].map((start, i) => ({
-    start,
-    pageViews: 100 + i,
-    uniqueVisitors: i === 0 ? null : 10 + i,
-  }));
-}
-
-describe('V1 ranges over 13 months (D-27)', () => {
-  it('shows the 13-month Note with the cut date when the range crosses it, with the partial hints and the line gap', async () => {
-    backend(
-      statsAnswer(
-        { uniqueVisitors: 300, visits: 410, countedFrom: '2025-10-15' },
-        { range: 'custom', from: '2025-09-01', to: '2025-11-30', bucket: 'month', trend: crossingTrend() },
-      ),
-    );
-    await openPage('?range=custom&from=2025-09-01&to=2025-11-30');
-
-    expect(screen.queryByText(NOTE)).not.toBeNull();
-    expect(screen.getByText(NOTE).closest('div')?.querySelector('svg.lucide-info')).not.toBeNull();
-    expect(within(card('Unique visitors')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
-    expect(within(card('Visits')).getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
-    const plot = within(trendCard()).getByRole('group');
-    expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(3);
-    expect(plot.querySelectorAll('circle')).toHaveLength(2);
-  });
-
-  it('shows no Note when the range is inside the last 13 months', async () => {
-    backend();
-    await openPage();
-
-    expect(screen.queryByText(NOTE)).toBeNull();
-  });
-
-  it('shows Not available for visitors, visits and speed on a wholly old range, and the daily counts for the rest', async () => {
-    backend(
-      statsAnswer(
-        { uniqueVisitors: null, visits: null, pageViews: 4567 },
-        {
-          range: 'custom',
-          from: '2024-01-01',
-          to: '2024-12-31',
-          bucket: 'month',
-          trend: [{ start: '2024-01-01', pageViews: 4567, uniqueVisitors: null }],
-          speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: false },
-        },
-      ),
-    );
-    await openPage('?range=custom&from=2024-01-01&to=2024-12-31');
-
-    expect(screen.queryByText(NOTE)).not.toBeNull();
-    expect(within(card('Unique visitors')).getByText('Not available')).toBeInTheDocument();
-    expect(within(card('Visits')).getByText('Not available')).toBeInTheDocument();
-    const speed = listCard('Page speed');
-    expect(within(speed).getByText('Not available for dates over 13 months ago')).toBeInTheDocument();
-    expect(within(speed).queryByText('Good')).toBeNull();
-    expect(within(listCard('Most viewed pages')).getByText('Gallery')).toBeInTheDocument();
-    expect(within(listCard('Where visitors came from')).getByText('Facebook')).toBeInTheDocument();
-  });
-
-  it('has no axe violations with the Note shown', async () => {
-    backend(statsAnswer({ countedFrom: '2025-10-15' }, { from: '2025-09-01' }));
-    const { container } = await openPage();
-    screen.getByText(NOTE);
-
-    await expectNoAxeViolations(container);
-  });
-});
-
-/** A range with no page views: real zero totals, empty lists and no speed. */
+/** A range with no page views: a real zero total, no top pages and a flat trend. */
 function noVisitsAnswer(): VisitorStatsResponse {
   return statsAnswer(
     { uniqueVisitors: 0, visits: 0, pageViews: 0 },
@@ -606,13 +409,7 @@ function noVisitsAnswer(): VisitorStatsResponse {
   );
 }
 
-const CARD_TITLES = [
-  'Visits over time',
-  'Most viewed pages',
-  'Where visitors came from',
-  'Devices and browsers',
-  'Page speed',
-];
+const CARD_TITLES = ['Visits over time', 'Most viewed pages'];
 
 const THEMES = [
   ['Blush', 'light'],
@@ -620,7 +417,7 @@ const THEMES = [
 ] as const;
 
 describe('V1 states: no visits', () => {
-  it('keeps the real zero KPIs and shows one "No visits in these dates" EmptyState instead of the trend, lists and speed', async () => {
+  it('keeps the real zero KPI and shows one "No visits in these dates" EmptyState instead of the trend and the list', async () => {
     backend(noVisitsAnswer());
     renderPage();
     await waitFor(() => {
@@ -638,8 +435,6 @@ describe('V1 states: no visits', () => {
     for (const title of CARD_TITLES) {
       expect(screen.queryByRole('heading', { level: 2, name: title })).toBeNull();
     }
-    expect(within(card('Visits')).getByText('0')).toBeInTheDocument();
-    expect(within(card('Unique visitors')).getByText('0')).toBeInTheDocument();
   });
 
   it('shows the cards again when a range with visits is chosen', async () => {
@@ -652,7 +447,7 @@ describe('V1 states: no visits', () => {
 
     expect(await screen.findByText('4,567')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2, name: 'No visits in these dates' })).toBeNull();
-    expect(screen.getByRole('heading', { level: 2, name: 'Page speed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Most viewed pages' })).toBeInTheDocument();
   });
 
   it.each(THEMES)('has no axe violations with no visits in %s', async (_, theme) => {
@@ -665,7 +460,7 @@ describe('V1 states: no visits', () => {
 });
 
 describe('V1 states: loading and a failed first read', () => {
-  it('loads in one region: KPI cards loading, the 220 high chart skeleton and skeleton lines in each list and Page speed', async () => {
+  it('loads in one region: the KPI card loading, the 220 high chart skeleton and skeleton lines in the list', async () => {
     backend(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return statsAnswer();
@@ -675,14 +470,12 @@ describe('V1 states: loading and a failed first read', () => {
     expect(screen.getByText('Loading the visitor stats…')).toBeInTheDocument();
     const region = trendCard().closest('[aria-busy="true"]');
     expect(region).not.toBeNull();
-    expect(card('Visits')).toHaveAttribute('aria-busy', 'true');
-    expect(region).toContainElement(card('Visits'));
+    expect(card('Page views')).toHaveAttribute('aria-busy', 'true');
+    expect(region).toContainElement(card('Page views'));
     expect(trendCard().querySelector('[style*="--sk-h: 220px"]')).not.toBeNull();
-    for (const title of ['Most viewed pages', 'Where visitors came from', 'Devices and browsers', 'Page speed']) {
-      const section = listCard(title);
-      expect(region).toContainElement(section);
-      expect([title, section.querySelector('[style*="--sk-h"]') !== null]).toEqual([title, true]);
-    }
+    const section = listCard('Most viewed pages');
+    expect(region).toContainElement(section);
+    expect(section.querySelector('[style*="--sk-h"]')).not.toBeNull();
     expect(await screen.findByText('4,567')).toBeInTheDocument();
   });
 
@@ -700,7 +493,7 @@ describe('V1 states: loading and a failed first read', () => {
       screen.getByText('Check your internet connection. Your data is safe. Nothing was changed.'),
     ).toBeInTheDocument();
     expect(rangeSelect()).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: 'Page speed' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Most viewed pages' })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
 
@@ -766,7 +559,7 @@ describe('V1 states: a failed later refresh (P10 D-111)', () => {
     expect(alert).toHaveTextContent(STALE);
     expect(alert.parentElement).toContainElement(screen.getByRole('button', { name: 'Try Again' }));
     expect(screen.getByText('4,567')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Page speed' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Most viewed pages' })).toBeInTheDocument();
     expect(screen.queryByText("Couldn't load the visitor stats.")).toBeNull();
   });
 

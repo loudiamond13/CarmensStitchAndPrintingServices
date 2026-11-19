@@ -3,7 +3,8 @@ import { createHttpClient } from '@/core/api/apiClient';
 import { createFakeFetch } from '@/test/fakeFetch';
 import { createVisitorStatsService, VisitorStatsContractError, type VisitorStatsResponse } from './visitorStatsService';
 
-// The visitor stats call (ANL-08, D-24, D-27, D-33): Manager only, one GET, every count from the server.
+// The visitor stats call (ANL-08, D-57, D-70): Manager only, one GET, every count from the server. The browser keeps the page
+// view total, the trend and the top pages.
 
 const answer: VisitorStatsResponse = {
   range: 'last-30-days',
@@ -50,52 +51,22 @@ describe('visitorStatsService.get', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({ range: 'custom', from: '2026-01-05', to: '2026-02-04' });
   });
 
-  it('resolves the range and the three totals as plain numbers', async () => {
+  it('maps the answer to page views, the trend and the top pages', async () => {
     const { service } = serviceWith([
       { body: { ...answer, totals: { uniqueVisitors: '1234', visits: 980, pageViews: '4567', countedFrom: null } } },
     ]);
 
-    await expect(service.get({ range: 'last-30-days', from: null, to: null })).resolves.toEqual({
+    const stats = await service.get({ range: 'last-30-days', from: null, to: null });
+
+    expect(Object.keys(stats).sort().join(',')).toBe('bucket,from,pageViews,range,to,topPages,trend');
+    expect(stats).toEqual({
       range: 'last-30-days',
       from: '2026-10-17',
       to: '2026-11-15',
-      cutDate: '2025-10-15',
-      totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+      pageViews: 4567,
       bucket: 'day',
-      trend: [{ start: '2026-10-17', pageViews: 3, uniqueVisitors: 2 }],
+      trend: [{ start: '2026-10-17', pageViews: 3 }],
       topPages: [{ name: 'gallery', count: 412, share: 100 }],
-      referrers: [],
-      devices: [],
-      browsers: [],
-      speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
-    });
-  });
-
-  it('narrows page speed to plain numbers and keeps a measure with no sample as null', async () => {
-    const { service } = serviceWith([
-      {
-        body: {
-          ...answer,
-          speed: {
-            lcp: { p75: '2400.000', rating: 'good', samples: 412 },
-            cls: null,
-            inp: { p75: 320, rating: 'needs-work', samples: '9' },
-            pageViews: '412',
-            available: true,
-          },
-        },
-      },
-    ]);
-
-    const stats = await service.get({ range: 'last-30-days', from: null, to: null });
-
-    expect(stats.speed.lcp?.p75).toBe(2400);
-    expect(stats.speed).toEqual({
-      lcp: { p75: 2400, rating: 'good', samples: 412 },
-      cls: null,
-      inp: { p75: 320, rating: 'needs-work', samples: 9 },
-      pageViews: 412,
-      available: true,
     });
   });
 
@@ -120,28 +91,7 @@ describe('visitorStatsService.get', () => {
     ]);
   });
 
-  it('narrows the source, device and browser lists the same way', async () => {
-    const { service } = serviceWith([
-      {
-        body: {
-          ...answer,
-          referrers: [{ name: 'Facebook', count: '5', share: 100 }],
-          devices: [{ name: 'Phone', count: 5, share: '100' }],
-          browsers: [{ name: 'Other', count: 5, share: 100 }],
-        },
-      },
-    ]);
-
-    const stats = await service.get({ range: 'last-30-days', from: null, to: null });
-
-    expect([stats.referrers, stats.devices, stats.browsers]).toEqual([
-      [{ name: 'Facebook', count: 5, share: 100 }],
-      [{ name: 'Phone', count: 5, share: 100 }],
-      [{ name: 'Other', count: 5, share: 100 }],
-    ]);
-  });
-
-  it('narrows each trend bucket to plain numbers and keeps a unique-visitor count the server does not have as null', async () => {
+  it('narrows each trend bucket to its start and a plain page view count', async () => {
     const { service } = serviceWith([
       {
         body: {
@@ -159,50 +109,24 @@ describe('visitorStatsService.get', () => {
 
     expect(stats.bucket).toBe('month');
     expect(stats.trend).toEqual([
-      { start: '2025-09-01', pageViews: 40, uniqueVisitors: null },
-      { start: '2025-10-01', pageViews: 12, uniqueVisitors: 5 },
+      { start: '2025-09-01', pageViews: 40 },
+      { start: '2025-10-01', pageViews: 12 },
     ]);
   });
 
   it.each([
     ['a bucket size it does not know', { bucket: 'week' }],
+    ['no page view total', { totals: { uniqueVisitors: 1, visits: 1, countedFrom: null } }],
+    [
+      'a page view total that is not a number',
+      { totals: { uniqueVisitors: 1, visits: 1, pageViews: 'many', countedFrom: null } },
+    ],
+    ['a trend bucket with no page view count', { trend: [{ start: '2026-10-17', uniqueVisitors: 1 }] }],
     ['a trend count that is not a number', { trend: [{ start: '2026-10-17', pageViews: 'lots', uniqueVisitors: 1 }] }],
     ['a page count that is not a number', { topPages: [{ name: 'home', count: 'lots', share: 100 }] }],
     ['a share that is not a number', { topPages: [{ name: 'home', count: 1, share: 'all' }] }],
-    ['a source count that is not a number', { referrers: [{ name: 'Direct', count: 'lots', share: 100 }] }],
-    ['a device share that is not a number', { devices: [{ name: 'Phone', count: 1, share: 'all' }] }],
-    ['a browser count that is not a number', { browsers: [{ name: 'Chrome', count: 'lots', share: 100 }] }],
-    [
-      'a speed rating it does not know',
-      { speed: { ...answer.speed, lcp: { p75: 2400, rating: 'great', samples: 1 } } },
-    ],
-    [
-      'a speed figure that is not a number',
-      { speed: { ...answer.speed, cls: { p75: 'fast', rating: 'good', samples: 1 } } },
-    ],
-    ['a speed page view count that is not a number', { speed: { ...answer.speed, pageViews: 'many' } }],
   ])('refuses an answer with %s', async (_, change) => {
     const { service } = serviceWith([{ body: { ...answer, ...change } }]);
-
-    await expect(service.get({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
-      VisitorStatsContractError,
-    );
-  });
-
-  it('keeps a count the server says is not available as null, with the counted-from day', async () => {
-    const { service } = serviceWith([
-      { body: { ...answer, totals: { uniqueVisitors: null, visits: null, pageViews: 12, countedFrom: '2025-10-15' } } },
-    ]);
-
-    const stats = await service.get({ range: 'this-year', from: null, to: null });
-
-    expect(stats.totals).toEqual({ uniqueVisitors: null, visits: null, pageViews: 12, countedFrom: '2025-10-15' });
-  });
-
-  it('refuses an answer whose count is not a number, so the page shows its failure', async () => {
-    const { service } = serviceWith([
-      { body: { ...answer, totals: { uniqueVisitors: 1, visits: 1, pageViews: 'many', countedFrom: null } } },
-    ]);
 
     await expect(service.get({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
       VisitorStatsContractError,
