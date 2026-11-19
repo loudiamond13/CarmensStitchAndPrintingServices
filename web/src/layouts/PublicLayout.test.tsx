@@ -299,9 +299,10 @@ describe('PublicLayout heading order (D-41 R2-17)', () => {
 const CONTACT_PAD =
   'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(var(--spacing-contact-bar)+var(--space-6)+env(safe-area-inset-bottom))]';
 
-/** Waits a moment for a lazy cookie bar to appear, and passes only if it never does. */
-async function expectNoCookieBar(): Promise<void> {
-  await expect(screen.findByRole('region', { name: 'Cookie choices' }, { timeout: 250 })).rejects.toThrow();
+/** Checks the layout rendered (the page header is there) and that no cookie bar is in it. */
+function expectNoCookieBar(): void {
+  expect(screen.getByRole('banner')).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
 }
 
 describe('PublicLayout with no cookie bar (D-54)', () => {
@@ -309,13 +310,13 @@ describe('PublicLayout with no cookie bar (D-54)', () => {
     await renderAt('/products');
 
     expect(document.querySelector('[data-consent-status]') === null).toBe(true);
-    await expectNoCookieBar();
+    expectNoCookieBar();
   });
 
   it('adds no bar padding to the page or its root on a first visit', async () => {
     const { container } = await renderAt('/');
 
-    await expectNoCookieBar();
+    expectNoCookieBar();
     expect(screen.getByRole('main').className).not.toContain('--spacing-consent-bar');
     expect(container.firstElementChild?.className).not.toContain('--spacing-consent-bar');
   });
@@ -331,7 +332,7 @@ describe('PublicLayout with no cookie bar (D-54)', () => {
 
   it('has no axe violations on a first visit', async () => {
     const { container } = await renderAt('/products');
-    await expectNoCookieBar();
+    expectNoCookieBar();
     await expectNoAxeViolations(container);
   });
 });
