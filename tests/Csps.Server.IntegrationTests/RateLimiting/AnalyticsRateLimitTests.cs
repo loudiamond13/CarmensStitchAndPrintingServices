@@ -240,6 +240,25 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public void TheCeilingRuleNamesTheSettingForABadLimitOrWindow()
+    {
+        var problems = AnalyticsCeilingRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+
+        problems.ShouldBe(["RateLimits:AnalyticsCeiling:PermitLimit must be at least 1.", "RateLimits:AnalyticsCeiling:Window must be at least 6 seconds."]);
+    }
+
+    [Fact]
+    public async Task ABadCeilingStopsStartUpAndNamesTheSettingNotTheValue()
+    {
+        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { ["RateLimits:AnalyticsCeiling:PermitLimit"] = "0" });
+
+        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
+
+        failure.Message.ShouldContain("RateLimits:AnalyticsCeiling:PermitLimit must be at least 1.");
+        failure.Message.ShouldNotContain("=0");
+    }
+
+    [Fact]
     public async Task TheSixthClearInAMinuteFromOneAddressGets429WithItsOwnMessageAndAnotherAddressIsUnaffected()
     {
         await database.ResetAsync();
