@@ -84,10 +84,10 @@ function idsOf(group: string): string[] {
   return scenarios.filter((scenario) => scenario.group === group).map((scenario) => scenario.id);
 }
 
-/** The bucket list of a VisitorTrendChart scenario. */
-function bucketsOf(id: string): readonly { uniqueVisitors?: unknown }[] {
+/** The field names of every bucket of a VisitorTrendChart scenario, sorted, as one text per bucket. */
+function bucketFields(id: string): string[] {
   const buckets = scenarioById(id).node.props?.buckets;
-  return Array.isArray(buckets) ? (buckets as readonly { uniqueVisitors?: unknown }[]) : [];
+  return Array.isArray(buckets) ? buckets.map((bucket: object) => Object.keys(bucket).sort().join(',')) : [];
 }
 
 const requests: string[] = [];
@@ -112,17 +112,9 @@ vi.setConfig({ testTimeout: 30_000 });
 const VISITOR_STATS_CASES = [
   'visitor-trend-30-days',
   'visitor-trend-12-months',
-  'visitor-trend-13-month-gap',
-  'visitor-stats-cut-note',
-  'kpi-visitors-counted-from',
-  'kpi-visitors-not-available',
   'stat-bar-list-empty',
   'stat-bar-list-one',
   'stat-bar-list-ten',
-  'page-speed-ratings',
-  'page-speed-no-layout-shift',
-  'page-speed-no-data',
-  'page-speed-over-13-months',
   'visitor-stats-no-visits',
   'visitor-stats-load-error',
   'visitor-stats-stale',
@@ -148,23 +140,17 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('draws the trend with 30 day bars, 12 month bars, and a line that stops before the 13-month cut', () => {
+  it('draws the trend with 30 day bars and 12 month bars, page views only', () => {
     expect(idsOf('visitor-stats')).toContain('visitor-trend-30-days');
     const days = renderCase('visitor-trend-30-days').container;
     expect(days.querySelectorAll('[data-bucket]')).toHaveLength(30);
     expect(days.querySelectorAll('circle')).toHaveLength(0);
+    expect([...new Set(bucketFields('visitor-trend-30-days'))]).toEqual(['pageViews,start']);
     cleanup();
 
     const months = renderCase('visitor-trend-12-months').container;
     expect(months.querySelectorAll('[data-bucket]')).toHaveLength(12);
-    cleanup();
-
-    const gap = bucketsOf('visitor-trend-13-month-gap');
-    const missing = gap.filter((bucket) => bucket.uniqueVisitors === null).length;
-    expect(missing).toBeGreaterThan(0);
-    const chart = renderCase('visitor-trend-13-month-gap').container;
-    expect(chart.querySelectorAll('[data-bucket]')).toHaveLength(gap.length);
-    expect(chart.querySelectorAll('circle')).toHaveLength(0);
+    expect([...new Set(bucketFields('visitor-trend-12-months'))]).toEqual(['pageViews,start']);
   });
 
   it('shows StatBarList with no rows, one row and ten rows', () => {
@@ -181,45 +167,8 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(10);
   });
 
-  it('shows Page speed with each rating, a missing layout shift, no data and an old range', () => {
-    expect(idsOf('visitor-stats')).toContain('page-speed-ratings');
-    renderCase('page-speed-ratings');
-    for (const word of ['Good', 'Needs work', 'Poor']) {
-      expect(screen.getByText(word)).toBeInTheDocument();
-    }
-    cleanup();
-
-    renderCase('page-speed-no-layout-shift');
-    expect(screen.getByText('Not measured')).toBeInTheDocument();
-    cleanup();
-
-    renderCase('page-speed-no-data');
-    expect(screen.getByText('No speed data for these dates yet.')).toBeInTheDocument();
-    cleanup();
-
-    renderCase('page-speed-over-13-months');
-    expect(screen.getByText('Not available for dates over 13 months ago')).toBeInTheDocument();
-  });
-
-  it('shows the KpiCard "Not available" value and the partial count hint', () => {
-    expect(idsOf('visitor-stats')).toContain('kpi-visitors-not-available');
-    renderCase('kpi-visitors-not-available');
-    expect(screen.getByText('Not available')).toBeInTheDocument();
-    expect(screen.getByText('Not available for dates over 13 months ago')).toBeInTheDocument();
-    cleanup();
-
-    renderCase('kpi-visitors-counted-from');
-    expect(screen.getByText('Counted from Oct 15, 2025 only')).toBeInTheDocument();
-  });
-
-  it('shows the 13-month Note, the no-visits state, the failed read and the failed refresh', () => {
-    expect(idsOf('visitor-stats')).toContain('visitor-stats-cut-note');
-    renderCase('visitor-stats-cut-note');
-    expect(
-      screen.getByText(/^Unique visitors and visits are kept for 13 months\. Before Oct 15, 2025,/),
-    ).toBeInTheDocument();
-    cleanup();
-
+  it('shows the no-visits state, the failed read and the failed refresh', () => {
+    expect(idsOf('visitor-stats')).toContain('visitor-stats-no-visits');
     renderCase('visitor-stats-no-visits');
     expect(screen.getByRole('heading', { level: 2, name: 'No visits in these dates' })).toBeInTheDocument();
     cleanup();
