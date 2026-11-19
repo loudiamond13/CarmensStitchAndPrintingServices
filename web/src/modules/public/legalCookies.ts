@@ -153,7 +153,6 @@ export const COOKIES_TEXT: LegalText = {
             'To change your choice now, press the button below, or use Cookie Settings at the bottom of any page.',
           ],
         },
-        { kind: 'cookie-settings' },
       ],
     },
     {

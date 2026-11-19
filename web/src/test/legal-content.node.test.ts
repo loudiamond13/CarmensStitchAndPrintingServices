@@ -66,8 +66,6 @@ function blockProblems(where: string, block: LegalBlock): string[] {
       ];
     case 'facts':
       return block.show.length === 0 ? [`${where}: facts block shows nothing`] : [];
-    case 'cookie-settings':
-      return [];
   }
 }
 

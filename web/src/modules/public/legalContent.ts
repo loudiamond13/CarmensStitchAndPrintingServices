@@ -18,9 +18,7 @@ export type LegalBlock =
       }[];
     }
   | { readonly kind: 'h3'; readonly text: string }
-  | { readonly kind: 'facts'; readonly show: readonly ('business' | 'dpo' | 'contact')[] }
-  /** The secondary "Change Cookie Settings" button, which opens the Cookie Settings window (LEGAL-02). */
-  | { readonly kind: 'cookie-settings' };
+  | { readonly kind: 'facts'; readonly show: readonly ('business' | 'dpo' | 'contact')[] };
 
 export interface LegalSectionData {
   /** Kebab-case; the table of contents links to `#{id}`. */

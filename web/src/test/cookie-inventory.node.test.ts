@@ -39,7 +39,6 @@ function blockText(block: LegalBlock): string[] {
     case 'h3':
       return [block.text];
     case 'facts':
-    case 'cookie-settings':
       return [];
   }
 }
