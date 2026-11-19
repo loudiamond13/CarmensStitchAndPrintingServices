@@ -44,9 +44,6 @@ export const frameClasses = clsx(
  */
 export const demoFrameClasses = tw('flex flex-wrap items-center gap-3');
 
-/** The Blush surface under a public demo trigger (plan 12-29), so the trigger keeps the public look in either shell theme. */
-export const publicDemoClasses = tw('rounded-md bg-surface p-3');
-
 /** The 56 icons with their names, in as many 160px columns as fit. */
 export const iconGridClasses = tw('m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3 p-0');
 
