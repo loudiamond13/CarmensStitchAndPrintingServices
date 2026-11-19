@@ -10,9 +10,8 @@ import { consentCookie, consentProbe, demoDecision, setConsent } from '@/test/co
 import { server } from '@/test/msw';
 import { demoSite, putBootBlock } from '@/test/publicFixtures';
 import { formatConsentCookie, parseConsentCookie } from '../consentCookie';
-import { consentStore } from '../hooks/useConsent';
+import { consentStore, useConsent } from '../hooks/useConsent';
 import { ConsentSlot } from './ConsentSlot';
-import { SiteFooter } from './SiteFooter';
 
 // The window and the bar are lazy chunks; the first transform of their parts can take longer than a test waits, so load them first.
 beforeAll(async () => {
@@ -43,11 +42,30 @@ function cookieBar(): HTMLElement {
   return screen.getByRole('region', { name: 'Cookie choices' });
 }
 
+/** Stands in for the footer button the site no longer has: a button in a nav named "Legal" that opens the window. */
+function SettingsOpener() {
+  const { openSettings, settingsLoading } = useConsent();
+  return (
+    <nav aria-label="Legal">
+      <button
+        type="button"
+        aria-busy={settingsLoading || undefined}
+        aria-disabled={settingsLoading || undefined}
+        onClick={(event) => {
+          if (!settingsLoading) openSettings(event.currentTarget);
+        }}
+      >
+        Cookie Settings
+      </button>
+    </nav>
+  );
+}
+
 function renderPage() {
   putBootBlock(demoSite);
   return render(
     <MemoryRouter>
-      <SiteFooter variant="base" />
+      <SettingsOpener />
       <main id="main" tabIndex={-1} />
       <ConsentSlot />
     </MemoryRouter>,

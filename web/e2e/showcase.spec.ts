@@ -33,7 +33,7 @@ const SECTIONS = [
   'Dashboard and staff money',
   'Site content and public website',
   'Visitor stats',
-  'Cookies and legal',
+  'Legal',
 ];
 
 /** WebKit and Firefox can take several seconds to show this page of about 210 cases (as in shell.spec.ts, plan 12-31). */

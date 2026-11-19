@@ -1,6 +1,6 @@
 // Visitor Stats end to end (PRD §14 "metrics dashboard shows recorded visits"; ANL-05, ANL-06, ANL-08, ANL-09, D-21, D-23 to
-// D-27, D-33, WEB-10), in all five projects. A visitor accepts visitor stats and opens three public pages; a Manager in a separate
-// browser context then sees those visits on Visitor Stats. Pages a signed-in Manager opens add nothing (D-21). An Admin never
+// D-27, D-33, WEB-10), in all five projects. A visitor with no cookie choice (there is no cookie bar) opens three public pages; a Manager
+// in a separate browser context then sees each page count rise on Visitor Stats. Pages a signed-in Manager opens add nothing (D-21). An Admin never
 // reaches the page (D-23). The range lives in the URL, a custom range that does not pass sends nothing, a range over 13 months ago
 // shows what is missing, and Export CSV saves the range. Other specs and the other projects record visits on the same CSPS_E2E
 // database at the same time, so live counts are "at least"; days seeded through the Testing route are exact, and each project
@@ -146,10 +146,8 @@ async function adminMenu(page: Page): Promise<Locator> {
   return menu;
 }
 
-test.describe('a visitor who allows visitor stats', () => {
-  test.use({ consent: 'none' });
-
-  test('@visitor-stats a visitor accepts and opens three pages, and a Manager in another browser sees the visits', async ({
+test.describe('a visitor with no cookie choice', () => {
+  test('@visitor-stats a visitor with no choice opens Home, Products and Gallery, and a Manager in another browser sees each count rise', async ({
     page,
     browser,
     baseURL,
@@ -161,13 +159,6 @@ test.describe('a visitor who allows visitor stats', () => {
       testInfo.setTimeout(testInfo.timeout + 480_000);
     }
     await ensureDemoSiteContent(request);
-
-    const landing = nextPageView(page);
-    await page.goto('/');
-    await page.getByRole('region', { name: 'Cookie choices' }).getByRole('button', { name: 'Accept All' }).click();
-    expect((await landing).status()).toBe(204);
-    await openCounted(page, '/products');
-    await openCounted(page, '/gallery');
 
     const context = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
     const watched = await guardContext(context, baseURL);
@@ -181,12 +172,23 @@ test.describe('a visitor who allows visitor stats', () => {
       await expect(manager.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeVisible();
       await expect(manager).toHaveTitle('Visitor Stats · CSPS Admin');
 
-      expect(await kpiCount(manager, 'Page views')).toBeGreaterThanOrEqual(3);
-      expect(await kpiCount(manager, 'Visits')).toBeGreaterThanOrEqual(1);
-      expect(await kpiCount(manager, 'Unique visitors')).toBeGreaterThanOrEqual(1);
+      const names = ['Home', 'Products', 'Gallery'];
+      const before = new Map<string, number>();
+      for (const name of names) {
+        before.set(name, await listCount(manager, 'Most viewed pages', name));
+      }
+
+      await openCounted(page, '/');
+      await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
+      await openCounted(page, '/products');
+      await openCounted(page, '/gallery');
+
+      await openStats(manager);
       await expect(manager.locator(`svg [data-bucket="${manilaDate(0)}"]`)).toHaveCount(1);
-      for (const name of ['Home', 'Products', 'Gallery']) {
-        expect(await listCount(manager, 'Most viewed pages', name), name).toBeGreaterThanOrEqual(1);
+      for (const name of names) {
+        expect(await listCount(manager, 'Most viewed pages', name), name).toBeGreaterThanOrEqual(
+          (before.get(name) ?? 0) + 1,
+        );
       }
       await watched.finish();
     } finally {

@@ -10,8 +10,8 @@
 // server's business-calendar year.
 // SPEC-DEVIATION: D-25 no email row: the shop email is never shown on a public page.
 // SPEC-DEVIATION: D-33 (OQ-4) each social link's spoken name is "FB, CSPS on Facebook" and so on; nothing visible changes.
-// SPEC-DEVIATION: FOOTER-LEGAL App. E.1 and E.3 footers have no legal links; both variants gain a Legal row that ends with
-// the Cookie Settings button (ANL-03, LEGAL-05). The row never waits for the shop facts.
+// SPEC-DEVIATION: FOOTER-LEGAL App. E.1 and E.3 footers have no legal links; both variants gain a Legal row of the legal
+// page links (LEGAL-05, D-54). The row never waits for the shop facts.
 // SPEC-DEVIATION: D-41 R2-17 (owner, 2026-10-13) the column titles Shop, Visit and Contact are h2 instead of App. E.1's
 // h4, so the page's headings go h1 → h2 (Lighthouse heading order). Preflight resets heading size, weight and margin,
 // and the look comes from the classes, so nothing visible changes.
@@ -22,7 +22,6 @@ import { Icon } from '@/components/brand/Icon';
 import { Logo } from '@/components/brand/Logo';
 import { tw } from '@/ui/tw';
 import { PUBLIC_COPY } from '../copy';
-import { useConsent } from '../hooks/useConsent';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import { addressLine, mainPhone, telHref } from '../siteFacts';
 import type { PublicSite } from '../services/siteService';
@@ -45,12 +44,9 @@ const columnListClasses = tw('flex flex-col gap-3 text-14 leading-5');
 const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
 const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
-/** The Legal row's items: Small 14/20, 44px tall, underlined only on hover (UI-SPEC FT). A busy button looks inactive. */
+/** The Legal row's items: Small 14/20, 44px tall, underlined only on hover (UI-SPEC FT). */
 const legalLinkClasses = tw(
   'inline-flex min-h-11 items-center text-14 leading-5 text-ink-subtle no-underline hover:text-ink hover:underline',
-);
-const legalButtonClasses = tw(
-  'inline-flex min-h-11 cursor-pointer items-center text-14 leading-5 text-ink-subtle hover:text-ink hover:underline aria-busy:cursor-wait aria-busy:text-ink-muted',
 );
 /** The footer shell (App. C `.s-foot`). On phones the bottom padding is 96px, or the Contact bar's height plus the safe area when that is taller, so the bar never covers the last row. */
 const footerShellClasses = tw(
@@ -128,9 +124,8 @@ function StaffLogin() {
   );
 }
 
-/** The Legal row (UI-SPEC FT). A wait for the settings window shows on the button, which keeps focus (WEB-09). */
+/** The Legal row (UI-SPEC FT). */
 function LegalRow({ className }: { className: string }) {
-  const { openSettings, settingsLoading } = useConsent();
   const { pathname } = useLocation();
   return (
     <nav aria-label={FOOTER.legal.label} className={className}>
@@ -142,19 +137,6 @@ function LegalRow({ className }: { className: string }) {
             </UiLink>
           </li>
         ))}
-        <li>
-          <button
-            type="button"
-            className={legalButtonClasses}
-            aria-busy={settingsLoading || undefined}
-            aria-disabled={settingsLoading || undefined}
-            onClick={(event) => {
-              if (!settingsLoading) openSettings(event.currentTarget);
-            }}
-          >
-            {FOOTER.legal.settings}
-          </button>
-        </li>
       </ul>
     </nav>
   );

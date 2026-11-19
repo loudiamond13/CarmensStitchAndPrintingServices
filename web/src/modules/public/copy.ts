@@ -274,7 +274,6 @@ export const PUBLIC_COPY = {
         { text: 'Terms of Use', to: '/terms' },
         { text: 'Accessibility Statement', to: '/accessibility' },
       ],
-      settings: 'Cookie Settings',
     },
     copyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}. All rights reserved.`,
     baseCopyright: (year: number, businessName: string) => `© ${String(year)} ${businessName}`,

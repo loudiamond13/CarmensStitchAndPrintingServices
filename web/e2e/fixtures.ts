@@ -9,8 +9,6 @@
 // Every page of the test's browser context is guarded, not only the fixture `page` (TOOL-WR-14).
 // expectNoAxeViolations(page) adds the page-level axe check with the same tags as the component tests. A target-size
 // finding that only a fixed or sticky bar causes is re-checked after the target is scrolled clear of the bar (D-71).
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { AxeBuilder } from '@axe-core/playwright';
 import { test as base, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
@@ -259,68 +257,7 @@ export async function guardContext(context: BrowserContext, baseURL: string | un
   };
 }
 
-/** Whether the browser context starts with a saved cookie choice. `none` is for the specs that test the cookie bar itself. */
-export type ConsentMode = 'decided' | 'none';
-
-/** The fake chain id of the default cookie: clearly not a real visitor. */
-export const E2E_CONSENT_ID = '00000000000000000000000000000e2e';
-
-/** The Cookie Policy version the server expects, read from the one shared fixture (D-22). */
-function cookiePolicyVersion(): string {
-  const text = readFileSync(fileURLToPath(new URL('../../tests/fixtures/legal-pages.json', import.meta.url)), 'utf8');
-  const parsed = JSON.parse(text) as { pages: { key: string; version: string }[] };
-  const version = parsed.pages.find((page) => page.key === 'cookies')?.version;
-  if (version === undefined) {
-    throw new Error('tests/fixtures/legal-pages.json has no cookies page.');
-  }
-  return version;
-}
-
-/** The Asia/Manila business day, the day the server stamps on a cookie (D-43); a device-date cookie could read as future-dated. */
-function manilaToday(): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const part = (type: string): string => parts.find((entry) => entry.type === type)?.value ?? '';
-  return `${part('year')}${part('month')}${part('day')}`;
-}
-
-/** The default saved choice: Reject All, the current policy version, today's business day. Nothing non-essential is on. */
-export function decidedConsentValue(): string {
-  return `1_${E2E_CONSENT_ID}_${cookiePolicyVersion()}_0_0_${manilaToday()}`;
-}
-
-/**
- * Puts the default saved choice (Reject All) into a browser context for the E2E origin, so the cookie bar stays away from
- * every public spec that is not about the bar (Pitfall 9). A `__Host-` cookie must be Secure, Path=/ and have no Domain,
- * which a `url` gives.
- */
-export async function addDecidedConsent(context: BrowserContext, baseURL: string | undefined): Promise<void> {
-  const origin = new URL(baseURL ?? 'https://localhost:5199').origin;
-  await context.addCookies([
-    {
-      name: '__Host-csps_consent',
-      value: decidedConsentValue(),
-      url: origin,
-      secure: true,
-      sameSite: 'Lax',
-      expires: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
-    },
-  ]);
-}
-
-export const test = base.extend<{ guard: Guard; consent: ConsentMode }>({
-  // `test.use({ consent: 'none' })` starts the browser with no saved choice, for the cookie bar's own specs.
-  consent: ['decided', { option: true }],
-  context: async ({ context, consent, baseURL }, provide) => {
-    if (consent === 'decided') {
-      await addDecidedConsent(context, baseURL);
-    }
-    await provide(context);
-  },
+export const test = base.extend<{ guard: Guard }>({
   guard: [
     // The callback is named `provide`, not `use`, so react-hooks/rules-of-hooks does not misfire (L-23).
     async ({ page, baseURL }, provide) => {

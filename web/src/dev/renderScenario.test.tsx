@@ -1,5 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
@@ -237,118 +236,31 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
   });
 });
 
-const SETTINGS_CASES = [
-  'cookie-settings-no-choice',
-  'cookie-settings-saved',
-  'cookie-settings-gpc',
-  'cookie-settings-cleared',
-  'cookie-settings-clear-failed',
-];
+const LEGAL_CASES = ['legal-notice'];
 
-const CONSENT_CASES = ['consent-bar', ...SETTINGS_CASES, 'legal-notice'];
-
-/** The text each case shows once it has settled (the saved line waits for the cookie rules, a clear for its answer). */
-const SETTLED_TEXT: Readonly<Record<string, string | RegExp>> = {
-  'consent-bar': 'Cookie Settings',
-  'cookie-settings-no-choice': 'Your choices',
-  'cookie-settings-saved': /^You chose on Nov 3, 2026\./,
-  'cookie-settings-gpc': 'Your browser asked us not to track you, so visitor stats stay off.',
-  'cookie-settings-cleared':
-    'Done. The optional cookies and your visit records are deleted. Visitor stats and the map are now off.',
-  'cookie-settings-clear-failed': "Couldn't clear your data. Check your internet connection and try again.",
-  'legal-notice': 'Draft: this text is not final yet.',
-};
-
-function settingsDialog(): HTMLElement {
-  return screen.getByRole('dialog', { name: 'Cookie Settings' });
-}
-
-function box(name: string): HTMLInputElement {
-  const input = within(settingsDialog()).getByRole('checkbox', { name });
-  if (!(input instanceof HTMLInputElement)) {
-    throw new Error(`No ${name} checkbox.`);
-  }
-  return input;
-}
-
-describe('the consent and legal scenarios (plan 12-29)', () => {
-  it('lists the bar, every Cookie Settings state and the DRAFT notice in the consent group, Blush only', () => {
-    expect(idsOf('consent').length).toBe(CONSENT_CASES.length);
-    expect(idsOf('consent')).toEqual(CONSENT_CASES);
-    for (const id of CONSENT_CASES) {
+describe('the legal scenarios (plan 12-29, D-54)', () => {
+  it('lists only the DRAFT notice in the legal group, Blush only, and no consent group', () => {
+    expect(idsOf('legal')).toEqual(LEGAL_CASES);
+    expect(idsOf('consent')).toEqual([]);
+    for (const id of LEGAL_CASES) {
       const scenario = scenarioById(id);
       expect(scenario.themes, id).toEqual(['light']);
       expect(scenario.parity, id).toBe(false);
-      expect(scenario.frame, id).toBe(SETTINGS_CASES.includes(id) ? 'viewport' : undefined);
+      expect(scenario.frame, id).toBeUndefined();
     }
   });
 
-  it.each(CONSENT_CASES)('%s settles with no axe findings and sends nothing', async (id) => {
-    expect(idsOf('consent')).toContain(id);
+  it('names no cookie bar or Cookie Settings preview in any scenario', () => {
+    const named = scenarios.map((scenario) => scenario.node.component);
+    expect(named.filter((name) => name === 'StaticConsentBar' || name === 'OpenedCookieSettings')).toEqual([]);
+  });
+
+  it.each(LEGAL_CASES)('%s settles with no axe findings and sends nothing', async (id) => {
     const { container } = renderCase(id);
     expect(container.textContent).not.toContain('Missing component');
-    expect((await screen.findAllByText(SETTLED_TEXT[id] ?? id)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Draft: this text is not final yet.')).length).toBeGreaterThan(0);
     await expectNoAxeViolations(container);
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it('draws the consent bar in the page flow inside a Blush box, and a choice there sends nothing', async () => {
-    expect(idsOf('consent')).toContain('consent-bar');
-    const cookies = document.cookie;
-    renderCase('consent-bar');
-    const bar = screen.getByRole('region', { name: 'Cookie choices' });
-    expect(bar.style.position).toBe('static');
-    expect(bar.parentElement?.getAttribute('data-theme')).toBe('light');
-
-    await userEvent.click(within(bar).getByRole('button', { name: 'Accept All' }));
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(requests).toEqual([]);
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(document.cookie).toBe(cookies);
-  });
-
-  it('opens Cookie Settings with nothing ticked before a choice, and with the saved choice ticked', async () => {
-    expect(idsOf('consent')).toContain('cookie-settings-no-choice');
-    renderCase('cookie-settings-no-choice');
-    expect(box('Visitor stats').checked).toBe(false);
-    expect(box('Google map').checked).toBe(false);
-    expect(within(settingsDialog()).getByRole('button', { name: 'Reject All' })).toBeInTheDocument();
-    cleanup();
-
-    renderCase('cookie-settings-saved');
-    await screen.findByText(/^You chose on Nov 3, 2026\./);
-    expect(box('Visitor stats').checked).toBe(true);
-    expect(box('Google map').checked).toBe(false);
-  });
-
-  it('opens Cookie Settings under GPC with visitor stats locked off and only Save Choices', async () => {
-    expect(idsOf('consent')).toContain('cookie-settings-gpc');
-    renderCase('cookie-settings-gpc');
-    await screen.findByText('Your browser asked us not to track you, so visitor stats stay off.');
-    expect(box('Visitor stats')).toHaveAttribute('aria-disabled', 'true');
-    expect(within(settingsDialog()).queryByRole('button', { name: 'Reject All' })).toBeNull();
-    expect(within(settingsDialog()).getByRole('button', { name: 'Save Choices' })).toBeInTheDocument();
-  });
-
-  it('shows the cleared Note with both boxes unticked, and keeps this browser storage as it was', async () => {
-    expect(idsOf('consent')).toContain('cookie-settings-cleared');
-    localStorage.setItem('csps-demo-keep', 'kept');
-    renderCase('cookie-settings-cleared');
-    await screen.findByText(SETTLED_TEXT['cookie-settings-cleared'] ?? '');
-    expect(box('Visitor stats').checked).toBe(false);
-    expect(box('Google map').checked).toBe(false);
-    await waitFor(() => {
-      expect(localStorage.getItem('csps-demo-keep')).toBe('kept');
-    });
-    localStorage.removeItem('csps-demo-keep');
-  });
-
-  it('shows the clear failure line in the open confirmation and keeps the saved choice', async () => {
-    expect(idsOf('consent')).toContain('cookie-settings-clear-failed');
-    renderCase('cookie-settings-clear-failed');
-    const confirm = await screen.findByRole('dialog', { name: 'Clear your cookies and data?' });
-    await within(confirm).findByText(SETTLED_TEXT['cookie-settings-clear-failed'] ?? '');
-    expect(box('Visitor stats').checked).toBe(true);
   });
 });

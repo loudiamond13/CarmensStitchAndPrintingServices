@@ -1,19 +1,13 @@
 // SPEC-GAP: LEGAL-02, D-17, D-19, D-20, D-22, D-31, D-36, D-39, D-41. The Cookie Policy at /cookies: the cookies the site sets, in
-// three groups, each with what it does and how long it lasts, the Google cookie policy link, the seven sections in order, the button
-// that opens Cookie Settings and the lines about GPC, clearing and changes (UI-SPEC L3).
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+// three groups, each with what it does and how long it lasts, the Google cookie policy link, the seven sections in order and the
+// lines about GPC, clearing and changes (UI-SPEC L3).
+import { render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { setConsent } from '@/test/consentFixtures';
-
-// The Cookie Settings window is a lazy chunk; the first transform of its parts can take longer than a test waits, so load it first.
-beforeAll(async () => {
-  await import('../components/CookieSettingsDialog');
-}, 30_000);
 
 /** The real route tree at /cookies, settled once the h1 is on screen. */
 async function renderCookies() {
@@ -130,29 +124,13 @@ describe('CookiePolicyPage sections (LEGAL-02)', { timeout: 20_000 }, () => {
   });
 });
 
-describe('CookiePolicyPage Your choices and the Cookie Settings button (LEGAL-02, D-17)', { timeout: 20_000 }, () => {
-  it('ends "Your choices" with a button named "Change Cookie Settings"', async () => {
+describe('CookiePolicyPage Your choices (LEGAL-02, D-17, D-54)', { timeout: 20_000 }, () => {
+  it('offers no Cookie Settings button', async () => {
     setConsent();
     await renderCookies();
     const section = await sectionOf('Your choices');
-    const button = within(section).getByRole('button', { name: 'Change Cookie Settings' });
-    expect(button).toHaveAttribute('type', 'button');
-    const last = section.querySelector('div > :last-child');
-    expect(last === button || last?.contains(button) === true).toBe(true);
-  });
-
-  it('opens the Cookie Settings window with focus inside it, and Escape returns focus to the button', async () => {
-    setConsent();
-    await renderCookies();
-    const button = within(await sectionOf('Your choices')).getByRole('button', { name: 'Change Cookie Settings' });
-    await userEvent.click(button);
-    const dialog = await screen.findByRole('dialog', { name: 'Cookie Settings' });
-    expect(dialog.contains(document.activeElement)).toBe(true);
-    await userEvent.keyboard('{Escape}');
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Cookie Settings' })).not.toBeInTheDocument();
-    });
-    expect(button).toHaveFocus();
+    expect(within(section).queryByRole('button', { name: 'Change Cookie Settings' })).not.toBeInTheDocument();
+    expect(within(section).queryAllByRole('button')).toEqual([]);
   });
 
   it('explains the two choices and what happens when the cookies are blocked in the browser', async () => {
