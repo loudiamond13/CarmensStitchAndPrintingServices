@@ -1,5 +1,5 @@
 // Phase 11 public sweep (PUB-01, A11Y-01, WCAG 2.2 AA, strict CSP; D-13, D-25; plan 11-37), in all five projects. Each public page
-// (Home, Products, Gallery, Contact, and since plan 12-24 the four legal pages, LEGAL-05) and the 404 page is opened with the demo
+// (Home, Products, Gallery, Contact, the three legal pages, LEGAL-05, D-72) and the 404 page is opened with the demo
 // shop in place and checked at the eight P2 widths (320 to 1920 px): no sideways scroll, one h1 and zero axe findings (target-size
 // and scrollable-region-focusable are in the rule set). The guard fails every test on a console, page or CSP finding or an
 // undeclared failed response. The rendered page holds no "@" in its text, no email in its markup and none of the demo customer's
@@ -109,6 +109,20 @@ const PAGES: readonly SweepPage[] = [
     ready: settled,
   },
 ];
+
+test('@public-sweep the old Cookie Policy address shows Page not found', async ({ page, request, guard }) => {
+  guard.expectStatus('/cookies', 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const response = await page.goto('/cookies');
+    expect(response?.status()).toBe(404);
+    await expect(page.locator('h1')).toHaveText('Out of bounds.');
+    await expect(page).toHaveTitle('Page Not Found · CSPS');
+    await settled(page);
+    const legal = page.getByRole('contentinfo').getByRole('navigation', { name: 'Legal' });
+    await expect(legal.getByRole('link')).toHaveText(['Privacy Policy', 'Terms of Use', 'Accessibility Statement']);
+  });
+});
 
 /** The text and markup the demo customer's private values would show up in. */
 const EMAIL_IN_MARKUP = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
