@@ -41,7 +41,7 @@ function shared(key: LegalPageKey): SharedPage {
 function versionLine(key: LegalPageKey): string {
   const { version, lastUpdated } = shared(key);
   const [year = '', month = '1', day = '1'] = lastUpdated.split('-');
-  return `Version ${version} · Last updated ${MONTHS[Number(month) - 1] ?? ''} ${Number(day)}, ${year}`;
+  return `Version ${version} · Last updated ${MONTHS[Number(month) - 1] ?? ''} ${String(Number(day))}, ${year}`;
 }
 
 /** The DRAFT notice shows exactly when the fixture says the page is not approved. */
