@@ -6,7 +6,7 @@ status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
 last_activity: 2026-11-19
-last_activity_desc: Phase 12.1 all 8 waves merged; end-of-phase code review running
+last_activity_desc: Phase 12.1 verified human_needed; full e2e has 5 stable failures to debug
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-19: Phase 12.1 all 17 plans merged (12.1-16 parked for the owner); end-of-phase code review running
+Last activity: 2026-11-19: Phase 12.1 executed and verified human_needed (UAT 3 items); code review fixed; full e2e has 5 stable mobile Safari failures to debug
 
 Progress: [█████░░░░░] 47%
 
@@ -1104,6 +1104,7 @@ Phase 12.1 execution backlog (2026-11-18):
 - [ ] **12.1-15 change outside its file list (FYI):** `visitorStatsService.ts` now takes the CSV file name from the server's `Content-Disposition` (only the exact `visitor-stats-{from}-to-{to}.csv` shape), because the old code read it from the first and last data rows and a header-only file has none.
 - [x] **12.1 wave 8 gate (2026-11-19; plan 12.1-17, docs only):** the merge changed only REQUIREMENTS.md, ROADMAP.md (wording, not progress marks), PROJECT.md, CSPS-PRD.md, `.claude/CLAUDE.md` (the web-vitals phrase), `docs/web/budgets.md`, `docs/web/e2e.md` and `12-UI-SPEC.md`; no code, test or config file, so the wave 7 gate stands. TDD review gate: 5 TDD plans, 0 violations. End-of-phase code review running in three parallel groups (G1 server, G2 web app, G3 tests and tooling).
 - [ ] **Before ship (your workflow):** run `/gsd-secure-phase 12.1` and `/gsd-ui-review 12.1` (the verify:post security and UI review hooks; also `validate-phase`), then `/gsd-ship` for Phases 12 and 12.1 together (D-62).
+- [ ] **12.1 final gate (2026-11-19, after the review fixes): .NET, web and budget green; the full e2e suite is NOT green (needs a debug session).** Build 0 warnings, format clean; Domain, Architecture, Application, Infrastructure passed; Server 3013 of 3014: the failure was the OpenAPI snapshot left stale by the IN-G1-01 doc fix, refreshed (0d8ecb8e) and re-run 11 of 11; openapi types match; web `verify` and `build:budget` pass. Whole e2e suite for the first time this phase (2533 tests, 2.1 h): 2393 passed, 80 failed, 60 skipped; all 80 in Firefox (29), iPhone (30) and WebKit (21), none in Chromium or Pixel, none in a spec Phase 12.1 built. Re-run of the 80 alone: 53 passed. Then spec by spec per project: (1) **stable failures (5):** iPhone `@dialog-fit` "a click on the dark area above the sheet closes it" and "a right press on the dark area above the sheet keeps it open", iPhone and WebKit `@shell full bleed admin at 390x844` (`/admin/sessions` is 1187 px tall in an 845 px window: "a short page needs no scroll"), iPhone `@site-content-business` at 320 px. No 12.1 commit touched these pages or the admin layout, but this is not proved: the check is the same tests at commit f579e158 (before 12.1). (2) **Firefox flakes:** a different set fails each run (shell tab bar and short screens, orders-sweep, order photos); the repeated error is Firefox's "downloadable font: download failed" console line, which the e2e guard counts as a failure. (3) **WebKit showcase load:** `/dev/components` shows no h1 within 5 s under full-suite load (dialog-fit, motion, keyboard); all pass alone (54 of 55). Recommended: `/gsd-debug` on (1) first, starting with a run at f579e158; then decide whether the e2e guard should ignore the Firefox font line and give the showcase more time in the full run.
 
 ### Blockers/Concerns
 
