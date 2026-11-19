@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-18T18:28:27-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 ## Overview
 
@@ -1266,6 +1266,7 @@ Plans:
 ### Phase 12: Consent, Analytics & Legal
 
 **Goal**: Visitors get a fair cookie choice and can wipe their data. Managers see visitor metrics that respect privacy. Visitors can read versioned legal pages marked DRAFT.
+**Amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18):** Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62). The shipped result is a daily page tally only, no cookie banner, no Cookie Settings link and no Clear button (success criteria 1 to 3 below are superseded or reduced), a smaller Visitor Stats page with a `Date,Page,Page views` CSV (criterion 4 reduced), and three legal pages with the Cookie Policy folded into the Privacy Policy (criterion 5 reduced). The criteria below keep their original Phase 12 wording for history; REQUIREMENTS.md and the Phase 12.1 section hold the current meaning. D-73 owner approval: open (see Phase 12.1).
 **Mode:** mvp
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08, ANL-09, LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05
@@ -1336,8 +1337,10 @@ Plans:
 
 ### Phase 12.1: Analytics simplification: daily page tally only, no cookie banner (D-53 to D-58) (INSERTED)
 
-**Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
-**Requirements**: TBD
+**Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, and the tap is saved in this browser so the map loads by itself next time (D-54; D-65 amends D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy Policy wording, with the Cookie Policy folded in (D-72).
+**Requirements**: none new; reduces ANL-01 to ANL-09, LEGAL-01, LEGAL-02, LEGAL-05 (see REQUIREMENTS.md)
+**Ships with Phase 12:** Phase 12 is never deployed alone (D-62).
+**D-73 owner approval: open.** The Privacy Policy stays DRAFT until the owner approves it; the review waits in the STATE.md Phase 12.1 owner backlog (plan 12.1-16 parked it, 2026-11-19, owner away). Phase verification reports LEGAL-01 approval as waiting on the owner.
 **Depends on:** Phase 12
 **Plans:** 16/17 plans executed
 

@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-11-10T09:00:00-06:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -217,23 +217,25 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Consent & Analytics (ANL)
 
-- [ ] **ANL-01**: On first visit, visitors see a cookie consent banner with Accept all, Reject all (equally prominent) and Customize. Nothing non-essential is set before a choice
-- [ ] **ANL-02**: The browser Global Privacy Control signal is honored as "reject analytics"
-- [ ] **ANL-03**: A persistent footer "Cookie settings" link reopens preferences at any time
-- [ ] **ANL-04**: A "Clear my cookies & data" button expires non-essential cookies (server-side for HttpOnly ones), clears local/session storage and deletes server-side analytics tied to the visitor id
-- [ ] **ANL-05**: With consent, analytics records visitor id (random UUID cookie, ≤ 12 months), sessions, page views, referrer host and device/browser/OS family. IPs are never stored in clear (truncated, then HMAC'd with a rotating salt). Core Web Vitals are collected only with consent. Here and in ANL-06, a page's path is `location.pathname` only: the client never sends the query string or fragment, which can hold search text (WEB-10); Core Web Vitals reports carry the same path; and the server cuts a reported path at the first `?` or `#` before storing it, so a crafted beacon can't store one either
-- [ ] **ANL-06**: Without consent, only anonymous aggregate counts (path + day) are recorded, with no cookies or identifiers
-- [ ] **ANL-07**: Consent is re-requested when the cookie policy version changes or after 12 months, and every consent decision is logged as proof
-- [ ] **ANL-08**: A Manager can view a metrics dashboard (unique visitors, sessions, page views, top pages, top referrers, device/browser split, trend chart, Core Web Vitals) for a chosen date range, and export it as CSV. The date range lives in the URL (WEB-10)
-- [ ] **ANL-09**: Raw analytics events are retained for 13 months, then aggregated and purged ⚑ OD-10
+*Phase 12.1 note: Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62). The ANL and LEGAL rows below say what the two phases deliver together. Each row names the ruling that changed it; rulings are in `.planning/phases/12.1-analytics-simplification-daily-page-tally-only-no-cookie-ban/12.1-CONTEXT.md`.*
+
+- [ ] **ANL-01**: There is no cookie banner and the site sets no optional cookies. Nothing non-essential is set before a choice: the one saved map setting is written only when the visitor taps Show Map (Phase 12.1: superseded by D-54, D-59; the old Accept all, Reject all and Customize banner is gone)
+- [ ] **ANL-02**: The browser Global Privacy Control signal is honored by design: the site tracks no one, and `/.well-known/gpc.json` stays. The saved map setting is kept for GPC browsers too, because the tap is a clear choice (Phase 12.1: met by design, D-60, D-65)
+- [ ] **ANL-03**: The footer has no "Cookie settings" link. The footer Legal row has three links: Privacy Policy, Terms of Use and Accessibility Statement (Phase 12.1: superseded by D-54, D-59, D-72)
+- [ ] **ANL-04**: There is no "Clear my cookies & data" button. The Privacy Policy explains how to clear the saved map setting in the browser, and the server expires the two old consent and visitor id cookies when a browser still sends them (Phase 12.1: superseded by D-55, D-65, D-63)
+- [ ] **ANL-05**: The only thing recorded is the page and the day. There is no visitor id, no session, no referrer, no device or browser family, no Web Vitals and no IP address stored. Here and in ANL-06, a page's path is `location.pathname` only: the client never sends the query string or fragment, which can hold search text (WEB-10), and the server cuts a reported path at the first `?` or `#` before storing it, so a crafted beacon can't store one either (Phase 12.1: reduced by D-53; the path cut rule is kept)
+- [ ] **ANL-06**: Each page view adds one to the anonymous count for that path and day, with no cookies or identifiers. Bots and signed-in staff are not counted (D-21). This is now the whole of collection (Phase 12.1: reduced by D-53)
+- [ ] **ANL-07**: The site never asks for consent and logs no consent decisions, so there is nothing to re-request. The consent record table stays, unused, until a separate owner yes (Phase 12.1: superseded by D-54, D-59, D-61)
+- [ ] **ANL-08**: A Manager can view Visitor Stats for a chosen date range: total page views, the 5 most viewed pages with their share, and a per day or per month chart. The same range exports as a CSV with the columns `Date,Page,Page views`, one row per day per page, with the page's plain name. The date picker reaches back 3 years. The date range lives in the URL (WEB-10) (Phase 12.1: reduced by D-57, D-67 to D-70, D-75)
+- [ ] **ANL-09**: No raw analytics events are written and no roll-up runs. Daily page counts are kept about 3 years (D-04), and the monthly cleanup ages out old rows in every analytics table and reports "Old daily page counts removed" (Phase 12.1: reduced by D-53, D-64, D-77) ⚑ OD-10
 
 ### Legal (LEGAL)
 
-- [ ] **LEGAL-01**: Visitors can read a Privacy Policy covering the controller, purposes (orders, inquiries, analytics), retention, rights and contact, drafted for the owner's jurisdiction ⚑ OD-11
-- [ ] **LEGAL-02**: Visitors can read a versioned Cookie Policy linked from the consent banner
+- [ ] **LEGAL-01**: Visitors can read a Privacy Policy covering the controller, purposes (orders, inquiries, the daily page count), retention, rights and contact, drafted for the owner's jurisdiction, plus a section on cookies and saved settings: the necessary cookies, the one saved map setting, that Google may set its own cookies when the map loads, and how to clear them. It stays version 1.0 and carries the DRAFT notice until the owner approves it ⚑ OD-11. **D-73 owner approval: open.** The Privacy Policy stays DRAFT until the owner approves it; the review is parked in the STATE.md Phase 12.1 owner backlog (the owner was away, 2026-11-19) (Phase 12.1: rewritten by D-71, D-72, D-73)
+- [ ] **LEGAL-02**: Folded into LEGAL-01: there is no separate Cookie Policy, and `/cookies` shows the normal "page not found" (Phase 12.1: superseded by D-72)
 - [ ] **LEGAL-03**: Visitors can read Terms of Use ⚑ OD-11
 - [ ] **LEGAL-04**: Visitors can read an Accessibility Statement with a contact method for issues
-- [ ] **LEGAL-05**: All legal pages are linked in the footer, versioned with "last updated" dates, and clearly marked DRAFT until the owner approves the text
+- [ ] **LEGAL-05**: All three legal pages (Privacy Policy, Terms of Use, Accessibility Statement) are linked in the footer, versioned with "last updated" dates, and clearly marked DRAFT until the owner approves the text. The Privacy Policy is DRAFT again (Phase 12.1: reduced to three pages by D-72; Privacy back to DRAFT by D-71)
 - [ ] **LEGAL-06**: Documented Manager procedures exist for data subject requests (access, correction, deletion of a customer's data) and breach response, including the owner notification steps
 
 ### Accessibility (A11Y)
@@ -470,20 +472,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INQ-06 | Phase 13 | Pending |
 | INQ-07 | Phase 13 | Pending |
 | INQ-08 | Phase 13 | Pending |
-| ANL-01 | Phase 12 | Pending |
-| ANL-02 | Phase 12 | Pending |
-| ANL-03 | Phase 12 | Pending |
-| ANL-04 | Phase 12 | Pending |
-| ANL-05 | Phase 12 | Pending |
-| ANL-06 | Phase 12 | Pending |
-| ANL-07 | Phase 12 | Pending |
-| ANL-08 | Phase 12 | Pending |
-| ANL-09 | Phase 12 | Pending |
-| LEGAL-01 | Phase 12 | Pending |
-| LEGAL-02 | Phase 12 | Pending |
+| ANL-01 | Phase 12 + 12.1 | Pending |
+| ANL-02 | Phase 12 + 12.1 | Pending |
+| ANL-03 | Phase 12 + 12.1 | Pending |
+| ANL-04 | Phase 12 + 12.1 | Pending |
+| ANL-05 | Phase 12 + 12.1 | Pending |
+| ANL-06 | Phase 12 + 12.1 | Pending |
+| ANL-07 | Phase 12 + 12.1 | Pending |
+| ANL-08 | Phase 12 + 12.1 | Pending |
+| ANL-09 | Phase 12 + 12.1 | Pending |
+| LEGAL-01 | Phase 12 + 12.1 | Pending |
+| LEGAL-02 | Phase 12 + 12.1 | Pending |
 | LEGAL-03 | Phase 12 | Pending |
 | LEGAL-04 | Phase 12 | Pending |
-| LEGAL-05 | Phase 12 | Pending |
+| LEGAL-05 | Phase 12 + 12.1 | Pending |
 | LEGAL-06 | Phase 14 | Pending |
 | A11Y-01 | Phase 2 | Complete |
 | A11Y-02 | Phase 2 | Complete |
