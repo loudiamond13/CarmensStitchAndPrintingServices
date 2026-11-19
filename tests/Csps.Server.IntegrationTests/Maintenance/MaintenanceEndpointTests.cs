@@ -161,7 +161,7 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
-    public async Task TheRunAnswerListsTheVisitorDaysRolledUpLineAfterThePurgeLines()
+    public async Task TheRunAnswerListsTheDailyPageCountsLineAfterThePurgeLinesAndNoRollUpLine()
     {
         await database.ResetAsync();
         await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
@@ -175,8 +175,9 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         using var document = JsonDocument.Parse(text);
         document.RootElement.GetProperty("ok").GetBoolean().ShouldBeTrue();
         var labels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
-        labels.ShouldContain("Visitor days rolled up");
-        labels.IndexOf("Visitor days rolled up").ShouldBeGreaterThan(labels.IndexOf("Old sent emails removed"));
+        labels.ShouldContain("Old daily page counts removed");
+        labels.IndexOf("Old daily page counts removed").ShouldBeGreaterThan(labels.IndexOf("Old sent emails removed"));
+        labels.ShouldNotContain("Visitor days rolled up");
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
@@ -9,35 +8,29 @@ using Microsoft.Extensions.Logging;
 namespace Csps.Infrastructure.Analytics;
 
 /// <summary>
-/// Keeps visitor analytics for the published time and no longer (ANL-09, D-03 to D-05, D-07). Each closed business day is first rolled up
-/// into anonymous daily referrer and device totals, oldest first, one day per transaction; the day the work reached is saved in the
-/// maintenance cursor. A database failure in one rule is logged and reported as that rule's failed line; the other rules still run.
+/// Keeps visitor analytics for the published time and no longer (ANL-09, D-03 to D-05, D-07, D-61, D-64). Nothing is rolled up any more: each
+/// rule only removes rows past its cut date. A database failure in one rule is logged and reported as that rule's failed line; the other
+/// rules still run.
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="calendar">The business calendar (Asia/Manila by default).</param>
-/// <param name="cursors">Keeps the last rolled-up day.</param>
 /// <param name="logger">The logger.</param>
 internal sealed partial class AnalyticsRetentionJob(
     CspsDbContext context,
     IBusinessCalendar calendar,
-    IMaintenanceCursors cursors,
     ILogger<AnalyticsRetentionJob> logger) : IMaintenanceJob
 {
-    internal const string RolledUpLabel = "Visitor days rolled up";
-
     internal const string RawLabel = "Old visit records removed";
 
     internal const string ConsentLabel = "Old cookie choices removed";
 
-    internal const string DailyLabel = "Old daily visitor totals removed";
+    internal const string DailyLabel = "Old daily page counts removed";
 
     internal const string SaltLabel = "Old address salts removed";
 
     internal const string JobName = "analytics-retention";
 
     internal const int BatchSize = 500;
-
-    private const string CursorFormat = "yyyy-MM-dd";
 
     /// <inheritdoc />
     public int Order => 15;
@@ -55,14 +48,12 @@ internal sealed partial class AnalyticsRetentionJob(
         var now = clock.UtcNow;
         var lines = new List<MaintenanceLine>();
 
-        // The rules in run order: the rollup first, so a raw day is only ever removed after its totals are kept. A rule that stops for the
-        // budget ends the pass with More; the next pass carries on from there.
+        // The rules in run order. A rule that stops for the budget ends the pass with More; the next pass carries on from there.
         var rules = new List<(string Label, string FailedText, Func<Task<(long Count, bool More)>> Work)>
         {
-            (RolledUpLabel, "The visitor days could not be rolled up.", () => RollUpAsync(today, budget, cancellationToken)),
             (RawLabel, "The old visit records could not be removed.", () => PurgeRawVisitsAsync(today, budget, cancellationToken)),
             (ConsentLabel, "The old cookie choices could not be removed.", () => PurgeConsentAsync(now, budget, cancellationToken)),
-            (DailyLabel, "The old daily visitor totals could not be removed.", () => PurgeDailyTotalsAsync(today, budget, cancellationToken)),
+            (DailyLabel, "The old daily page counts could not be removed.", () => PurgeDailyTotalsAsync(today, budget, cancellationToken)),
             (SaltLabel, "The old address salts could not be removed.", () => PurgeSaltsAsync(today, budget, cancellationToken)),
         };
         foreach (var (label, failedText, work) in rules)
@@ -94,89 +85,11 @@ internal sealed partial class AnalyticsRetentionJob(
         }
     }
 
-    // Rolls every closed day after the cursor, oldest first. Each day is one transaction that replaces the day's rows and moves the cursor,
-    // so a crash and a retry never count a day twice. At least one day is rolled per pass; a spent budget then stops the pass with More.
-    private async Task<(long Count, bool More)> RollUpAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
+    // Removes visits, page views and speed samples older than the raw cut, by date alone, children first.
+    private Task<(long Count, bool More)> PurgeRawVisitsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
     {
-        var yesterday = today.AddDays(-1);
-        var rolledThrough = await ReadCursorAsync(cancellationToken).ConfigureAwait(false);
-
-        var days = await context.AnalyticsVisits
-            .AsNoTracking()
-            .Where(visit => visit.BusinessDay <= yesterday && (rolledThrough == null || visit.BusinessDay > rolledThrough))
-            .Select(visit => visit.BusinessDay)
-            .Distinct()
-            .OrderBy(day => day)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        long rolled = 0;
-        for (var index = 0; index < days.Count; index++)
-        {
-            await RollDayAsync(days[index], cancellationToken).ConfigureAwait(false);
-            rolled++;
-            if (index < days.Count - 1 && budget.IsSpent)
-            {
-                return (rolled, true);
-            }
-        }
-
-        if (rolledThrough != yesterday)
-        {
-            await cursors.SaveAsync(JobName, yesterday.ToString(CursorFormat, CultureInfo.InvariantCulture), cancellationToken).ConfigureAwait(false);
-        }
-
-        return (rolled, false);
-    }
-
-    private async Task RollDayAsync(DateOnly day, CancellationToken cancellationToken)
-    {
-        var transaction = await context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
-        await using (transaction.ConfigureAwait(false))
-        {
-            await context.DailyReferrerCounts.Where(row => row.BusinessDay == day).ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
-            await context.DailyDeviceCounts.Where(row => row.BusinessDay == day).ExecuteDeleteAsync(cancellationToken).ConfigureAwait(false);
-
-            var visits = context.AnalyticsVisits.AsNoTracking().Where(visit => visit.BusinessDay == day);
-            var referrers = await visits
-                .GroupBy(visit => visit.Referrer)
-                .Select(group => new { Name = group.Key, Visits = group.Count() })
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            var devices = await visits
-                .GroupBy(visit => visit.Device)
-                .Select(group => new { Device = group.Key, Visits = group.Count() })
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-            var browsers = await visits
-                .GroupBy(visit => visit.Browser)
-                .Select(group => new { Name = group.Key, Visits = group.Count() })
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            context.DailyReferrerCounts.AddRange(referrers.Select(row => DailyReferrerCount.Of(day, row.Name, row.Visits)));
-            context.DailyDeviceCounts.AddRange(devices.Select(row => DailyDeviceCount.Of(day, DeviceDimension.Device, row.Device.ToString(), row.Visits)));
-            context.DailyDeviceCounts.AddRange(browsers.Select(row => DailyDeviceCount.Of(day, DeviceDimension.Browser, row.Name, row.Visits)));
-            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-            context.ChangeTracker.Clear();
-
-            await cursors.SaveAsync(JobName, day.ToString(CursorFormat, CultureInfo.InvariantCulture), cancellationToken).ConfigureAwait(false);
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    // Removes visits, page views and speed samples older than the raw cut (D-03), children first, and only for days the cursor shows rolled up.
-    private async Task<(long Count, bool More)> PurgeRawVisitsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
-    {
-        var rolledThrough = await ReadCursorAsync(cancellationToken).ConfigureAwait(false);
-        if (rolledThrough is not { } last)
-        {
-            return (0, false);
-        }
-
-        var rawCut = AnalyticsRetention.RawCut(today);
-        var before = rawCut <= last ? rawCut : last.AddDays(1);
-        return await DrainAsync(
+        var before = AnalyticsRetention.RawCut(today);
+        return DrainAsync(
             [
                 token => context.AnalyticsVitalSamples
                     .Where(sample => sample.BusinessDay < before)
@@ -195,7 +108,7 @@ internal sealed partial class AnalyticsRetentionJob(
                     .ExecuteDeleteAsync(token),
             ],
             budget,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken);
     }
 
     // Removes cookie choices decided before the consent cut (D-05).
@@ -281,13 +194,6 @@ internal sealed partial class AnalyticsRetentionJob(
         }
 
         return (removed, false);
-    }
-
-    // The last rolled day, or null when none is saved or the saved text is not a date.
-    private async Task<DateOnly?> ReadCursorAsync(CancellationToken cancellationToken)
-    {
-        var text = await cursors.GetAsync(JobName, cancellationToken).ConfigureAwait(false);
-        return DateOnly.TryParseExact(text, CursorFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) ? day : null;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "The analytics retention rule '{Label}' failed.")]

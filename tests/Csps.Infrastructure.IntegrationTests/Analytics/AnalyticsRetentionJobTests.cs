@@ -14,15 +14,14 @@ using Microsoft.Extensions.Time.Testing;
 namespace Csps.Infrastructure.IntegrationTests.Analytics;
 
 /// <summary>
-/// ANL-09, D-03 to D-05, D-07: the retention job rolls each closed business day into daily referrer and device totals before any raw row ages
-/// out, then removes raw visits, consent records, old daily totals and old address salts at their cut dates, one plain line per rule.
+/// ANL-09, D-03 to D-05, D-07, D-61, D-64: the retention job rolls nothing up. It removes raw visits, consent records, old daily totals and old
+/// address salts at their cut dates, by date alone, one plain line per rule.
 /// </summary>
 public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
-    private const string RolledUpLabel = "Visitor days rolled up";
     private const string RawLabel = "Old visit records removed";
     private const string ConsentLabel = "Old cookie choices removed";
-    private const string DailyLabel = "Old daily visitor totals removed";
+    private const string DailyLabel = "Old daily page counts removed";
     private const string SaltLabel = "Old address salts removed";
     private const string JobName = "analytics-retention";
 
@@ -30,184 +29,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     private static readonly DateTimeOffset Now = new(2026, 11, 16, 4, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task ClosedDaysAreRolledIntoReferrerAndDeviceTotalsAndTodayIsNeverTouched()
-    {
-        await database.ResetAsync();
-        var day = new DateOnly(2026, 11, 14);
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Safari");
-        await AddVisitAsync(day, ReferrerName.Direct, DeviceKind.Computer, "Chrome");
-        await AddVisitAsync(new DateOnly(2026, 11, 16), "Facebook", DeviceKind.Phone, "Chrome");
-
-        var report = await RunAsync(new FakeTimeProvider(Now));
-
-        Line(report, RolledUpLabel).Value.ShouldBe(1);
-        Line(report, RolledUpLabel).Failed.ShouldBeFalse();
-        report.More.ShouldBeFalse();
-        (await ReadReferrersAsync()).ShouldBe(
-            [(day, "Direct", 1), (day, "Facebook", 2)], ignoreOrder: true);
-        (await ReadDevicesAsync()).ShouldBe(
-            [
-                (day, DeviceDimension.Device, "Computer", 1),
-                (day, DeviceDimension.Device, "Phone", 2),
-                (day, DeviceDimension.Browser, "Chrome", 2),
-                (day, DeviceDimension.Browser, "Safari", 1),
-            ],
-            ignoreOrder: true);
-    }
-
-    [Fact]
-    public async Task TheLastRolledDayIsSavedAsYesterday()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 11, 14), "Facebook", DeviceKind.Phone, "Chrome");
-
-        await RunAsync(new FakeTimeProvider(Now));
-
-        (await ReadCursorAsync()).ShouldBe("2026-11-15");
-    }
-
-    [Fact]
-    public async Task RunningTwiceGivesTheSameRowsAndTheSecondRunRollsNothing()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 11, 14), "Facebook", DeviceKind.Phone, "Chrome");
-        await RunAsync(new FakeTimeProvider(Now));
-        var referrers = await ReadReferrersAsync();
-        var devices = await ReadDevicesAsync();
-
-        var report = await RunAsync(new FakeTimeProvider(Now));
-
-        Line(report, RolledUpLabel).Value.ShouldBe(0);
-        (await ReadReferrersAsync()).ShouldBe(referrers);
-        (await ReadDevicesAsync()).ShouldBe(devices);
-    }
-
-    [Fact]
-    public async Task ARetryAfterACrashReplacesTheDaysRowsInsteadOfAddingToThem()
-    {
-        await database.ResetAsync();
-        var day = new DateOnly(2026, 11, 14);
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
-        await RunAsync(new FakeTimeProvider(Now));
-        await using (var context = database.CreateContext())
-        {
-            await new MaintenanceCursors(context, TimeProvider.System).ClearAsync(JobName, TestContext.Current.CancellationToken);
-        }
-
-        var report = await RunAsync(new FakeTimeProvider(Now));
-
-        Line(report, RolledUpLabel).Value.ShouldBe(1);
-        (await ReadReferrersAsync()).ShouldBe([(day, "Facebook", 1)]);
-        (await ReadDevicesAsync()).Count.ShouldBe(2);
-    }
-
-    [Fact]
-    public async Task ACursorSetBackRollsTheDayAgainAndCountsEveryVisitOnce()
-    {
-        await database.ResetAsync();
-        var day = new DateOnly(2026, 11, 14);
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
-        await RunAsync(new FakeTimeProvider(Now));
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
-        await using (var context = database.CreateContext())
-        {
-            await new MaintenanceCursors(context, TimeProvider.System).SaveAsync(JobName, "2026-11-13", TestContext.Current.CancellationToken);
-        }
-
-        await RunAsync(new FakeTimeProvider(Now));
-
-        (await ReadReferrersAsync()).ShouldBe([(day, "Facebook", 2)]);
-    }
-
-    [Fact]
-    public async Task ADayEndingAtMonthEndAndTheNextDayAreRolledAsTwoDays()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 10, 31), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2026, 11, 1), ReferrerName.Direct, DeviceKind.Computer, "Edge");
-
-        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 3, 4, 0, 0, TimeSpan.Zero)));
-
-        Line(report, RolledUpLabel).Value.ShouldBe(2);
-        (await ReadReferrersAsync()).ShouldBe(
-            [(new DateOnly(2026, 10, 31), "Facebook", 1), (new DateOnly(2026, 11, 1), "Direct", 1)], ignoreOrder: true);
-        (await ReadCursorAsync()).ShouldBe("2026-11-02");
-    }
-
-    [Fact]
-    public async Task ALeapDayIsRolledAsItsOwnDay()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2028, 2, 29), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2028, 3, 1), "Facebook", DeviceKind.Phone, "Chrome");
-
-        await RunAsync(new FakeTimeProvider(new DateTimeOffset(2028, 3, 2, 4, 0, 0, TimeSpan.Zero)));
-
-        (await ReadReferrersAsync()).ShouldBe(
-            [(new DateOnly(2028, 2, 29), "Facebook", 1), (new DateOnly(2028, 3, 1), "Facebook", 1)], ignoreOrder: true);
-        (await ReadCursorAsync()).ShouldBe("2028-03-01");
-    }
-
-    [Fact]
-    public async Task ADayStaysOpenUntilManilaMidnightPasses()
-    {
-        await database.ResetAsync();
-        var day = new DateOnly(2026, 11, 15);
-        await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
-
-        // 23:59 in Manila on the 15th: the 15th is still today.
-        var before = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 15, 59, 0, TimeSpan.Zero)));
-        Line(before, RolledUpLabel).Value.ShouldBe(0);
-        (await ReadReferrersAsync()).ShouldBeEmpty();
-
-        // 00:00 in Manila on the 16th: the 15th is closed.
-        var after = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 16, 0, 0, TimeSpan.Zero)));
-        Line(after, RolledUpLabel).Value.ShouldBe(1);
-        (await ReadReferrersAsync()).ShouldBe([(day, "Facebook", 1)]);
-    }
-
-    [Fact]
-    public async Task ASpentBudgetAfterTheFirstDayStopsWithMoreAndTheNextRunFinishes()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 11, 12), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2026, 11, 13), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2026, 11, 14), "Facebook", DeviceKind.Phone, "Chrome");
-        var clock = new FakeTimeProvider(Now);
-
-        var first = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "INSERT INTO [DailyReferrerCounts]"), new MaintenanceBudget(clock));
-
-        Line(first, RolledUpLabel).Value.ShouldBe(1);
-        first.More.ShouldBeTrue();
-        (await ReadCursorAsync()).ShouldBe("2026-11-12");
-
-        var second = await RunAsync(new FakeTimeProvider(Now));
-
-        Line(second, RolledUpLabel).Value.ShouldBe(2);
-        second.More.ShouldBeFalse();
-        (await ReadCursorAsync()).ShouldBe("2026-11-15");
-        (await ReadReferrersAsync()).Count.ShouldBe(3);
-    }
-
-    [Fact]
-    public async Task ADatabaseFailureWhileRollingUpIsThatRulesFailedLineAndNeverThrows()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 11, 14), "Facebook", DeviceKind.Phone, "Chrome");
-
-        var report = await RunAsync(new FakeTimeProvider(Now), new FailCommandsOn("DailyReferrerCounts"));
-
-        var line = Line(report, RolledUpLabel);
-        line.Failed.ShouldBeTrue();
-        line.Value.ShouldBeNull();
-        line.Text.ShouldBe("The visitor days could not be rolled up.");
-        (await ReadReferrersAsync()).ShouldBeEmpty();
-        (await ReadCursorAsync()).ShouldBeNull();
-    }
-
-    [Fact]
-    public async Task AVisitThirteenMonthsOldGoesAndOneAtTheCutDateStaysAfterTheirDayIsRolledUp()
+    public async Task AVisitThirteenMonthsOldGoesAndOneAtTheCutDateStays()
     {
         await database.ResetAsync();
         var gone = new DateOnly(2025, 10, 14);
@@ -220,7 +42,48 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         Line(report, RawLabel).Value.ShouldBe(1);
         Line(report, RawLabel).Failed.ShouldBeFalse();
         (await ReadVisitDaysAsync()).ShouldBe([kept]);
-        (await ReadReferrersAsync()).Select(row => row.Day).ShouldBe([gone, kept]);
+    }
+
+    [Fact]
+    public async Task OldRawRowsAreRemovedByDateWithNoRollUpCursor()
+    {
+        await database.ResetAsync();
+        var cut = AnalyticsRetention.RawCut(new DateOnly(2026, 11, 16));
+        var old = cut.AddDays(-1);
+        foreach (var _ in new[] { 1, 2 })
+        {
+            var visitId = await AddVisitAsync(old, "Facebook", DeviceKind.Phone, "Chrome");
+            await AddPageViewsAsync(visitId, old, 1);
+            await AddSampleAsync(visitId, old);
+        }
+
+        await AddVisitAsync(cut, "Facebook", DeviceKind.Phone, "Chrome");
+        (await ReadCursorAsync()).ShouldBeNull();
+
+        // Writes to the source totals fail, so nothing can have been rolled up and no cursor is ever saved.
+        var report = await RunAsync(new FakeTimeProvider(Now), new FailCommandsOn("DailyReferrerCounts"));
+
+        (await ReadCursorAsync()).ShouldBeNull();
+        Line(report, RawLabel).Value.ShouldBe(6);
+        Line(report, RawLabel).Failed.ShouldBeFalse();
+        (await ReadVisitDaysAsync()).ShouldBe([cut]);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARunAddsNoDeviceOrSourceTotals()
+    {
+        await database.ResetAsync();
+        var yesterday = new DateOnly(2026, 11, 15);
+        await AddVisitAsync(yesterday, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(yesterday, ReferrerName.Direct, DeviceKind.Computer, "Edge");
+
+        await RunAsync(new FakeTimeProvider(Now));
+
+        (await ReadReferrersAsync()).ShouldBeEmpty();
+        (await ReadDevicesAsync()).ShouldBeEmpty();
     }
 
     [Fact]
@@ -250,36 +113,6 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await using var context = database.CreateContext();
         (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
         (await context.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
-    }
-
-    [Fact]
-    public async Task ADayThatWasNotRolledUpIsNeverRemovedEvenWhenItIsOld()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2025, 10, 11), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
-        await using (var context = database.CreateContext())
-        {
-            await new MaintenanceCursors(context, TimeProvider.System).SaveAsync(JobName, "2025-10-12", TestContext.Current.CancellationToken);
-        }
-
-        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)), new FailCommandsOn("DailyReferrerCounts"));
-
-        Line(report, RolledUpLabel).Failed.ShouldBeTrue();
-        Line(report, RawLabel).Value.ShouldBe(1);
-        (await ReadVisitDaysAsync()).ShouldBe([new DateOnly(2025, 10, 14)]);
-    }
-
-    [Fact]
-    public async Task WithNoCursorNothingIsRemovedWhenTheRollupFails()
-    {
-        await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
-
-        var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)), new FailCommandsOn("DailyReferrerCounts"));
-
-        Line(report, RawLabel).Value.ShouldBe(0);
-        (await ReadVisitDaysAsync()).Count.ShouldBe(1);
     }
 
     [Fact]
@@ -344,7 +177,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task ACookieChoiceThirteenMonthsOldGoesAndOneAtTheCutMomentStays()
+    public async Task OldConsentRecordsAreStillRemoved()
     {
         await database.ResetAsync();
         await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
@@ -392,7 +225,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task DailyTotalsOlderThanThreeYearsGoFromAllThreeTablesAndOneAtTheFloorStays()
+    public async Task OldDailyRowsInAllThreeTablesAreRemoved()
     {
         await database.ResetAsync();
         var gone = new DateOnly(2023, 11, 14);
@@ -460,14 +293,14 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task TheFiveRulesReportTheirOwnLabelsInRunOrder()
+    public async Task TheReportListsFourAnalyticsLinesInOrder()
     {
         await database.ResetAsync();
 
         var report = await RunAsync(new FakeTimeProvider(Now));
 
         report.Lines.Select(line => line.Label).ShouldBe(
-            ["Visitor days rolled up", "Old visit records removed", "Old cookie choices removed", "Old daily visitor totals removed", "Old address salts removed"]);
+            ["Old visit records removed", "Old cookie choices removed", "Old daily page counts removed", "Old address salts removed"]);
         report.Lines.ShouldAllBe(line => !line.Failed && line.Value == 0);
         report.More.ShouldBeFalse();
     }
@@ -500,7 +333,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         var failed = Line(report, DailyLabel);
         failed.Failed.ShouldBeTrue();
         failed.Value.ShouldBeNull();
-        failed.Text.ShouldBe("The old daily visitor totals could not be removed.");
+        failed.Text.ShouldBe("The old daily page counts could not be removed.");
         Line(report, SaltLabel).Value.ShouldBe(1);
     }
 
@@ -532,7 +365,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     private static MaintenanceLine Line(MaintenanceJobReport report, string label) => report.Lines.Single(line => line.Label == label);
 
     private static AnalyticsRetentionJob NewJob(Csps.Infrastructure.Persistence.CspsDbContext context, FakeTimeProvider clock) =>
-        new(context, new ManilaCalendar(clock), new MaintenanceCursors(context, clock), NullLogger<AnalyticsRetentionJob>.Instance);
+        new(context, new ManilaCalendar(clock), NullLogger<AnalyticsRetentionJob>.Instance);
 
     private async Task<MaintenanceJobReport> RunAsync(FakeTimeProvider clock, IInterceptor? hook = null, MaintenanceBudget? budget = null)
     {
