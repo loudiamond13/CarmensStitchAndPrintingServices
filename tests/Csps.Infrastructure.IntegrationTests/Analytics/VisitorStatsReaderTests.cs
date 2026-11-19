@@ -12,7 +12,7 @@ namespace Csps.Infrastructure.IntegrationTests.Analytics;
 /// </summary>
 public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
-    private static readonly DateOnly Cut = new(2025, 10, 15);
+    private static readonly DateOnly EarlierDay = new(2025, 10, 15);
     private static readonly DateOnly Day = new(2026, 11, 10);
 
     [Fact]
@@ -136,13 +136,13 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task TopPagesKeepPageViewsFromBeforeTheOldVisitCut()
+    public async Task TopPagesKeepPageViewsFromAnEarlierDate()
     {
         await database.ResetAsync();
-        await SeedViewsAsync(Cut.AddDays(-10), PageKeys.NotFound, 6);
-        await SeedViewsAsync(Cut, PageKeys.NotFound, 1);
+        await SeedViewsAsync(EarlierDay.AddDays(-10), PageKeys.NotFound, 6);
+        await SeedViewsAsync(EarlierDay, PageKeys.NotFound, 1);
 
-        var pages = await ReadPagesAsync(Cut.AddDays(-30), Cut);
+        var pages = await ReadPagesAsync(EarlierDay.AddDays(-30), EarlierDay);
 
         pages.ShouldBe([new NamedCount(PageKeys.NotFound, 7)]);
     }
@@ -181,15 +181,15 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task DailyPageViewsFromBeforeTheOldVisitCutAndFromThreeYearsBackAreReadLikeAnyOther()
+    public async Task DailyPageViewsFromAnEarlierDateAndFromThreeYearsBackAreReadLikeAnyOther()
     {
         await database.ResetAsync();
         var old = new DateOnly(2023, 11, 20);
         await SeedViewsAsync(old, PageKeys.Gallery, 9);
-        await SeedViewsAsync(Cut.AddDays(-10), PageKeys.NotFound, 6);
+        await SeedViewsAsync(EarlierDay.AddDays(-10), PageKeys.NotFound, 6);
 
         (await ReadDailyPagesAsync(old, old)).ShouldBe([new DailyPageViews(old, PageKeys.Gallery, 9)]);
-        (await ReadDailyPagesAsync(Cut.AddDays(-10), Cut.AddDays(-10))).ShouldBe([new DailyPageViews(Cut.AddDays(-10), PageKeys.NotFound, 6)]);
+        (await ReadDailyPagesAsync(EarlierDay.AddDays(-10), EarlierDay.AddDays(-10))).ShouldBe([new DailyPageViews(EarlierDay.AddDays(-10), PageKeys.NotFound, 6)]);
     }
 
     [Fact]

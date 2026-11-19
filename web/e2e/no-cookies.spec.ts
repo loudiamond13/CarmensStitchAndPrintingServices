@@ -5,6 +5,7 @@
 import type { BrowserContext, Page, Request } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
+// A cheap extra guard: it matches only a chunk named speedReport. The package check in no-consent.node.test.ts is the real one.
 const SPEED_READER = /\/assets\/speedReport-[\w-]+\.js$/;
 /** Runs before any page script, in every document of the context. */
 const GPC_ON = `Object.defineProperty(navigator, 'globalPrivacyControl', { configurable: true, get: () => true });`;
