@@ -4859,13 +4859,11 @@ export interface components {
         };
         /**
          * @description One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`
-         *     and never stores it as sent. The referrer host is the host name of `document.referrer`, sent on the first view of a page load only.
+         *     and never stores it as sent. A body from an old cached page that still carries a referrer property is read as the path alone.
          */
         PageViewRequest: {
             /** @description The page path, starting with a slash. */
             path?: null | string;
-            /** @description The referrer's host name, or null. */
-            referrerHost?: null | string;
         };
         /** @description One phone number of the Business Info form. */
         PhoneEntry: {

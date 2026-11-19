@@ -29,11 +29,6 @@
     <Content Include="..\fixtures\site-link-cases.json" Link="Fixtures\site-link-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- The consent cookie cases (ANL-07) are shared with the web Vitest suite and linked the same way. -->
-  <ItemGroup>
-    <Content Include="..\fixtures\consent-cookie-cases.json" Link="Fixtures\consent-cookie-cases.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
   <!-- The legal page facts (LEGAL-05, D-10) are shared with the web node test and linked the same way. -->
   <ItemGroup>
     <Content Include="..\fixtures\legal-pages.json" Link="Fixtures\legal-pages.json" CopyToOutputDirectory="PreserveNewest" />

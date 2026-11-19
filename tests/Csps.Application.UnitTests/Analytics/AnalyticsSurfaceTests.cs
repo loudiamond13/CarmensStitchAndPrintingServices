@@ -1,4 +1,5 @@
 using Csps.Application.Analytics;
+using Csps.Domain.Analytics;
 
 namespace Csps.Application.UnitTests.Analytics;
 
@@ -33,5 +34,39 @@ public sealed class AnalyticsSurfaceTests
             .ToList();
 
         present.ShouldBeEmpty();
+    }
+
+    private static readonly string[] VisitorIdentityTypes =
+    [
+        "IdentifiedCollection",
+        "VisitorKey",
+        "IAnalyticsVisits",
+        "IAnalyticsSalts",
+        "IConsentRecords",
+    ];
+
+    [Fact]
+    public void HasNoVisitorIdentityType()
+    {
+        var present = typeof(CollectPageViewHandler).Assembly.GetTypes()
+            .Select(type => type.Name)
+            .Intersect(VisitorIdentityTypes, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        present.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void HasNoConsentCookieOrDeviceHelper()
+    {
+        var domain = typeof(DailyPageCount).Assembly;
+        var names = domain.GetTypes().Select(type => type.Name).ToList();
+
+        names.Intersect(["ConsentCookie", "DeviceClass", "OsFamily"], StringComparer.Ordinal).ShouldBeEmpty();
+        names.ShouldContain("DeviceKind");
+        var retention = domain.GetType("Csps.Domain.Analytics.AnalyticsRetention").ShouldNotBeNull();
+        retention.GetMember("SessionMinutes").ShouldBeEmpty();
+        retention.GetMember("ConsentLifetimeMonths").ShouldBeEmpty();
     }
 }

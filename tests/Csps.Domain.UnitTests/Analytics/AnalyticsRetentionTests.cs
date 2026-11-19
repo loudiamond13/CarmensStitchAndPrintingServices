@@ -11,8 +11,6 @@ public sealed class AnalyticsRetentionTests
         AnalyticsRetention.RawMonths.ShouldBe(13);
         AnalyticsRetention.ConsentMonths.ShouldBe(13);
         AnalyticsRetention.DailyYears.ShouldBe(3);
-        AnalyticsRetention.ConsentLifetimeMonths.ShouldBe(12);
-        AnalyticsRetention.SessionMinutes.ShouldBe(30);
         AnalyticsRetention.SaltDays.ShouldBe(2);
     }
 
