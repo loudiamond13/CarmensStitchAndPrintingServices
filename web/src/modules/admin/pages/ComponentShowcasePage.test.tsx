@@ -34,7 +34,7 @@ const SECTION_TITLES = [
   'Dashboard and staff money',
   'Site content and public website',
   'Visitor stats',
-  'Cookies and legal',
+  'Legal',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -183,8 +183,7 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Orders')).toContainElement(caseFrame('orders-totals-states'));
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
     expect(section('Visitor stats')).toContainElement(caseFrame('page-speed-ratings'));
-    expect(section('Cookies and legal')).toContainElement(caseFrame('consent-bar'));
-    expect(section('Cookies and legal')).toContainElement(caseFrame('cookie-settings-saved'));
+    expect(section('Legal')).toContainElement(caseFrame('legal-notice'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
@@ -270,32 +269,12 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens Cookie Settings in each state from its demo, in the Blush look, and Esc closes it again', async () => {
-    const user = userEvent.setup();
+  it('has no Cookie Settings demo and no cookie bar scenario', () => {
     renderShowcase();
 
-    for (const [id, label] of [
-      ['cookie-settings-no-choice', 'Cookie Settings: no choice'],
-      ['cookie-settings-saved', 'Cookie Settings: saved'],
-      ['cookie-settings-gpc', 'Cookie Settings: GPC'],
-      ['cookie-settings-cleared', 'Cookie Settings: cleared'],
-      ['cookie-settings-clear-failed', 'Cookie Settings: clear fails'],
-    ] as const) {
-      const frame = caseFrame(id);
-      expect(frame).toHaveAttribute('data-theme', 'light');
-      const trigger = within(frame).getByRole('button', { name: label });
-      await user.click(trigger);
-      expect(await screen.findByRole('dialog', { name: 'Cookie Settings' })).toBeInTheDocument();
-
-      await user.keyboard('{Escape}');
-      if (id === 'cookie-settings-clear-failed') {
-        // The first Esc closes the open confirmation, the second the window.
-        await user.keyboard('{Escape}');
-      }
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Cookie Settings' })).toBeNull();
-      });
-    }
+    expect(screen.queryByRole('button', { name: /^Cookie Settings/ })).toBeNull();
+    expect(document.querySelector('[data-case^="cookie-settings"]') === null).toBe(true);
+    expect(document.querySelector('[data-case="consent-bar"]') === null).toBe(true);
   });
 
   it('deletes nothing: typing the order number enables Delete Order, which closes the dialog with the success toast', async () => {
