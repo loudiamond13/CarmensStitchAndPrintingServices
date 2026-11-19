@@ -21,7 +21,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
 {
     private const string RawLabel = "Old visit records removed";
     private const string ConsentLabel = "Old cookie choices removed";
-    private const string DailyLabel = "Old daily visitor totals removed";
+    private const string DailyLabel = "Old daily page counts removed";
     private const string SaltLabel = "Old address salts removed";
     private const string JobName = "analytics-retention";
 
@@ -177,7 +177,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task ACookieChoiceThirteenMonthsOldGoesAndOneAtTheCutMomentStays()
+    public async Task OldConsentRecordsAreStillRemoved()
     {
         await database.ResetAsync();
         await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
@@ -225,7 +225,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task DailyTotalsOlderThanThreeYearsGoFromAllThreeTablesAndOneAtTheFloorStays()
+    public async Task OldDailyRowsInAllThreeTablesAreRemoved()
     {
         await database.ResetAsync();
         var gone = new DateOnly(2023, 11, 14);
@@ -300,7 +300,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         var report = await RunAsync(new FakeTimeProvider(Now));
 
         report.Lines.Select(line => line.Label).ShouldBe(
-            ["Old visit records removed", "Old cookie choices removed", "Old daily visitor totals removed", "Old address salts removed"]);
+            ["Old visit records removed", "Old cookie choices removed", "Old daily page counts removed", "Old address salts removed"]);
         report.Lines.ShouldAllBe(line => !line.Failed && line.Value == 0);
         report.More.ShouldBeFalse();
     }
@@ -333,7 +333,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         var failed = Line(report, DailyLabel);
         failed.Failed.ShouldBeTrue();
         failed.Value.ShouldBeNull();
-        failed.Text.ShouldBe("The old daily visitor totals could not be removed.");
+        failed.Text.ShouldBe("The old daily page counts could not be removed.");
         Line(report, SaltLabel).Value.ShouldBe(1);
     }
 
