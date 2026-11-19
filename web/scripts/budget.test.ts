@@ -49,16 +49,7 @@ const PAGE_MODULES = {
   accessibility: 'src/modules/public/pages/AccessibilityPage.tsx',
   notFound: 'src/modules/public/pages/NotFoundPage.tsx',
 } as const;
-const PAGE_NAMES = [
-  'home',
-  'products',
-  'gallery',
-  'contact',
-  'privacy',
-  'terms',
-  'accessibility',
-  'notFound',
-] as const;
+const PAGE_NAMES = ['home', 'products', 'gallery', 'contact', 'privacy', 'terms', 'accessibility', 'notFound'] as const;
 const HOME_PAGE = PAGE_MODULES.home;
 const LEGAL_NAMES = ['privacy', 'terms', 'accessibility'] as const;
 const LOADER_CHUNK = 'assets/legalLoaders-N1.js';

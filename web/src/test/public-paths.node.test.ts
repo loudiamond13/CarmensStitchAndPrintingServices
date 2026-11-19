@@ -40,14 +40,6 @@ describe('the client router and the shared public path list (PUB-01)', () => {
   });
 
   it('keeps the shared list to the four pages and the three legal pages (LEGAL-05, D-72)', () => {
-    expect(shared.pages).toEqual([
-      '/',
-      '/products',
-      '/gallery',
-      '/contact',
-      '/privacy',
-      '/terms',
-      '/accessibility',
-    ]);
+    expect(shared.pages).toEqual(['/', '/products', '/gallery', '/contact', '/privacy', '/terms', '/accessibility']);
   });
 });
