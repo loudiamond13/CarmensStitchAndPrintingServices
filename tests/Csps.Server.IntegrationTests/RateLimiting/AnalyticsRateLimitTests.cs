@@ -140,6 +140,33 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task APageViewRefusedPerAddressDoesNotUseUpTheSiteWideCeiling()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(
+            database.ConnectionString,
+            new Dictionary<string, string>
+            {
+                ["RateLimits:AnalyticsCollect:PermitLimit"] = "2",
+                ["RateLimits:AnalyticsCeiling:PermitLimit"] = "5",
+            })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = AnalyticsHttp.NewClient(factory);
+
+        for (var attempt = 1; attempt <= 6; attempt++)
+        {
+            using var noisy = await PostPageViewAsync(client, "203.0.113.90");
+            noisy.StatusCode.ShouldBe(attempt <= 2 ? HttpStatusCode.NoContent : HttpStatusCode.TooManyRequests);
+        }
+
+        using var other = await PostPageViewAsync(client, "203.0.113.91");
+
+        other.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
     public async Task TheCeilingLeavesOtherRoutesAlone()
     {
         await database.ResetAsync();
