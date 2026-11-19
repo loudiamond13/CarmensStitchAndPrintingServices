@@ -12,12 +12,6 @@ public static class AnalyticsRetention
     /// <summary>Years the daily roll-ups are kept (D-05).</summary>
     public const int DailyYears = 3;
 
-    /// <summary>Months a consent choice lasts before the visitor is asked again.</summary>
-    public const int ConsentLifetimeMonths = 12;
-
-    /// <summary>Minutes of silence that end a visit (D-07).</summary>
-    public const int SessionMinutes = 30;
-
     /// <summary>Days a visitor-hash salt lives before it is replaced (D-07).</summary>
     public const int SaltDays = 2;
 
