@@ -1,0 +1,12 @@
+{
+  "pages": [
+    { "key": "home", "name": "Home" },
+    { "key": "products", "name": "Products" },
+    { "key": "gallery", "name": "Gallery" },
+    { "key": "contact", "name": "Contact" },
+    { "key": "privacy", "name": "Privacy Policy" },
+    { "key": "terms", "name": "Terms of Use" },
+    { "key": "accessibility", "name": "Accessibility Statement" },
+    { "key": "not-found", "name": "Page not found" }
+  ]
+}

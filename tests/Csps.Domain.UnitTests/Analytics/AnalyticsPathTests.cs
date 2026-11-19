@@ -69,7 +69,7 @@ public sealed class AnalyticsPathTests
     }
 
     [Fact]
-    public void PageKeysAreTheNineLowercaseNames()
+    public void PageKeysAreTheEightLowercaseNames()
     {
         var keys = typeof(PageKeys)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -84,7 +84,6 @@ public sealed class AnalyticsPathTests
                 ["Gallery"] = "gallery",
                 ["Contact"] = "contact",
                 ["Privacy"] = "privacy",
-                ["Cookies"] = "cookies",
                 ["Terms"] = "terms",
                 ["Accessibility"] = "accessibility",
                 ["NotFound"] = "not-found",
