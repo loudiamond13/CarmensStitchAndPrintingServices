@@ -224,6 +224,48 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task OldRawRowsAreRemovedByDateWithNoRollUpCursor()
+    {
+        await database.ResetAsync();
+        var cut = AnalyticsRetention.RawCut(new DateOnly(2026, 11, 16));
+        var old = cut.AddDays(-1);
+        foreach (var _ in new[] { 1, 2 })
+        {
+            var visitId = await AddVisitAsync(old, "Facebook", DeviceKind.Phone, "Chrome");
+            await AddPageViewsAsync(visitId, old, 1);
+            await AddSampleAsync(visitId, old);
+        }
+
+        await AddVisitAsync(cut, "Facebook", DeviceKind.Phone, "Chrome");
+        (await ReadCursorAsync()).ShouldBeNull();
+
+        // Writes to the source totals fail, so nothing can have been rolled up and no cursor is ever saved.
+        var report = await RunAsync(new FakeTimeProvider(Now), new FailCommandsOn("DailyReferrerCounts"));
+
+        (await ReadCursorAsync()).ShouldBeNull();
+        Line(report, RawLabel).Value.ShouldBe(6);
+        Line(report, RawLabel).Failed.ShouldBeFalse();
+        (await ReadVisitDaysAsync()).ShouldBe([cut]);
+        await using var context = database.CreateContext();
+        (await context.AnalyticsPageViews.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.AnalyticsVitalSamples.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARunAddsNoDeviceOrSourceTotals()
+    {
+        await database.ResetAsync();
+        var yesterday = new DateOnly(2026, 11, 15);
+        await AddVisitAsync(yesterday, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(yesterday, ReferrerName.Direct, DeviceKind.Computer, "Edge");
+
+        await RunAsync(new FakeTimeProvider(Now));
+
+        (await ReadReferrersAsync()).ShouldBeEmpty();
+        (await ReadDevicesAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task TheCutDateAtTheEndOfFebruaryKeepsTheFirstSurvivingDay()
     {
         await database.ResetAsync();
