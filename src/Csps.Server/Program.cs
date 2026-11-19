@@ -130,6 +130,10 @@ app.UsePrecompressedStaticFiles();
 // shell endpoint shapes it (PUB-04).
 app.UseStaticFiles(SpaCaching.CreateStaticFileOptions(app.Environment.WebRootFileProvider));
 
+// D-63: expires the retired consent and visitor id cookies on any answer to a browser that still sends them. After the static
+// files, so cached assets never carry the delete.
+app.UseMiddleware<RetiredCookiesMiddleware>();
+
 // Explicit, so static files run before endpoint matching and the SPA fallbacks never shadow a real file (WEB-01).
 app.UseRouting();
 
