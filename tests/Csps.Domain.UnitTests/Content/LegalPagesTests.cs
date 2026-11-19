@@ -35,17 +35,10 @@ public sealed partial class LegalPagesTests
     }
 
     [Fact]
-    public void AllHoldsTheFourPagesInRouteOrder()
+    public void AllHoldsTheThreePagesInRouteOrder()
     {
-        LegalPages.All.Select(page => page.Path).ShouldBe(["/privacy", "/cookies", "/terms", "/accessibility"]);
-        LegalPages.All.Select(page => page.Key).ShouldBe(["privacy", "cookies", "terms", "accessibility"]);
-    }
-
-    [Fact]
-    public void TheCookiePolicyVersionIsTheConsentPolicyVersion()
-    {
-        LegalPages.CookiePolicyVersion.ShouldBe(LegalPages.Cookies.Version);
-        LegalPages.CookiePolicyVersion.ShouldBe(Shared.Value.Pages.Single(page => page.Key == "cookies").Version);
+        LegalPages.All.Select(page => page.Path).ShouldBe(["/privacy", "/terms", "/accessibility"]);
+        LegalPages.All.Select(page => page.Key).ShouldBe(["privacy", "terms", "accessibility"]);
     }
 
     [Fact]
@@ -61,7 +54,7 @@ public sealed partial class LegalPagesTests
 
     [Theory]
     [InlineData("/privacy", true)]
-    [InlineData("/cookies", true)]
+    [InlineData("/cookies", false)]
     [InlineData("/terms", true)]
     [InlineData("/accessibility", true)]
     [InlineData("/contact", false)]

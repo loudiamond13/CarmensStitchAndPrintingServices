@@ -38,7 +38,7 @@ async function expectNothingStored(page: Page, context: BrowserContext): Promise
   await openQuietly(page, '/');
   await expect(bar(page)).toHaveCount(0);
   const legal = page.getByRole('contentinfo').getByRole('navigation', { name: 'Legal' });
-  await expect(legal.getByRole('link')).toHaveCount(4);
+  await expect(legal.getByRole('link')).toHaveCount(3);
   await expect(legal.getByRole('button')).toHaveCount(0);
   await openQuietly(page, '/gallery');
   await expect(bar(page)).toHaveCount(0);

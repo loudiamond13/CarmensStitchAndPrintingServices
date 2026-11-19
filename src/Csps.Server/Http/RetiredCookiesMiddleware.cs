@@ -19,8 +19,8 @@ public sealed class RetiredCookiesMiddleware(RequestDelegate next)
         ArgumentNullException.ThrowIfNull(context);
 
         var cookies = context.Request.Cookies;
-        var consent = cookies.ContainsKey(AnalyticsCookies.ConsentCookieName);
-        var visitor = cookies.ContainsKey(AnalyticsCookies.VisitorCookieName);
+        var consent = cookies.ContainsKey(RetiredCookies.ConsentCookieName);
+        var visitor = cookies.ContainsKey(RetiredCookies.VisitorCookieName);
         if (consent || visitor)
         {
             context.Response.OnStarting(static state => Expire((Pending)state), new Pending(context, consent, visitor));
@@ -34,23 +34,23 @@ public sealed class RetiredCookiesMiddleware(RequestDelegate next)
         var cookies = pending.Context.Response.Cookies;
         if (pending.Consent)
         {
-            cookies.Delete(AnalyticsCookies.ConsentCookieName, new CookieOptions
+            cookies.Delete(RetiredCookies.ConsentCookieName, new CookieOptions
             {
                 HttpOnly = false,
                 Secure = true,
                 SameSite = SameSiteMode.Lax,
-                Path = "/",
+                Path = RetiredCookies.ConsentPath,
             });
         }
 
         if (pending.Visitor)
         {
-            cookies.Delete(AnalyticsCookies.VisitorCookieName, new CookieOptions
+            cookies.Delete(RetiredCookies.VisitorCookieName, new CookieOptions
             {
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Path = AnalyticsCookies.CookiePath,
+                Path = RetiredCookies.VisitorPath,
             });
         }
 

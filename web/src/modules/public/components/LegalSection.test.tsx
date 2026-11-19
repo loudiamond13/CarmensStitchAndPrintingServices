@@ -43,7 +43,7 @@ const EVERY_BLOCK: LegalSectionData = {
       kind: 'dl',
       items: [
         { term: 'Term one', parts: ['Plain meaning.'] },
-        { term: 'Term two', parts: ['See ', { text: 'cookies', href: '/cookies' }, '.'] },
+        { term: 'Term two', parts: ['See ', { text: 'privacy', href: '/privacy' }, '.'] },
       ],
     },
   ],
@@ -93,8 +93,8 @@ describe('LegalSection blocks and inline parts', () => {
     render(wrap(EVERY_BLOCK));
     expect(screen.getByText('Term one').tagName).toBe('DT');
     expect(screen.getByText('Plain meaning.').tagName).toBe('DD');
-    const link = screen.getByRole('link', { name: 'cookies' });
-    expect(link).toHaveAttribute('href', '/cookies');
+    const link = screen.getByRole('link', { name: 'privacy' });
+    expect(link).toHaveAttribute('href', '/privacy');
     expect(link.closest('dd')).toBe(screen.getByText('Term two').nextElementSibling);
   });
 

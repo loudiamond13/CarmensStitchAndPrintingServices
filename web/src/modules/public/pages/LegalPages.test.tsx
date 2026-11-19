@@ -101,6 +101,15 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01, LEGAL-05, D-14)', { timeout: 
   });
 });
 
+describe('the old Cookie Policy address (D-72)', { timeout: 20_000 }, () => {
+  it('shows the normal page not found, with the not-found title and no redirect', async () => {
+    const { router } = await renderLegal('/cookies', 'Out of bounds.');
+    expect(screen.getByText('Error 404')).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/cookies');
+    expect(document.title).toBe('Page Not Found · CSPS');
+  });
+});
+
 const PAGES = [
   {
     key: 'privacy',
@@ -108,14 +117,6 @@ const PAGES = [
     crumb: 'Privacy Policy',
     eyebrow: 'Your privacy',
     h1: 'Privacy policy.',
-    accent: 'policy.',
-  },
-  {
-    key: 'cookies',
-    path: '/cookies',
-    crumb: 'Cookie Policy',
-    eyebrow: 'Your privacy',
-    h1: 'Cookie policy.',
     accent: 'policy.',
   },
   {

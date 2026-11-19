@@ -1,15 +1,17 @@
 // @vitest-environment node
-// SPEC-GAP: LEGAL-02, D-17, T-12-54. The cookies the Cookie Policy lists are exactly the cookies the server sets. The names are read from
-// the two C# files that hold the cookie name constants, so a cookie added to or taken out of the code fails here until the policy
-// text changes too (and the policy version moves with a reviewed release, D-22).
-import { readFileSync } from 'node:fs';
+// SPEC-GAP: LEGAL-02, D-17, D-72, T-12-54. The cookies the Privacy Policy lists are exactly the cookies the server sets, and it names no
+// retired cookie. The names are read from the C# files that hold the cookie name constants, so a cookie added to or taken out of the
+// code fails here until the policy text changes too.
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legalContent';
-import { COOKIES_TEXT } from '../modules/public/legalCookies';
+import { PRIVACY_TEXT } from '../modules/public/legalPrivacy';
 
 const SECURITY_DIR = resolve(import.meta.dirname, '../../../src/Csps.Server/Security');
 const CODE_FILES = ['AuthCookies.cs', 'AnalyticsCookies.cs'] as const;
+/** The file that holds the two retired cookie names, kept out of the inventory files on purpose. */
+const RETIRED_FILE = 'RetiredCookies.cs';
 
 /** A cookie name constant in C#: a quoted string with the __Host- or __Secure- prefix. */
 const CODE_NAME = /"((?:__Host-|__Secure-)csps_[a-z0-9]+)"/g;
@@ -78,34 +80,47 @@ const sources = CODE_FILES.map((file) => ({
   names: namesInCode(readFileSync(resolve(SECURITY_DIR, file), 'utf8')),
 }));
 const codeNames = sources.flatMap((source) => source.names);
+const retiredNames = existsSync(resolve(SECURITY_DIR, RETIRED_FILE))
+  ? namesInCode(readFileSync(resolve(SECURITY_DIR, RETIRED_FILE), 'utf8'))
+  : [];
 
 const sample = (blocks: LegalBlock[]): LegalText => ({
-  meta: COOKIES_TEXT.meta,
+  meta: PRIVACY_TEXT.meta,
   sections: [{ id: 'one', heading: 'One', blocks }],
 });
 
-describe('the Cookie Policy inventory and the code (LEGAL-02, T-12-54)', () => {
+describe('the Privacy Policy cookie list and the code (LEGAL-02, D-72, T-12-54)', () => {
   it.each(sources)('reads at least one cookie name from $file', ({ names }) => {
     expect(names.length).toBeGreaterThan(0);
   });
 
   it('lists every cookie name the code sets', () => {
-    const listed = new Set(namesInText(COOKIES_TEXT));
+    const listed = new Set(namesInText(PRIVACY_TEXT));
     expect(codeNames.filter((name) => !listed.has(name))).toEqual([]);
   });
 
   it('names no cookie the code does not set', () => {
     const code = new Set(codeNames);
-    expect(namesInText(COOKIES_TEXT).filter((name) => !code.has(name))).toEqual([]);
+    expect(namesInText(PRIVACY_TEXT).filter((name) => !code.has(name))).toEqual([]);
+  });
+
+  it('names no retired cookie (D-63)', () => {
+    expect(retiredNames.length).toBeGreaterThanOrEqual(2);
+    const listed = new Set(namesInText(PRIVACY_TEXT));
+    expect(retiredNames.filter((name) => listed.has(name))).toEqual([]);
+  });
+
+  it('keeps the retired names out of the files the inventory reads', () => {
+    expect(retiredNames.filter((name) => codeNames.includes(name))).toEqual([]);
   });
 
   it('gives each cookie its own term in a description list', () => {
-    const terms = new Set(termNames(COOKIES_TEXT));
+    const terms = new Set(termNames(PRIVACY_TEXT));
     expect(codeNames.filter((name) => !terms.has(name))).toEqual([]);
   });
 
   it('has no problem as a whole', () => {
-    expect(inventoryProblems(codeNames, COOKIES_TEXT)).toEqual([]);
+    expect(inventoryProblems(codeNames, PRIVACY_TEXT)).toEqual([]);
   });
 });
 

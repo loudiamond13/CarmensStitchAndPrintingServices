@@ -64,7 +64,6 @@ public sealed class SeoEndpointTests
 
     [Theory]
     [InlineData("/privacy")]
-    [InlineData("/cookies")]
     [InlineData("/terms")]
     [InlineData("/accessibility")]
     public async Task TheSitemapLeavesOutEveryLegalPageWhileItIsADraft(string path)
@@ -75,6 +74,17 @@ public sealed class SeoEndpointTests
         var body = await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
 
         body.ShouldNotContain($"{Origin}{path}<", Case.Sensitive, path);
+    }
+
+    [Fact]
+    public async Task TheSitemapNeverListsTheOldCookiePolicyPath()
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader("Sample Shop"), new ApprovedLegalPages("/privacy", "/terms", "/accessibility"));
+        using var client = factory.CreateClient();
+
+        var body = await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        body.ShouldNotContain("/cookies", Case.Sensitive);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-17T21:15:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-19T01:55:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -25,7 +25,7 @@ A route's initial JS is everything the browser must download before that route c
 2. the chunk of every route module the route renders on first load,
 3. every chunk those chunks import statically, followed all the way down.
 
-Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted. The four legal rows also list `src/modules/public/legalLoaders.ts`, the chunk their routes fetch before the page (plan 12-32).
+Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted. The three legal rows also list `src/modules/public/legalLoaders.ts`, the chunk their routes fetch before the page (plan 12-32).
 
 | Route | Route modules |
 |---|---|
@@ -71,12 +71,11 @@ The Gallery page is the largest because it also loads nuqs. The data sections of
 
 ## Legal pages (Phase 12, plan 12-05)
 
-The four legal pages are public routes inside `PublicLayout`: `/privacy`, `/cookies`, `/terms` and `/accessibility`. Each is its own lazy chunk and its own row in the budget report (`privacy`, `cookies`, `terms`, `accessibility`). Figures from `npm run build` (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
+The three legal pages are public routes inside `PublicLayout`: `/privacy`, `/terms` and `/accessibility`. Each is its own lazy chunk and its own row in the budget report (`privacy`, `terms`, `accessibility`). The Cookie Policy page was removed in Phase 12.1 (D-72): `/cookies` is the normal page not found. The figures below are from plan 12-05 and are kept as a record; the current rows are in the build report. Figures from `npm run build` (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
 
 | Page | Size | Result |
 |---|---|---|
 | Privacy Policy (`/privacy`) | 144.98 KB | ok |
-| Cookie Policy (`/cookies`) | 144.98 KB | ok |
 | Terms of Use (`/terms`) | 144.97 KB | ok |
 | Accessibility Statement (`/accessibility`) | 144.98 KB | ok |
 

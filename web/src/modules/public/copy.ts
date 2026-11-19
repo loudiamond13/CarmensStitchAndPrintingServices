@@ -265,12 +265,11 @@ export const PUBLIC_COPY = {
       tiktok: { short: 'TT', name: 'TT, CSPS on TikTok' },
     },
     staffLogin: 'Staff Login',
-    // SPEC-GAP: FT the Legal row: the four legal pages in order, then the Cookie Settings button.
+    // SPEC-GAP: FT the Legal row: the three legal pages in order (D-72).
     legal: {
       label: 'Legal',
       links: [
         { text: 'Privacy Policy', to: '/privacy' },
-        { text: 'Cookie Policy', to: '/cookies' },
         { text: 'Terms of Use', to: '/terms' },
         { text: 'Accessibility Statement', to: '/accessibility' },
       ],

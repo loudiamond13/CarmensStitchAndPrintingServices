@@ -21,8 +21,9 @@ const shared = (
 ).pages;
 
 describe('the web legal page facts and the shared file (LEGAL-05, D-10)', () => {
-  it('has the same four pages, in the same order', () => {
+  it('has the same three pages, in the same order', () => {
     expect(Object.keys(LEGAL_PAGES)).toEqual(shared.map((page) => page.key));
+    expect(Object.keys(LEGAL_PAGES)).toEqual(['privacy', 'terms', 'accessibility']);
   });
 
   it.each(shared)('matches the shared facts of $key (key, path, version, lastUpdated, approved)', (page) => {
@@ -49,13 +50,11 @@ describe('the web legal page facts and the shared file (LEGAL-05, D-10)', () => 
   it('gives every page its UI-SPEC title, crumb, eyebrow, headline and lead', () => {
     expect(Object.values(LEGAL_PAGES).map((meta) => meta.title)).toEqual([
       'Privacy Policy · CSPS',
-      'Cookie Policy · CSPS',
       'Terms of Use · CSPS',
       'Accessibility Statement · CSPS',
     ]);
     expect(Object.values(LEGAL_PAGES).map((meta) => meta.crumb)).toEqual([
       'Privacy Policy',
-      'Cookie Policy',
       'Terms of Use',
       'Accessibility Statement',
     ]);
