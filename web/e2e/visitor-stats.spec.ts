@@ -159,11 +159,8 @@ test.describe('a visitor with no cookie choice', () => {
       await expect(manager.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeVisible();
       await expect(manager).toHaveTitle('Visitor Stats · CSPS Admin');
 
-      const names = ['Home', 'Products', 'Gallery'];
-      const before = new Map<string, number>();
-      for (const name of names) {
-        before.set(name, await listCount(manager, 'Most viewed pages', name));
-      }
+      const sent = 3;
+      const before = await kpiCount(manager, 'Page views');
 
       await openCounted(page, '/');
       await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
@@ -172,11 +169,8 @@ test.describe('a visitor with no cookie choice', () => {
 
       await openStats(manager);
       await expect(manager.locator(`svg [data-bucket="${manilaDate(0)}"]`)).toHaveCount(1);
-      for (const name of names) {
-        expect(await listCount(manager, 'Most viewed pages', name), name).toBeGreaterThanOrEqual(
-          (before.get(name) ?? 0) + 1,
-        );
-      }
+      // The Page views total, not the top 5 list: a page outside the top 5 reads 0 there. Other specs share the database, so "at least".
+      expect(await kpiCount(manager, 'Page views')).toBeGreaterThanOrEqual(before + sent);
       await watched.finish();
     } finally {
       await context.close();
@@ -190,7 +184,7 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
   request,
   guard,
 }) => {
-  // The site content lock can take up to 6 minutes to get (the sweep and consent specs hold it while they open /terms).
+  // The site content lock can take up to 6 minutes to get (the sweep specs hold it while they open /terms).
   test.setTimeout(480_000);
   guard.expectStatus('/api/v1/auth/refresh', 401);
   await signInAs(page, request, await createStaff(request, 'Manager'));
@@ -199,7 +193,7 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
     'the staff marker is set',
   ).toBe(true);
 
-  // Terms of Use: the Terms sweep and the consent journey also open it, and a visitor view of it is counted. Every spec that opens
+  // Terms of Use: the Terms sweep also opens it, and a visitor view of it is counted. Every spec that opens
   // /terms does so under the site content lock, so under it the row moves only if this Manager's view is counted.
   await withSiteContentLock(async () => {
     await openStats(page);
