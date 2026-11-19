@@ -1,6 +1,5 @@
 using System.Net;
 using System.Xml.Linq;
-using Csps.Domain.Content;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Http;
@@ -12,6 +11,10 @@ namespace Csps.Server.IntegrationTests.Http;
 public sealed class SeoEndpointTests
 {
     private const string Origin = "https://localhost";
+
+    // The one literal sitemap for the default factory: a change to the legal page facts must show up as an edit here.
+    private static readonly string[] DefaultSitemapLocs =
+        [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/terms", $"{Origin}/accessibility"];
 
     [Fact]
     public async Task RobotsAllowsTheSiteDisallowsAdminAndApiAndNamesTheSitemap()
@@ -59,7 +62,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "loc")!.Value).ShouldBe(
-            [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", .. ApprovedLegalLocs()]);
+            DefaultSitemapLocs);
     }
 
     [Theory]
@@ -79,12 +82,12 @@ public sealed class SeoEndpointTests
     [Fact]
     public async Task TheSitemapNeverListsTheOldCookiePolicyPath()
     {
-        await using var factory = new ShellTestFactory(new StubPublicContentReader("Sample Shop"), new ApprovedLegalPages("/privacy", "/terms", "/accessibility"));
+        await using var factory = new ShellTestFactory(new StubPublicContentReader("Sample Shop"), new ApprovedLegalPages("/privacy", "/terms", "/accessibility", "/cookies"));
         using var client = factory.CreateClient();
 
         var body = await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken);
 
-        body.ShouldNotContain("/cookies", Case.Sensitive);
+        body.ShouldNotContain($"{Origin}/cookies", Case.Sensitive);
     }
 
     [Fact]
@@ -111,7 +114,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            Enumerable.Repeat("2026-11-10", 4 + ApprovedLegalLocs().Length));
+            Enumerable.Repeat("2026-11-10", DefaultSitemapLocs.Length));
     }
 
     [Fact]
@@ -125,7 +128,7 @@ public sealed class SeoEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var document = XDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(4 + ApprovedLegalLocs().Length);
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(DefaultSitemapLocs.Length);
         document.Descendants(ns + "lastmod").ShouldBeEmpty();
     }
 
@@ -213,8 +216,4 @@ public sealed class SeoEndpointTests
 
         response.Headers.CacheControl.ShouldNotBeNull(path).NoCache.ShouldBeTrue(path);
     }
-
-    /// <summary>The sitemap addresses of the legal pages whose Domain fact is approved, in route order.</summary>
-    private static string[] ApprovedLegalLocs() =>
-        [.. LegalPages.All.Where(page => page.Approved).Select(page => $"{Origin}{page.Path}")];
 }

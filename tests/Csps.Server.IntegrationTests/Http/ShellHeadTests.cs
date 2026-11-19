@@ -922,21 +922,20 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     }
 
     [Theory]
-    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
-    [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
-    [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
-    public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaFollowsItsApprovedFact(string path, string title, string lead)
+    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.", true)]
+    [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.", false)]
+    [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.", false)]
+    public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaFollowsItsApprovedFact(string path, string title, string lead, bool draft)
     {
         await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
         using var client = factory.CreateClient();
-        var approved = LegalPages.ByPath(path).ShouldNotBeNull(path).Approved;
 
         var body = await GetBodyAsync(client, path);
 
         body.ShouldContain($"<title>{title}</title>", Case.Sensitive, path);
         Meta(body, "name", "description").ShouldBe(lead, path);
         Meta(body, "property", "og:description").ShouldBe(lead, path);
-        Meta(body, "name", "robots").ShouldBe(approved ? null : "noindex, nofollow", path);
+        Meta(body, "name", "robots").ShouldBe(draft ? "noindex, nofollow" : null, path);
     }
 
     [Fact]
