@@ -4,9 +4,10 @@ current_phase: "12.1"
 current_phase_name: "Analytics simplification: daily page tally only, no cookie banner"
 status: executing
 stopped_at: Phase 12.1 context gathered
-last_updated: "2026-11-19T00:46:24.823Z"
-last_activity: "2026-11-18: Phase 12 all 32 plans closed (12-01 live photo check moved to Phase 13, D-49); next: phase close (verify, security, UI review, ship)"
-state_head: 92ad542297e422eb6ddbef434ecfb585e60d35da
+last_updated: "2026-11-19T00:50:53.692Z"
+last_activity: 2026-11-18
+last_activity_desc: Phase 12.1 execution started
+state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
   completed_phases: 9
@@ -15,7 +16,6 @@ progress:
   percent: 47
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-18T15:10:00-06:00"
-last_activity_desc: Phase 12 all plans closed; 12-01 live photo check moved to Phase 13
 ---
 
 # Project State
@@ -25,14 +25,14 @@ last_activity_desc: Phase 12 all plans closed; 12-01 live photo check moved to P
 See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 12 — Consent, Analytics & Legal
+**Current focus:** Phase 12.1 — Analytics simplification: daily page tally only, no cookie banner
 
 ## Current Position
 
-Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — READY TO EXECUTE
-Plan: 1 of 30
-Status: Ready to execute
-Last activity: 2026-11-18: Phase 12 all 32 plans closed (12-01 live photo check moved to Phase 13, D-49); next: phase close (verify, security, UI review, ship)
+Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
+Plan: 1 of 17
+Status: Executing Phase 12.1
+Last activity: 2026-11-18 — Phase 12.1 execution started
 
 Progress: [█████░░░░░] 47%
 
