@@ -4,44 +4,6 @@
  */
 
 export interface paths {
-    "/api/v1/analytics/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Deletes the analytics rows tied to this browser's visitor id, expires that cookie and records a reset decision (stats off, map off).
-         *     The visitor is chosen only by the HttpOnly cookie: the call has no id in its address or body (CWE-639), and the answer is the same
-         *     whether or not a cookie was sent or anything was deleted.
-         */
-        post: operations["ClearVisitorData"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/consent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Logs one decision and saves the choice cookie. */
-        post: operations["RecordConsent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/analytics/page-views": {
         parameters: {
             query?: never;
@@ -53,23 +15,6 @@ export interface paths {
         put?: never;
         /** Counts one public page view for the business day, anonymously. */
         post: operations["RecordPageView"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/analytics/vitals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stores a consented visitor's Core Web Vitals against their current visit. */
-        post: operations["RecordVitals"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3296,21 +3241,6 @@ export interface components {
              */
             total: number | string;
         };
-        /** @description The state after a decision, as the server stored it (ANL-07). The browser shows this, not what it sent. */
-        ConsentDecisionResponse: {
-            /** @description The consent chain id. */
-            consentId: string;
-            /** @description The business day of the decision, as `yyyy-MM-dd`. */
-            decidedOn: string;
-            /** @description True when the browser sent the Global Privacy Control signal. */
-            gpc: boolean;
-            /** @description True when the map is allowed. */
-            map: boolean;
-            /** @description The policy version the decision was made under. */
-            policyVersion: string;
-            /** @description True or false when chosen, null when not chosen. */
-            stats: null | boolean;
-        };
         /**
          * @description The Add Expense form (CEXP-02). Any other member in the body, such as a forged `createdById` or `createdAt`, is
          *     ignored: who recorded the expense and when come from the token and the clock (SEC-08).
@@ -5493,25 +5423,6 @@ export interface components {
              */
             share: number | string;
         };
-        /**
-         * @description One cookie decision as the browser sends it (ANL-07). Stats is null for a map-only save (D-18). The browser never sends the GPC signal
-         *     in the body: the server reads the `Sec-GPC` header (D-20).
-         */
-        RecordConsentRequest: {
-            /** @description The consent chain id from the saved cookie, or null on a first decision. */
-            consentId?: null | string;
-            /**
-             * @description True when the visitor allowed the Google map.
-             * @default false
-             */
-            map: boolean;
-            /** @description The cookie policy version the visitor saw, like `1.0`. */
-            policyVersion?: null | string;
-            /** @description Where the choice was made: `bar`, `settings` or `map-link`. */
-            source?: null | string;
-            /** @description True or false when the visitor chose, null when not chosen. */
-            stats?: null | boolean;
-        };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
             /** @description The current password as typed. */
@@ -6391,29 +6302,6 @@ export interface components {
              */
             samples: number | string;
         };
-        /**
-         * @description One page speed report as the browser sends it (ANL-05, D-26). The path is the page's pathname; the server cuts it at the first `?` or
-         *     `#`. Each metric is optional: the browser reports the ones it measured. LCP and INP are in milliseconds, CLS is a score.
-         */
-        VitalsRequest: {
-            /**
-             * Format: double
-             * @description Cumulative Layout Shift score, or null.
-             */
-            cls?: null | number | string;
-            /**
-             * Format: double
-             * @description Interaction to Next Paint in milliseconds, or null.
-             */
-            inp?: null | number | string;
-            /**
-             * Format: double
-             * @description Largest Contentful Paint in milliseconds, or null.
-             */
-            lcp?: null | number | string;
-            /** @description The page path, starting with a slash. */
-            path?: null | string;
-        };
     };
     responses: never;
     parameters: never;
@@ -6423,107 +6311,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    ClearVisitorData: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentDecisionResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    RecordConsent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Cancels the request. */
-        requestBody?: {
-            content: {
-                "application/*+json": null | components["schemas"]["RecordConsentRequest"];
-                "application/json": null | components["schemas"]["RecordConsentRequest"];
-                "text/json": null | components["schemas"]["RecordConsentRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ConsentDecisionResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
     RecordPageView: {
         parameters: {
             query?: never;
@@ -6537,60 +6324,6 @@ export interface operations {
                 "application/*+json": null | components["schemas"]["PageViewRequest"];
                 "application/json": null | components["schemas"]["PageViewRequest"];
                 "text/json": null | components["schemas"]["PageViewRequest"];
-            };
-        };
-        responses: {
-            /** @description No Content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    RecordVitals: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Cancels the request. */
-        requestBody?: {
-            content: {
-                "application/*+json": null | components["schemas"]["VitalsRequest"];
-                "application/json": null | components["schemas"]["VitalsRequest"];
-                "text/json": null | components["schemas"]["VitalsRequest"];
             };
         };
         responses: {
