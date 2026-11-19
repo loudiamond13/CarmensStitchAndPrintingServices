@@ -1,5 +1,5 @@
 # CSPS — Carmen's Stitch & Printing Services
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-10-20T06:02:41-05:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 ## Product Requirements & Engineering Contract (for GSD Core)
 
@@ -38,7 +38,7 @@ These rules override every other instruction, convenience, or "quick fix".
 
 | Face | Audience | Purpose |
 |---|---|---|
-| **Public site** | Anonymous visitors | Shows services & prices, address, contact numbers, business info, legal pages, cookie consent. |
+| **Public site** | Anonymous visitors | Shows services & prices, address, contact numbers, business info, legal pages. No cookie banner (D-54). |
 | **Admin portal** | Staff (`Admin`, `Manager`) | Orders (with items, payments, discount, expenses, images), company expenses, users, site content, visitor metrics, own profile. |
 
 **Quality bar:** production-grade, secure, accessible, responsive (mobile-first), fast, fully tested, clean, and legally careful. Existing production data MUST be migrated without loss.
@@ -190,9 +190,10 @@ Independent of orders: description, category (from a manageable list or enum per
 - `SiteSettings` (singleton): business name, tagline, address lines, city/region/postal code, map link, phone numbers, email, business hours, social links, about text, business time zone, currency & locale (§21).
 - `PriceCategory` → `PriceItem`: name, description, price, "starts at" flag, display order, active flag.
 
-### 5.4 Analytics & consent
-- `ConsentRecord`: consent id (random), choices (necessary/analytics), policy version, timestamp, GPC flag. No IP stored in clear.
-- `Visit` / `PageView`: visitor id (random, only with consent), session id, path, referrer host, device class, browser family, OS family, timestamp. Aggregated `DailyPageStats` for no-consent traffic.
+### 5.4 Analytics (daily page tally)
+- **Built (Phase 12.1, D-53, D-54, D-59):** the only analytics write is the daily page count: one row per page path and day (`DailyPageCounts`), path and day only. No cookie, no visitor id, no session, no referrer, no device, no IP, no consent record. Bots and signed-in staff are not counted (D-21). Counts are kept about 3 years and the monthly cleanup removes older rows (D-04).
+- **Unused tables, kept (D-56, D-61, D-64):** `ConsentRecords`, `AnalyticsVisits`, `AnalyticsPageViews`, `AnalyticsVitalSamples` (speed samples), `AnalyticsSalts`, `DailyDeviceCount`, `DailyReferrerCount` and the `IpHash` column stay in the schema, unused. Nothing writes to them. Dropping them is a one-way change and needs a separate owner yes.
+- Original Phase 12 design (history): `ConsentRecord` (consent id, choices, policy version, timestamp, GPC flag) and `Visit` / `PageView` (visitor id only with consent, session id, path, referrer host, device, browser and OS family, timestamp) with aggregated `DailyPageStats` for no-consent traffic.
 
 ### 5.5 Security tables
 `TwoFactorChallenge`, `RefreshToken` (hashed, with family id for reuse detection), `AuditLog`, Data Protection keys table.
@@ -275,19 +276,23 @@ Each requirement has an ID for GSD traceability. Every requirement needs unit + 
 | PUB-03 | Manager-only admin screens to edit all public content and the price list (create/edit/reorder/activate/deactivate/delete). |
 | PUB-04 | Public pages are fast and SEO-friendly: unique titles/meta descriptions, Open Graph tags, `robots.txt`, `sitemap.xml`, structured data (`LocalBusiness` JSON-LD) built from site settings. Admin routes are `noindex`. |
 
-### 6.7 Consent & visitor metrics (ANL)
+### 6.7 Visitor metrics, no cookie banner (ANL)
+
+Phase 12.1 (owner rulings D-53 to D-73, 2026-11-18) replaced the consent design with a daily page tally. Phase 12 and Phase 12.1 ship together; Phase 12 is never deployed alone (D-62). Each row says what is built and which ruling changed it. The rulings are in `.planning/phases/12.1-analytics-simplification-daily-page-tally-only-no-cookie-ban/12.1-CONTEXT.md`.
 
 | ID | Requirement |
 |---|---|
-| ANL-01 | On first visit show a cookie consent banner with **Accept all**, **Reject all** (equally prominent), and **Customize**. Nothing non-essential is set before a choice. |
-| ANL-02 | Honor the browser **Global Privacy Control** signal as "reject analytics". |
-| ANL-03 | A persistent "Cookie settings" link (footer) reopens preferences at any time. |
-| ANL-04 | **"Clear my cookies & data"** button: expires all non-essential cookies (server-side for HttpOnly ones), clears local/session storage, and deletes server-side analytics tied to the visitor id. |
-| ANL-05 | With consent: record visitor id (random UUID cookie, max 12 months), sessions, page views, referrer host, device/browser/OS family. IP addresses are never stored in clear (truncated, then HMAC'd with a rotating salt). |
-| ANL-06 | Without consent: record only anonymous aggregate counts (path + day), no cookies, no identifiers. |
-| ANL-07 | Consent is re-requested when the cookie policy version changes or after 12 months; consent decisions are logged (proof of consent). |
-| ANL-08 | **Manager metrics dashboard**: unique visitors, sessions, page views, top pages, top referrers, device/browser split, trend chart; date-range picker; CSV export. |
-| ANL-09 | Analytics data retention: raw events 13 months, then aggregated and purged (§21 to confirm). |
+| ANL-01 | **No cookie banner.** The site sets no optional cookies. Nothing non-essential is set before a choice: the one saved map setting is written only when the visitor taps **Show Map** (D-54, D-59; supersedes the Accept all / Reject all / Customize banner). |
+| ANL-02 | Global Privacy Control is honored by design: the site tracks no one, and `/.well-known/gpc.json` stays (D-60). The saved map setting is kept for GPC browsers too, because the tap is a clear choice (D-65). |
+| ANL-03 | No "Cookie settings" link. The footer Legal row has three links: Privacy Policy, Terms of Use, Accessibility Statement (D-59, D-72). |
+| ANL-04 | No "Clear my cookies & data" button. The Privacy Policy explains how to clear the saved map setting in the browser. The server expires the two old consent and visitor id cookies when a browser still sends them (D-55, D-63, D-65). |
+| ANL-05 | The only thing recorded is the page and the day: the path is `location.pathname` only, and the server cuts it at the first `?` or `#`. No visitor id, session, referrer, device, browser, Web Vitals or IP (D-53). |
+| ANL-06 | Each page view adds one to the anonymous count for that path and day. No cookies, no identifiers. Bots and signed-in staff are not counted (D-21, D-53). |
+| ANL-07 | No consent is asked for and none is logged. The consent record table stays, unused, until a separate owner yes (D-54, D-61). |
+| ANL-08 | **Manager Visitor Stats:** total page views, the top 5 pages with their share, and a per day or per month chart; date-range picker back 3 years; CSV export with the columns `Date,Page,Page views` (D-57, D-67 to D-70, D-75). |
+| ANL-09 | No raw events are written and no roll-up runs. Daily counts are kept about 3 years; the monthly cleanup removes older rows in every analytics table (D-53, D-64, D-77; §21 to confirm). |
+
+**Saved map setting (D-65, amends D-55):** one browser setting, saved on the Show Map tap, makes the Google map load by itself on later visits from that browser. It has no expiry and no on-page undo; the Privacy Policy explains how to clear it. It covers every Google map on the site.
 
 ---
 
@@ -354,7 +359,7 @@ Each requirement has an ID for GSD traceability. Every requirement needs unit + 
   - Indexes on every filter/sort column used by list pages (order number, customer name, phone, status, order date).
   - No N+1 queries (an integration test asserts query count on list endpoints).
   - Compiled queries for hot paths; server-side pagination everywhere.
-- **Real-user monitoring:** collect Core Web Vitals (`web-vitals`) only with analytics consent, and show them on the Manager metrics dashboard.
+- **Real-user monitoring:** removed in Phase 12.1 (D-53, D-59). The `web-vitals` package is uninstalled and no page speed is collected or shown. Speed is checked by Lighthouse CI and the bundle budgets.
 
 **Modern — current, clean, and pleasant**
 - **Versions:** latest stable versions of every tool at project start (.NET 10, React 19, Tailwind v4, Vite, Playwright), kept current by Dependabot.
@@ -546,9 +551,9 @@ Sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/ch
 
 ## 13. Legal & Privacy (best effort — owner must have it reviewed by a lawyer)
 
-- Pages: **Privacy Policy**, **Cookie Policy**, **Terms of Use**, **Accessibility Statement**, all linked in the footer, versioned, with "last updated" dates; text supplied/approved by the owner (GSD drafts templates clearly marked DRAFT).
+- Pages (Phase 12.1, D-72): **Privacy Policy**, **Terms of Use**, **Accessibility Statement**: three pages, all linked in the footer, versioned, with "last updated" dates; text supplied/approved by the owner (GSD drafts templates clearly marked DRAFT). The Cookie Policy is folded into the Privacy Policy, which has a section on cookies and saved settings; `/cookies` shows the normal "page not found". The Privacy Policy is DRAFT again at version 1.0 until the owner approves it (D-71, D-73).
 - Privacy by design & data minimization: collect only what orders require; customer data visible only to staff.
-- Cookie consent per §6.7 — designed to satisfy common requirements (opt-in for non-essential cookies, equal-prominence reject, granular choices, withdrawal as easy as consent, GPC honored).
+- Cookies (§6.7): no cookie banner, because the site sets no optional cookies and collects only the daily page count. The one saved map setting is written only by the visitor's tap on Show Map (D-54, D-65). GPC is honored by design (D-60).
 - Data retention rules configurable and documented (orders and financial records per local tax/bookkeeping rules — [OWNER DECISION]).
 - Data subject requests (access/correction/deletion of a customer's data) supported by a documented manager procedure.
 - Breach response: audit log + logs sufficient to investigate; owner notification procedure documented.
@@ -574,7 +579,7 @@ Sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/ch
 | Security | CodeQL, ZAP baseline, dependency audits | §11.5 | No high/critical findings |
 | Performance | Lighthouse CI on public pages | §7 targets | Budgets enforced |
 
-**Critical E2E journeys:** sign in with 2FA (with and without remember me) · wrong code / expired code / lockout · forgot & reset password · profile updates · manager user management incl. guard rules · admin denied user management · create order with items + payments + discount + images · edit/delete each child · delete order · order preview totals correctness · company expense CRUD · public site renders managed content · manager edits prices and sees them publicly · cookie consent accept/reject/customize/clear · metrics dashboard shows recorded visits · responsive layouts at 320/768/1280px.
+**Critical E2E journeys:** sign in with 2FA (with and without remember me) · wrong code / expired code / lockout · forgot & reset password · profile updates · manager user management incl. guard rules · admin denied user management · create order with items + payments + discount + images · edit/delete each child · delete order · order preview totals correctness · company expense CRUD · public site renders managed content · manager edits prices and sees them publicly · no cookies set on any public page and old cookies expired (`@no-cookies`, D-63) · saved map setting on the Contact page (D-65) · Visitor Stats shows page views, top pages and the `Date,Page,Page views` CSV (`@visitor-stats`, D-69) · responsive layouts at 320/768/1280px.
 
 **Email in tests:** a `Testing`-environment-only email sink (in-memory, exposed through a test-only endpoint compiled out of Release builds or registered only when `ASPNETCORE_ENVIRONMENT=Testing`) lets Playwright read 2FA codes and reset links. It MUST NOT exist in production builds — verified by a test.
 
@@ -695,7 +700,7 @@ Each phase is a vertical slice: domain → application → infrastructure → AP
 | 5 | **Order images** | Cloudinary upload/validation, max 5, cover image, reorder, lazy responsive delivery, cleanup job |
 | 6 | **Company expenses** | CRUD page with filters and totals |
 | 7 | **Public site & content management** | Public pages per UI spec, price list & site settings management, SEO |
-| 8 | **Consent, analytics & legal pages** | Cookie banner/preferences/clear, GPC, analytics capture, manager dashboard, legal & accessibility pages |
+| 8 | **Consent, analytics & legal pages** | Reduced by Phase 12.1 (D-53 to D-73): daily page tally, no cookie banner, GPC by design, saved map setting, Visitor Stats, three legal pages (§6.7) |
 | 9 | **Hardening** | Full MITRE CWE/ATT&CK review, ZAP, manual a11y audit, performance budgets, backup/restore test, runbooks |
 | 10 | **Legacy discovery & mapping (read-only)** | Restore `.bak` locally, `LEGACY-SCHEMA.md`, `LEGACY-MAPPING.md` (legacy → new schema, plus any proposed new columns/tables) → owner approval checkpoint |
 | 11 | **Legacy data import** | Approved new columns/tables via migrations, ETL tool, reconciliation report, dress rehearsal on staging |
@@ -716,7 +721,7 @@ Phases 1–9 deliver the complete, working app on an empty database. Phases 10�
 7. Customers: store customer details on each order, or a reusable `Customer` entity? (Recommended: reusable `Customer` entity so repeat customers aren't retyped. Decide before Phase 4; legacy customer data is mapped into whichever is chosen.)
 8. Company expense categories: fixed list or manager-editable?
 9. Order images: public Cloudinary delivery or authenticated (private) delivery? (Recommended: **authenticated**.)
-10. Retention periods for orders/financial records, analytics (default 13 months), audit log (default 2 years).
+10. Retention periods for orders/financial records, analytics (daily page counts about 3 years, D-04; no raw events kept, D-53), audit log (default 2 years).
 11. Jurisdiction(s) for legal pages and which privacy laws apply; who reviews the legal text.
 12. Sender email address/domain for system emails and whether SPF/DKIM/DMARC can be configured on the domain.
 13. Expose the OpenAPI document in production to Managers, or disable it?

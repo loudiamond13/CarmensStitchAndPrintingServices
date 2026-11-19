@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-19T01:55:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -102,7 +102,6 @@ Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), Aft
 | Gallery | 147.92 KB | 145.51 KB |
 | Contact | 149.92 KB | 147.48 KB |
 | Privacy | 144.98 KB | 142.54 KB |
-| Cookies | 144.98 KB | 142.54 KB |
 | Terms | 144.97 KB | 142.53 KB |
 | Accessibility | 144.98 KB | 142.54 KB |
 | Not found | 142.63 KB | 140.18 KB |
@@ -118,7 +117,6 @@ Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), Aft
 | Gallery | 148.13 KB | 145.54 KB |
 | Contact | 150.13 KB (over) | 147.51 KB |
 | Privacy | 145.19 KB | 142.57 KB |
-| Cookies | 145.19 KB | 142.57 KB |
 | Terms | 145.18 KB | 142.56 KB |
 | Accessibility | 145.19 KB | 142.57 KB |
 | Not found | 142.83 KB | 140.21 KB |
@@ -129,20 +127,9 @@ Every public row drops by 2.4 to 2.6 KB. Admin JS goes up by about 1.5 to 1.6 KB
 
 **Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily. After plans 12-09 and 12-11 that room was gone, and plan 12-32 made new room: see "Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)" below.
 
-## Cookie bar (Phase 12, plan 12-09)
+## Cookie bar (removed in Phase 12.1)
 
-The cookie bar adds to the public first download only the consent store (`hooks/useConsent.ts`), the cookie reader (`consentJar.ts`) and `ConsentSlot`. Everything else loads as its own chunk, and only when it is needed:
-
-| Chunk | Holds | Loads when |
-|---|---|---|
-| `ConsentBar` | the bar, its buttons and words | a choice is needed (no saved choice, an old version, over 12 months) |
-| `consentRules` | the cookie codec, the version, day and 12-month checks, the Asia/Manila day | a cookie exists, or a choice is made |
-| `consentSave` | the provisional cookie write and the send | the bar loads, or a choice is made |
-| `consentService` | the typed call over the shared HTTP client | a choice is sent |
-
-A first visit loads the bar, and with it the save path and the rules, so a click applies at once. A returning visitor loads the rules chunk once per page load (from cache after the first), and a stale saved choice shows the bar once it arrives; until then the saved choice is trusted, so nobody sees a flash.
-
-The first build, with the codec, the Cookie Policy table and the save path all in the entry, put Contact at 150.43 KB (over). `consentPolicy.ts` holds the policy version alone, so `legalPages.ts` stays out of the first download. Figures are in the plan 12-09 summary.
+The cookie bar, its four lazy chunks (`ConsentBar`, `consentRules`, `consentSave`, `consentService`) and the consent store were deleted in Phase 12.1 (D-54, D-59, plans 12.1-05 and 12.1-06). The public first download no longer loads any consent code. Plan 12.1-06 measured the public rows before and after the deletion and found no change (0.01 to 0.02 KB of hash noise), because the consent chunks were already lazy.
 
 ## Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)
 
@@ -151,7 +138,7 @@ After wave 3 `npm run build:budget` failed again (Privacy 150.04 KB). Plan 12-09
 **What changed.**
 
 1. One `$initial` group in `web/vite.config.ts` (`build.rolldownOptions.output.codeSplitting`). Every module the entry imports statically now ships in the entry chunk, instead of in 8 small shared chunks that the entry imported anyway. It applies to the production, e2e and budget builds, which have `index.html` as their only entry. It is off in the parity build (and in development): there the tag would cover both entries, and `parity.html`'s modules would merge into the visitor entry. `build-config.node.test.ts` pins both.
-2. The four legal rows (privacy, cookies, terms, accessibility) now count `src/modules/public/legalLoaders.ts` (`LEGAL_LOADERS` in `budget.ts`). The legal routes always downloaded it before their page. A build without that chunk fails with "has no chunk", so the figure cannot quietly drop it again.
+2. The legal rows (privacy, terms, accessibility; the cookies row was removed in Phase 12.1, D-72) now count `src/modules/public/legalLoaders.ts` (`LEGAL_LOADERS` in `budget.ts`). The legal routes always downloaded it before their page. A build without that chunk fails with "has no chunk", so the figure cannot quietly drop it again.
 
 **Why it is honest.** Each route loads the same modules as before, in the same order, in fewer files. The entry already imported them at start-up, and Rolldown keeps the order inside a chunk. Nothing moved out of the count and nothing loads later. The saving is packaging only: one gzip stream instead of nine, and fewer import and export lines. Home goes from 31 files to 24, and `index.html` lists 24 `modulepreload` links instead of 37. Item 2 goes the other way: it raises the legal figures to what a visitor really downloads first.
 
@@ -166,7 +153,6 @@ Figures, gzip -9, 1 KB = 1000 B, from the numbers files. Before is the plan base
 | Gallery | 147.13 KB | 147.13 KB | 143.60 KB | 29 to 22 |
 | Contact | 149.09 KB | 149.09 KB | 145.62 KB | 32 to 25 |
 | Privacy | 149.99 KB | 150.61 KB (over) | 147.09 KB | 30 to 24 |
-| Cookies | 147.92 KB | 148.54 KB | 145.03 KB | 30 to 24 |
 | Terms | 149.10 KB | 149.72 KB | 146.20 KB | 30 to 24 |
 | Accessibility | 148.66 KB | 149.28 KB | 145.76 KB | 30 to 24 |
 | Not found | 141.79 KB | 141.79 KB | 138.32 KB | 27 to 20 |
@@ -182,7 +168,6 @@ Figures, gzip -9, 1 KB = 1000 B, from the numbers files. Before is the plan base
 | Gallery | 147.18 KB | 147.18 KB | 143.62 KB | 29 to 22 |
 | Contact | 149.15 KB | 149.15 KB | 145.64 KB | 32 to 25 |
 | Privacy | 150.04 KB (over) | 150.67 KB (over) | 147.11 KB | 30 to 24 |
-| Cookies | 147.97 KB | 148.60 KB | 145.04 KB | 30 to 24 |
 | Terms | 149.15 KB | 149.78 KB | 146.22 KB | 30 to 24 |
 | Accessibility | 148.71 KB | 149.33 KB | 145.78 KB | 30 to 24 |
 | Not found | 141.84 KB | 141.84 KB | 138.34 KB | 27 to 20 |
@@ -200,7 +185,6 @@ The "loader counted" columns are the base figures plus the loader chunk size mea
 | Gallery | 143.62 KB | 6.38 KB | 4.88 KB |
 | Contact | 145.64 KB | 4.36 KB | 2.86 KB |
 | Privacy | **147.11 KB** | **2.89 KB** | **1.39 KB** |
-| Cookies | 145.04 KB | 4.96 KB | 3.46 KB |
 | Terms | 146.22 KB | 3.78 KB | 2.28 KB |
 | Accessibility | 145.78 KB | 4.22 KB | 2.72 KB |
 | Not found | 138.34 KB | 11.66 KB | 10.16 KB |
@@ -217,36 +201,30 @@ The tightest row is Privacy. Plans 12-13 (the Cookie Settings window and the foo
 
 **The limit to watch.** The entry is now one file: 366.74 KB raw in the production build and 366.88 KB in the budget build (117.7 KB gzip). Vite warns above 500 KB raw, and that warning would break the zero-warnings rule. There are about 133 KB raw left before it.
 
-## Speed reader (Phase 12, plan 12-16, ANL-05, D-38)
+## Final figures after Phase 12.1 (2026-11-19)
 
-`web-vitals` 6.2.3 loads only after a "Visitor stats" yes, through `import('../speedReport')` in `hooks/useSpeedReport.ts`. Only `speedReport.ts` imports it, so it sits in its own lazy chunk and no public route counts it.
+The speed reader is gone: the `web-vitals` package is uninstalled and its lazy chunk and the `useSpeedReport` hook were deleted (D-53, D-59, plan 12.1-01). No page speed is collected, so no budget row covers it. The Cookie Policy page is gone too (D-72), so there are three legal rows, and the `/cookies` row is no longer in the budget report.
 
-| Chunk | Holds | Size | Loads when |
+Figures from `npm run build:budget` (the build CI runs), gzip -9, 1 KB = 1000 B, limit 150.00 KB per public page. The public rows are from plan 12.1-13 (the last plan that changed them); Privacy, Admin JS and CSS are from the wave 7 gate, after plans 12.1-14 and 12.1-15. Every row is under its limit and no limit was changed.
+
+| Measure | Size | Limit | Room |
 |---|---|---|---|
-| `speedReport-<hash>.js` | `web-vitals` (`onLCP`, `onCLS`, `onINP`) and `startSpeedReport` | 8.04 KB raw, 3.09 KB gzip | visitor stats are allowed (a saved yes, or a yes saved later in the page load) |
+| Home | 144.94 KB | 150 KB | 5.06 KB |
+| Products | 141.65 KB | 150 KB | 8.35 KB |
+| Gallery | 142.99 KB | 150 KB | 7.01 KB |
+| Contact | 145.22 KB | 150 KB | 4.78 KB |
+| Privacy | 147.17 KB | 150 KB | 2.83 KB |
+| Terms | 145.52 KB | 150 KB | 4.48 KB |
+| Accessibility | 145.07 KB | 150 KB | 4.93 KB |
+| Not found | 137.71 KB | 150 KB | 12.29 KB |
+| Admin JS | 222.03 KB | 250 KB | 27.97 KB |
+| CSS | 20.32 KB | 35 KB | 14.68 KB |
 
-`artifacts/budget/budget.budget.json` lists no `speedReport` or web-vitals file in any public or admin route, so the chunk adds nothing to a first download. The hook itself (`useSpeedReport.ts`, called once in `PublicLayout`) is in the first download and cost about 0.8 KB gzip on every public page, measured by building with and without the call.
-
-Figures, gzip -9, 1 KB = 1000 B, from `npm run build:budget` (the build CI runs). Before is this plan's base with the hook not called; After is this plan.
-
-| Measure | Before | After | Room to 150 KB |
-|---|---|---|---|
-| Home | 146.73 KB | 147.53 KB | 2.47 KB |
-| Products | 143.43 KB | 144.24 KB | 5.76 KB |
-| Gallery | 144.77 KB | 145.58 KB | 4.42 KB |
-| Contact | 146.80 KB | 147.60 KB | 2.40 KB |
-| Privacy | 148.26 KB | 149.07 KB | **0.93 KB** |
-| Cookies | 146.20 KB | 147.00 KB | 3.00 KB |
-| Terms | 147.38 KB | 148.18 KB | 1.82 KB |
-| Accessibility | 146.93 KB | 147.74 KB | 2.26 KB |
-| Not found | 139.49 KB | 140.30 KB | 9.70 KB |
-| Admin JS | 220.75 KB | 220.69 KB | 29.31 KB |
-
-`npm run build` (production, after): Home 147.45 KB, Products 144.15 KB, Gallery 145.50 KB, Contact 147.51 KB, Privacy 148.99 KB, Cookies 146.92 KB, Terms 148.10 KB, Accessibility 147.66 KB, Not found 140.22 KB, Admin JS 218.79 KB, CSS 20.42 KB. Every public row is under 150 KB and the limit is unchanged.
-
-**The tightest row is Privacy, with 0.93 KB left.** The wave 4 note recorded 148.78 KB for it; a build of this plan's base measured 148.26 KB, so the 0.8 KB here is the hook alone. Any later plan that adds to the public first download must fit in what is left or load lazily.
+The tightest row is Privacy, which carries the cookies and saved settings section (plan 12.1-10). The earlier sections of this file keep their figures as a record; their "Cookies" rows were removed with the page.
 
 ## Lighthouse first visit with the consent bar (Phase 12, plan 12-24)
+
+*Phase 12.1 note: the cookie bar was removed (D-54), so a first visit no longer shows a bar and the "Bar" columns below are a record only. The gate itself is unchanged.*
 
 Lighthouse starts every page with an empty browser, so it always scores the honest first visit: the consent bar is showing. The question was whether the bar costs score, and whether its text becomes the LCP element on a phone. It does neither in a way that matters: the bar text was never the LCP element, and the bar adds 0 to about 160 ms of simulated LCP, inside the 200 to 400 ms run-to-run noise on this machine.
 

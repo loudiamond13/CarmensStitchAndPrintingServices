@@ -1,12 +1,12 @@
 # CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-11-15T21:10:00-06:00*
+*Created: 2026-10-06T23:20:28-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 ## What This Is
 
 CSPS replaces the current production system of Carmen's Stitch & Printing Services, a Philippine shop that makes custom full-sublimation jerseys and does tailoring. It has two faces:
 
-- **Public site:** home, products, gallery and contact/quote pages, plus legal pages and cookie consent. Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
+- **Public site:** home, products, gallery and contact/quote pages, plus legal pages. There is no cookie banner: the site records only an anonymous daily page count and sets no optional cookies (D-53, D-54). Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
 - **Admin portal:** staff with the roles `Admin` and `Manager` run orders (items, payments, discounts, order expenses, images), company expenses, users, site content, visitor metrics and their own profiles.
 
 All existing production data is migrated in without loss. The API is client-agnostic, so a future Android app can use the same backend.
@@ -61,8 +61,8 @@ Every PRD requirement is in scope for this milestone. The IDs follow `CSPS-PRD.m
 - [ ] **Record attribution (owner addition, 2026-10-07):** every record staff create or edit stores and shows who entered it and who last changed it, with UTC times, set by the server and never by the client ("Recorded by" / "Last changed by", SEC-08; MIG-10 for migrated records). `CSPS-PRD.md` and `CSPS-UI-SPEC.md` need a later update
 - [ ] **Public site:** Home, Products, Gallery and Contact/Get a Quote per the UI spec, with database-managed content, prices and business info, SEO and JSON-LD (PUB-01..04, UI-SPEC §7)
 - [ ] **Site content management (Manager only):** site settings, price list, public content (PUB-03)
-- [ ] **Consent & analytics:** cookie banner (accept, reject, customize), GPC, clear-my-data, consented analytics, cookieless aggregates, Manager metrics dashboard, retention (ANL-01..09)
-- [ ] **Legal pages:** Privacy, Cookie, Terms and Accessibility Statement, versioned and marked DRAFT until the owner approves (PRD §13)
+- [ ] **Analytics (reduced by Phase 12.1, D-53 to D-77):** no cookie banner, no consent, no clear-my-data; one anonymous daily page tally (path and day only), GPC honored by design (D-60), the Show Map tap saved in this browser (D-65), a smaller Manager Visitor Stats page (page views, top 5 pages, per day or month chart, `Date,Page,Page views` CSV), daily counts kept about 3 years (ANL-01..09 reworded in REQUIREMENTS.md). The unused visit, consent and speed tables stay until a separate owner yes (D-56, D-61, D-64). Phase 12 and Phase 12.1 ship together (D-62)
+- [ ] **Legal pages:** three pages (Privacy Policy with the cookies section folded in, Terms of Use, Accessibility Statement; D-72), versioned and marked DRAFT until the owner approves (PRD §13). **D-73 owner approval: open.** The Privacy Policy stays DRAFT; the review waits in the STATE.md Phase 12.1 owner backlog
 - [ ] **Hardening:** MITRE CWE/ATT&CK review, ZAP, manual a11y audit, performance budgets, backup/restore test, runbooks (PRD §11, §12, §7.1, §19)
 - [ ] **Legacy migration:** read-only discovery of the `.bak` → mapping that the owner approves → test-driven ETL → 100% reconciliation → local dress rehearsal (PRD §16)
 - [ ] **Legacy data cutover:** a runbook that imports the legacy data into the live CSPS database, executed with the owner present, plus post-go-live monitoring (PRD §19.4). CSPS itself replaces the legacy site in Phase 3
@@ -181,7 +181,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | OD-6 | Can Admins delete orders? | Yes (PRD and UI spec agree) | Orders phase |
 | OD-7 | Reusable `Customer` entity vs customer fields on each order | The UI spec puts the fields on the order. The PRD recommends a reusable entity. Decide before the Orders phase | Orders phase |
 | OD-9 | Order image delivery: public or authenticated Cloudinary | PRD recommends authenticated | Order images phase |
-| OD-10 | Retention: orders and financial records, analytics (13 mo), audit log (2 yr) | **Ruled (owner, 2026-11-15; 12 D-01 to D-07):** orders and money records kept forever; unconverted inquiries purged after 6 months; raw analytics 13 months, daily counts 3 years; consent records 13 months; audit log stays 8 months (D-32), so the "2 yr" here is superseded | ✓ Owner decided (2026-11-15) |
+| OD-10 | Retention: orders and financial records, analytics (13 mo), audit log (2 yr) | **Ruled (owner, 2026-11-15; 12 D-01 to D-07):** orders and money records kept forever; unconverted inquiries purged after 6 months; raw analytics 13 months, daily counts 3 years; consent records 13 months (**amended by Phase 12.1, D-53, D-61, D-64:** no raw analytics or consent records are written any more; daily page counts are kept about 3 years and the monthly cleanup still ages out old rows in every analytics table); audit log stays 8 months (D-32), so the "2 yr" here is superseded | ✓ Owner decided (2026-11-15) |
 | OD-11 | Legal jurisdiction and reviewer | The Philippines is likely, under the Data Privacy Act of 2012 (RA 10173). **Ruled (owner, 2026-11-15; 12 D-08 to D-15):** Philippines only (RA 10173); the owner reviews and approves the text, a lawyer review is optional later; controller name, address and contact email come from site settings; the DPO is named by role | ✓ Owner decided (2026-11-15) |
 | OD-12 | System sender email/domain; SPF/DKIM/DMARC feasibility | Footer placeholder `[hello@yourdomain.ph]` | Auth phase (email) |
 | OD-13 | OpenAPI in production: Managers only, or disabled | — | Foundation / hardening |
@@ -213,7 +213,7 @@ The UI spec already answers some of these. The owner still has to confirm each o
 | C-14 | Due date | Optional | Required, ≥ order date | Domain rule |
 | C-15 | Order number | From a SQL `SEQUENCE`; legacy numbers preserved | `ORD-{YYYY}-{NNNN}`, sequential per year | Domain rule |
 | C-16 | Image reorder & cover | No drag-only interactions (WCAG 2.5.7); no hover-only actions | Native drag reorder plus a hover star "Make cover"; actions are always visible only on touch devices | **A11y**: ask |
-| C-17 | Screens the PRD requires that the UI spec doesn't show | — | 2FA, forgot/reset password, invite acceptance, email-change confirm, site content & price list management, metrics dashboard, audit log, cookie banner and preferences, legal pages, accessibility statement | Spec gaps: compose from existing patterns, mark `// SPEC-GAP:` |
+| C-17 | Screens the PRD requires that the UI spec doesn't show | — | 2FA, forgot/reset password, invite acceptance, email-change confirm, site content & price list management, metrics dashboard, audit log, cookie banner and preferences (removed by Phase 12.1, D-54), legal pages, accessibility statement | Spec gaps: compose from existing patterns, mark `// SPEC-GAP:` |
 | C-18 | Admin dashboard and estimated profit | Not in PRD §6 | Dashboard KPIs, income vs expenses chart, orders by status, recent orders; per-order "Estimated Profit" (internal only). **Ruled for Phase 10 (owner, 2026-11-05; 10 D-36 to D-47):** a monthly profit line on the chart, no profit KPI; a My money page with Mine and All staff tabs. C-40 metric definitions ruled in 10 D-01 to D-13 | Scope addition |
 | C-19 | "Keep me signed in" | Remember me, 90-day absolute | Checkbox **checked by default** | Security default: ask |
 | C-20 | Local and test databases | Docker SQL Server 2025 + Testcontainers; legacy restore as `CSPS_Legacy_Restore` only in the discovery phase | (CLAUDE.md) LocalDB with `CSPS_Dev` / `CSPS_E2E` / `CSPS_Test_<guid>`, "restore the `.bak` into LocalDB as `CSPS_Dev`" | Environment: reconcile in Phase 1 and the legacy phase |
