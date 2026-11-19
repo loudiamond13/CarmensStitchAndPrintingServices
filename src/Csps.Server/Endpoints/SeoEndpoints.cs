@@ -28,7 +28,7 @@ public static partial class SeoEndpoints
 
     private const string SitemapNamespace = "http://www.sitemaps.org/schemas/sitemap/0.9";
 
-    // The site honors the GPC signal (D-20, D-39). The date moves only when that promise changes.
+    // The site tracks no one, so it honors the GPC signal by default (D-60, D-20, D-39). The date moves only when that promise changes.
     private const string GpcStatement = "{\"gpc\":true,\"lastUpdate\":\"2026-11-15\"}";
 
     /// <summary>Maps GET and HEAD for <see cref="RobotsPath"/>, <see cref="SitemapPath"/> and <see cref="GpcPath"/>.</summary>
