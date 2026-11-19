@@ -217,12 +217,12 @@ public sealed class CollectPageViewHandlerTests
     }
 
     [Fact]
-    public async Task TheReferrerHostAndTheOtherContextValuesAreNeverPassedToTheCounter()
+    public async Task TheCounterIsCalledOnceWithTheDayAndThePageKeyAndNothingElse()
     {
         var harness = new Harness();
         var context = new CollectContext(Chrome, false);
 
-        await harness.Handler.HandleAsync(new PageViewRequest("/gallery", "facebook.com"), context, TestContext.Current.CancellationToken);
+        await harness.Handler.HandleAsync(new PageViewRequest("/gallery"), context, TestContext.Current.CancellationToken);
 
         await harness.Counts.Received(1).IncrementAsync(BusinessDay, PageKeys.Gallery, Arg.Any<CancellationToken>());
         harness.Counts.ReceivedCalls().Count().ShouldBe(1);

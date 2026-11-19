@@ -10,18 +10,16 @@ namespace Csps.Application.Analytics;
 
 /// <summary>
 /// Use case: one public page view is counted for the business day and the page, anonymously (ANL-05, ANL-06, D-21). Every gate that drops the
-/// view still answers success, so a bot or a signed-in staff member learns nothing from the answer. A visitor who also holds the visitor id,
-/// whose consent cookie passes <c>ConsentCookie.AllowsStats</c> and who sent no GPC signal is recorded as a visit too (ANL-05).
+/// view still answers success, so a bot or a signed-in staff member learns nothing from the answer. Nothing else is stored: no visit, visitor id or
+/// referrer (ANL-05, D-53).
 /// </summary>
 /// <param name="pages">Maps a cut path to a page key.</param>
 /// <param name="counts">The daily counter.</param>
-/// <param name="visits">The visit store, used for visitors who allowed stats.</param>
 /// <param name="calendar">The business clock: the day the view belongs to.</param>
 /// <param name="validator">Checks the body.</param>
 public sealed class CollectPageViewHandler(
     IPublicPageResolver pages,
     IPageViewCounts counts,
-    IAnalyticsVisits visits,
     IBusinessCalendar calendar,
     IValidator<PageViewRequest> validator)
 {
@@ -61,53 +59,6 @@ public sealed class CollectPageViewHandler(
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         await counts.IncrementAsync(clock.Today, pageKey, cancellationToken).ConfigureAwait(false);
-        await RecordVisitAsync(request, context, pageKey, clock, cancellationToken).ConfigureAwait(false);
         return Result.Success();
-    }
-
-    // The identified half (ANL-05): only with the visitor id, a consent cookie that passes ConsentCookie.AllowsStats and no GPC.
-    private async Task RecordVisitAsync(PageViewRequest request, CollectContext context, string pageKey, BusinessClock clock, CancellationToken cancellationToken)
-    {
-        if (!IdentifiedCollection.IsAllowed(context, clock.Today))
-        {
-            return;
-        }
-
-        var now = clock.UtcNow;
-        var since = now.AddMinutes(-AnalyticsRetention.SessionMinutes);
-        var visitorHash = VisitorKey.HashVisitor(context.VisitorToken!);
-        Guid visitId;
-        if (await visits.FindCurrentAsync(visitorHash, since, cancellationToken).ConfigureAwait(false) is { } current)
-        {
-            await visits.TouchAsync(current, now, cancellationToken).ConfigureAwait(false);
-            visitId = current;
-        }
-        else
-        {
-            // The store starts the visit only when none is current, so a parallel first view cannot start a second one.
-            var visit = NewVisit(request, context, visitorHash, clock);
-            bool started;
-            (visitId, started) = await visits.StartUnlessCurrentAsync(visit, since, cancellationToken).ConfigureAwait(false);
-            if (!started)
-            {
-                await visits.TouchAsync(visitId, now, cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        await visits.AddPageViewAsync(AnalyticsPageView.Of(visitId, clock.Today, now, pageKey), cancellationToken).ConfigureAwait(false);
-    }
-
-    // Only reduced values leave this method: the source name, the device class and the browser and OS labels. The address is not stored (D-52).
-    private static AnalyticsVisit NewVisit(PageViewRequest request, CollectContext context, byte[] visitorHash, BusinessClock clock)
-    {
-        return AnalyticsVisit.Start(
-            visitorHash,
-            clock.Today,
-            clock.UtcNow,
-            ReferrerName.From(request.ReferrerHost, context.SiteHost, context.UserAgent),
-            DeviceClass.From(context.UserAgent),
-            UserAgentFamily.Classify(context.UserAgent),
-            OsFamily.From(context.UserAgent),
-            ipHash: null);
     }
 }

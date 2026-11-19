@@ -4884,17 +4884,10 @@
         "type": "object"
       },
       "PageViewRequest": {
-        "description": "One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`\nand never stores it as sent. The referrer host is the host name of `document.referrer`, sent on the first view of a page load only.",
+        "description": "One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`\nand never stores it as sent. A body from an old cached page that still carries a referrer property is read as the path alone.",
         "properties": {
           "path": {
             "description": "The page path, starting with a slash.",
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "referrerHost": {
-            "description": "The referrer's host name, or null.",
             "type": [
               "null",
               "string"
