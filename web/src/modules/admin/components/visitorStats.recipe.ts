@@ -18,7 +18,7 @@ export const visitorStatsBodyClasses = tw(
 );
 
 /**
- * The KPI row: the dashboard KPI grid with three cards across, two then one up to 1023px, one column at 767px and below. On
+ * The KPI row: the dashboard KPI grid, holding the one Page views card; two columns up to 1023px, one column at 767px and below. On
  * phones a 12px gap, 16px card padding and no icon tile, as the dashboard row.
  */
 export const visitorKpiRowClasses = tw(
@@ -53,35 +53,3 @@ export const statBarEmptyClasses = tw('m-0 text-[14px] leading-5 text-ink-muted'
 
 /** The body of a list card. */
 export const statListBodyClasses = tw('p-5');
-
-/** Devices and browsers: the two lists side by side at 1280px and up, stacked below (UI-SPEC V1 item 7). */
-export const deviceBrowserGridClasses = tw(
-  'grid grid-cols-[repeat(2,minmax(0,1fr))] items-start gap-6 p-5 pg-lt-xl:grid-cols-[minmax(0,1fr)]',
-);
-
-/** One of the two lists: its h3, then the list 12px under it. */
-export const deviceBrowserColumnClasses = tw('flex min-w-0 flex-col gap-3');
-
-/** The h3 "Device" or "Browser": Label 14/600. */
-export const deviceBrowserHeadingClasses = tw('m-0 text-[14px] leading-5 font-semibold');
-
-/** The body of the Page speed card: the three rows, then the page view line 16px under them. */
-export const pageSpeedBodyClasses = tw('flex flex-col gap-4 p-5');
-
-/** The three measures, 16px apart (UI-SPEC V1 item 8). */
-export const pageSpeedListClasses = tw('m-0 flex list-none flex-col gap-4 p-0');
-
-/** One measure: its name and rating on one line, then the meaning and the value. */
-export const pageSpeedRowClasses = tw('flex flex-col gap-1');
-
-/** The name and the rating badge; the badge moves under a long name. */
-export const pageSpeedHeadClasses = tw('flex flex-wrap items-center justify-between gap-x-3 gap-y-1');
-
-/** The name: Label 14/600. */
-export const pageSpeedNameClasses = tw('text-[14px] leading-5 font-semibold');
-
-/** The meaning line and the page view line: Small 14/400 muted. */
-export const pageSpeedMutedClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
-
-/** The value: Small 14/400. */
-export const pageSpeedValueClasses = tw('m-0 text-[14px] leading-5 tabular-nums');

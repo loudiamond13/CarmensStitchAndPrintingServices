@@ -68,7 +68,7 @@ const RANKED_ROWS: readonly ScenarioProps[] = [
   { name: 'duckduckgo.com', count: 9, share: 1 },
 ];
 
-const LIST_EMPTY = 'No visitors allowed visitor stats in these dates.';
+const LIST_EMPTY = 'No pages were opened in these dates.';
 
 const HANDLERS_RETRY = ['onRetry'] as const;
 
