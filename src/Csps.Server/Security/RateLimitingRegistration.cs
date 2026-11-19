@@ -26,7 +26,7 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the <c>analytics-collect</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs before the per-address limit, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the <c>analytics-collect</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs after the per-address limit so a call refused per address never uses a ceiling permit (D-74), plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -80,7 +80,9 @@ public static class RateLimitingRegistration
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => WriteRejectionAsync(context, windows, cancellationToken);
-            options.GlobalLimiter = CreateSiteWideLimiter(ceiling);
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                CreatePageViewAddressLimiter(collect),
+                CreateSiteWideLimiter(ceiling));
             AddPolicy(options, RateLimitPolicies.SignIn, settings.SignIn);
             AddPolicy(options, RateLimitPolicies.Verify, settings.Verify);
             AddPolicy(options, RateLimitPolicies.Resend, settings.Resend);
@@ -129,36 +131,41 @@ public static class RateLimitingRegistration
         return $"{new IPAddress(bytes)}/64";
     }
 
+    // The page view route's per-address limit, repeated inside the global chain so it is taken before the site-wide
+    // ceiling: a call refused here never reaches the ceiling. Every other route gets no global limit.
+    private static PartitionedRateLimiter<HttpContext> CreatePageViewAddressLimiter(RateLimitRule rule) =>
+        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            IsPageView(context)
+                ? RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(context.Connection.RemoteIpAddress), _ => WindowOptions(rule))
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
+
     // One shared window for the page view route, whatever the address; every other route has no site-wide limit.
     private static PartitionedRateLimiter<HttpContext> CreateSiteWideLimiter(RateLimitRule rule) =>
         PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            IsPageView(context)
+                ? RateLimitPartition.GetSlidingWindowLimiter(SiteWidePartitionKey, _ => WindowOptions(rule))
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
+
+    private static bool IsPageView(HttpContext context) =>
+        string.Equals(
+            context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName,
+            PageViewEndpointName,
+            StringComparison.Ordinal);
+
+    private static SlidingWindowRateLimiterOptions WindowOptions(RateLimitRule rule) =>
+        new()
         {
-            var name = context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName;
-            return string.Equals(name, PageViewEndpointName, StringComparison.Ordinal)
-                ? RateLimitPartition.GetSlidingWindowLimiter(
-                    SiteWidePartitionKey,
-                    _ => new SlidingWindowRateLimiterOptions
-                    {
-                        PermitLimit = rule.PermitLimit,
-                        Window = rule.Window,
-                        SegmentsPerWindow = SegmentsPerWindow,
-                        QueueLimit = 0,
-                        AutoReplenishment = true,
-                    })
-                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey);
-        });
+            PermitLimit = rule.PermitLimit,
+            Window = rule.Window,
+            SegmentsPerWindow = SegmentsPerWindow,
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        };
 
     private static void AddPolicy(RateLimiterOptions options, string name, RateLimitRule rule) =>
         options.AddPolicy(name, context => RateLimitPartition.GetSlidingWindowLimiter(
             PartitionKey(context.Connection.RemoteIpAddress),
-            _ => new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = rule.PermitLimit,
-                Window = rule.Window,
-                SegmentsPerWindow = SegmentsPerWindow,
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            }));
+            _ => WindowOptions(rule)));
 
     private static async ValueTask WriteRejectionAsync(
         OnRejectedContext context, Dictionary<string, TimeSpan> windows, CancellationToken cancellationToken)
