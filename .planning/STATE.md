@@ -6,7 +6,7 @@ status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
 last_activity: 2026-11-19
-last_activity_desc: Phase 12.1 wave 5 merged; 15 visitor-stats e2e failures from wave 3 close with 12.1-14
+last_activity_desc: Phase 12.1 wave 6 merged and gated
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-19: Phase 12.1 wave 5 (12.1-11, 12.1-12) merged; 15 visitor-stats e2e failures close with 12.1-14
+Last activity: 2026-11-19: Phase 12.1 wave 6 (12.1-13, 12.1-14) merged and gated; waves 1 to 6 clean
 
 Progress: [█████░░░░░] 47%
 
@@ -1090,7 +1090,9 @@ Phase 12.1 execution backlog (2026-11-18):
 - [ ] **Wave 3 load flakes (recorded; each passed alone):** `GalleryPage` (now in 3 plans in a row: worth a look), `OrderFormPage`, `OrderItemModal`, `ExpenseModal`, `Phase8Demos`, `AdminLayout`; none failed in the gate.
 - [x] **12.1 wave 4 post-merge gate (2026-11-19; plans 12.1-09, 12.1-10, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3194, Infrastructure 1317 of 1318 (1 skipped), Server 3031 passed (0 failed: the 4 wave 3 failures went with the removed routes); openapi types match; web `verify` 11225 of 11225 (420 files, branches 90.23%); `build:budget` exit 0: Privacy 147.25 KB (2.75 KB left), admin 221.98 KB, CSS 20.32 KB; e2e `@link-preview|@no-cookies` 45 passed in all five projects. Schema drift and UI safety gates clear.
 - [ ] **12.1-10 Privacy Policy draft, for your review in plan 12.1-16 (D-73):** the page is version 1.0, a draft again (`approved: false`), last updated 2026-11-19. The 12.1-10 SUMMARY lists all 17 changed lines; seven are executor wording with no ruling behind them. Three questions (recommendation first): (1) the map tap's basis "Our basis is your consent: that tap is your choice": keep, name no basis, or say legitimate interest; (2) "Page counts" names no basis: keep, or add a legitimate interest line; (3) staff cookies listed one by one for visitors: keep (as D-72 says), or one sentence.
-- [ ] **12.1 wave 5 post-merge gate (2026-11-19; plans 12.1-11, 12.1-12, no merge conflicts): one leftover e2e failure from wave 3, closes in wave 6.** Build 0 warnings, format clean; Domain 2173, Architecture 290, Application 3157, Infrastructure 1295 of 1296 (1 skipped) passed; Server 3010 of 3011: the one failure is the known `ParallelCallersEachGetTheirOwnStatus` 500 (passed alone 1 of 1; the fourth time, see that item); openapi types match; web `verify` 11225 of 11225; `build:budget` exit 0 (Privacy 147.25 KB). E2E `@no-cookies|@visitor-stats`: 45 passed, 15 failed: three `@visitor-stats` tests in all five projects still expect the Visitor Stats text that plan 12.1-08 removed in wave 3 ("Visits to the public website", the 13-month note, "Page views and unique visitors"); 12.1-08 did not run that e2e tag. Plan 12.1-14 (wave 6) rewrites `web/e2e/visitor-stats.spec.ts` whole, so it closes there; the wave 6 gate must show `@visitor-stats` green. 12.1-11 and 12.1-12 stay in progress in the roadmap until then. Schema drift and UI safety gates clear.
+- [x] **12.1 wave 5 post-merge gate (2026-11-19; plans 12.1-11, 12.1-12, no merge conflicts): one leftover e2e failure from wave 3, closes in wave 6.** Build 0 warnings, format clean; Domain 2173, Architecture 290, Application 3157, Infrastructure 1295 of 1296 (1 skipped) passed; Server 3010 of 3011: the one failure is the known `ParallelCallersEachGetTheirOwnStatus` 500 (passed alone 1 of 1; the fourth time, see that item); openapi types match; web `verify` 11225 of 11225; `build:budget` exit 0 (Privacy 147.25 KB). E2E `@no-cookies|@visitor-stats`: 45 passed, 15 failed: three `@visitor-stats` tests in all five projects still expect the Visitor Stats text that plan 12.1-08 removed in wave 3 ("Visits to the public website", the 13-month note, "Page views and unique visitors"); 12.1-08 did not run that e2e tag. Plan 12.1-14 (wave 6) rewrites `web/e2e/visitor-stats.spec.ts` whole, so it closes there; Closed by the wave 6 gate (`@visitor-stats` green in all five projects). Schema drift and UI safety gates clear.
+- [x] **12.1 wave 6 post-merge gate (2026-11-19; plans 12.1-13, 12.1-14, no merge conflicts):** build 0 warnings, format clean; Domain 2071, Architecture 290, Application 3143, Infrastructure 1282 of 1283 (1 skipped), Server 3011 passed (0 failed); openapi types match; `build:budget` exit 0: Privacy 147.12 KB, admin 221.97 KB, CSS 20.32 KB, three legal rows and no cookies row; e2e `@visitor-stats|@no-cookies|@public|@link-preview` 220 passed in all five projects. Web `verify` failed once on Prettier in two 12.1-13 test files (`web/scripts/budget.test.ts`, `web/src/test/public-paths.node.test.ts`); formatted only (610aafd0), re-run 11202 of 11202 (419 files, branches 90.23%), license and notices checks pass. Schema drift and UI safety gates clear. 12.1-13's hand-back arrived after the merge, which used its committed SUMMARY; the two agree.
+- [ ] **12.1-14 unused referrer constants (low priority):** `ReferrerName.Messenger`, `Instagram` and `Google` now have no code reader, only a test. Recommended: drop them in a later clean-up, since the plan said keep constants.
 
 ### Blockers/Concerns
 

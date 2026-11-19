@@ -1339,7 +1339,7 @@ Plans:
 **Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 10/17 plans executed
+**Plans:** 14/17 plans executed
 
 Plans:
 **Wave 1**
@@ -1361,12 +1361,12 @@ Plans:
 - [x] 12.1-10-PLAN.md: Privacy Policy rewritten with cookies and saved settings, DRAFT again at 1.0 (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 12.1-11-PLAN.md: page view only adds to the daily count; visit stores, visitor key and Domain helpers removed (wave 5)
-- [ ] 12.1-12-PLAN.md: only the page view limit and the ceiling remain for analytics; hosts cleaned; gpc.json cites D-60 (wave 5)
+- [x] 12.1-11-PLAN.md: page view only adds to the daily count; visit stores, visitor key and Domain helpers removed (wave 5)
+- [x] 12.1-12-PLAN.md: only the page view limit and the ceiling remain for analytics; hosts cleaned; gpc.json cites D-60 (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 12.1-13-PLAN.md: /cookies removed, three footer legal links, cookie inventory checks the Privacy Policy (wave 6)
-- [ ] 12.1-14-PLAN.md: Visitor Stats answer: total page views, top 5 pages with shares, per day or month trend from the daily counts; Testing seed and e2e (wave 6)
+- [x] 12.1-13-PLAN.md: /cookies removed, three footer legal links, cookie inventory checks the Privacy Policy (wave 6)
+- [x] 12.1-14-PLAN.md: Visitor Stats answer: total page views, top 5 pages with shares, per day or month trend from the daily counts; Testing seed and e2e (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 12.1-15-PLAN.md: CSV "Date,Page,Page views" with page names from a shared fixture (D-69, D-75) (wave 7)
