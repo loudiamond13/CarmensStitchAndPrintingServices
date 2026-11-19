@@ -1,21 +1,15 @@
 namespace Csps.Server.Security;
 
 /// <summary>
-/// The staff marker cookie and its attributes (D-21). The server sets no consent or visitor id cookie any more; the two retired names are kept
-/// only so the retired cookie middleware can expire them in browsers that still hold them (D-63).
+/// The staff marker cookie and its attributes (D-21). The server sets no consent or visitor id cookie any more; the two retired names are in
+/// <see cref="RetiredCookies"/> (D-63).
 /// </summary>
 public static class AnalyticsCookies
 {
-    /// <summary>The retired consent cookie name.</summary>
-    public const string ConsentCookieName = "__Host-csps_consent";
-
-    /// <summary>The retired visitor id cookie name.</summary>
-    public const string VisitorCookieName = "__Secure-csps_vid";
-
     /// <summary>The staff marker cookie name (D-21).</summary>
     public const string StaffCookieName = "__Secure-csps_staff";
 
-    /// <summary>The path the visitor id and staff marker cookies are sent to.</summary>
+    /// <summary>The path the staff marker cookie is sent to.</summary>
     public const string CookiePath = "/api/v1/analytics";
 
     private const string StaffMarkerValue = "1";

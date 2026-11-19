@@ -20,12 +20,12 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = AnalyticsHttp.NewClient(factory);
         using var request = AnalyticsHttp.NewPost(PageViewRoute, PageViewBody);
-        request.Headers.Add("Cookie", $"{AnalyticsCookies.VisitorCookieName}=x");
+        request.Headers.Add("Cookie", $"{RetiredCookies.VisitorCookieName}=x");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        AssertExpired(AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.VisitorCookieName), "/api/v1/analytics", "strict", httpOnly: true);
+        AssertExpired(AnalyticsHttp.SetCookieOf(response, RetiredCookies.VisitorCookieName), "/api/v1/analytics", "strict", httpOnly: true);
     }
 
     [Fact]
@@ -34,12 +34,12 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         await using var factory = new ShellTestFactory();
         using var client = AnalyticsHttp.NewClient(factory);
         using var request = ApiRequests.Get("/");
-        request.Headers.Add("Cookie", $"{AnalyticsCookies.ConsentCookieName}=x");
+        request.Headers.Add("Cookie", $"{RetiredCookies.ConsentCookieName}=x");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        AssertExpired(AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName), "/", "lax", httpOnly: false);
+        AssertExpired(AnalyticsHttp.SetCookieOf(response, RetiredCookies.ConsentCookieName), "/", "lax", httpOnly: false);
     }
 
     [Fact]
@@ -48,12 +48,12 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         await using var factory = new ShellTestFactory();
         using var client = AnalyticsHttp.NewClient(factory);
         using var request = ApiRequests.Get("/api/v1/public/site");
-        request.Headers.Add("Cookie", $"{AnalyticsCookies.ConsentCookieName}=x");
+        request.Headers.Add("Cookie", $"{RetiredCookies.ConsentCookieName}=x");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        AssertExpired(AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName), "/", "lax", httpOnly: false);
+        AssertExpired(AnalyticsHttp.SetCookieOf(response, RetiredCookies.ConsentCookieName), "/", "lax", httpOnly: false);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         await using var factory = new CspsApiFactory();
         using var client = AnalyticsHttp.NewClient(factory);
         using var request = ApiRequests.Get("/assets/app-fixture.js");
-        request.Headers.Add("Cookie", $"{AnalyticsCookies.ConsentCookieName}=x; {AnalyticsCookies.VisitorCookieName}=x");
+        request.Headers.Add("Cookie", $"{RetiredCookies.ConsentCookieName}=x; {RetiredCookies.VisitorCookieName}=x");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -80,8 +80,8 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
-        AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(response, RetiredCookies.ConsentCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(response, RetiredCookies.VisitorCookieName).ShouldBeNull();
         response.Headers.Contains("Set-Cookie").ShouldBeFalse();
     }
 
@@ -94,7 +94,7 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         request.Headers.Add(
             "Cookie",
             $"{AuthCookies.RefreshCookieName}=a; {AuthCookies.TicketCookieName}=b; {AnalyticsCookies.StaffCookieName}=1; "
-            + $"{AnalyticsCookies.ConsentCookieName}=c; {AnalyticsCookies.VisitorCookieName}=d");
+            + $"{RetiredCookies.ConsentCookieName}=c; {RetiredCookies.VisitorCookieName}=d");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
@@ -102,7 +102,7 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         var names = response.Headers.TryGetValues("Set-Cookie", out var values)
             ? values.Select(value => value.Split('=')[0]).Order(StringComparer.Ordinal).ToList()
             : [];
-        names.ShouldBe([AnalyticsCookies.ConsentCookieName, AnalyticsCookies.VisitorCookieName]);
+        names.ShouldBe([RetiredCookies.ConsentCookieName, RetiredCookies.VisitorCookieName]);
     }
 
     [Fact]
@@ -111,13 +111,13 @@ public sealed class RetiredCookiesTests(CspsDatabase database) : IClassFixture<C
         await using var factory = new CspsApiFactory();
         using var client = AnalyticsHttp.NewClient(factory);
         using var request = AnalyticsHttp.NewPost(PageViewRoute, PageViewBody, csrf: false);
-        request.Headers.Add("Cookie", $"{AnalyticsCookies.ConsentCookieName}=x; {AnalyticsCookies.VisitorCookieName}=x");
+        request.Headers.Add("Cookie", $"{RetiredCookies.ConsentCookieName}=x; {RetiredCookies.VisitorCookieName}=x");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        AssertExpired(AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.VisitorCookieName), "/api/v1/analytics", "strict", httpOnly: true);
-        AssertExpired(AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName), "/", "lax", httpOnly: false);
+        AssertExpired(AnalyticsHttp.SetCookieOf(response, RetiredCookies.VisitorCookieName), "/api/v1/analytics", "strict", httpOnly: true);
+        AssertExpired(AnalyticsHttp.SetCookieOf(response, RetiredCookies.ConsentCookieName), "/", "lax", httpOnly: false);
     }
 
     private static void AssertExpired(string? setCookie, string path, string sameSite, bool httpOnly)
