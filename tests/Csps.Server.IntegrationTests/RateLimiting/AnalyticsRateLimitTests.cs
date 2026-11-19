@@ -24,7 +24,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     {
         await database.ResetAsync();
         await using var factory = new RealLimitsFactory(database.ConnectionString) { RemoteIpFromHeader = true };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         for (var attempt = 1; attempt <= PerMinute; attempt++)
         {
@@ -40,7 +40,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         problem.GetProperty("code").GetString().ShouldBe("rate-limited");
         rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
         other.StatusCode.ShouldBe(HttpStatusCode.OK);
-        ConsentEndpointTests.SetCookieOf(rejected, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(rejected, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostAsync(client, "203.0.113.62");
         using var second = await PostAsync(client, "203.0.113.62");
@@ -70,7 +70,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var accepted = await PostAsync(client, "203.0.113.63");
         using var rejected = await PostAsync(client, "203.0.113.63");
@@ -115,7 +115,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     {
         await database.ResetAsync();
         await using var factory = new RealLimitsFactory(database.ConnectionString) { RemoteIpFromHeader = true };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         for (var attempt = 1; attempt <= CollectPerMinute; attempt++)
         {
@@ -143,7 +143,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostPageViewAsync(client, "203.0.113.72");
         using var second = await PostPageViewAsync(client, "203.0.113.72");
@@ -191,7 +191,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         foreach (var address in new[] { "203.0.113.81", "203.0.113.82", "203.0.113.83" })
         {
@@ -215,7 +215,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         foreach (var address in new[] { "203.0.113.81", "203.0.113.82", "203.0.113.83", "203.0.113.84" })
         {
@@ -263,7 +263,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     {
         await database.ResetAsync();
         await using var factory = new RealLimitsFactory(database.ConnectionString) { RemoteIpFromHeader = true };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         for (var attempt = 1; attempt <= ClearPerMinute; attempt++)
         {
@@ -290,7 +290,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var accepted = await PostAsync(client, "203.0.113.82");
         using var rejected = await PostAsync(client, "203.0.113.82");
@@ -308,7 +308,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostClearAsync(client, "203.0.113.83");
         using var second = await PostClearAsync(client, "203.0.113.83");
@@ -335,7 +335,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             RemoteIpFromHeader = true,
         };
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var accepted = await PostClearAsync(client, "203.0.113.84");
         using var rejected = await PostClearAsync(client, "203.0.113.84", $"{AnalyticsCookies.VisitorCookieName}={visitor}");
@@ -345,8 +345,8 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         await using var context = database.CreateContext();
         context.AnalyticsVisits.Count().ShouldBe(1);
         context.ConsentRecords.Count().ShouldBe(1);
-        ConsentEndpointTests.SetCookieOf(rejected, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
-        ConsentEndpointTests.SetCookieOf(rejected, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(rejected, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(rejected, AnalyticsCookies.ConsentCookieName).ShouldBeNull();
     }
 
     [Fact]
@@ -400,7 +400,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
 
     private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string address)
     {
-        using var request = ConsentEndpointTests.NewPost(ConsentEndpointTests.AcceptAll());
+        using var request = AnalyticsHttp.NewPost(Route, ConsentEndpointTests.AcceptAll());
         request.Headers.Add(RemoteIpStartupFilter.HeaderName, address);
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
