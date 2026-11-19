@@ -1,9 +1,13 @@
 using System.Net;
+using System.Reflection;
 using Csps.Application.Analytics;
 using Csps.Server.IntegrationTests.Analytics;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
 using Csps.Testing;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.RateLimiting;
 
@@ -14,6 +18,29 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int CollectPerMinute = 120;
+
+    [Fact]
+    public async Task OnlyThePageViewAndCeilingRulesRemainForAnalytics()
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        var analytics = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText!.StartsWith("api/v1/analytics", StringComparison.Ordinal))
+            .ToList();
+        var analyticsPolicyNames = typeof(RateLimitPolicies)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => (string)field.GetRawConstantValue()!)
+            .Where(name => name.Contains("analytics", StringComparison.Ordinal))
+            .ToList();
+
+        analytics.ShouldNotBeEmpty();
+        analytics.SelectMany(endpoint => endpoint.Metadata.GetOrderedMetadata<EnableRateLimitingAttribute>())
+            .Select(attribute => attribute.PolicyName)
+            .Distinct()
+            .ShouldBe([RateLimitPolicies.AnalyticsCollect]);
+        analyticsPolicyNames.ShouldBe([RateLimitPolicies.AnalyticsCollect]);
+        AnalyticsCollectRateLimit.Default().PermitLimit.ShouldBe(CollectPerMinute);
+    }
 
     [Fact]
     public void TheDefaultIsThirtyAMinuteInTheConsentSection()
