@@ -91,7 +91,6 @@ const PAGES: readonly SweepPage[] = [
     ready: settled,
   },
   { name: 'Privacy Policy', path: '/privacy', h1: 'Privacy policy.', status: 200, ready: legalReady, legal: true },
-  { name: 'Cookie Policy', path: '/cookies', h1: 'Cookie policy.', status: 200, ready: legalReady, legal: true },
   { name: 'Terms of Use', path: '/terms', h1: 'Terms of use.', status: 200, ready: legalReady, legal: true },
   {
     name: 'Accessibility Statement',
