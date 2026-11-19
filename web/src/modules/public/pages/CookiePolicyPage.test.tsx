@@ -7,7 +7,6 @@ import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
-import { setConsent } from '@/test/consentFixtures';
 
 /** The real route tree at /cookies, settled once the h1 is on screen. */
 async function renderCookies() {
@@ -126,7 +125,6 @@ describe('CookiePolicyPage sections (LEGAL-02)', { timeout: 20_000 }, () => {
 
 describe('CookiePolicyPage Your choices (LEGAL-02, D-17, D-54)', { timeout: 20_000 }, () => {
   it('offers no Cookie Settings button', async () => {
-    setConsent();
     await renderCookies();
     const section = await sectionOf('Your choices');
     expect(within(section).queryByRole('button', { name: 'Change Cookie Settings' })).not.toBeInTheDocument();
@@ -134,7 +132,6 @@ describe('CookiePolicyPage Your choices (LEGAL-02, D-17, D-54)', { timeout: 20_0
   });
 
   it('explains the two choices and what happens when the cookies are blocked in the browser', async () => {
-    setConsent();
     await renderCookies();
     const section = await sectionOf('Your choices');
     expect(within(section).getByText(/Visitor stats: allow or refuse/)).toBeInTheDocument();
@@ -227,7 +224,6 @@ describe('CookiePolicyPage Changes to this policy and Contact us (D-22)', { time
 
 describe('CookiePolicyPage accessibility', { timeout: 20_000 }, () => {
   it('has zero axe violations', async () => {
-    setConsent();
     const { container } = await renderCookies();
     await screen.findByRole('link', { name: 'shop-private@example.test' });
     await expectNoAxeViolations(container);
