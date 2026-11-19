@@ -20,7 +20,7 @@ public sealed partial class LegalPagesTests
     };
 
     [Fact]
-    public void AllEqualsTheSharedFileFieldByField()
+    public void EveryPageMatchesTheSharedFixture()
     {
         LegalPages.All.Count.ShouldBe(Shared.Value.Pages.Count);
         foreach (var expected in Shared.Value.Pages)
@@ -73,12 +73,10 @@ public sealed partial class LegalPagesTests
     }
 
     [Fact]
-    public void EveryPageIsApprovedAtVersionOnePointZeroOnTheOwnersDate()
+    public void EveryPageStaysAtVersionOnePointZero()
     {
-        // The owner approved all four pages on 2026-11-18.
-        LegalPages.All.ShouldAllBe(page => page.Approved);
         LegalPages.All.ShouldAllBe(page => page.Version == "1.0");
-        LegalPages.All.ShouldAllBe(page => page.LastUpdated == new DateOnly(2026, 11, 18));
+        Shared.Value.Pages.ShouldAllBe(row => row.Version == "1.0");
     }
 
     [GeneratedRegex(@"^[0-9]+\.[0-9]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]

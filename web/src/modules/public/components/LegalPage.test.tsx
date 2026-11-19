@@ -37,7 +37,7 @@ const SECTIONS: readonly LegalSectionData[] = [
   },
 ];
 
-/** A draft page built here: the real pages are approved, so the DRAFT notice is tested on this one. */
+/** A draft page built here, so the DRAFT notice is tested whatever the real facts say. */
 const DRAFT_TERMS: LegalPageMeta = { ...LEGAL_PAGES.terms, version: '0.1', lastUpdated: '2026-11-15', approved: false };
 
 function renderPage(sections: readonly LegalSectionData[] | undefined = SECTIONS) {
@@ -171,7 +171,7 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
 
 describe('LegalPage head (D-14)', () => {
   const DRAFT = DRAFT_TERMS;
-  const APPROVED = LEGAL_PAGES.privacy;
+  const APPROVED: LegalPageMeta = { ...LEGAL_PAGES.privacy, lastUpdated: '2026-11-18', approved: true };
 
   function wrap(page: LegalPageMeta, sections?: readonly LegalSectionData[]) {
     return (

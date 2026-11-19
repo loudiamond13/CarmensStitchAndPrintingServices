@@ -1,5 +1,6 @@
 using System.Net;
 using System.Xml.Linq;
+using Csps.Domain.Content;
 using Csps.Testing;
 
 namespace Csps.Server.IntegrationTests.Http;
@@ -49,7 +50,7 @@ public sealed class SeoEndpointTests
     }
 
     [Fact]
-    public async Task SitemapListsThePublicPagesAndTheFourApprovedLegalPagesInRouteOrder()
+    public async Task SitemapListsThePublicPagesAndTheApprovedLegalPagesInRouteOrder()
     {
         await using var factory = new ShellTestFactory();
         using var client = factory.CreateClient();
@@ -58,7 +59,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "loc")!.Value).ShouldBe(
-            [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/privacy", $"{Origin}/cookies", $"{Origin}/terms", $"{Origin}/accessibility"]);
+            [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", .. ApprovedLegalLocs()]);
     }
 
     [Theory]
@@ -100,7 +101,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            ["2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10", "2026-11-10"]);
+            Enumerable.Repeat("2026-11-10", 4 + ApprovedLegalLocs().Length));
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public sealed class SeoEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var document = XDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(8);
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Count().ShouldBe(4 + ApprovedLegalLocs().Length);
         document.Descendants(ns + "lastmod").ShouldBeEmpty();
     }
 
@@ -202,4 +203,8 @@ public sealed class SeoEndpointTests
 
         response.Headers.CacheControl.ShouldNotBeNull(path).NoCache.ShouldBeTrue(path);
     }
+
+    /// <summary>The sitemap addresses of the legal pages whose Domain fact is approved, in route order.</summary>
+    private static string[] ApprovedLegalLocs() =>
+        [.. LegalPages.All.Where(page => page.Approved).Select(page => $"{Origin}{page.Path}")];
 }

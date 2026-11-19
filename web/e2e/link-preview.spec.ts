@@ -4,6 +4,8 @@
 // context with `javaScriptEnabled: false`; robots.txt, sitemap.xml and the admin header are read with a plain request. A last
 // test loads every page with JavaScript on, so the strict CSP and the guard see the JSON-LD and csps-boot blocks (no report).
 // Every test seeds the demo shop (share picture included) under the site content lock, because the head reads the shared content.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
@@ -23,8 +25,14 @@ const PAGES: readonly PublicUrl[] = [
   { path: '/contact', title: 'Contact Us and Get a Quote · CSPS' },
 ];
 
-/** The four legal pages, approved at version 1.0 (LEGAL-05), so the sitemap lists them after the public pages. */
-const LEGAL_PATHS = ['/privacy', '/cookies', '/terms', '/accessibility'] as const;
+/** The approved legal pages from the shared facts file (LEGAL-05, D-71), so the sitemap lists them after the public pages. */
+const LEGAL_PATHS: readonly string[] = (
+  JSON.parse(readFileSync(resolve(import.meta.dirname, '../../tests/fixtures/legal-pages.json'), 'utf8')) as {
+    pages: { path: string; approved: boolean }[];
+  }
+).pages
+  .filter((page) => page.approved)
+  .map((page) => page.path);
 
 // An email address; a social handle in a link (tiktok.com/@name) is not one and is public.
 const EMAIL_LIKE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
@@ -164,7 +172,7 @@ test('@link-preview /admin answers with the X-Robots-Tag header and a robots met
   }
 });
 
-test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages and the four legal pages with the configured origin', async ({
+test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages and the approved legal pages with the configured origin', async ({
   request,
   baseURL,
 }) => {

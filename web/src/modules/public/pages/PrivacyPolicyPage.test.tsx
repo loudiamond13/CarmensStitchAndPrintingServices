@@ -30,15 +30,7 @@ const RETENTION: readonly (readonly [string, string])[] = [
     "Quote requests that didn't become an order, and their files",
     'Kept for about 6 months after we receive them; removed at the next monthly cleanup.',
   ],
-  [
-    'Visitor stats (visits, pages and page speed)',
-    'Kept for about 13 months; removed at the next monthly cleanup. After that we keep only daily totals, which have no visitor id.',
-  ],
-  ['Daily visitor totals', 'Kept for about 3 years; removed at the next monthly cleanup. They have no visitor id.'],
-  [
-    'Your cookie choice',
-    'Kept for about 13 months; removed at the next monthly cleanup. A choice lasts 12 months, plus 1 month.',
-  ],
+  ['Daily page counts', 'Kept for about 3 years; removed at the next monthly cleanup.'],
   ['Staff account activity log', 'Kept for about 8 months; removed at the next monthly cleanup.'],
 ];
 
@@ -56,13 +48,22 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => 
     expect(scope.getByText(/Data Privacy Act of 2012/)).toBeInTheDocument();
   });
 
-  it('lists the six retention lines exactly as the owner ruled them', async () => {
+  it('lists the four retention lines exactly as the owner ruled them', async () => {
     await renderPrivacy();
     const section = await sectionOf('How long we keep it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
     const texts = [...section.querySelectorAll('dd')].map((node) => node.textContent);
     expect(terms).toEqual(RETENTION.map(([term]) => term));
     expect(texts).toEqual(RETENTION.map(([, text]) => text));
+  });
+
+  it('keeps daily page counts about 3 years and has no visitor stats or cookie choice line', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('How long we keep it');
+    expect(section).toHaveTextContent('Daily page counts');
+    expect(section).toHaveTextContent('Kept for about 3 years; removed at the next monthly cleanup.');
+    expect(section).not.toHaveTextContent(/visitor stats/i);
+    expect(section).not.toHaveTextContent(/cookie choice/i);
   });
 });
 
@@ -73,36 +74,50 @@ const SECTIONS = [
   'Photos of your order',
   'Who else handles it',
   'How long we keep it',
+  'Cookies and saved settings',
   'Your rights',
   'How to ask about your data',
   'Complaints to the National Privacy Commission',
   'Changes to this policy',
 ];
 
+const GOOGLE_COOKIE_POLICY = 'https://policies.google.com/technologies/cookies';
+
 describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 }, () => {
-  it('shows the ten sections in order', async () => {
+  it('lists the sections in order, each in the "On this page" contents', async () => {
     await renderPrivacy();
     const names = (await screen.findAllByRole('heading', { level: 2 })).map((heading) => heading.textContent);
     expect(names).toEqual(SECTIONS);
+    const contents = screen.getAllByRole('navigation', { name: 'On this page' });
+    expect(contents.length).toBeGreaterThan(0);
+    for (const nav of contents) {
+      expect(
+        within(nav)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual(SECTIONS);
+    }
   });
 
-  it('says what is collected for each purpose, and that visitor stats need consent', async () => {
+  it('says what is collected for each purpose, with the daily page count as the page and the day only', async () => {
     await renderPrivacy();
     const section = await sectionOf('What we collect');
     expect(within(section).getAllByRole('listitem')).toHaveLength(5);
     expect(section).toHaveTextContent(/quote request/i);
-    expect(section).toHaveTextContent(/only if you allow/i);
+    expect(section).toHaveTextContent(/page and the day/i);
     expect(section).toHaveTextContent(/staff account/i);
+    expect(section).not.toHaveTextContent(/only if you allow/i);
   });
 
   it('gives each purpose its basis in plain words', async () => {
     await renderPrivacy();
     const section = await sectionOf('Why we use it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
-    expect(terms).toEqual(['Orders and payments', 'Quote requests', 'Visitor stats and the map', 'Staff accounts']);
+    expect(terms).toEqual(['Orders and payments', 'Quote requests', 'Page counts', 'The map', 'Staff accounts']);
     expect(section).toHaveTextContent(/contract with you/);
     expect(section).toHaveTextContent(/the law says we must/);
     expect(section).toHaveTextContent(/legitimate interest in keeping/);
+    expect(section).toHaveTextContent(/after you tap Show Map/);
     expect(section).toHaveTextContent(/your consent/);
   });
 
@@ -122,8 +137,113 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
     expect(items[1]).toHaveTextContent('Cloudinary');
     expect(items[2]).toHaveTextContent(/email sender/i);
     expect(items[3]).toHaveTextContent(/Google/);
-    expect(items[3]).toHaveTextContent(/only if you allow/i);
+    expect(items[3]).toHaveTextContent(/only when you tap Show Map/i);
     expect(section).not.toHaveTextContent(/data cent(?:er|re)|server/i);
+  });
+
+  it('names exactly the necessary cookies', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
+    expect(terms).toEqual([
+      '__Secure-csps_rt',
+      '__Secure-csps_2fa',
+      '__Secure-csps_staff',
+      'Admin settings in this browser',
+      'Saved map setting',
+    ]);
+    const article = screen.getByRole('article');
+    const cookieNames = (article.textContent.match(/(?:__Host-|__Secure-)?csps_[a-z0-9]+/g) ?? []).filter(
+      (name) => !terms.includes(name),
+    );
+    expect(cookieNames).toEqual([]);
+    expect(section).toHaveTextContent(/sets no optional cookies/);
+    expect(section).toHaveTextContent(/no cookie banner/);
+  });
+
+  it('gives each necessary cookie what it does and how long it lasts', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    const items = [...section.querySelectorAll('dt')].map((term) => {
+      const lines: string[] = [];
+      for (let next = term.nextElementSibling; next?.tagName === 'DD'; next = next.nextElementSibling) {
+        lines.push(next.textContent);
+      }
+      return { name: term.textContent, text: lines.join(' ') };
+    });
+    const byName = (name: string) => items.find((item) => item.name === name)?.text ?? '';
+    expect(byName('__Secure-csps_rt')).toMatch(/What it does: Staff sign-in only/);
+    expect(byName('__Secure-csps_rt')).toMatch(/Until the browser closes, or 90 days.*"Keep me signed in".*12 hours/);
+    expect(byName('__Secure-csps_2fa')).toMatch(/How long it lasts: 30 minutes\./);
+    expect(byName('__Secure-csps_staff')).toMatch(/left out of the page counts/);
+    expect(byName('__Secure-csps_staff')).toMatch(/the same as the staff sign-in/i);
+    expect(byName('Admin settings in this browser')).toMatch(/Staff only.*not a cookie/);
+  });
+
+  it('describes the saved map setting in plain words', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    const term = [...section.querySelectorAll('dt')].find((node) => node.textContent === 'Saved map setting');
+    const lines: string[] = [];
+    for (let next = term?.nextElementSibling ?? null; next?.tagName === 'DD'; next = next.nextElementSibling) {
+      lines.push(next.textContent);
+    }
+    const text = lines.join(' ');
+    expect(text).toMatch(/after you tap Show Map/);
+    expect(text).toMatch(/no expiry/);
+    expect(text).toMatch(/until you clear your browser data/);
+    expect(text).toMatch(/even when your browser sends Global Privacy Control/);
+    expect(text).toMatch(/every Google map on this site/);
+    expect(text).toMatch(/never sent to us/);
+  });
+
+  it("links Google's cookie policy in a new tab and says Google may set its own cookies", async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    expect(section).toHaveTextContent(/Google may set its own cookies when the map loads/);
+    const link = within(section).getByRole('link', { name: /^Google's cookie policy/ });
+    expect(link).toHaveAttribute('href', GOOGLE_COOKIE_POLICY);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAccessibleName(/\(opens in a new tab\)$/);
+  });
+
+  it("says how to clear cookies and the saved setting in the browser's settings", async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    expect(section).toHaveTextContent(/clear cookies and site data in your browser's settings/);
+    expect(section).toHaveTextContent(/removes the saved map setting/);
+    expect(section).toHaveTextContent(/signs staff out/);
+  });
+
+  it('explains Global Privacy Control: the site tracks no one, so it honors the signal by default', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    expect(section).toHaveTextContent(/Global Privacy Control/);
+    expect(section).toHaveTextContent(/tracks no one/);
+    expect(section).toHaveTextContent(/honors the signal by default/);
+  });
+
+  it('says nothing about tracking and links nowhere to the Cookie Policy', async () => {
+    await renderPrivacy();
+    await sectionOf('Changes to this policy');
+    const article = screen.getByRole('article');
+    const gones = [
+      /Cookie Settings/,
+      /Clear my/,
+      /visitor stats/i,
+      /visitor id/i,
+      /referrer/i,
+      /device/i,
+      /page speed/i,
+    ];
+    for (const gone of gones) {
+      expect(article).not.toHaveTextContent(gone);
+    }
+    const hrefs = within(article)
+      .queryAllByRole('link')
+      .map((link) => link.getAttribute('href'));
+    expect(hrefs).not.toContain('/cookies');
+    expect(article).not.toHaveTextContent(/Cookie Policy/);
   });
 
   it('names the eight rights under RA 10173', async () => {
