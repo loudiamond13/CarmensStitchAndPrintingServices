@@ -42,7 +42,7 @@ function renderThirty() {
 }
 
 function plot(): HTMLElement {
-  return screen.getByRole('group', { name: 'Page views and unique visitors, Oct 17 to Nov 15, 2026' });
+  return screen.getByRole('group', { name: 'Page views, Oct 17 to Nov 15, 2026' });
 }
 
 function bucketGroups(container: HTMLElement): Element[] {
@@ -189,9 +189,7 @@ describe('VisitorTrendChart: month buckets', () => {
       'Oct',
       'Nov',
     ]);
-    expect(screen.getByRole('group').getAttribute('aria-label')).toBe(
-      'Page views and unique visitors, Dec 1, 2025 to Nov 30, 2026',
-    );
+    expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Page views, Dec 1, 2025 to Nov 30, 2026');
   });
 
   it('draws a bar for every month that has page views, with no line over them', () => {

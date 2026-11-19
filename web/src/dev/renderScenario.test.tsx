@@ -156,7 +156,7 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
   it('shows StatBarList with no rows, one row and ten rows', () => {
     expect(idsOf('visitor-stats')).toContain('stat-bar-list-empty');
     renderCase('stat-bar-list-empty');
-    expect(screen.getByText('No visitors allowed visitor stats in these dates.')).toBeInTheDocument();
+    expect(screen.getByText('No pages were opened in these dates.')).toBeInTheDocument();
     cleanup();
 
     renderCase('stat-bar-list-one');
@@ -170,7 +170,7 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
   it('shows the no-visits state, the failed read and the failed refresh', () => {
     expect(idsOf('visitor-stats')).toContain('visitor-stats-no-visits');
     renderCase('visitor-stats-no-visits');
-    expect(screen.getByRole('heading', { level: 2, name: 'No visits in these dates' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'No page views in these dates' })).toBeInTheDocument();
     cleanup();
 
     renderCase('visitor-stats-load-error');

@@ -176,7 +176,7 @@ describe('V1 the page head', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Oct 17 to Nov 15, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+        "Oct 17 to Nov 15, 2026 · Page views on the public website. Staff signed in to admin aren't counted.",
       ),
     ).toBeInTheDocument();
   });
@@ -187,7 +187,7 @@ describe('V1 the page head', () => {
 
     expect(
       screen.getByText(
-        "Dec 20, 2025 to Jan 18, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+        "Dec 20, 2025 to Jan 18, 2026 · Page views on the public website. Staff signed in to admin aren't counted.",
       ),
     ).toBeInTheDocument();
   });
@@ -217,7 +217,7 @@ describe('V1 the KPI row', () => {
 
     const views = card('Page views');
     expect(within(views).getByText('4,567')).toBeInTheDocument();
-    expect(within(views).getByText('Every page opened, with or without cookies')).toBeInTheDocument();
+    expect(within(views).getByText('Every page opened on the public website')).toBeInTheDocument();
     expect(views.querySelector('svg.lucide-eye')).not.toBeNull();
     expect(document.querySelectorAll('[data-kpi-value]').length).toBe(1);
     expect(screen.queryAllByText('Unique visitors').length).toBe(0);
@@ -227,7 +227,7 @@ describe('V1 the KPI row', () => {
     expect(screen.queryAllByRole('heading', { level: 2, name: 'Page speed' }).length).toBe(0);
     expect(screen.queryAllByText(/13 months/).length).toBe(0);
     expect(screen.queryAllByText(/Not available/).length).toBe(0);
-    expect(screen.queryAllByRole('heading', { level: 2, name: 'Visits over time' }).length).toBe(1);
+    expect(screen.queryAllByRole('heading', { level: 2, name: 'Page views over time' }).length).toBe(1);
     expect(screen.queryAllByRole('heading', { level: 2, name: 'Most viewed pages' }).length).toBe(1);
   });
 
@@ -288,19 +288,19 @@ describe('V1 the KPI row', () => {
 
 /** The Trend card, found by its title. */
 function trendCard(): HTMLElement {
-  const section = screen.getByRole('heading', { level: 2, name: 'Visits over time' }).closest('section');
+  const section = screen.getByRole('heading', { level: 2, name: 'Page views over time' }).closest('section');
   if (section === null) throw new Error('No Trend card');
   return section;
 }
 
 describe('V1 the Trend card', () => {
-  it('shows "Visits over time" per day with one bucket for each day of the range', async () => {
+  it('shows "Page views over time" per day with one bucket for each day of the range', async () => {
     backend();
     await openPage();
 
     expect(within(trendCard()).getByText('Per day')).toBeInTheDocument();
     const plot = within(trendCard()).getByRole('group', {
-      name: 'Page views and unique visitors, Oct 17 to Nov 15, 2026',
+      name: 'Page views, Oct 17 to Nov 15, 2026',
     });
     expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(30);
   });
@@ -316,7 +316,7 @@ describe('V1 the Trend card', () => {
 
     expect(within(trendCard()).getByText('Per month')).toBeInTheDocument();
     const plot = within(trendCard()).getByRole('group', {
-      name: 'Page views and unique visitors, Jan 1 to Nov 15, 2026',
+      name: 'Page views, Jan 1 to Nov 15, 2026',
     });
     expect(plot.querySelectorAll('[data-bucket]')).toHaveLength(11);
     expect(within(plot).getByText('Jan')).toBeInTheDocument();
@@ -409,7 +409,7 @@ function noVisitsAnswer(): VisitorStatsResponse {
   );
 }
 
-const CARD_TITLES = ['Visits over time', 'Most viewed pages'];
+const CARD_TITLES = ['Page views over time', 'Most viewed pages'];
 
 const THEMES = [
   ['Blush', 'light'],
@@ -417,18 +417,18 @@ const THEMES = [
 ] as const;
 
 describe('V1 states: no visits', () => {
-  it('keeps the real zero KPI and shows one "No visits in these dates" EmptyState instead of the trend and the list', async () => {
+  it('keeps the real zero KPI and shows one "No page views in these dates" EmptyState instead of the trend and the list', async () => {
     backend(noVisitsAnswer());
     renderPage();
     await waitFor(() => {
       expect(within(card('Page views')).getByText('0')).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole('heading', { level: 2, name: 'No visits in these dates' })).not.toBeNull();
-    const empty = screen.getByRole('heading', { level: 2, name: 'No visits in these dates' }).parentElement;
+    expect(screen.queryByRole('heading', { level: 2, name: 'No page views in these dates' })).not.toBeNull();
+    const empty = screen.getByRole('heading', { level: 2, name: 'No page views in these dates' }).parentElement;
     if (empty === null) throw new Error('No EmptyState');
     expect(
-      within(empty).getByText('Visits show here after people open the website. Try a longer date range.'),
+      within(empty).getByText('Page views show here after people open the website. Try a longer date range.'),
     ).toBeInTheDocument();
     expect(empty.querySelector('svg.lucide-chart-column')).not.toBeNull();
     expect(within(empty).queryByRole('button')).toBeNull();
@@ -441,19 +441,19 @@ describe('V1 states: no visits', () => {
     backend((url) => (url.searchParams.get('range') === 'this-year' ? statsAnswer() : noVisitsAnswer()));
     const user = userEvent.setup();
     renderPage();
-    await screen.findByRole('heading', { level: 2, name: 'No visits in these dates' });
+    await screen.findByRole('heading', { level: 2, name: 'No page views in these dates' });
 
     await user.selectOptions(rangeSelect(), 'This year');
 
     expect(await screen.findByText('4,567')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { level: 2, name: 'No visits in these dates' })).toBeNull();
+    expect(screen.queryByRole('heading', { level: 2, name: 'No page views in these dates' })).toBeNull();
     expect(screen.getByRole('heading', { level: 2, name: 'Most viewed pages' })).toBeInTheDocument();
   });
 
   it.each(THEMES)('has no axe violations with no visits in %s', async (_, theme) => {
     backend(noVisitsAnswer());
     const { container } = renderPage('', () => undefined, theme);
-    await screen.findByRole('heading', { level: 2, name: 'No visits in these dates' });
+    await screen.findByRole('heading', { level: 2, name: 'No page views in these dates' });
 
     await expectNoAxeViolations(container);
   });
@@ -629,7 +629,7 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     expect(lastUrl(onUrlUpdate)).toBe(`?range=${range}`);
     expect(onUrlUpdate.mock.calls.at(-1)?.[0].options.history).toBe('replace');
     expect(
-      await screen.findByText(`${dates} · Visits to the public website. Staff signed in to admin aren't counted.`),
+      await screen.findByText(`${dates} · Page views on the public website. Staff signed in to admin aren't counted.`),
     ).toBeInTheDocument();
   });
 
@@ -682,7 +682,7 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     expect(calls).toHaveLength(1);
     expect(
       screen.getByText(
-        "Jan 1 to Nov 15, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+        "Jan 1 to Nov 15, 2026 · Page views on the public website. Staff signed in to admin aren't counted.",
       ),
     ).toBeInTheDocument();
   });
@@ -709,7 +709,7 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     });
     expect(
       await screen.findByText(
-        "Jan 5 to Feb 4, 2026 · Visits to the public website. Staff signed in to admin aren't counted.",
+        "Jan 5 to Feb 4, 2026 · Page views on the public website. Staff signed in to admin aren't counted.",
       ),
     ).toBeInTheDocument();
   });
