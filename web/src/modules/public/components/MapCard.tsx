@@ -1,27 +1,25 @@
 // SPEC-DEVIATION: D-20 App. E.4's map is a drawing ("may be swapped for an embedded map", spec §7.4). Here the drawing stays
 // until the visitor taps Show Map; only then does the Google frame load, so no Google request is made before the tap. The
 // frame fills the same 16:10 box (no layout shift), and the label card moves under it so it never covers the map's own
-// controls. The choice lasts for this page view only. The frame has a title, loads lazily, sends a strict referrer and gets
-// no `allow` features; the CSP allows only the embed path (SecurityHeadersMiddleware).
-// SPEC-DEVIATION: D-18 (owner): with map consent the frame loads at once, with no Show Map, and a line under the label card
-// opens Cookie Settings. Consent is read from the shared consent store, so a choice made in the bar or the window loads or
-// unloads the frame on this page.
+// controls. The frame has a title, loads lazily, sends a strict referrer and gets no `allow` features; the CSP allows only
+// the embed path (SecurityHeadersMiddleware).
+// D-65 (amends D-55): the tap is saved in local storage (mapChoice.ts), so on later visits from that browser the frame is in
+// the first render with no Show Map. The saved setting can load the frame, but focus moves into it only after the
+// visitor's own tap in this view.
 // While the shop facts load the drawn map shows at once and the address is a skeleton line.
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { CONSENT_COPY } from '../consentCopy';
 import { PUBLIC_COPY } from '../copy';
-import { useConsent } from '../hooks/useConsent';
+import { readMapsShown, saveMapsShown, subscribeMapsShown } from '../mapChoice';
 import type { PublicSite } from '../services/siteService';
 import { streetAndTown } from '../siteFacts';
 import {
   mapActionsClasses,
-  mapAlwaysLinkClasses,
   mapBoxClasses,
   mapCardClasses,
   mapDirectionsClasses,
@@ -36,12 +34,10 @@ import {
   mapRoadMainClasses,
   mapRoadSideClasses,
   mapRoadsClasses,
-  mapSettingsLinkClasses,
   smallMutedClasses,
 } from './contact.recipe';
 
 const { map: MAP } = PUBLIC_COPY.contact;
-const { mapCard: CARD } = CONSENT_COPY;
 
 /** The only frame source the CSP allows; a stored link outside it is never loaded. */
 const EMBED_PREFIX = 'https://www.google.com/maps/embed';
@@ -52,31 +48,16 @@ export interface MapCardProps {
 }
 
 export function MapCard({ site }: MapCardProps) {
-  const { mapAllowed, mapRefusals, allowMaps, openSettings, settingsLoading } = useConsent();
+  const saved = useSyncExternalStore(subscribeMapsShown, readMapsShown, () => false);
+  // The tap in this view: a frame the visitor tapped stays even if the saved setting is cleared in another tab.
   const [tapped, setTapped] = useState(false);
-  // A saved choice that turns the map off also ends the one-time tap, so the frame unloads.
-  const [seenRefusals, setSeenRefusals] = useState(mapRefusals);
-  if (seenRefusals !== mapRefusals) {
-    setSeenRefusals(mapRefusals);
-    setTapped(false);
-  }
-  // "Always show maps?" was pressed; the map choice is saved once mapAllowed turns true.
-  const [asked, setAsked] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
-  const status = useRef<HTMLParagraphElement>(null);
-  const confirmed = asked && mapAllowed;
-  // Focus moves into the frame only after the visitor's own tap, never when consent loads it.
+  // Focus moves into the frame only after the visitor's own tap, never when the saved setting loads it.
   useEffect(() => {
     if (tapped) {
       frame.current?.focus();
     }
   }, [tapped]);
-  // The pressed link is replaced by the status line, so focus moves there instead of being lost.
-  useEffect(() => {
-    if (confirmed) {
-      status.current?.focus();
-    }
-  }, [confirmed]);
 
   const address = site === undefined ? '' : streetAndTown(site.address);
   const embed = site?.mapEmbedUrl?.startsWith(EMBED_PREFIX) === true ? site.mapEmbedUrl : null;
@@ -85,7 +66,7 @@ export function MapCard({ site }: MapCardProps) {
     return null;
   }
 
-  const showFrame = embed !== null && (tapped || mapAllowed);
+  const showFrame = embed !== null && (tapped || saved);
   const offerMap = embed !== null && !showFrame;
   const label = (
     <div data-map-label className={clsx(mapLabelClasses, !showFrame && mapLabelOverlayClasses)}>
@@ -101,8 +82,8 @@ export function MapCard({ site }: MapCardProps) {
               size="sm"
               icon="map-pin"
               onClick={() => {
-                setAsked(false);
                 setTapped(true);
+                saveMapsShown();
               }}
             >
               {MAP.showMap}
@@ -170,43 +151,6 @@ export function MapCard({ site }: MapCardProps) {
       </div>
       {offerMap && <p className={smallMutedClasses}>{MAP.privacy}</p>}
       {showFrame && label}
-      {showFrame && (confirmed || (tapped && !mapAllowed)) && (
-        <p ref={status} role="status" tabIndex={-1} className={smallMutedClasses}>
-          {confirmed ? (
-            CARD.saved
-          ) : (
-            <button
-              type="button"
-              className={mapAlwaysLinkClasses}
-              onClick={() => {
-                setAsked(true);
-                // The frame then follows the saved choice, so turning maps off later unloads it.
-                void allowMaps().then(() => {
-                  setTapped(false);
-                });
-              }}
-            >
-              {CARD.always}
-            </button>
-          )}
-        </p>
-      )}
-      {showFrame && mapAllowed && !asked && (
-        <p className={smallMutedClasses}>
-          {CARD.allowed}{' '}
-          <button
-            type="button"
-            className={mapSettingsLinkClasses}
-            aria-busy={settingsLoading || undefined}
-            onClick={(event) => {
-              if (!settingsLoading) openSettings(event.currentTarget);
-            }}
-          >
-            {CARD.settings}
-          </button>
-          {CARD.allowedEnd}
-        </p>
-      )}
     </div>
   );
 }
