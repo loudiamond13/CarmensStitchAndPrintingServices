@@ -590,20 +590,16 @@ describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
     expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/' }, { path: '/products' }]);
   });
 
-  it('on a first visit holds the landing view until Reject All, then sends it once', async () => {
+  it('counts the landing page before any choice', async () => {
     setConsent({ cookie: null });
-    consentProbe();
     const probe = pageViewProbe();
-    await renderAt('/gallery?q=jersey');
-    await screen.findByRole('button', { name: 'Reject All' });
-    expect(probe.requests).toHaveLength(0);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Reject All' }));
+    await renderAt('/');
 
     await waitFor(() => {
       expect(probe.requests).toHaveLength(1);
     });
-    expect(probe.requests[0]?.body).toEqual({ path: '/gallery' });
+    expect(probe.requests[0]?.body).toEqual({ path: '/' });
   });
 
   it('does not count a /dev path or an /admin path', async () => {

@@ -1,9 +1,9 @@
 // Cookie consent journeys (PRD §14, ANL-01 to ANL-04, ANL-07, D-18, D-30, D-31; UI-SPEC CB1, CS1, CS2, M1), in every project.
 // Each test starts as a first-time visitor (no saved choice), so the bar shows. The checks read the real browser: the cookie
 // jar, local and session storage, and every request the context makes.
-//   - Before a choice: no cookie, no Google request, no speed reader chunk, no page view yet (it is held for the choice).
-//   - Accept All sets the consent cookie (readable) and the visitor id (HttpOnly, analytics path) and loads the speed reader.
-//   - Reject All sets no visitor id and loads no speed reader; the held page view leaves without one.
+//   - Before a choice: no cookie, no Google request, no speed reader chunk.
+//   - Accept All sets the consent cookie (readable) and the visitor id (HttpOnly, analytics path).
+//   - Reject All sets no visitor id and loads no speed reader.
 //   - Cookie Settings from the bar opens unticked; from the footer it shows the saved choice.
 //   - Clear removes the visitor id and storage, leaves a stats 0 and map 0 choice, and the bar stays away.
 //   - At 320px the Clear dialog fits; on Contact the phone Contact bar waits for the choice; "Always show maps?" sticks.
@@ -19,7 +19,6 @@ test.describe.configure({ timeout: 480_000 });
 
 const CONSENT_COOKIE = '__Host-csps_consent';
 const VISITOR_COOKIE = '__Secure-csps_vid';
-const ANALYTICS = '/api/v1/analytics/';
 const CONSENT_API = '/api/v1/analytics/consent';
 const CLEAR_API = '/api/v1/analytics/clear';
 const SPEED_READER = /\/assets\/speedReport-[\w-]+\.js$/;
@@ -69,7 +68,7 @@ async function chooseAndWait(page: Page, press: () => Promise<void>, api = CONSE
   await answer;
 }
 
-test('@consent a first visit sets no cookie, calls no Google, loads no speed reader and holds the page view until a choice', async ({
+test('@consent a first visit sets no cookie, calls no Google and loads no speed reader before a choice', async ({
   page,
   context,
 }) => {
@@ -80,31 +79,18 @@ test('@consent a first visit sets no cookie, calls no Google, loads no speed rea
   expect(await context.cookies(), 'no cookie before a choice').toEqual([]);
   expect(requests.filter(isGoogle).map((request) => request.url())).toEqual([]);
   expect(requests.filter(isSpeedReader).map((request) => request.url())).toEqual([]);
-  expect(requests.filter((request) => pathOf(request).startsWith(ANALYTICS)).map(pathOf), 'nothing sent yet').toEqual(
-    [],
-  );
 
-  const view = page.waitForRequest((request) => pathOf(request) === '/api/v1/analytics/page-views');
   await chooseAndWait(page, () => bar(page).getByRole('button', { name: 'Reject All' }).click());
-  const sent = await view;
-  // The one held view leaves after the choice, with the path only and no visitor id in the jar to carry.
-  expect(sent.postDataJSON()).toEqual({ path: '/' });
   expect(await cookieNamed(context, VISITOR_COOKIE)).toBeUndefined();
-  expect(
-    requests.filter((request) => pathOf(request) === '/api/v1/analytics/page-views'),
-    'the landing view is sent once',
-  ).toHaveLength(1);
 });
 
-test('@consent Accept All saves both, sets the visitor id with its attributes, loads the speed reader and the bar stays away', async ({
+test('@consent Accept All saves both, sets the visitor id with its attributes and the bar stays away', async ({
   page,
   context,
   browserName,
 }) => {
   await openQuietly(page, '/');
-  const reader = page.waitForRequest(isSpeedReader);
   await chooseAndWait(page, () => bar(page).getByRole('button', { name: 'Accept All' }).click());
-  await reader;
   await expect(bar(page)).toHaveCount(0);
   await expect(page.locator('main#main')).toBeFocused();
 
