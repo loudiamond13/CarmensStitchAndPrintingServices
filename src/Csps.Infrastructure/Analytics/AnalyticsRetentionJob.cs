@@ -24,7 +24,7 @@ internal sealed partial class AnalyticsRetentionJob(
 
     internal const string ConsentLabel = "Old cookie choices removed";
 
-    internal const string DailyLabel = "Old daily visitor totals removed";
+    internal const string DailyLabel = "Old daily page counts removed";
 
     internal const string SaltLabel = "Old address salts removed";
 
@@ -53,7 +53,7 @@ internal sealed partial class AnalyticsRetentionJob(
         {
             (RawLabel, "The old visit records could not be removed.", () => PurgeRawVisitsAsync(today, budget, cancellationToken)),
             (ConsentLabel, "The old cookie choices could not be removed.", () => PurgeConsentAsync(now, budget, cancellationToken)),
-            (DailyLabel, "The old daily visitor totals could not be removed.", () => PurgeDailyTotalsAsync(today, budget, cancellationToken)),
+            (DailyLabel, "The old daily page counts could not be removed.", () => PurgeDailyTotalsAsync(today, budget, cancellationToken)),
             (SaltLabel, "The old address salts could not be removed.", () => PurgeSaltsAsync(today, budget, cancellationToken)),
         };
         foreach (var (label, failedText, work) in rules)
