@@ -71,6 +71,11 @@
       "date": "2026-11-15",
       "by": "owner",
       "scope": "Phase 12 package (D-38, open question 3 answer A), approved before install: npm web-vitals 6.2.3 (Apache-2.0, published 2026-10-05, 41 days old on 2026-11-15, no advisories, no install scripts, no dependencies). Loaded only after Visitor stats consent, in its own chunk, with an exact pin. Installed by plan 12-16 on 2026-11-17. No other package is added."
+    },
+    {
+      "date": "2026-11-18",
+      "by": "owner",
+      "scope": "D-59 (Phase 12.1): web-vitals 6.2.3 removed. Uninstalled by plan 12.1-01. No package added."
     }
   ],
   "packages": [
@@ -1232,20 +1237,6 @@
       "legitimacy": "142.1M weekly downloads; source github.com/vitest-dev/vitest; npm provenance attested; no install scripts; not deprecated; no npm advisory at install (npm audit 0, 2026-10-08); 5.0.4 checked 2026-10-26: MIT, not deprecated, no install script; bumped for the @vitest/mocker advisories GHSA-qxg6-89mg-rqv8 and GHSA-xp26-3454-mjgp (D-63); 5.0.5 skipped under the cool-down",
       "published": "2026-10-12",
       "adopted": "2026-10-26",
-      "coolDown": "aged"
-    },
-    {
-      "id": "web-vitals",
-      "version": "6.2.3",
-      "kind": "npm",
-      "manifest": "web",
-      "scope": "runtime",
-      "purpose": "Measures LCP, CLS and INP for visitors who allowed visitor stats (ANL-05, D-38); loaded lazily after consent, in its own chunk, never in the first download.",
-      "license": "Apache-2.0",
-      "publisher": "GoogleChrome (npm owners philipwalton, tunetheweb, google-wombot)",
-      "legitimacy": "84.3M weekly downloads; source github.com/GoogleChrome/web-vitals; no install scripts; no runtime dependencies; not deprecated; 6.2.3 is the latest tag; npm advisory database answered {} for 6.2.3 (12-RESEARCH Package Legitimacy Audit, 2026-11-15) and npm audit after install lists no web-vitals advisory (2026-11-17)",
-      "published": "2026-10-05",
-      "adopted": "2026-11-17",
       "coolDown": "aged"
     },
     {

@@ -2,7 +2,7 @@
 // Each test starts as a first-time visitor (no saved choice), so the bar shows. The checks read the real browser: the cookie
 // jar, local and session storage, and every request the context makes.
 //   - Before a choice: no cookie, no Google request, no speed reader chunk.
-//   - Accept All sets the consent cookie (readable) and the visitor id (HttpOnly, analytics path) and loads the speed reader.
+//   - Accept All sets the consent cookie (readable) and the visitor id (HttpOnly, analytics path).
 //   - Reject All sets no visitor id and loads no speed reader.
 //   - Cookie Settings from the bar opens unticked; from the footer it shows the saved choice.
 //   - Clear removes the visitor id and storage, leaves a stats 0 and map 0 choice, and the bar stays away.
@@ -84,15 +84,13 @@ test('@consent a first visit sets no cookie, calls no Google and loads no speed 
   expect(await cookieNamed(context, VISITOR_COOKIE)).toBeUndefined();
 });
 
-test('@consent Accept All saves both, sets the visitor id with its attributes, loads the speed reader and the bar stays away', async ({
+test('@consent Accept All saves both, sets the visitor id with its attributes and the bar stays away', async ({
   page,
   context,
   browserName,
 }) => {
   await openQuietly(page, '/');
-  const reader = page.waitForRequest(isSpeedReader);
   await chooseAndWait(page, () => bar(page).getByRole('button', { name: 'Accept All' }).click());
-  await reader;
   await expect(bar(page)).toHaveCount(0);
   await expect(page.locator('main#main')).toBeFocused();
 

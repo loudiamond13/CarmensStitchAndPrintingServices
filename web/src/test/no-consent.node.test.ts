@@ -39,10 +39,7 @@ describe('the speed reader is gone (D-59)', () => {
   it('lists no speed library package', () => {
     const manifest = readJson(join(webDir, 'package.json'));
     const lock = readJson(join(webDir, 'package-lock.json')) as { packages: Record<string, unknown> };
-    const declared = [
-      ...Object.keys((manifest.dependencies ?? {}) as object),
-      ...Object.keys((manifest.devDependencies ?? {}) as object),
-    ];
+    const declared = [...Object.keys(manifest.dependencies ?? {}), ...Object.keys(manifest.devDependencies ?? {})];
     const locked = Object.keys(lock.packages).filter((key) => key === `node_modules/${SPEED_LIBRARY}`);
     expect([...declared.filter((name) => name === SPEED_LIBRARY), ...locked].join(', ')).toBe('');
   });
