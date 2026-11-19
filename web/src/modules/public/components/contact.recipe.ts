@@ -151,16 +151,6 @@ export const mapDirectionsClasses = tw(
   'inline-flex min-h-11 items-center gap-[6px] font-button text-accent-ink no-underline hover:underline hover:underline-offset-4',
 );
 
-/** M1: the Cookie Settings link button inside the Small muted line; inline text, the `.s-link` look. */
-export const mapSettingsLinkClasses = tw(
-  'm-0 cursor-pointer border-0 bg-transparent p-0 text-14 leading-5 font-button text-accent-ink hover:underline hover:underline-offset-4',
-);
-
-/** M1: "Always show maps?" on its own line, the `.s-link` look at least 44px tall. */
-export const mapAlwaysLinkClasses = tw(
-  'm-0 inline-flex min-h-11 cursor-pointer items-center border-0 bg-transparent p-0 text-14 leading-5 font-button text-accent-ink hover:underline hover:underline-offset-4',
-);
-
 /**
  * `.s-mbar`: the phone-only sticky bar. It is hidden above 767px and a grid at 767px and below; it is 77px tall plus the
  * device's safe area.

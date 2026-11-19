@@ -39,6 +39,8 @@ test('@contact the footer shows the stored tagline and main phone from the first
 });
 
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
+// A page script as text: the node program has no DOM types.
+const CLEAR_SAVED_MAP = "window.localStorage.removeItem('csps-maps')";
 const MAP_EMBED = 'https://www.google.com/maps/embed**';
 const MAP_STUB =
   '<!doctype html><html lang="en"><head><title>Map stub</title></head><body><p>Map stub</p></body></html>';
@@ -103,6 +105,43 @@ test('@contact the map loads from Google only after Show Map, with no CSP report
     await expect(frame).toBeFocused();
     // Axe cannot enter the cross-origin Google frame (it logs a postMessage warning), so after the tap it checks the label card.
     await expectNoAxeViolations(page, '[data-map-label]');
+  });
+});
+
+test('@contact a saved Show Map tap loads the map by itself after a reload', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.route(MAP_EMBED, (route) => route.fulfill({ contentType: 'text/html', body: MAP_STUB }));
+    await page.goto('/contact');
+    await page.getByRole('button', { name: 'Show Map' }).click();
+    await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
+
+    await page.reload();
+
+    // The frame is in the page at once; it is lazy, so WebKit loads it when the visitor scrolls it near the screen.
+    const frame = page.locator('iframe[title^="Map of "]');
+    await expect(frame).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Show Map' })).toHaveCount(0);
+    await frame.scrollIntoViewIfNeeded();
+    await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
+    await expect(frame).not.toBeFocused();
+  });
+});
+
+test('@contact clearing the saved map brings back Show Map', async ({ page, request }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.route(MAP_EMBED, (route) => route.fulfill({ contentType: 'text/html', body: MAP_STUB }));
+    await page.goto('/contact');
+    await page.getByRole('button', { name: 'Show Map' }).click();
+    await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
+
+    await page.evaluate(CLEAR_SAVED_MAP);
+    await page.reload();
+
+    await expect(page.getByRole('button', { name: 'Show Map' })).toBeVisible();
+    await expect(page.locator('iframe')).toHaveCount(0);
+    await expectNoAxeViolations(page);
   });
 });
 
