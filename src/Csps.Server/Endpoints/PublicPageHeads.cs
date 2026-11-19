@@ -29,10 +29,6 @@ internal static class PublicPageHeads
         "Privacy Policy · CSPS",
         "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.");
 
-    private static readonly PageHead Cookies = new(
-        "Cookie Policy · CSPS",
-        "Which cookies this site uses, why, and how to change your choice at any time.");
-
     private static readonly PageHead Terms = new(
         "Terms of Use · CSPS",
         "The rules for using this website and asking us for a quote.");
@@ -55,7 +51,6 @@ internal static class PublicPageHeads
         PublicPage.Gallery => Gallery,
         PublicPage.Contact => Contact,
         PublicPage.Privacy => Privacy,
-        PublicPage.Cookies => Cookies,
         PublicPage.Terms => Terms,
         PublicPage.Accessibility => Accessibility,
         _ => throw new ArgumentOutOfRangeException(nameof(page), page, "Unknown public page."),

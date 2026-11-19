@@ -33,7 +33,6 @@ public sealed class PublicPageResolver(IHostEnvironment environment) : IPublicPa
         PublicPage.Gallery => PageKeys.Gallery,
         PublicPage.Contact => PageKeys.Contact,
         PublicPage.Privacy => PageKeys.Privacy,
-        PublicPage.Cookies => PageKeys.Cookies,
         PublicPage.Terms => PageKeys.Terms,
         PublicPage.Accessibility => PageKeys.Accessibility,
         _ => throw new ArgumentOutOfRangeException(nameof(page), page, "Unknown public page."),

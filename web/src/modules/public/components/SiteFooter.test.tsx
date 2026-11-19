@@ -122,7 +122,7 @@ describe('SiteFooter, full (PUB-02)', () => {
     answerSite(demoSite);
     const { container } = renderFooter();
 
-    expect(container.querySelectorAll('div[aria-hidden="true"] > span[aria-hidden="true"]')).toHaveLength(3);
+    expect(container.querySelectorAll('div[aria-hidden="true"] > span[aria-hidden="true"]')).toHaveLength(4);
     expect(screen.getByText('Visit')).toBeInTheDocument();
     expect(screen.getByText('Contact')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '0917 123 4567' })).not.toBeInTheDocument();
@@ -334,7 +334,7 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
     await waitFor(() => {
       expect(screen.queryByText(/©/)).not.toBeInTheDocument();
     });
-    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(3);
   });
 
   it('has no axe violations', async () => {

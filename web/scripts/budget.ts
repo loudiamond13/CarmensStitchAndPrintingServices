@@ -101,7 +101,6 @@ export const PUBLIC_ROUTE_NAMES = [
   'gallery',
   'contact',
   'privacy',
-  'cookies',
   'terms',
   'accessibility',
   'notFound',
@@ -117,7 +116,7 @@ export const LEGAL_LOADERS = 'src/modules/public/legalLoaders.ts';
 /**
  * The route modules each public page loads first (PUB-01, RESEARCH P-7): the layout plus the page, measured as one route
  * each, so a page that grows is named and the others are not blamed. The Gallery route also loads the URL-state layout,
- * and the four legal routes also load their loader chunk.
+ * and the three legal routes also load their loader chunk.
  */
 export const PUBLIC_ROUTES: Readonly<Record<PublicRouteName, readonly string[]>> = Object.freeze({
   home: Object.freeze([PUBLIC_LAYOUT, HOME_PAGE]),
@@ -125,7 +124,6 @@ export const PUBLIC_ROUTES: Readonly<Record<PublicRouteName, readonly string[]>>
   gallery: Object.freeze([PUBLIC_LAYOUT, URL_STATE_LAYOUT, 'src/modules/public/pages/GalleryPage.tsx']),
   contact: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/ContactPage.tsx']),
   privacy: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/PrivacyPolicyPage.tsx']),
-  cookies: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/CookiePolicyPage.tsx']),
   terms: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/TermsPage.tsx']),
   accessibility: Object.freeze([PUBLIC_LAYOUT, LEGAL_LOADERS, 'src/modules/public/pages/AccessibilityPage.tsx']),
   notFound: Object.freeze([PUBLIC_LAYOUT, 'src/modules/public/pages/NotFoundPage.tsx']),

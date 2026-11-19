@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
-using Csps.Domain.Content;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.Security;
@@ -271,7 +270,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         using var client = NewClient(factory);
         var day = (await BusinessDayAsync(factory)).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         using var request = NewPost(PathBody("/gallery"));
-        request.Headers.Add("Cookie", $"__Secure-csps_vid={OldVisitorId}; __Host-csps_consent=1_0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d_{LegalPages.CookiePolicyVersion}_1_1_{day}");
+        request.Headers.Add("Cookie", $"__Secure-csps_vid={OldVisitorId}; __Host-csps_consent=1_0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d_1.0_1_1_{day}");
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 

@@ -77,8 +77,8 @@ const SHARED = 'assets/shared-B2.js';
 
 /**
  * A production-shaped graph: the entry, the public layout and the five public pages all import one shared chunk. Each
- * of the nine public routes totals `publicBytes` (entry + shared + layout + page; the Gallery route also loads the
- * URL-state layout and the chunk it imports, so its page chunk is smaller; the four legal routes also load the 500 B
+ * of the eight public routes totals `publicBytes` (entry + shared + layout + page; the Gallery route also loads the
+ * URL-state layout and the chunk it imports, so its page chunk is smaller; the three legal routes also load the 500 B
  * legal loader chunk, so their page chunks are 2,500 B). The guarded admin app ships too:
  * the signed-in entry (route table, guard, admin layout, URL-state layout, devices page) totals `adminRouteBytes`, and the
  * signed-out entry (route table, guard, auth layout, sign-in page) is about 3 KB over the public number. The route
@@ -838,8 +838,8 @@ describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-
     expect(report.publicRoutes.home).toBe(150_000);
   });
 
-  // D-42: the legal routes fetch legalLoaders.ts before their page, so its bytes count in those four rows only.
-  it('counts the legal loader chunk in the four legal rows and in no other row (D-42)', () => {
+  // D-42: the legal routes fetch legalLoaders.ts before their page, so its bytes count in those three rows only.
+  it('counts the legal loader chunk in the three legal rows and in no other row (D-42)', () => {
     const graph = productionGraph(120_000);
     const chunks = graph.chunks.map((c) => (c.fileName === LOADER_CHUNK ? { ...c, gzipSize: 1_500 } : c));
     const report = evaluateBudgets({ ...graph, chunks }, production);
@@ -852,7 +852,7 @@ describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-
     }
   });
 
-  it('fails the four legal rows, with one error, when the build has no legal loader chunk (D-42)', () => {
+  it('fails the three legal rows, with one error, when the build has no legal loader chunk (D-42)', () => {
     const graph = productionGraph(120_000);
     const chunks = graph.chunks.filter((c) => c.fileName !== LOADER_CHUNK);
     const report = evaluateBudgets({ ...graph, chunks }, production);

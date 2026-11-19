@@ -4,7 +4,7 @@
 // server sends (PublicPageHeads.cs), and each lead is the meta description.
 // They sit apart from copy.ts so the first download of every public page does not grow (PERF-01).
 
-export type LegalPageKey = 'privacy' | 'cookies' | 'terms' | 'accessibility';
+export type LegalPageKey = 'privacy' | 'terms' | 'accessibility';
 
 export interface LegalPageMeta {
   readonly key: LegalPageKey;
@@ -33,18 +33,6 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPageMeta>> = {
     eyebrow: 'Your privacy',
     headline: { plain: 'Privacy', accent: 'policy.' },
     lead: 'How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.',
-  },
-  cookies: {
-    key: 'cookies',
-    path: '/cookies',
-    version: '1.0',
-    lastUpdated: '2026-11-18',
-    approved: true,
-    title: 'Cookie Policy · CSPS',
-    crumb: 'Cookie Policy',
-    eyebrow: 'Your privacy',
-    headline: { plain: 'Cookie', accent: 'policy.' },
-    lead: 'Which cookies this site uses, why, and how to change your choice at any time.',
   },
   terms: {
     key: 'terms',

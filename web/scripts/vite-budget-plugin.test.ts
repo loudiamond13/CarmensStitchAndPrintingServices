@@ -72,7 +72,7 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
-/** The public layout, the nine public pages and the legal loader the four legal routes fetch first, each a lazy chunk (PUB-01, D-42). */
+/** The public layout, the eight public pages and the legal loader the three legal routes fetch first, each a lazy chunk (PUB-01, D-42). */
 function publicChunks(): Rollup.OutputChunk[] {
   const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
     outputChunk(fileName, 'export const b = 2;', {
@@ -243,8 +243,8 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
-    // The 200 KB entry is part of every public page, so each of the nine pages is over its limit.
-    expect(summary.errors).toHaveLength(9);
+    // The 200 KB entry is part of every public page, so each of the eight pages is over its limit.
+    expect(summary.errors).toHaveLength(8);
     expect(summary.errors.every((error) => error.startsWith('public JS ('))).toBe(true);
   });
 
