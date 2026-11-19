@@ -1,8 +1,7 @@
-// SPEC-GAP: VisitorTrendChart (UI-SPEC V1 item 4; ANL-08). Hand-rolled SVG on the IncomeExpenseChart geometry and the
-// data.recipe.ts looks: one page-view bar per bucket with 4px rounded tops, the unique-visitor line with its surface halo
-// and points over the bars, three gridlines with count ticks, and a label under each bucket. Every figure is the
-// server's; the chart only draws and formats it. The view box is as wide as the frame (fitWidth, D-51), 220 high.
-// Where the server has no unique visitors (over 13 months ago) the line stops: no point and no zero.
+// SPEC-GAP: VisitorTrendChart (UI-SPEC V1 item 4; ANL-08, D-68). Hand-rolled SVG on the IncomeExpenseChart geometry and the
+// data.recipe.ts looks: one page-view bar per bucket with 4px rounded tops, three gridlines with count ticks, and a label
+// under each bucket. Every figure is the server's; the chart only draws and formats it. The view box is as wide as the frame
+// (fitWidth, D-51), 220 high.
 // SPEC-DEVIATION: D-51 a group under 28px gets every other label, as IncomeExpenseChart; a day label ("Nov 15") is wider than
 // a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
@@ -16,15 +15,10 @@ import {
   chartHoverClasses,
   chartKeyClasses,
   chartLegendClasses,
-  chartProfitGroupClasses,
   chartSvgClasses,
   chartSwatchClasses,
   chartTickClasses,
   chartTipClasses,
-  chartVisitorHaloClasses,
-  chartVisitorLineClasses,
-  chartVisitorPointClasses,
-  chartVisitorSwatchClasses,
 } from './data.recipe';
 
 /** One bar of the trend, as the server sent it. */
@@ -32,8 +26,6 @@ export interface TrendPoint {
   /** The first business day of the bar, `YYYY-MM-DD`. */
   start: string;
   pageViews: number;
-  /** Null where the server has no unique visitors for the bar (over 13 months ago). */
-  uniqueVisitors: number | null;
 }
 
 /** The bar size the server chose. */
@@ -59,10 +51,6 @@ const T = 12;
 
 /** The three gridline fractions of the axis top. */
 const TICK_FRACTIONS = [0, 0.5, 1] as const;
-
-/** The unique-visitor point radius at rest and for the active bucket. */
-const POINT_RADIUS = 3.5;
-const POINT_RADIUS_ACTIVE = 5;
 
 /** A bucket narrower than this (px) gets every other label (D-51); a day label needs the wider room. */
 const MIN_LABEL_GROUP = 28;
@@ -115,14 +103,8 @@ function fullDate(start: string, bucket: TrendBucketSize): string {
 }
 
 /** The tooltip rows of a bucket; the announcement reads the same rows. */
-function tipLines(point: TrendPoint, bucket: TrendBucketSize): [string, string, string] {
-  return [
-    fullDate(point.start, bucket),
-    `${COPY.pageViews} ${formatCount(point.pageViews)}`,
-    point.uniqueVisitors === null
-      ? COPY.uniqueVisitorsNotAvailable
-      : `${COPY.uniqueVisitors} ${formatCount(point.uniqueVisitors)}`,
-  ];
+function tipLines(point: TrendPoint, bucket: TrendBucketSize): [string, string] {
+  return [fullDate(point.start, bucket), `${COPY.pageViews} ${formatCount(point.pageViews)}`];
 }
 
 /** Where the tooltip came from: none, the pointer, or focus and the keys (only the keys are announced). */
@@ -147,23 +129,12 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
   }, []);
   const W = measured ?? FALLBACK_WIDTH;
   const H = height;
-  const top = axisTop(Math.max(1, ...buckets.map((b) => Math.max(b.pageViews, b.uniqueVisitors ?? 0))));
+  const top = axisTop(Math.max(1, ...buckets.map((b) => b.pageViews)));
   const y = (v: number) => T + (H - T - B) * (1 - v / top);
   const gw = (W - L) / Math.max(1, buckets.length);
   const bw = Math.min(18, gw * 0.6);
   const cx = (i: number) => L + gw * i + gw / 2;
   const step = labelStep(gw, bucket);
-  const points = buckets.flatMap((b, i) =>
-    b.uniqueVisitors === null ? [] : [{ i, key: b.start, x: cx(i), y: y(b.uniqueVisitors) }],
-  );
-  // One subpath per run of buckets with a count, so the line stops where a bucket has none.
-  const runs = points.reduce<(typeof points)[]>((all, p) => {
-    const last = all.at(-1);
-    if (last?.at(-1)?.i === p.i - 1) last.push(p);
-    else all.push([p]);
-    return all;
-  }, []);
-  const linePath = runs.map((run) => `M${run.map((p) => `${String(p.x)},${String(p.y)}`).join('L')}`).join('');
   const last = buckets.length - 1;
   const current = Math.min(active, Math.max(0, last));
   const cur = tip === 'none' ? undefined : buckets[current];
@@ -195,10 +166,6 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
         <span className={chartKeyClasses}>
           <i className={chartSwatchClasses.income} />
           {COPY.pageViews}
-        </span>
-        <span className={chartKeyClasses}>
-          <i className={chartVisitorSwatchClasses} />
-          {COPY.uniqueVisitors}
         </span>
       </div>
       <svg
@@ -257,19 +224,6 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
             )}
           </g>
         ))}
-        <g aria-hidden="true" className={chartProfitGroupClasses}>
-          <path d={linePath} className={chartVisitorHaloClasses} />
-          <path d={linePath} className={chartVisitorLineClasses} />
-          {points.map((p) => (
-            <circle
-              key={p.key}
-              cx={p.x}
-              cy={p.y}
-              r={cur !== undefined && current === p.i ? POINT_RADIUS_ACTIVE : POINT_RADIUS}
-              className={chartVisitorPointClasses}
-            />
-          ))}
-        </g>
       </svg>
       {lines !== null && (
         <div
@@ -281,10 +235,6 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
           <span className={chartKeyClasses}>
             <i className={chartSwatchClasses.income} />
             {lines[1]}
-          </span>
-          <span className={chartKeyClasses}>
-            {cur?.uniqueVisitors !== null && <i className={chartVisitorSwatchClasses} />}
-            {lines[2]}
           </span>
         </div>
       )}

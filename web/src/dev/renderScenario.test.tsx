@@ -152,7 +152,7 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
     expect(idsOf('visitor-stats')).toContain('visitor-trend-30-days');
     const days = renderCase('visitor-trend-30-days').container;
     expect(days.querySelectorAll('[data-bucket]')).toHaveLength(30);
-    expect(days.querySelectorAll('circle')).toHaveLength(30);
+    expect(days.querySelectorAll('circle')).toHaveLength(0);
     cleanup();
 
     const months = renderCase('visitor-trend-12-months').container;
@@ -164,7 +164,7 @@ describe('the Visitor Stats scenarios (plan 12-29)', () => {
     expect(missing).toBeGreaterThan(0);
     const chart = renderCase('visitor-trend-13-month-gap').container;
     expect(chart.querySelectorAll('[data-bucket]')).toHaveLength(gap.length);
-    expect(chart.querySelectorAll('circle')).toHaveLength(gap.length - missing);
+    expect(chart.querySelectorAll('circle')).toHaveLength(0);
   });
 
   it('shows StatBarList with no rows, one row and ten rows', () => {

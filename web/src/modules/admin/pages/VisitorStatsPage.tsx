@@ -1,13 +1,13 @@
-// V1 Visitor Stats, /admin/visitor-stats (UI-SPEC V1; ANL-08, D-23, D-24, D-27, D-33, WEB-10). SPEC-GAP: V1.
+// V1 Visitor Stats, /admin/visitor-stats (UI-SPEC V1; ANL-08, D-23, D-24, D-57, D-70, WEB-10). SPEC-GAP: V1.
 // SPEC-DEVIATION: D-23 (a Manager-only page with its own menu item after Site Content).
-// The `.s-ph` head with the range the server resolved and the date range toolbar, then the KPI row, the Trend card, the list
-// cards and Page speed. Every count and share is the server's.
+// The `.s-ph` head with the range the server resolved and the date range toolbar, then the Page views card, the Trend card
+// and the Most viewed pages list. Every count and share is the server's.
 //   - The range lives in the URL through useVisitorStatsParams and nowhere else. A preset is sent by name; a custom range is
 //     sent only once both dates pass the checks, and until then the page keeps the range it last applied.
 //   - A range change keeps the last figures on screen, dimmed under aria-busy, until the new ones arrive.
 //   - The route's loader (requireManager) keeps an Admin out; the API answers 403 either way.
 import { useEffect, useState } from 'react';
-import { Button, EmptyState, ErrorState, hitAreaClasses, LoadingRegion, Note, SkeletonText } from '@/components';
+import { Button, EmptyState, ErrorState, hitAreaClasses, LoadingRegion, SkeletonText } from '@/components';
 import {
   pageHeadClasses,
   pageHeadTitleClasses,
@@ -23,8 +23,6 @@ import {
   dashboardStaleClasses,
   dashboardStaleTextClasses,
 } from '@/modules/admin/components/dashboard.recipe';
-import { DeviceBrowserCard } from '@/modules/admin/components/DeviceBrowserCard';
-import { PageSpeedCard } from '@/modules/admin/components/PageSpeedCard';
 import { StatBarList } from '@/modules/admin/components/StatBarList';
 import {
   statListBodyClasses,
@@ -54,12 +52,6 @@ function rangeText(from: string, to: string): string | null {
   if (first === null || last === null) return null;
   const sameYear = from.slice(0, 4) === to.slice(0, 4);
   return COPY.dates(sameYear ? first.replace(/, \d{4}$/, '') : first, last);
-}
-
-/** D-27: the Note's cut date when the range starts before the 13-month cut; otherwise null. */
-function cutNoteDate(stats: VisitorStats | undefined): string | null {
-  if (stats === undefined || stats.from >= stats.cutDate) return null;
-  return formatCalendarDate(stats.cutDate);
 }
 
 function pageLabel(key: string): string {
@@ -127,7 +119,6 @@ export function VisitorStatsPage({
   onRetry,
 }: VisitorStatsPageProps) {
   const dates = stats === undefined ? null : rangeText(stats.from, stats.to);
-  const cutDate = cutNoteDate(stats);
   return (
     <>
       <div className={pageHeadClasses}>
@@ -151,9 +142,8 @@ export function VisitorStatsPage({
         <ErrorState things={COPY.things} align="start" error={error} onRetry={onRetry} />
       ) : (
         <LoadingRegion loading={loading} things={COPY.things} className={visitorStatsBodyClasses}>
-          {cutDate !== null && <Note icon="info">{COPY.cutNote(cutDate)}</Note>}
-          <VisitorKpiRow totals={stats?.totals} />
-          {stats?.totals.pageViews === 0 ? (
+          <VisitorKpiRow pageViews={stats?.pageViews} />
+          {stats?.pageViews === 0 ? (
             <div className={dashboardCardClasses}>
               <EmptyState icon="chart-column" level={2} title={COPY.noVisits.title} message={COPY.noVisits.message} />
             </div>
@@ -167,11 +157,6 @@ export function VisitorStatsPage({
                   items={stats?.topPages}
                   labelFor={pageLabel}
                 />
-                <StatListCard title={COPY.lists.referrers} sub={COPY.lists.referrersSub} items={stats?.referrers} />
-              </div>
-              <div className={visitorStatsListRowClasses}>
-                <DeviceBrowserCard devices={stats?.devices} browsers={stats?.browsers} />
-                <PageSpeedCard speed={stats?.speed} />
               </div>
             </>
           )}
