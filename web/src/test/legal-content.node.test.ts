@@ -132,6 +132,13 @@ describe('legal text modules (LEGAL-05, D-10)', () => {
     }
   });
 
+  it.each(textFiles)('%s has no block that opens Cookie Settings (D-54)', async (file) => {
+    const kinds: string[] = (await textsOf(file)).flatMap((text) =>
+      text.sections.flatMap((section) => section.blocks.map((block) => block.kind)),
+    );
+    expect(kinds.filter((kind) => kind === 'cookie-settings')).toEqual([]);
+  });
+
   it('takes the version, date and approval flag from legalPages.ts', async () => {
     const { LEGAL_PAGES } = await import('../modules/public/legalPages');
     const { ACCESSIBILITY_TEXT } = await import('../modules/public/legalAccessibility');
@@ -192,14 +199,6 @@ describe('legalTextProblems (the guard itself)', () => {
       ]),
     );
     expect(good).toEqual([]);
-  });
-
-  it('passes a cookie-settings block, which holds no text of its own', () => {
-    expect(
-      legalTextProblems(
-        sample([{ id: 'one', heading: 'One', blocks: [para('Press the button.'), { kind: 'cookie-settings' }] }]),
-      ),
-    ).toEqual([]);
   });
 
   it('checks the extra description lines of a term too', () => {

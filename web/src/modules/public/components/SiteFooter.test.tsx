@@ -1,6 +1,5 @@
 // The public footer from the stored shop facts (PUB-02, D-25, D-33, D-42).
 import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -16,7 +15,6 @@ import {
   type PublicSiteFixture,
 } from '@/test/publicFixtures';
 import { server } from '@/test/msw';
-import { consentStore } from '../hooks/useConsent';
 import FooterHours from './FooterHours';
 import { SiteFooter } from './SiteFooter';
 
@@ -263,7 +261,7 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
   });
 });
 
-const LEGAL_ITEMS = ['Privacy Policy', 'Cookie Policy', 'Terms of Use', 'Accessibility Statement', 'Cookie Settings'];
+const LEGAL_ITEMS = ['Privacy Policy', 'Cookie Policy', 'Terms of Use', 'Accessibility Statement'];
 
 function drawAt(variant: 'full' | 'base', path = '/') {
   putBootBlock(demoSite);
@@ -279,7 +277,7 @@ function legalNav(): HTMLElement {
 }
 
 describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL-05, UI-SPEC FT)', (variant) => {
-  it('lists the four legal pages and Cookie Settings, in that order, as links to the legal paths and one button', () => {
+  it('has only the legal links: the four legal pages, in that order, as links to the legal paths, and no button', () => {
     drawAt(variant);
     const items = within(legalNav()).getAllByRole('listitem');
 
@@ -289,7 +287,7 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
     ).toEqual(['/privacy', '/cookies', '/terms', '/accessibility']);
-    expect(within(legalNav()).getAllByRole('button')).toHaveLength(1);
+    expect(within(legalNav()).queryAllByRole('button')).toEqual([]);
   });
 
   it.each([
@@ -318,7 +316,7 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
     const list = within(legalNav()).getByRole('list');
 
     expect(list.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-wrap', 'gap-x-4', 'gap-y-2']));
-    for (const control of [...within(legalNav()).getAllByRole('link'), ...within(legalNav()).getAllByRole('button')]) {
+    for (const control of within(legalNav()).getAllByRole('link')) {
       expect(control.className.split(' ')).toEqual(
         expect.arrayContaining(['inline-flex', 'min-h-11', 'items-center', 'text-14', 'text-ink-subtle']),
       );
@@ -332,12 +330,12 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
         <SiteFooter variant={variant} />
       </MemoryRouter>,
     );
-    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(5);
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(4);
 
     await waitFor(() => {
       expect(screen.queryByText(/©/)).not.toBeInTheDocument();
     });
-    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(5);
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(4);
   });
 
   it('has no axe violations', async () => {
@@ -364,57 +362,5 @@ describe('SiteFooter Legal row placement (UI-SPEC FT)', () => {
 
     expect(copyright.compareDocumentPosition(legalNav())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(legalNav().className.split(' ')).toContain('mt-2');
-  });
-});
-
-describe('SiteFooter Legal row, Cookie Settings (ANL-03)', () => {
-  it.each([
-    ['full', renderFullFrom],
-    [
-      'base',
-      (site: PublicSiteFixture) => {
-        putBootBlock(site);
-        return renderBase();
-      },
-    ],
-  ])('ends the %s footer with a nav named "Legal" that holds the Cookie Settings button', (_name, draw) => {
-    draw(demoSite);
-    const nav = within(screen.getByRole('contentinfo')).getByRole('navigation', { name: 'Legal' });
-
-    expect(within(nav).getByRole('button', { name: 'Cookie Settings' })).toHaveAttribute('type', 'button');
-  });
-
-  it('opens the window from the button and shows the button pending until the window says it is ready', async () => {
-    const user = userEvent.setup();
-    putBootBlock(demoSite);
-    renderBase();
-    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
-      name: 'Cookie Settings',
-    });
-
-    await user.click(button);
-
-    expect(consentStore.getSnapshot().settingsOpen).toBe(true);
-    expect(button).toHaveAttribute('aria-busy', 'true');
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(button).toHaveFocus();
-  });
-
-  it('ignores a press while the button is pending, and keeps focus on it', async () => {
-    const user = userEvent.setup();
-    putBootBlock(demoSite);
-    renderBase();
-    const button = within(screen.getByRole('navigation', { name: 'Legal' })).getByRole('button', {
-      name: 'Cookie Settings',
-    });
-    await user.click(button);
-    const changed = vi.fn();
-    const stop = consentStore.subscribe(changed);
-
-    await user.click(button);
-
-    stop();
-    expect(changed).not.toHaveBeenCalled();
-    expect(button).toHaveFocus();
   });
 });

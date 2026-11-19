@@ -5,7 +5,7 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { consentCookie, consentProbe, FAKE_CONSENT_ID, setConsent } from '@/test/consentFixtures';
+import { setConsent } from '@/test/consentFixtures';
 import { pageViewProbe } from '@/test/msw';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
@@ -297,161 +297,52 @@ describe('PublicLayout heading order (D-41 R2-17)', () => {
   });
 });
 
-describe('PublicLayout cookie bar (ANL-01, D-16, D-17)', () => {
-  it('shows the bar right after the skip link and before the header on a first visit', async () => {
-    setConsent({ cookie: null });
-    await renderAt('/products');
-
-    const bar = await screen.findByRole('region', { name: 'Cookie choices' });
-    const skip = screen.getByRole('link', { name: 'Skip to main content' });
-    expect(skip.compareDocumentPosition(bar)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(bar.compareDocumentPosition(screen.getByRole('banner'))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-
-  it('sets no cookie and sends no request before a choice', async () => {
-    const probe = consentProbe();
-    const jar = setConsent({ cookie: null });
-    await renderAt('/products');
-    await screen.findByRole('region', { name: 'Cookie choices' });
-    expect(jar.writes).toEqual([]);
-    expect(probe.requests).toEqual([]);
-  });
-
-  it('Accept All closes the bar, saves the choice, moves focus to main and announces it', async () => {
-    const probe = consentProbe();
-    setConsent({ cookie: null });
-    await renderAt('/products');
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Accept All' }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
-    });
-    expect(probe.requests).toHaveLength(1);
-    expect(screen.getByRole('main')).toHaveFocus();
-    expect(document.querySelector('[data-consent-status]')).toHaveTextContent('Your cookie choice is saved.');
-  });
-
-  it('shows no bar and sends no request when a current choice is saved', async () => {
-    const probe = consentProbe();
-    setConsent({ cookie: consentCookie() });
-    await renderAt('/products');
-    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
-    expect(probe.requests).toEqual([]);
-  });
-
-  it('shows no bar under Global Privacy Control, even with no saved choice (D-20)', async () => {
-    setConsent({ cookie: null, gpc: true });
-    await renderAt('/products');
-    expect(screen.queryByRole('region', { name: 'Cookie choices' })).not.toBeInTheDocument();
-  });
-
-  it('shows the bar again for a choice saved under an older Cookie Policy version (D-22)', async () => {
-    setConsent({ cookie: consentCookie({ policyVersion: '0.0' }) });
-    await renderAt('/products');
-    expect(await screen.findByRole('region', { name: 'Cookie choices' })).toBeInTheDocument();
-  });
-
-  it('sends a pending choice again on the page view after a failed save, once', async () => {
-    const probe = consentProbe();
-    setConsent({ cookie: consentCookie({ pending: true, stats: true, map: false }) });
-    const { router } = await renderAt('/products');
-
-    await waitFor(() => {
-      expect(probe.requests).toHaveLength(1);
-    });
-    expect(probe.requests[0]?.body).toMatchObject({ stats: true, map: false, consentId: FAKE_CONSENT_ID });
-
-    await act(async () => {
-      await router.navigate('/gallery');
-    });
-    await screen.findByRole('heading', { level: 1 });
-    expect(probe.requests).toHaveLength(1);
-  });
-
-  it('sends nothing on a page view when no choice is pending', async () => {
-    const probe = consentProbe();
-    setConsent({ cookie: consentCookie() });
-    const { router } = await renderAt('/products');
-    await act(async () => {
-      await router.navigate('/gallery');
-    });
-    expect(probe.requests).toEqual([]);
-  });
-});
-
-const CONSENT_PAD =
-  '[:root:has(&)]:scroll-pb-[calc(var(--spacing-consent-bar)+var(--space-6)+env(safe-area-inset-bottom))]';
-const CONSENT_PAD_PHONE = 'vp-lt-md:[:root:has(&)]:[--spacing-consent-bar:204px]';
 const CONTACT_PAD =
   'vp-lt-md:[:root:has(&)]:scroll-pb-[calc(var(--spacing-contact-bar)+var(--space-6)+env(safe-area-inset-bottom))]';
 
-describe('PublicLayout while the cookie bar shows (WCAG 2.4.11, D-30)', () => {
-  it('gives the page a bottom scroll padding for the bar on every public page, and the 204px phone height', async () => {
+/** Waits a moment for a lazy cookie bar to appear, and passes only if it never does. */
+async function expectNoCookieBar(): Promise<void> {
+  await expect(screen.findByRole('region', { name: 'Cookie choices' }, { timeout: 250 })).rejects.toThrow();
+}
+
+describe('PublicLayout with no cookie bar (D-54)', () => {
+  it('shows no cookie bar on a first visit', async () => {
     setConsent({ cookie: null });
-    for (const path of ['/', '/products', '/gallery', '/nope']) {
-      const { unmount } = await renderAt(path);
-      await screen.findByRole('region', { name: 'Cookie choices' });
-      expect(screen.getByRole('main').className.split(' ')).toEqual(
-        expect.arrayContaining([CONSENT_PAD, CONSENT_PAD_PHONE]),
-      );
-      unmount();
-    }
+    await renderAt('/products');
+
+    expect(document.querySelector('[data-consent-status]') === null).toBe(true);
+    await expectNoCookieBar();
   });
 
-  it('pads the page root at the bottom by the bar and the safe area, so the footer can scroll clear of it', async () => {
+  it('adds no bar padding to the page or its root on a first visit', async () => {
     setConsent({ cookie: null });
     const { container } = await renderAt('/');
-    await screen.findByRole('region', { name: 'Cookie choices' });
-    expect(container.firstElementChild?.className.split(' ')).toContain(
-      'pb-[calc(var(--spacing-consent-bar)+env(safe-area-inset-bottom))]',
-    );
-  });
 
-  it('adds none of it when no choice is needed', async () => {
-    const { container } = await renderAt('/');
+    await expectNoCookieBar();
     expect(screen.getByRole('main').className).not.toContain('--spacing-consent-bar');
     expect(container.firstElementChild?.className).not.toContain('--spacing-consent-bar');
   });
 
-  it('shows no phone Contact bar on /contact and keeps the bar padding instead of the Contact padding', async () => {
+  it('always shows the phone Contact bar on /contact, with its bottom padding, on a first visit', async () => {
     putBootBlock(demoSite);
     setConsent({ cookie: null });
     const { container } = await renderAt('/contact');
-    await screen.findByRole('region', { name: 'Cookie choices' });
-
-    expect(container.querySelector('[data-contact-bar]')).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
-    const classes = screen.getByRole('main').className.split(' ');
-    expect(classes).toContain(CONSENT_PAD);
-    expect(classes).not.toContain(CONTACT_PAD);
-  });
-
-  it('brings the phone Contact bar and its padding back once a choice is made', async () => {
-    putBootBlock(demoSite);
-    consentProbe();
-    setConsent({ cookie: null });
-    const { container } = await renderAt('/contact');
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Reject All' }));
 
     expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
     expect(container.querySelector('[data-contact-bar]')).not.toBeNull();
-    const classes = screen.getByRole('main').className.split(' ');
-    expect(classes).toContain(CONTACT_PAD);
-    expect(classes).not.toContain(CONSENT_PAD);
+    expect(screen.getByRole('main').className.split(' ')).toContain(CONTACT_PAD);
   });
 
-  it('shows the Contact bar as before when a choice is already saved', async () => {
+  it('shows the Contact bar when a choice is already saved', async () => {
     putBootBlock(demoSite);
     await renderAt('/contact');
     expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
   });
 
-  it('has no axe violations with the bar open', async () => {
+  it('has no axe violations on a first visit', async () => {
     setConsent({ cookie: null });
     const { container } = await renderAt('/products');
-    await screen.findByRole('region', { name: 'Cookie choices' });
+    await expectNoCookieBar();
     await expectNoAxeViolations(container);
   });
 });
