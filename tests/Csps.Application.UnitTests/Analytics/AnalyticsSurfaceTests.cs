@@ -34,4 +34,25 @@ public sealed class AnalyticsSurfaceTests
 
         present.ShouldBeEmpty();
     }
+
+    private static readonly string[] VisitorIdentityTypes =
+    [
+        "IdentifiedCollection",
+        "VisitorKey",
+        "IAnalyticsVisits",
+        "IAnalyticsSalts",
+        "IConsentRecords",
+    ];
+
+    [Fact]
+    public void HasNoVisitorIdentityType()
+    {
+        var present = typeof(CollectPageViewHandler).Assembly.GetTypes()
+            .Select(type => type.Name)
+            .Intersect(VisitorIdentityTypes, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        present.ShouldBeEmpty();
+    }
 }
