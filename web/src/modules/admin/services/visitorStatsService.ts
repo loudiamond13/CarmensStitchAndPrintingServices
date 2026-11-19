@@ -85,7 +85,7 @@ export interface VisitorStatsFile {
 export interface VisitorStatsService {
   /** `GET /api/v1/visitor-stats`: the totals of a range. 400 field errors on `from` and `to` for a custom range. */
   get(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStats>;
-  /** `GET /api/v1/visitor-stats/export`: one CSV row per business day of the range (D-25). */
+  /** `GET /api/v1/visitor-stats/export`: one CSV row per day and page with views, saved under the server's file name (D-69). */
   exportCsv(query: VisitorStatsQuery, signal?: AbortSignal): Promise<VisitorStatsFile>;
 }
 
@@ -99,31 +99,51 @@ export function createVisitorStatsService(client: HttpClient): VisitorStatsServi
         }),
       ),
     exportCsv: async (query, signal) => {
-      const body = await client.get<string>('/visitor-stats/export', {
-        params: { range: query.range, from: query.from, to: query.to },
-        signal,
-        responseType: 'text',
+      // The server names the file from the dates it resolved, which the page cannot know for a preset.
+      const seen: { name: string | undefined } = { name: undefined };
+      const eject = client.interceptors.response.use((response) => {
+        seen.name ??= serverFileName(response.headers.get('Content-Disposition'));
+        return response;
       });
+      let body: string;
+      try {
+        body = await client.get<string>('/visitor-stats/export', {
+          params: { range: query.range, from: query.from, to: query.to },
+          signal,
+          responseType: 'text',
+        });
+      } finally {
+        eject();
+      }
       // fetch drops the byte-order mark; another transport may not, and downloadCsv adds it back.
       const text = body.replace(/^\uFEFF/, '');
-      return { text, fileName: csvFileName(text) };
+      return { text: checkedCsv(text), fileName: requireFileName(seen.name) };
     },
   };
 }
 
-const CSV_HEADER = 'Date,Unique visitors,Visits,Page views';
-const CSV_DAY = /^\d{4}-\d{2}-\d{2}(?=,)/;
+const CSV_HEADER = 'Date,Page,Page views';
+const CSV_ROW = /^\d{4}-\d{2}-\d{2},[^,"\r\n]+,\d+$/;
+const MONTH_DAY = '(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])';
+const CSV_NAME = new RegExp(`filename="(visitor-stats-\\d{4}-${MONTH_DAY}-to-\\d{4}-${MONTH_DAY}\\.csv)"`);
 
-/** The server's own name, from the file's first and last day: `visitor-stats-{from}-to-{to}.csv`. */
-function csvFileName(text: string): string {
-  const lines = text.split('\r\n').filter((line) => line !== '');
-  const [header, first] = lines;
-  const from = first === undefined ? undefined : CSV_DAY.exec(first)?.[0];
-  const to = CSV_DAY.exec(lines.at(-1) ?? '')?.[0];
-  if (header !== CSV_HEADER || from === undefined || to === undefined) {
+/** The file name in a Content-Disposition header, only when it is the server's own `visitor-stats-{from}-to-{to}.csv`. */
+function serverFileName(disposition: string | null): string | undefined {
+  return disposition === null ? undefined : CSV_NAME.exec(disposition)?.[1];
+}
+
+function requireFileName(name: string | undefined): string {
+  if (name === undefined) throw new VisitorStatsContractError('The CSV file has no name the page knows.');
+  return name;
+}
+
+/** The text when it is the three column header and day rows, or the header alone for a range with no views. */
+function checkedCsv(text: string): string {
+  const [header, ...rows] = text.split('\r\n').filter((line) => line !== '');
+  if (header !== CSV_HEADER || !rows.every((row) => CSV_ROW.test(row))) {
     throw new VisitorStatsContractError('The CSV file is not one the page knows.');
   }
-  return `visitor-stats-${from}-to-${to}.csv`;
+  return text;
 }
 
 export const visitorStatsService: VisitorStatsService = createVisitorStatsService(apiClient);

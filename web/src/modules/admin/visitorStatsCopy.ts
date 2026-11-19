@@ -84,7 +84,6 @@ export const VISITOR_STATS_COPY = {
     gallery: 'Gallery',
     contact: 'Contact',
     privacy: 'Privacy Policy',
-    cookies: 'Cookie Policy',
     terms: 'Terms of Use',
     accessibility: 'Accessibility Statement',
     'not-found': 'Page not found',

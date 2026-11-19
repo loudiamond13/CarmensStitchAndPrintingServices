@@ -1,7 +1,6 @@
 using System.Globalization;
 using Csps.Application.Common;
 using Csps.Application.Ports;
-using Csps.Domain.Analytics;
 using Csps.Domain.Common;
 using FluentValidation;
 
@@ -13,8 +12,9 @@ namespace Csps.Application.Analytics;
 public sealed record VisitorStatsExport(string FileName, string Csv);
 
 /// <summary>
-/// Use case: a Manager exports a date range as a CSV with one row per business day (ANL-08, D-25, D-33). The query is checked and resolved like
-/// the stats read. A day with no data is zeros; D-27: a day before the 13-month cut has no unique visitor or visit figure.
+/// Use case: a Manager exports a date range as a CSV with one row per day and page that had views (ANL-08, D-69, D-75). The query is checked and
+/// resolved like the stats read. A day or a page with no views has no line; a range with no views is the header alone. Rows are ordered by date,
+/// then by the fixed page order, and an old key with no name shows its key after the named pages.
 /// </summary>
 /// <param name="reader">The visitor stats read port.</param>
 /// <param name="calendar">The business calendar.</param>
@@ -40,17 +40,15 @@ public sealed class ExportVisitorStatsHandler(IVisitorStatsReader reader, IBusin
 
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var (_, from, to) = GetVisitorStatsHandler.Resolve(request, clock.Today);
-        var cut = AnalyticsRetention.RawCut(clock.Today);
-        var counts = await reader.ReadDailyAsync(from, to, cut, cancellationToken).ConfigureAwait(false);
-        var byDay = counts.ToDictionary(static count => count.Day);
+        var counts = await reader.ReadDailyPagesAsync(from, to, cancellationToken).ConfigureAwait(false);
 
-        var rows = new List<DailyStatsRow>();
-        for (var day = from; day <= to; day = day.AddDays(1))
-        {
-            var count = byDay.GetValueOrDefault(day);
-            var kept = day >= cut;
-            rows.Add(new DailyStatsRow(day, kept ? count?.UniqueVisitors ?? 0 : null, kept ? count?.Visits ?? 0 : null, count?.PageViews ?? 0));
-        }
+        var rows = counts
+            .Where(static count => count.Views > 0)
+            .OrderBy(static count => count.Day)
+            .ThenBy(static count => PageNames.OrderOf(count.PageKey))
+            .ThenBy(static count => count.PageKey, StringComparer.Ordinal)
+            .Select(static count => new DailyPageRow(count.Day, PageNames.NameFor(count.PageKey), count.Views))
+            .ToList();
 
         return Result.Success(new VisitorStatsExport($"visitor-stats-{Format(from)}-to-{Format(to)}.csv", VisitorStatsCsv.Write(rows)));
     }

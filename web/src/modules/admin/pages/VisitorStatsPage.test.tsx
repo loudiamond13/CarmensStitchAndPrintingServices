@@ -366,7 +366,6 @@ describe('V1 the Most viewed pages card', () => {
     ['gallery', 'Gallery'],
     ['contact', 'Contact'],
     ['privacy', 'Privacy Policy'],
-    ['cookies', 'Cookie Policy'],
     ['terms', 'Terms of Use'],
     ['accessibility', 'Accessibility Statement'],
     ['not-found', 'Page not found'],
@@ -375,6 +374,13 @@ describe('V1 the Most viewed pages card', () => {
     await openPage();
 
     expect(within(listCard('Most viewed pages')).getByText(label)).toBeInTheDocument();
+  });
+
+  it('shows an old stored key that has no name as the key itself', async () => {
+    backend(statsAnswer({}, { topPages: [{ name: 'cookies', count: 1, share: 100 }] }));
+    await openPage();
+
+    expect(within(listCard('Most viewed pages')).getByText('cookies')).toBeInTheDocument();
   });
 });
 
@@ -845,7 +851,7 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
   });
 });
 
-const CSV_FILE = 'Date,Unique visitors,Visits,Page views\r\n2026-10-17,1,2,3\r\n2026-11-15,4,5,6\r\n';
+const CSV_FILE = 'Date,Page,Page views\r\n2026-10-17,Home,3\r\n2026-11-15,Gallery,6\r\n';
 
 /** The fake export call; returns the calls it answered. */
 function exportBackend(respond: () => Response | Promise<Response> = () => csvResponse()): { calls: URL[] } {
@@ -860,7 +866,12 @@ function exportBackend(respond: () => Response | Promise<Response> = () => csvRe
 }
 
 function csvResponse(): Response {
-  return new HttpResponse(CSV_FILE, { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+  return new HttpResponse(CSV_FILE, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="visitor-stats-2026-10-17-to-2026-11-15.csv"',
+    },
+  });
 }
 
 interface SavedFile {

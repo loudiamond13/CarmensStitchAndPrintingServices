@@ -10,6 +10,11 @@
     <Compile Include="..\Csps.Testing\Images\SyntheticImages.cs" Link="Images\SyntheticImages.cs" />
   </ItemGroup>
 
+  <!-- The page names (D-69, D-75) are shared with the web node test and linked, never copied. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\page-names.json" Link="Fixtures\page-names.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />

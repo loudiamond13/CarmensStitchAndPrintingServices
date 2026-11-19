@@ -6,8 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Infrastructure.Analytics;
 
 /// <summary>
-/// <see cref="IVisitorStatsReader"/> over EF: untracked LINQ aggregates (ANL-08). Page views are summed from the daily page counts, which a day
-/// with no views does not write, so a missing day adds nothing. Only the daily read behind the CSV export still reads the raw visits.
+/// <see cref="IVisitorStatsReader"/> over EF: untracked LINQ aggregates (ANL-08). Every figure, the CSV export included, comes from the daily page
+/// counts, which a day with no views does not write, so a missing day adds nothing.
 /// </summary>
 /// <param name="context">The scoped database context.</param>
 internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsReader
@@ -47,34 +47,14 @@ internal sealed class VisitorStatsReader(CspsDbContext context) : IVisitorStatsR
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-    public async Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken)
-    {
-        var views = await InRange(first, last)
-            .GroupBy(row => row.BusinessDay)
-            .Select(group => new { Day = group.Key, Views = group.Sum(row => (long)row.Views) })
-            .ToDictionaryAsync(row => row.Day, row => (int)Math.Min(row.Views, int.MaxValue), cancellationToken)
+    public async Task<IReadOnlyList<DailyPageViews>> ReadDailyPagesAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken) =>
+        await InRange(first, last)
+            .Where(row => row.Views > 0)
+            .OrderBy(row => row.BusinessDay)
+            .ThenBy(row => row.PageKey)
+            .Select(row => new DailyPageViews(row.BusinessDay, row.PageKey, row.Views))
+            .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-
-        // Visits and unique visitors exist only from the cut day on; unique visitors are distinct per day.
-        var start = first > cut ? first : cut;
-        var visits = start > last
-            ? []
-            : await context.AnalyticsVisits
-                .AsNoTracking()
-                .Where(row => row.BusinessDay >= start && row.BusinessDay <= last)
-                .GroupBy(row => row.BusinessDay)
-                .Select(group => new { Day = group.Key, Visits = group.Count(), Unique = group.Select(row => row.VisitorHash).Distinct().Count() })
-                .ToDictionaryAsync(row => row.Day, row => (row.Visits, row.Unique), cancellationToken)
-                .ConfigureAwait(false);
-
-        return [.. views.Keys.Union(visits.Keys)
-            .Order()
-            .Select(day =>
-            {
-                var (visitCount, uniqueCount) = visits.GetValueOrDefault(day);
-                return new DailyCount(day, views.GetValueOrDefault(day), visitCount, uniqueCount);
-            })];
-    }
 
     private IQueryable<DailyPageCount> InRange(DateOnly first, DateOnly last) =>
         context.DailyPageCounts.AsNoTracking().Where(row => row.BusinessDay >= first && row.BusinessDay <= last);

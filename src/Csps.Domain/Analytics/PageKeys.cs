@@ -21,9 +21,6 @@ public static class PageKeys
     /// <summary>The privacy policy.</summary>
     public const string Privacy = "privacy";
 
-    /// <summary>The cookie policy.</summary>
-    public const string Cookies = "cookies";
-
     /// <summary>The terms page.</summary>
     public const string Terms = "terms";
 

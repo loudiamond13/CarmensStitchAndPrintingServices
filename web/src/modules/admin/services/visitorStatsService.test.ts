@@ -141,20 +141,42 @@ describe('visitorStatsService.get', () => {
 });
 
 describe('visitorStatsService.exportCsv', () => {
-  const csv = 'Date,Unique visitors,Visits,Page views\r\n2026-11-13,1,1,7\r\n2026-11-14,0,0,0\r\n2026-11-15,2,3,15\r\n';
-  const csvAnswer = { body: csv, headers: { 'Content-Type': 'text/csv; charset=utf-8' } };
+  const csv = 'Date,Page,Page views\r\n2026-11-13,Home,7\r\n2026-11-15,Gallery,5\r\n';
+  const disposition = (name: string) => `attachment; filename="${name}"`;
+  const csvAnswer = {
+    body: csv,
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': disposition('visitor-stats-2026-11-13-to-2026-11-15.csv'),
+    },
+  };
 
-  it('asks GET /api/v1/visitor-stats/export for text/csv with the range and names the file from its first and last day', async () => {
+  it('asks GET /api/v1/visitor-stats/export for text/csv with the range and keeps the server file name', async () => {
     const { fake, service } = serviceWith([csvAnswer]);
 
     const file = await service.exportCsv({ range: 'custom', from: '2026-11-13', to: '2026-11-15' });
 
-    expect(file.fileName).toBe('visitor-stats-2026-11-13-to-2026-11-15.csv');
     expect(file).toEqual({ text: csv, fileName: 'visitor-stats-2026-11-13-to-2026-11-15.csv' });
     const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
     expect(url.pathname).toBe('/api/v1/visitor-stats/export');
     expect(Object.fromEntries(url.searchParams)).toEqual({ range: 'custom', from: '2026-11-13', to: '2026-11-15' });
     expect(fake.calls[0]?.headers.get('Accept')).toBe('text/csv');
+  });
+
+  it('names a preset file with the dates the server used, which the page cannot know', async () => {
+    const { service } = serviceWith([
+      {
+        body: csv,
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': disposition('visitor-stats-2026-10-17-to-2026-11-15.csv'),
+        },
+      },
+    ]);
+
+    const file = await service.exportCsv({ range: 'last-30-days', from: null, to: null });
+
+    expect(file.fileName).toBe('visitor-stats-2026-10-17-to-2026-11-15.csv');
   });
 
   it('sends a preset by name only', async () => {
@@ -166,12 +188,43 @@ describe('visitorStatsService.exportCsv', () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({ range: 'last-7-days' });
   });
 
+  it('accepts the header alone, which is a range with no views', async () => {
+    const { service } = serviceWith([{ ...csvAnswer, body: 'Date,Page,Page views\r\n' }]);
+
+    const file = await service.exportCsv({ range: 'last-30-days', from: null, to: null });
+
+    expect(file.text).toBe('Date,Page,Page views\r\n');
+  });
+
+  it('drops a byte-order mark the transport kept', async () => {
+    const { service } = serviceWith([{ ...csvAnswer, body: `\uFEFF${csv}` }]);
+
+    const file = await service.exportCsv({ range: 'last-30-days', from: null, to: null });
+
+    expect(file.text).toBe(csv);
+  });
+
   it.each([
-    ['a file with no day rows', 'Date,Unique visitors,Visits,Page views\r\n'],
-    ['a file with another header', 'Day,Views\r\n2026-11-15,3\r\n'],
-    ['a row that does not start with a date', 'Date,Unique visitors,Visits,Page views\r\nyesterday,1,1,1\r\n'],
+    ['the old four-column header', 'Date,Unique visitors,Visits,Page views\r\n2026-11-15,1,2,3\r\n'],
+    ['another header', 'Day,Views\r\n2026-11-15,3\r\n'],
+    ['a row that does not start with a date', 'Date,Page,Page views\r\nyesterday,Home,1\r\n'],
+    ['a row with a text count', 'Date,Page,Page views\r\n2026-11-15,Home,many\r\n'],
   ])('refuses %s, so the page shows the failure', async (_case, text) => {
-    const { service } = serviceWith([{ body: text, headers: { 'Content-Type': 'text/csv' } }]);
+    const { service } = serviceWith([{ ...csvAnswer, body: text }]);
+
+    await expect(service.exportCsv({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
+      VisitorStatsContractError,
+    );
+  });
+
+  it.each([
+    ['no file name header', undefined],
+    ['a file name that is not the server pattern', disposition('../evil.csv')],
+    ['a file name with a bad date', disposition('visitor-stats-2026-13-01-to-2026-11-15.csv')],
+  ])('refuses a file with %s', async (_case, header) => {
+    const headers: Record<string, string> = { 'Content-Type': 'text/csv' };
+    if (header !== undefined) headers['Content-Disposition'] = header;
+    const { service } = serviceWith([{ body: csv, headers }]);
 
     await expect(service.exportCsv({ range: 'last-30-days', from: null, to: null })).rejects.toBeInstanceOf(
       VisitorStatsContractError,

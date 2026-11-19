@@ -113,6 +113,7 @@ public sealed class TestingAnalyticsTests(CspsDatabase database) : IClassFixture
     [InlineData("""{"days":[{"offsetDays":-1097,"pageKey":"home","views":1}]}""")]
     [InlineData("""{"days":[{"offsetDays":-2000,"pageKey":"home","views":1}]}""")]
     [InlineData("""{"days":[{"offsetDays":-5,"pageKey":"admin","views":1}]}""")]
+    [InlineData("""{"days":[{"offsetDays":-5,"pageKey":"cookies","views":1}]}""")]
     [InlineData("""{"days":[{"offsetDays":-5,"pageKey":"home","views":0}]}""")]
     [InlineData("""{"days":[{"offsetDays":-5,"pageKey":"home","views":1},{"offsetDays":-5,"pageKey":"home","views":2}]}""")]
     public async Task ABodyThatIsMissingOrOutOfBoundsIsAPlain400AndChangesNothing(string body)

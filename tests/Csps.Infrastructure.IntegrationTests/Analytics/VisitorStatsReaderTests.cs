@@ -8,7 +8,7 @@ namespace Csps.Infrastructure.IntegrationTests.Analytics;
 
 /// <summary>
 /// ANL-08, D-57, D-68, RESEARCH A4: the page views, the trend and the page list are exact on SQL Server and come from the daily page counts
-/// only. The daily read behind the CSV export keeps its visit figures until plan 12.1-15.
+/// only, and so is the daily page read behind the CSV export (D-69).
 /// </summary>
 public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -148,57 +148,62 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task EachDayHasItsPageViewsVisitsAndDistinctVisitorsAndOnlyDaysWithDataAreListed()
+    public async Task EachDayAndPageHasItsViewsAndOnlyRowsInsideTheRangeAreListed()
     {
         await database.ResetAsync();
+        await SeedViewsAsync(Day.AddDays(-1), PageKeys.Home, 100);
         await SeedViewsAsync(Day, PageKeys.Home, 3);
         await SeedViewsAsync(Day, PageKeys.Gallery, 5);
         await SeedViewsAsync(Day.AddDays(2), PageKeys.Contact, 4);
         await SeedViewsAsync(Day.AddDays(3), PageKeys.Home, 100);
         await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(2, Day);
-        await SeedVisitAsync(1, Day.AddDays(1));
-        await SeedVisitAsync(9, Day.AddDays(-1));
 
-        var days = await ReadDailyAsync(Day, Day.AddDays(2));
+        var rows = await ReadDailyPagesAsync(Day, Day.AddDays(2));
 
-        days.ShouldBe(
+        rows.OrderBy(static row => row.Day).ThenBy(static row => row.PageKey, StringComparer.Ordinal).ShouldBe(
         [
-            new DailyCount(Day, 8, 3, 2),
-            new DailyCount(Day.AddDays(1), 0, 1, 1),
-            new DailyCount(Day.AddDays(2), 4, 0, 0),
+            new DailyPageViews(Day, PageKeys.Gallery, 5),
+            new DailyPageViews(Day, PageKeys.Home, 3),
+            new DailyPageViews(Day.AddDays(2), PageKeys.Contact, 4),
         ]);
     }
 
     [Fact]
-    public async Task VisitsAreReadOnlyFromTheCutDayOnWhilePageViewsAreReadForEveryDay()
+    public async Task ARowWithNoViewsIsNotListed()
     {
         await database.ResetAsync();
-        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Home, 6);
-        await SeedViewsAsync(Cut, PageKeys.Home, 2);
-        await SeedVisitAsync(1, Cut.AddDays(-1));
-        await SeedVisitAsync(2, Cut);
+        await SeedViewsAsync(Day, PageKeys.Home, 0);
+        await SeedViewsAsync(Day, PageKeys.Gallery, 2);
 
-        var crossing = await ReadDailyAsync(Cut.AddDays(-2), Cut);
-        var old = await ReadDailyAsync(Cut.AddDays(-2), Cut.AddDays(-1));
+        var rows = await ReadDailyPagesAsync(Day, Day);
 
-        crossing.ShouldBe([new DailyCount(Cut.AddDays(-1), 6, 0, 0), new DailyCount(Cut, 2, 1, 1)]);
-        old.ShouldBe([new DailyCount(Cut.AddDays(-1), 6, 0, 0)]);
+        rows.ShouldBe([new DailyPageViews(Day, PageKeys.Gallery, 2)]);
     }
 
     [Fact]
-    public async Task ARangeWithNoDataListsNoDays()
+    public async Task DailyPageViewsFromBeforeTheOldVisitCutAndFromThreeYearsBackAreReadLikeAnyOther()
+    {
+        await database.ResetAsync();
+        var old = new DateOnly(2023, 11, 20);
+        await SeedViewsAsync(old, PageKeys.Gallery, 9);
+        await SeedViewsAsync(Cut.AddDays(-10), PageKeys.NotFound, 6);
+
+        (await ReadDailyPagesAsync(old, old)).ShouldBe([new DailyPageViews(old, PageKeys.Gallery, 9)]);
+        (await ReadDailyPagesAsync(Cut.AddDays(-10), Cut.AddDays(-10))).ShouldBe([new DailyPageViews(Cut.AddDays(-10), PageKeys.NotFound, 6)]);
+    }
+
+    [Fact]
+    public async Task ADailyPageReadOfARangeWithNoRowsIsEmpty()
     {
         await database.ResetAsync();
 
-        (await ReadDailyAsync(Day, Day.AddDays(4))).ShouldBeEmpty();
+        (await ReadDailyPagesAsync(Day, Day.AddDays(4))).ShouldBeEmpty();
     }
 
-    private async Task<IReadOnlyList<DailyCount>> ReadDailyAsync(DateOnly from, DateOnly to)
+    private async Task<IReadOnlyList<DailyPageViews>> ReadDailyPagesAsync(DateOnly from, DateOnly to)
     {
         await using var context = database.CreateContext();
-        return await new VisitorStatsReader(context).ReadDailyAsync(from, to, Cut, TestContext.Current.CancellationToken);
+        return await new VisitorStatsReader(context).ReadDailyPagesAsync(from, to, TestContext.Current.CancellationToken);
     }
 
     private async Task<IReadOnlyList<NamedCount>> ReadPagesAsync(DateOnly from, DateOnly to)

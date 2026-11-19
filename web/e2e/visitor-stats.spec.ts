@@ -17,7 +17,7 @@ const STATS = '/admin/visitor-stats';
 const PAGE_VIEWS = '/api/v1/analytics/page-views';
 const STAFF_COOKIE = '__Secure-csps_staff';
 const STATS_API = '/api/v1/visitor-stats';
-const CSV_HEADER = 'Date,Unique visitors,Visits,Page views';
+const CSV_HEADER = 'Date,Page,Page views';
 const ORDER_MESSAGE = 'The start date must be on or before the end date.';
 
 /** Each project seeds its own days, so the five projects never replace each other's rows. */
@@ -29,15 +29,18 @@ function projectSlot(): number {
 
 /**
  * Six days about two years ago (inside the 3 year reach of the date picker): day k has k + 1 Home views, and the first day also has
- * 4 Products views. Page views 25, Home 21, Products 4. `cells` is each day's date and page view count, as the CSV lists them.
+ * 4 Products views. Page views 25, Home 21, Products 4. `rows` is each date, page name and page view count, as the CSV lists them.
  */
-function oldRange(): { from: string; to: string; days: AnalyticsSeedDay[]; cells: string[][] } {
+function oldRange(): { from: string; to: string; days: AnalyticsSeedDay[]; rows: string[][] } {
   const start = -(730 + projectSlot() * 10) - 5;
   const offsets = [0, 1, 2, 3, 4, 5].map((k) => start + k);
   const days: AnalyticsSeedDay[] = offsets.map((offsetDays, k) => ({ offsetDays, pageKey: 'home', views: k + 1 }));
   days.push({ offsetDays: start, pageKey: 'products', views: 4 });
-  const cells = offsets.map((offsetDays, k) => [manilaDate(offsetDays), String(k + 1 + (k === 0 ? 4 : 0))]);
-  return { from: manilaDate(start), to: manilaDate(start + 5), days, cells };
+  const rows = offsets.flatMap((offsetDays, k) => {
+    const home = [manilaDate(offsetDays), 'Home', String(k + 1)];
+    return k === 0 ? [home, [manilaDate(offsetDays), 'Products', '4']] : [home];
+  });
+  return { from: manilaDate(start), to: manilaDate(start + 5), days, rows };
 }
 
 /** A day of the last 30 with views, so the default range always has a chart. */
@@ -361,13 +364,30 @@ test('@visitor-stats Export CSV saves the range with a byte-order mark, the head
   const lines = text.split('\r\n');
   expect(lines[0]).toBe(CSV_HEADER);
   expect(lines.at(-1), 'the file ends with a line break').toBe('');
-  // The visit cells change in plan 12.1-15, so only the date and page view cells of each day are checked.
-  const cells = lines.slice(1, -1).map((line) => {
-    const columns = line.split(',');
-    return [columns[0], columns[3]];
-  });
-  expect(cells).toEqual(old.cells);
+  expect(lines.slice(1, -1).map((line) => line.split(','))).toEqual(old.rows);
   await expect(page.getByText(`${name} is in your downloads.`)).toBeVisible();
+});
+
+test('@visitor-stats Export CSV for a range with no views saves the header alone under the range name', async ({
+  page,
+  request,
+  guard,
+}) => {
+  const from = manilaDate(-1000);
+  const to = manilaDate(-995);
+  await signInManager(page, request, guard);
+  await go(page, `${STATS}?range=custom&from=${from}&to=${to}`);
+  expect(await kpiCount(page, 'Page views')).toBe(0);
+
+  await settle(page);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  const file = await download;
+
+  expect(file.suggestedFilename()).toBe(`visitor-stats-${from}-to-${to}.csv`);
+  const bytes = readFileSync(await file.path());
+  expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+  expect(bytes.subarray(3).toString('utf8')).toBe(`${CSV_HEADER}\r\n`);
 });
 
 test('@visitor-stats one h1 and no axe violations at 390 and 1440 in Blush and Espresso, no sideways scroll at 320, and the chart is one tab stop', async ({
