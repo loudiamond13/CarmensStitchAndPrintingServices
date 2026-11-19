@@ -6,27 +6,18 @@ import { createFakeFetch } from '@/test/fakeFetch';
 import { createAnalyticsService } from './analyticsService';
 
 describe('analyticsService.pageView', () => {
-  it('calls POST /api/v1/analytics/page-views once with the body, no idempotency key and no keepalive', async () => {
+  it('calls POST /api/v1/analytics/page-views once with the path only, no idempotency key and no keepalive', async () => {
     const fake = createFakeFetch([{ status: 204 }]);
     const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
 
-    await createAnalyticsService(client).pageView({ path: '/gallery', referrerHost: 'www.example.test' });
+    await createAnalyticsService(client).pageView({ path: '/gallery' });
 
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]?.method).toBe('POST');
     expect(fake.calls[0]?.url).toBe('/api/v1/analytics/page-views');
-    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ path: '/gallery', referrerHost: 'www.example.test' });
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ path: '/gallery' });
     expect(fake.calls[0]?.headers.has('Idempotency-Key')).toBe(false);
     expect(fake.calls[0]?.init).not.toHaveProperty('keepalive');
-  });
-
-  it('asks the client to keep the request alive when told to', async () => {
-    const fake = createFakeFetch([{ status: 204 }]);
-    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
-
-    await createAnalyticsService(client).pageView({ path: '/' }, { keepalive: true });
-
-    expect(fake.calls[0]?.init.keepalive).toBe(true);
   });
 
   it('sends the anti-CSRF header the shared client carries', async () => {
