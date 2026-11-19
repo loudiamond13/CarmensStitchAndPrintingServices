@@ -205,6 +205,8 @@ export const HOST_ENV = Object.freeze({
   RateLimits__Consent__PermitLimit: NO_THROTTLE,
   // The review pages send a beacon on every page view from this one address too (120 a minute in production, ANL-06).
   RateLimits__AnalyticsCollect__PermitLimit: NO_THROTTLE,
+  // The one site-wide page view ceiling (600 a minute in production, D-51) is lifted too: all review pages share one address.
+  RateLimits__AnalyticsCeiling__PermitLimit: NO_THROTTLE,
   // The review pages may press Clear from this one address too (5 a minute in production, ANL-04).
   RateLimits__AnalyticsClear__PermitLimit: NO_THROTTLE,
 });

@@ -20,11 +20,14 @@ public static class RateLimitingRegistration
     internal const string ClearBusyDetail = "Too many tries. Wait a minute and try again.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
+    private const string PageViewEndpointName = "RecordPageView";
+    private const string SiteWidePartitionKey = "analytics-site";
+    private const string NoSiteWideLimitKey = "no-site-wide-limit";
     private const int SegmentsPerWindow = 6;
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy, the <c>analytics-consent</c> policy, the <c>analytics-collect</c> policy and the <c>analytics-clear</c> policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy, the <c>analytics-consent</c> policy, the <c>analytics-collect</c> policy and the <c>analytics-clear</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs before the per-address limit, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
     /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -49,7 +52,10 @@ public static class RateLimitingRegistration
         configuration.GetSection(AnalyticsCollectRateLimit.SectionName).Bind(collect);
         var clear = AnalyticsClearRateLimit.Default();
         configuration.GetSection(AnalyticsClearRateLimit.SectionName).Bind(clear);
+        var ceiling = AnalyticsCeilingRateLimit.Default();
+        configuration.GetSection(AnalyticsCeilingRateLimit.SectionName).Bind(ceiling);
         var problems = settings.Validate()
+            .Concat(AnalyticsCeilingRateLimit.Validate(ceiling))
             .Concat(ConsentRateLimit.Validate(consent))
             .Concat(AnalyticsCollectRateLimit.Validate(collect))
             .Concat(AnalyticsClearRateLimit.Validate(clear))
@@ -83,6 +89,7 @@ public static class RateLimitingRegistration
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => WriteRejectionAsync(context, windows, cancellationToken);
+            options.GlobalLimiter = CreateSiteWideLimiter(ceiling);
             AddPolicy(options, RateLimitPolicies.SignIn, settings.SignIn);
             AddPolicy(options, RateLimitPolicies.Verify, settings.Verify);
             AddPolicy(options, RateLimitPolicies.Resend, settings.Resend);
@@ -132,6 +139,25 @@ public static class RateLimitingRegistration
         bytes[IPv6PrefixBytes..].Clear();
         return $"{new IPAddress(bytes)}/64";
     }
+
+    // One shared window for the page view route, whatever the address; every other route has no site-wide limit.
+    private static PartitionedRateLimiter<HttpContext> CreateSiteWideLimiter(RateLimitRule rule) =>
+        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            var name = context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName;
+            return string.Equals(name, PageViewEndpointName, StringComparison.Ordinal)
+                ? RateLimitPartition.GetSlidingWindowLimiter(
+                    SiteWidePartitionKey,
+                    _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = rule.PermitLimit,
+                        Window = rule.Window,
+                        SegmentsPerWindow = SegmentsPerWindow,
+                        QueueLimit = 0,
+                        AutoReplenishment = true,
+                    })
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey);
+        });
 
     private static void AddPolicy(RateLimiterOptions options, string name, RateLimitRule rule) =>
         options.AddPolicy(name, context => RateLimitPartition.GetSlidingWindowLimiter(

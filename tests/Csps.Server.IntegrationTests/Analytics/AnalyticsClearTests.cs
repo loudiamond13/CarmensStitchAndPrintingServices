@@ -29,7 +29,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         await SeedVisitorAsync(VisitorA);
         await SeedVisitorAsync(VisitorB);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, VisitorCookie(VisitorA));
 
@@ -46,7 +46,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, VisitorCookie(VisitorA));
 
@@ -58,14 +58,14 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         record.Map.ShouldBeFalse();
         record.Gpc.ShouldBeFalse();
         record.PolicyVersion.ShouldBe(LegalPages.CookiePolicyVersion);
-        var cookie = ConsentEndpointTests.SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldNotBeNull();
+        var cookie = AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldNotBeNull();
         var attributes = cookie.ToLowerInvariant();
         attributes.ShouldContain("; path=/");
         attributes.ShouldNotContain("; path=/api");
         attributes.ShouldContain("; secure");
         attributes.ShouldContain("; samesite=lax");
         attributes.ShouldNotContain("httponly");
-        ConsentCookie.TryParse(ConsentEndpointTests.ValueOf(cookie), out var parsed).ShouldBeTrue();
+        ConsentCookie.TryParse(AnalyticsHttp.ValueOf(cookie), out var parsed).ShouldBeTrue();
         parsed!.Pending.ShouldBeFalse();
         parsed.ConsentId.ShouldBe(record.ConsentId);
         parsed.Stats.ShouldBe(false);
@@ -82,7 +82,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, VisitorCookie(VisitorA));
 
@@ -95,7 +95,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         await database.ResetAsync();
         await SeedVisitorAsync(VisitorA);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var held = await PostAsync(client, VisitorCookie(VisitorA));
         using var again = await PostAsync(client, VisitorCookie(VisitorA));
@@ -107,7 +107,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         {
             response.StatusCode.ShouldBe(HttpStatusCode.OK);
             AssertVisitorExpired(response);
-            ConsentEndpointTests.SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldNotBeNull();
+            AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.ConsentCookieName).ShouldNotBeNull();
         }
     }
 
@@ -116,7 +116,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostAsync(client, null);
         using var second = await PostAsync(client, null);
@@ -141,7 +141,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         }
 
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, VisitorCookie(VisitorA));
 
@@ -155,14 +155,14 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         var cookies = $"{VisitorCookie(VisitorA)}; {AuthCookies.RefreshCookieName}=refresh-value; {AnalyticsCookies.StaffCookieName}=1";
 
         using var response = await PostAsync(client, cookies);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        ConsentEndpointTests.SetCookieOf(response, AuthCookies.RefreshCookieName).ShouldBeNull();
-        ConsentEndpointTests.SetCookieOf(response, AnalyticsCookies.StaffCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(response, AuthCookies.RefreshCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.StaffCookieName).ShouldBeNull();
         var setCookies = response.Headers.GetValues("Set-Cookie").ToList();
         setCookies.Count.ShouldBe(2);
         setCookies.ShouldAllBe(value => value.StartsWith(AnalyticsCookies.VisitorCookieName + "=", StringComparison.Ordinal)
@@ -175,7 +175,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewRequest(null);
         request.Headers.Add("Sec-GPC", "1");
 
@@ -192,7 +192,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         await database.ResetAsync();
         await SeedVisitorAsync(VisitorA);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewRequest(VisitorCookie(VisitorA), csrf: false);
 
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -201,7 +201,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         await using var context = database.CreateContext();
         (await context.AnalyticsVisits.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
         (await context.ConsentRecords.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
-        ConsentEndpointTests.SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
+        AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldBeNull();
     }
 
     [Fact]
@@ -211,7 +211,7 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
         await SeedVisitorAsync(VisitorA);
         await SeedVisitorAsync(VisitorB);
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = ConsentEndpointTests.NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewRequest(VisitorCookie(VisitorA));
         request.Content = new StringContent($"{{\"visitorId\":\"{VisitorB}\"}}", Encoding.UTF8, "application/json");
 
@@ -226,14 +226,14 @@ public sealed class AnalyticsClearTests(CspsDatabase database) : IClassFixture<C
 
     private static void AssertVisitorExpired(HttpResponseMessage response)
     {
-        var cookie = ConsentEndpointTests.SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldNotBeNull();
-        ConsentEndpointTests.ValueOf(cookie).ShouldBeEmpty();
+        var cookie = AnalyticsHttp.SetCookieOf(response, AnalyticsCookies.VisitorCookieName).ShouldNotBeNull();
+        AnalyticsHttp.ValueOf(cookie).ShouldBeEmpty();
         var attributes = cookie.ToLowerInvariant();
         attributes.ShouldContain("; path=/api/v1/analytics");
         attributes.ShouldContain("; secure");
         attributes.ShouldContain("; samesite=strict");
         attributes.ShouldContain("; httponly");
-        ConsentEndpointTests.ExpiresOf(cookie).ShouldBeLessThan(TimeProvider.System.GetUtcNow());
+        AnalyticsHttp.ExpiresOf(cookie).ShouldBeLessThan(TimeProvider.System.GetUtcNow());
     }
 
     private static HttpRequestMessage NewRequest(string? cookies, bool csrf = true)

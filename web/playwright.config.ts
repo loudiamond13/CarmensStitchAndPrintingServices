@@ -113,6 +113,8 @@ export default defineConfig({
       RateLimits__Consent__PermitLimit: noThrottle,
       // Every public page view of all projects sends a beacon from this one address too (120 a minute in production, ANL-06).
       RateLimits__AnalyticsCollect__PermitLimit: noThrottle,
+      // The one site-wide page view ceiling (600 a minute in production, D-51) is lifted too: five browser projects share one address.
+      RateLimits__AnalyticsCeiling__PermitLimit: noThrottle,
       // The clear journeys of all projects press Clear My Data from this one address too (5 a minute in production, ANL-04).
       RateLimits__AnalyticsClear__PermitLimit: noThrottle,
     },

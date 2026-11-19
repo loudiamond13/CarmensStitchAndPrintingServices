@@ -102,6 +102,37 @@ public static class AnalyticsCollectRateLimit
     }
 }
 
+/// <summary>The one site-wide limit on the page view route (D-51, D-74), read from <c>RateLimits:AnalyticsCeiling</c>: 600 a minute by default.</summary>
+public static class AnalyticsCeilingRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:AnalyticsCeiling";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
+
+    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
+    /// <param name="rule">The rule to check.</param>
+    /// <returns>One message per problem; empty when the rule is usable.</returns>
+    public static IReadOnlyList<string> Validate(RateLimitRule rule)
+    {
+        ArgumentNullException.ThrowIfNull(rule);
+        var problems = new List<string>();
+        if (rule.PermitLimit < 1)
+        {
+            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
+        }
+
+        if (rule.Window < RateLimitRule.MinWindow)
+        {
+            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
+        }
+
+        return problems;
+    }
+}
+
 /// <summary>The per-address limit on consent decisions, read from <c>RateLimits:Consent</c>: 30 decisions per minute by default.</summary>
 public static class ConsentRateLimit
 {
