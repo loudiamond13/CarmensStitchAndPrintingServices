@@ -5,8 +5,8 @@ current_phase_name: "Analytics simplification: daily page tally only, no cookie 
 status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
-last_activity: 2026-11-18
-last_activity_desc: Phase 12.1 wave 3 merged; gate has 4 server failures that plan 12.1-09 closes
+last_activity: 2026-11-19
+last_activity_desc: Phase 12.1 wave 4 merged and gated
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-18: Phase 12.1 wave 3 (12.1-06 to 12.1-08) merged; 4 server test failures close with 12.1-09
+Last activity: 2026-11-19: Phase 12.1 wave 4 (12.1-09, 12.1-10) merged and gated; waves 1 to 4 clean
 
 Progress: [█████░░░░░] 47%
 
@@ -1083,11 +1083,13 @@ Phase 12.1 execution backlog (2026-11-18):
 - [x] **12.1 wave 2 post-merge gate (2026-11-18; plan 12.1-05, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3298, Infrastructure 1317 of 1318 (1 skipped), Server 3097 passed; web `verify` 11480 of 11480 (429 files, branches 90.32%); `build:budget` exit 0: Privacy 146.55 KB (down from 149.23), admin 222.41 KB, CSS 20.40 KB. Schema drift and UI safety gates clear. The 8 deleted files matched the executor's list.
 - [ ] **Do not ship before 12.1-10, 12.1-13 and 12.1-17 land:** the Cookie Policy (`legalCookies.ts`) and Privacy Policy (`legalPrivacy.ts`) still name Cookie Settings, the map setting and the Clear button, which 12.1-05 removed. Those plans rewrite the text.
 - [ ] **12.1-05 visitor-stats journey:** it now checks per-page counts only, not the Visits and Unique visitors cards, since a cookie-free visitor has neither (D-53). Plans 12.1-08 and 12.1-14 remove those cards.
-- [ ] **12.1 wave 3 post-merge gate (2026-11-18; plans 12.1-06, 12.1-07, 12.1-08, no merge conflicts): one cross-plan failure, closes in wave 4.** Build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3298, Infrastructure 1317 of 1318 (1 skipped) passed; Server 3100 of 3104: 4 failures, all the same cause. 12.1-07's `RetiredCookiesMiddleware` now expires `__Secure-csps_vid` on every answer (D-63), and four tests of the consent and Clear routes still expect no visitor cookie header: `ConsentEndpointTests.AMalformedVisitorIdIsReplacedByANewOne`, `ConsentEndpointTests.AVisitorIdAlreadyHeldIsKeptAndNotReplaced`, `AnalyticsRateLimitTests.ARejectedClearDeletesNothingAndRecordsNothing`, `AnalyticsClearTests.ACallWithoutTheAntiCsrfHeaderIs403AndDeletesNothing`. Plan 12.1-09 (wave 4) deletes those routes and test files (D-59), so the fix is that plan, not editing tests about to go. The wave 4 gate must show Server with 0 failures; until then 12.1-06 to 12.1-08 stay in progress in the roadmap. Web `verify` 11217 of 11217 (420 files, branches 90.23%), so the license check that failed inside the 12.1-06 worktree was only the nested worktree path. `build:budget` exit 0: Privacy 146.51 KB, admin 222.01 KB, CSS 20.32 KB. Schema drift and UI safety gates clear.
+- [x] **12.1 wave 3 post-merge gate (2026-11-18; plans 12.1-06, 12.1-07, 12.1-08, no merge conflicts): one cross-plan failure, closes in wave 4.** Build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3298, Infrastructure 1317 of 1318 (1 skipped) passed; Server 3100 of 3104: 4 failures, all the same cause. 12.1-07's `RetiredCookiesMiddleware` now expires `__Secure-csps_vid` on every answer (D-63), and four tests of the consent and Clear routes still expect no visitor cookie header: `ConsentEndpointTests.AMalformedVisitorIdIsReplacedByANewOne`, `ConsentEndpointTests.AVisitorIdAlreadyHeldIsKeptAndNotReplaced`, `AnalyticsRateLimitTests.ARejectedClearDeletesNothingAndRecordsNothing`, `AnalyticsClearTests.ACallWithoutTheAntiCsrfHeaderIs403AndDeletesNothing`. Plan 12.1-09 (wave 4) deletes those routes and test files (D-59), so the fix is that plan, not editing tests about to go. Closed by the wave 4 gate (Server 3031 of 3031). Web `verify` 11217 of 11217 (420 files, branches 90.23%), so the license check that failed inside the 12.1-06 worktree was only the nested worktree path. `build:budget` exit 0: Privacy 146.51 KB, admin 222.01 KB, CSS 20.32 KB. Schema drift and UI safety gates clear.
 - [ ] **12.1-08 Visitor Stats layout (your review; recommendation first):** the one Page views card keeps the old grid (a third of the row) and the most viewed pages list half a row. (a) keep until plan 12.1-14 reshapes the list (recommended); (b) both full width now; (c) put the card in the page head beside the date range.
 - [ ] **12.1-08 empty list wording (your review):** "No pages were opened in these dates." is executor wording (SPEC-GAP); it shows only when a range has page views but no top pages. Keep, or give the line you want.
 - [ ] **`docs/web/budgets.md` is stale (phase end):** lines about the cookie bar chunks and the speed reader are not in any 12.1 plan's file list. Check and fix at phase end.
 - [ ] **Wave 3 load flakes (recorded; each passed alone):** `GalleryPage` (now in 3 plans in a row: worth a look), `OrderFormPage`, `OrderItemModal`, `ExpenseModal`, `Phase8Demos`, `AdminLayout`; none failed in the gate.
+- [x] **12.1 wave 4 post-merge gate (2026-11-19; plans 12.1-09, 12.1-10, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3194, Infrastructure 1317 of 1318 (1 skipped), Server 3031 passed (0 failed: the 4 wave 3 failures went with the removed routes); openapi types match; web `verify` 11225 of 11225 (420 files, branches 90.23%); `build:budget` exit 0: Privacy 147.25 KB (2.75 KB left), admin 221.98 KB, CSS 20.32 KB; e2e `@link-preview|@no-cookies` 45 passed in all five projects. Schema drift and UI safety gates clear.
+- [ ] **12.1-10 Privacy Policy draft, for your review in plan 12.1-16 (D-73):** the page is version 1.0, a draft again (`approved: false`), last updated 2026-11-19. The 12.1-10 SUMMARY lists all 17 changed lines; seven are executor wording with no ruling behind them. Three questions (recommendation first): (1) the map tap's basis "Our basis is your consent: that tap is your choice": keep, name no basis, or say legitimate interest; (2) "Page counts" names no basis: keep, or add a legitimate interest line; (3) staff cookies listed one by one for visitors: keep (as D-72 says), or one sentence.
 
 ### Blockers/Concerns
 

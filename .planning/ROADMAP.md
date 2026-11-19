@@ -1339,7 +1339,7 @@ Plans:
 **Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 5/17 plans executed
+**Plans:** 10/17 plans executed
 
 Plans:
 **Wave 1**
@@ -1352,13 +1352,13 @@ Plans:
 - [x] 12.1-05-PLAN.md: no cookie bar, Cookie Settings or Clear; dev previews and showcase demos removed; e2e fixture plants no cookie; @no-cookies spec (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 12.1-06-PLAN.md: every client consent module and test fixture removed; web gates and public budget pass (wave 3)
-- [ ] 12.1-07-PLAN.md: old consent and visitor id cookies expired when a browser sends them (D-63) (wave 3)
-- [ ] 12.1-08-PLAN.md: Visitor Stats page: one Page views figure, bars-only chart, plain-words copy; speed and device cards and circle-x removed (wave 3)
+- [x] 12.1-06-PLAN.md: every client consent module and test fixture removed; web gates and public budget pass (wave 3)
+- [x] 12.1-07-PLAN.md: old consent and visitor id cookies expired when a browser sends them (D-63) (wave 3)
+- [x] 12.1-08-PLAN.md: Visitor Stats page: one Page views figure, bars-only chart, plain-words copy; speed and device cards and circle-x removed (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 12.1-09-PLAN.md: consent, clear and speed routes answer 404; the Application code only they used is removed (wave 4)
-- [ ] 12.1-10-PLAN.md: Privacy Policy rewritten with cookies and saved settings, DRAFT again at 1.0 (wave 4)
+- [x] 12.1-09-PLAN.md: consent, clear and speed routes answer 404; the Application code only they used is removed (wave 4)
+- [x] 12.1-10-PLAN.md: Privacy Policy rewritten with cookies and saved settings, DRAFT again at 1.0 (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 12.1-11-PLAN.md: page view only adds to the daily count; visit stores, visitor key and Domain helpers removed (wave 5)
