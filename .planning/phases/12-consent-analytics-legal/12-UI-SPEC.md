@@ -6,7 +6,7 @@ reviewed_at: "2026-11-15T21:30:00-06:00"
 shadcn_initialized: false
 preset: none
 created: "2026-11-15T21:07:00-06:00"
-updated: "2026-11-15T21:30:00-06:00"
+updated: "2026-11-19T09:00:00-06:00"
 ---
 
 # Phase 12: UI Design Contract (Consent, Analytics and Legal)
@@ -636,6 +636,35 @@ Applicable state considerations resolved: 46 covered (verification: explicit), 1
 | perf | Public budget | 🧪 backstop | Bundle gate: public initial JS at or under 150 KB gz; ConsentBar, CS1 and CS2 and the speed reader in their own chunks; no admin module in a public chunk (PERF-01). |
 
 ---
+
+## Phase 12.1 amendments (2026-11-18, D-53 to D-78)
+
+Phase 12.1 reuses this file as its design contract (D-78); there is no separate 12.1 UI-SPEC. Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62), so no visitor ever sees the screens listed as removed. The Phase 12 sections above keep their original text as a record. Where they disagree with this section, this section wins. Every item below is a // SPEC-GAP for the UI review (`/gsd-ui-review`).
+
+### Removed
+
+| Screen or part | What went | Ruling |
+|----------------|-----------|--------|
+| CB1 Consent bar | The whole bar, its Accept all, Reject all and Customize buttons and its focus rules. The Contact phone bar always shows on phones (D-30 no longer applies). | D-54, D-59 |
+| CS1 Cookie Settings window | The window and its Visitor stats and Maps boxes. | D-54, D-59 |
+| CS2 Clear your cookies and data | The dialog and its entry points. The Privacy Policy explains how to clear the saved map setting in the browser instead. | D-55, D-59, D-65 |
+| FT "Cookie Settings" button | The button at the end of the footer Legal row, in both footer variants. | D-54, D-59 |
+| M1 consent states | "Map allowed" with the "Cookie Settings" link, the "Always show maps?" button, its status line and the logged "map link" decision. | D-55, D-59, D-65 |
+| L3 Cookie Policy page | The `/cookies` page; it shows the normal "page not found" with no redirect. | D-72 |
+| V1 unique visitors, visits, sources, devices, page speed | The Unique visitors and Visits figures, the Sources, Devices and browsers and Page speed cards, their previews and the `circle-x` icon (D-76). | D-53, D-57, D-76 |
+| V1 13-month note | The cut-date note, the "Not available" markers and the 13-month copy. | D-70 |
+
+### Changed
+
+| Screen | What changed | Ruling |
+|--------|--------------|--------|
+| M1 Map card | One tap on Show Map is saved in this browser (local storage). Later visits load the map by itself, in every browser including those that send GPC. There is no on-page undo; the Privacy Policy says how to clear it. The box wording "The map loads from Google when you tap Show Map." and the plain Directions link stay as they were. | D-65, D-66 |
+| FT Footer legal row | Three links: Privacy Policy, Terms of Use, Accessibility Statement. No button. | D-72 |
+| L2 Privacy Policy | Gains the section on cookies and saved settings (the necessary cookies, the saved map setting, Google's own cookies when the map loads, how to clear them). Version 1.0, DRAFT notice back on until the owner approves it. Other pages that linked to the Cookie Policy link to the Privacy Policy. | D-71, D-72, D-73 |
+| V1 Visitor Stats | One "Page views" figure with the hint "Every page opened on the public website"; the "Most viewed pages" list shows the top 5 with count and share; "Page views over time" chart, per day up to 62 days and per month for longer ranges, bars only, with no Day and Month switch; subline "{dates} · Page views on the public website. Staff signed in to admin aren't counted."; empty state "No page views in these dates" with "Page views show here after people open the website. Try a longer date range."; the date picker reaches back 3 years; CSV export `Date,Page,Page views` (one row per day per page, with the page's plain name). | D-57, D-67 to D-70, D-75 |
+| UI Considerations | Rows for CB1, CS1, CS2, the V1 speed and device parts and the 13-month note no longer apply. The V1 empty row reads "No page views in these dates". | D-54, D-59, D-70 |
+
+The Phase 12.1 copy is all marked // SPEC-GAP in the code. The owner reviews the new Privacy Policy wording at the D-73 checkpoint, which is still open (parked while the owner was away).
 
 ## Registry Safety
 
