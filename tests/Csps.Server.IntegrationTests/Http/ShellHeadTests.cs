@@ -906,7 +906,6 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
     [Theory]
     [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
-    [InlineData("/cookies", "Cookie Policy · CSPS", "Which cookies this site uses, why, and how to change your choice at any time.")]
     [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
     [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
     public async Task ALegalPageSendsItsTitleAndLeadAndIsKeptOutOfSearchResultsWhileDraft(string path, string title, string lead)
@@ -924,7 +923,6 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
     [Theory]
     [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
-    [InlineData("/cookies", "Cookie Policy · CSPS", "Which cookies this site uses, why, and how to change your choice at any time.")]
     [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
     [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
     public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaFollowsItsApprovedFact(string path, string title, string lead)
@@ -949,8 +947,22 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
 
         Meta(await GetBodyAsync(client, "/terms"), "name", "robots").ShouldBeNull();
         Meta(await GetBodyAsync(client, "/privacy"), "name", "robots").ShouldBe("noindex, nofollow");
-        Meta(await GetBodyAsync(client, "/cookies"), "name", "robots").ShouldBe("noindex, nofollow");
         Meta(await GetBodyAsync(client, "/accessibility"), "name", "robots").ShouldBe("noindex, nofollow");
+    }
+
+    [Fact]
+    public async Task TheOldCookiePolicyPathIsNotFound()
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/cookies", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.Location.ShouldBeNull();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldContain("<title>Page Not Found · CSPS</title>", Case.Sensitive);
+        Meta(body, "name", "robots").ShouldBe("noindex, nofollow");
     }
 
     [Theory]

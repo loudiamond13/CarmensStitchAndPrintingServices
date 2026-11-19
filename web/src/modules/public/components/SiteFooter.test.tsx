@@ -122,7 +122,7 @@ describe('SiteFooter, full (PUB-02)', () => {
     answerSite(demoSite);
     const { container } = renderFooter();
 
-    expect(container.querySelectorAll('div[aria-hidden="true"] > span[aria-hidden="true"]')).toHaveLength(4);
+    expect(container.querySelectorAll('div[aria-hidden="true"] > span[aria-hidden="true"]')).toHaveLength(3);
     expect(screen.getByText('Visit')).toBeInTheDocument();
     expect(screen.getByText('Contact')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: '0917 123 4567' })).not.toBeInTheDocument();
@@ -261,7 +261,7 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
   });
 });
 
-const LEGAL_ITEMS = ['Privacy Policy', 'Cookie Policy', 'Terms of Use', 'Accessibility Statement'];
+const LEGAL_ITEMS = ['Privacy Policy', 'Terms of Use', 'Accessibility Statement'];
 
 function drawAt(variant: 'full' | 'base', path = '/') {
   putBootBlock(demoSite);
@@ -277,7 +277,7 @@ function legalNav(): HTMLElement {
 }
 
 describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL-05, UI-SPEC FT)', (variant) => {
-  it('has only the legal links: the four legal pages, in that order, as links to the legal paths, and no button', () => {
+  it('has only the legal links: the three legal pages, in that order, as links to the legal paths, and no button', () => {
     drawAt(variant);
     const items = within(legalNav()).getAllByRole('listitem');
 
@@ -286,13 +286,12 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
       within(legalNav())
         .getAllByRole('link')
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['/privacy', '/cookies', '/terms', '/accessibility']);
+    ).toEqual(['/privacy', '/terms', '/accessibility']);
     expect(within(legalNav()).queryAllByRole('button')).toEqual([]);
   });
 
   it.each([
     ['/privacy', 'Privacy Policy'],
-    ['/cookies', 'Cookie Policy'],
     ['/terms', 'Terms of Use'],
     ['/accessibility', 'Accessibility Statement'],
   ])('marks only the link of %s as the current page', (path, name) => {
@@ -330,7 +329,7 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
         <SiteFooter variant={variant} />
       </MemoryRouter>,
     );
-    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(3);
 
     await waitFor(() => {
       expect(screen.queryByText(/©/)).not.toBeInTheDocument();
@@ -339,7 +338,7 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
   });
 
   it('has no axe violations', async () => {
-    const { container } = drawAt(variant, '/cookies');
+    const { container } = drawAt(variant, '/privacy');
 
     await expectNoAxeViolations(container);
   });

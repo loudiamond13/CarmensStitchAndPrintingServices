@@ -24,7 +24,7 @@ public sealed class PublicRouteTableTests
     public void PagePathsAreInSitemapOrderWithTheLegalPagesLast()
     {
         PublicRouteTable.PagePaths.ShouldBe(
-            ["/", "/products", "/gallery", "/contact", "/privacy", "/cookies", "/terms", "/accessibility"]);
+            ["/", "/products", "/gallery", "/contact", "/privacy", "/terms", "/accessibility"]);
     }
 
     [Theory]
@@ -37,8 +37,6 @@ public sealed class PublicRouteTableTests
     [InlineData("/contact", PublicPage.Contact, "/contact")]
     [InlineData("/privacy", PublicPage.Privacy, "/privacy")]
     [InlineData("/Privacy/", PublicPage.Privacy, "/privacy")]
-    [InlineData("/cookies", PublicPage.Cookies, "/cookies")]
-    [InlineData("/COOKIES/", PublicPage.Cookies, "/cookies")]
     [InlineData("/terms", PublicPage.Terms, "/terms")]
     [InlineData("/Terms", PublicPage.Terms, "/terms")]
     [InlineData("/accessibility", PublicPage.Accessibility, "/accessibility")]
@@ -84,6 +82,8 @@ public sealed class PublicRouteTableTests
     [InlineData("/administrator")]
     [InlineData("/developer")]
     [InlineData("/gallery/1")]
+    [InlineData("/cookies")]
+    [InlineData("/COOKIES/")]
     public void EverythingElseIsNotFound(string path)
     {
         var match = PublicRouteTable.Match(new PathString(path), devRoutesKnown: true);

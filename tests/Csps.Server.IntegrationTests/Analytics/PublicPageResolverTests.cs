@@ -14,7 +14,6 @@ public sealed class PublicPageResolverTests
     [InlineData("/gallery", "gallery")]
     [InlineData("/contact", "contact")]
     [InlineData("/privacy", "privacy")]
-    [InlineData("/cookies", "cookies")]
     [InlineData("/terms", "terms")]
     [InlineData("/accessibility", "accessibility")]
     [InlineData("/Gallery/", "gallery")]
@@ -25,6 +24,7 @@ public sealed class PublicPageResolverTests
 
     [Theory]
     [InlineData("/nope")]
+    [InlineData("/cookies")]
     [InlineData("/gallery/extra")]
     [InlineData("/api/v1/orders")]
     [InlineData("/dev")]

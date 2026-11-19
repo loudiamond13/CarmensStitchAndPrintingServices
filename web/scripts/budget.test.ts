@@ -45,7 +45,6 @@ const PAGE_MODULES = {
   gallery: 'src/modules/public/pages/GalleryPage.tsx',
   contact: 'src/modules/public/pages/ContactPage.tsx',
   privacy: 'src/modules/public/pages/PrivacyPolicyPage.tsx',
-  cookies: 'src/modules/public/pages/CookiePolicyPage.tsx',
   terms: 'src/modules/public/pages/TermsPage.tsx',
   accessibility: 'src/modules/public/pages/AccessibilityPage.tsx',
   notFound: 'src/modules/public/pages/NotFoundPage.tsx',
@@ -56,13 +55,12 @@ const PAGE_NAMES = [
   'gallery',
   'contact',
   'privacy',
-  'cookies',
   'terms',
   'accessibility',
   'notFound',
 ] as const;
 const HOME_PAGE = PAGE_MODULES.home;
-const LEGAL_NAMES = ['privacy', 'cookies', 'terms', 'accessibility'] as const;
+const LEGAL_NAMES = ['privacy', 'terms', 'accessibility'] as const;
 const LOADER_CHUNK = 'assets/legalLoaders-N1.js';
 const LOADER_MODULE = 'src/modules/public/legalLoaders.ts';
 const ADMIN_LAYOUT = 'src/layouts/AdminLayout.tsx';
@@ -229,7 +227,6 @@ describe('BUDGETS (PERF-01)', () => {
       gallery: [PUBLIC_LAYOUT, 'src/lib/url-state/UrlStateLayout.tsx', PAGE_MODULES.gallery],
       contact: [PUBLIC_LAYOUT, PAGE_MODULES.contact],
       privacy: [PUBLIC_LAYOUT, LEGAL_LOADERS, PAGE_MODULES.privacy],
-      cookies: [PUBLIC_LAYOUT, LEGAL_LOADERS, PAGE_MODULES.cookies],
       terms: [PUBLIC_LAYOUT, LEGAL_LOADERS, PAGE_MODULES.terms],
       accessibility: [PUBLIC_LAYOUT, LEGAL_LOADERS, PAGE_MODULES.accessibility],
       notFound: [PUBLIC_LAYOUT, PAGE_MODULES.notFound],
@@ -813,7 +810,6 @@ describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-
       gallery: 120_000,
       contact: 120_000,
       privacy: 120_000,
-      cookies: 120_000,
       terms: 120_000,
       accessibility: 120_000,
       notFound: 120_000,
