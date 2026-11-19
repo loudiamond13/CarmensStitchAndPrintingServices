@@ -2792,9 +2792,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Reads unique visitors, visits and page views for a date range. The server resolves the range in the business zone (Asia/Manila) and
-         *     returns the dates it used. Page views are kept for 3 years; visits and unique visitors for 13 months, so a range that starts earlier
-         *     counts them from the cut date, and a range wholly before it answers them as null.
+         * Reads the total page views, the trend (per day for up to 62 days, else per month) and the 5 most viewed pages for a date range. The
+         *     server resolves the range in the business zone (Asia/Manila) and returns the dates it used. Daily page counts are kept for 3 years.
          */
         get: operations["GetVisitorStats"];
         put?: never;
