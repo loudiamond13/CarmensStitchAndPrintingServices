@@ -230,6 +230,16 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public void TheCeilingDefaultIs600AMinuteInTheAnalyticsCeilingSection()
+    {
+        var rule = AnalyticsCeilingRateLimit.Default();
+
+        (rule.PermitLimit, rule.Window).ShouldBe((600, TimeSpan.FromMinutes(1)));
+        AnalyticsCeilingRateLimit.Validate(rule).ShouldBeEmpty();
+        AnalyticsCeilingRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsCeiling");
+    }
+
+    [Fact]
     public async Task TheSixthClearInAMinuteFromOneAddressGets429WithItsOwnMessageAndAnotherAddressIsUnaffected()
     {
         await database.ResetAsync();
