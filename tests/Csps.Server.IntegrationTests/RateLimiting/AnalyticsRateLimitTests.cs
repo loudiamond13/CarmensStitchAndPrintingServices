@@ -184,6 +184,52 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
+    public async Task TheSiteWideCeilingStopsThePageViewRouteAcrossAddresses()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:AnalyticsCeiling:PermitLimit"] = "3" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        foreach (var address in new[] { "203.0.113.81", "203.0.113.82", "203.0.113.83" })
+        {
+            using var inside = await PostPageViewAsync(client, address);
+            inside.StatusCode.ShouldBe(HttpStatusCode.NoContent, $"a page view from {address} is inside the ceiling");
+        }
+
+        using var rejected = await PostPageViewAsync(client, "203.0.113.84");
+
+        rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("rate-limited");
+        rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
+    }
+
+    [Fact]
+    public async Task TheCeilingLeavesOtherRoutesAlone()
+    {
+        await database.ResetAsync();
+        await using var factory = new RealLimitsFactory(database.ConnectionString, new Dictionary<string, string> { ["RateLimits:AnalyticsCeiling:PermitLimit"] = "3" })
+        {
+            RemoteIpFromHeader = true,
+        };
+        using var client = ConsentEndpointTests.NewClient(factory);
+
+        foreach (var address in new[] { "203.0.113.81", "203.0.113.82", "203.0.113.83", "203.0.113.84" })
+        {
+            using var page = await PostPageViewAsync(client, address);
+        }
+
+        using var read = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/v1/public/site", UriKind.Relative));
+        read.Headers.Add(RemoteIpStartupFilter.HeaderName, "203.0.113.85");
+        using var response = await client.SendAsync(read, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task TheSixthClearInAMinuteFromOneAddressGets429WithItsOwnMessageAndAnotherAddressIsUnaffected()
     {
         await database.ResetAsync();
