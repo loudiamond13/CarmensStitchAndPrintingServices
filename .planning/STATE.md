@@ -6,7 +6,7 @@ status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
 last_activity: 2026-11-18
-last_activity_desc: Phase 12.1 execution started
+last_activity_desc: Phase 12.1 wave 1 merged and gated
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-18 — Phase 12.1 execution started
+Last activity: 2026-11-18: Phase 12.1 wave 1 (12.1-01 to 12.1-04) merged and gated
 
 Progress: [█████░░░░░] 47%
 
@@ -1073,6 +1073,13 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-30 choices (your review; recommendation first):** (1) the plan wants Back and Forward to restore the previous range, but the UI spec says a range change replaces the history entry, so the test checks Back and Forward across a trip to the Dashboard: keep replace; (2) Firefox logs a console line when a visitor leaves a page while a font is still downloading: no app change (the tests wait for fonts); (3) the "today" range is still open; today's figures are checked inside the default Last 30 days. Also: `dotnet build Csps.slnx -c Release` fails with 27 errors in two test projects that use Testing-only image types (not caused by 12-30; logged in `deferred-items.md`). Recommended: exclude those tests from Release builds in a small follow-up.
 - [x] **12-22 wording answered (owner, 2026-11-18; D-44 to D-48 in 12-CONTEXT.md):** Clear says it removes the optional cookies and the needed ones stay (B); "Admin settings" stays under Necessary; Privacy retention lines follow D-36 (about 6 months, about 8 months, and about 3 years for daily totals, each "removed at the next monthly cleanup"); Terms and Accessibility kept as drafted. Applied in c62467f9 (tests) and the following feat commit; web `verify` 11511 passed, branches 90.32%; `build:budget` Privacy 149.59 KB, Cookies 149.50 KB. `@consent` Chromium and WebKit 29 of 30: the WebKit 320px Clear dialog focus test failed once (the 12-24 animation timing) and passed alone 3 of 3.
 - [x] **12-22 page approvals (owner, 2026-11-18: "Approved all"):** all four legal pages are approved at version 1.0, dated 2026-11-18, with no DRAFT notice, indexable and in the sitemap; the consent version is 1.0, so every visitor is asked once more (D-22). Commits 6503dc1e and 64089c1f (merge 8e767e0e). Summary in 12-22-SUMMARY.md. Flakes recorded there.
+
+Phase 12.1 execution backlog (2026-11-18):
+
+- [x] **12.1 wave 1 post-merge gate (2026-11-18; plans 12.1-01 to 12.1-04, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3298, Infrastructure 1317 of 1318 (1 skipped), Server 3097 passed; web `verify` 11510 of 11510 (430 files, branches 90.33%); `build:budget` exit 0: Privacy 149.23 KB is the tightest public row, admin 223.23 KB, CSS 20.50 KB. Schema drift and UI safety gates clear. 12.1-01's three deleted speed files were listed as modified, not deleted, in the plan, so the merge guard stopped it once; merged after recording them as declared deletions. `web-vitals` 6.2.3 is uninstalled (D-59); run `npm ci` in `web/` after pulling.
+- [ ] **12.1-03 unused cursor row (your call, low priority):** the `analytics-retention` row in the maintenance cursors table is no longer read. Recommended: leave it; removing it is a data change.
+- [ ] **12.1 wave 1 load flakes (recorded; each passed alone):** `GalleryPage` focus tests (5, under parallel worktree load) and a first-run set of 4 in PublicLayout, no-consent and no-long-dash after the uninstall; none failed in the gate.
+- [ ] **Owed to later 12.1 plans:** `web/e2e/consent.spec.ts` still clicks the removed "Always show maps?" button (12.1-05/06 delete or rewrite it); `web/e2e/gpc.spec.ts` keeps a `SPEED_READER` pattern and `docs/web/budgets.md` and `docs/web/e2e.md` still describe the speed reader (not in any plan's file list yet: check at phase end).
 
 ### Blockers/Concerns
 
