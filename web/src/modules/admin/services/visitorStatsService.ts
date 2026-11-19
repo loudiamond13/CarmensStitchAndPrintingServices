@@ -21,28 +21,6 @@ export interface RankedItem {
   share: number;
 }
 
-/** Google's rating of a speed figure (D-26), worked out on the server. */
-export type VitalRatingName = 'good' | 'needs-work' | 'poor';
-
-/** One Core Web Vital: the server's nearest-rank 75th percentile, its rating and the samples behind it. */
-export interface Vital {
-  /** Milliseconds for loading speed and tap response; a score for layout shifting. */
-  p75: number;
-  rating: VitalRatingName;
-  samples: number;
-}
-
-/** Page speed of the range; a measure with no sample is null. */
-export interface PageSpeed {
-  lcp: Vital | null;
-  cls: Vital | null;
-  inp: Vital | null;
-  /** The page views the figures come from. */
-  pageViews: number;
-  /** False when the whole range is older than 13 months, so no sample can exist (D-27). */
-  available: boolean;
-}
-
 /** The answer once the browser has checked it: the range the server read, its page view total, the trend and the top pages. */
 export interface VisitorStats {
   range: string;
