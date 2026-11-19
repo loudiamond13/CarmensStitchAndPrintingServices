@@ -84,6 +84,43 @@ test.describe('a plain browser', () => {
   });
 });
 
+const ORIGIN = 'https://localhost:5199';
+const OLD_CONSENT_COOKIE = '__Host-csps_consent';
+const OLD_VISITOR_COOKIE = '__Secure-csps_vid';
+
+/** The cookie of that name in the context's jar, whatever its path, or undefined. */
+async function cookieNamed(context: BrowserContext, name: string) {
+  return (await context.cookies()).find((cookie) => cookie.name === name);
+}
+
+// D-63: the server expires the two retired cookies when a browser still sends them. WebKit does not report SameSite on
+// read, so the case asserts names only, as @auth-cookies does for the parts it cannot read.
+test('@no-cookies a browser holding the old consent and visitor id cookies loses both', async ({ page, context }) => {
+  await context.addCookies([
+    { name: OLD_CONSENT_COOKIE, value: 'x', url: ORIGIN, secure: true, sameSite: 'Lax' },
+    {
+      name: OLD_VISITOR_COOKIE,
+      value: 'x',
+      domain: 'localhost',
+      path: '/api/v1/analytics',
+      secure: true,
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ]);
+  expect(await cookieNamed(context, OLD_CONSENT_COOKIE), 'the old consent cookie starts in the jar').toBeDefined();
+  expect(await cookieNamed(context, OLD_VISITOR_COOKIE), 'the old visitor id starts in the jar').toBeDefined();
+
+  const counted = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/v1/analytics/page-views',
+  );
+  await page.goto('/');
+  await counted;
+
+  await expect.poll(() => cookieNamed(context, OLD_CONSENT_COOKIE)).toBeUndefined();
+  await expect.poll(() => cookieNamed(context, OLD_VISITOR_COOKIE)).toBeUndefined();
+});
+
 test('@no-cookies the site still states that it honors GPC', async ({ request }) => {
   const response = await request.get('/.well-known/gpc.json');
   expect(response.status()).toBe(200);
