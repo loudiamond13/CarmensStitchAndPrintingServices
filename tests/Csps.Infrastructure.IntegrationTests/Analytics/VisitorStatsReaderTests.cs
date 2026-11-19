@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Csps.Infrastructure.IntegrationTests.Analytics;
 
 /// <summary>
-/// ANL-08, D-27, D-33, RESEARCH A4: the totals are exact on SQL Server. Page views are summed from the daily counts for every page, visits
-/// are counted rows, unique visitors are a distinct count of the visitor hash, and visits are read only from the cut day on.
+/// ANL-08, D-57, D-68, RESEARCH A4: the page views, the trend and the page list are exact on SQL Server and come from the daily page counts
+/// only. The daily read behind the CSV export keeps its visit figures until plan 12.1-15.
 /// </summary>
 public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -25,26 +25,9 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         await SeedViewsAsync(Day.AddDays(1), PageKeys.Contact, 4);
         await SeedViewsAsync(Day.AddDays(2), PageKeys.Home, 100);
 
-        var totals = await ReadAsync(Day, Day.AddDays(1));
+        var pageViews = await ReadPageViewsAsync(Day, Day.AddDays(1));
 
-        totals.PageViews.ShouldBe(12);
-    }
-
-    [Fact]
-    public async Task VisitsAreCountedAsRowsAndUniqueVisitorsAsDistinctHashes()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(1, Day.AddDays(1));
-        await SeedVisitAsync(1, Day.AddDays(1));
-        await SeedVisitAsync(2, Day);
-        await SeedVisitAsync(3, Day.AddDays(-1));
-        await SeedVisitAsync(4, Day.AddDays(2));
-
-        var totals = await ReadAsync(Day, Day.AddDays(1));
-
-        totals.Visits.ShouldBe(4);
-        totals.UniqueVisitors.ShouldBe(2);
+        pageViews.ShouldBe(12);
     }
 
     [Fact]
@@ -52,95 +35,53 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
     {
         await database.ResetAsync();
 
-        var totals = await ReadAsync(Day, Day.AddDays(5));
-
-        totals.ShouldBe(new VisitorTotals(0, 0, 0));
+        (await ReadPageViewsAsync(Day, Day.AddDays(5))).ShouldBe(0);
+        (await ReadPagesAsync(Day, Day.AddDays(5))).ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task ADayWithVisitsButNoDailyRowsStillCountsVisitsAndAddsNoPageViews()
+    public async Task ADayWithVisitsButNoDailyRowsAddsNoPageViews()
     {
         await database.ResetAsync();
         await SeedVisitAsync(1, Day);
 
-        var totals = await ReadAsync(Day, Day);
-
-        totals.ShouldBe(new VisitorTotals(1, 1, 0));
+        (await ReadPageViewsAsync(Day, Day)).ShouldBe(0);
     }
 
     [Fact]
     public async Task AOneDayRangeIsThatDayOnly()
     {
         await database.ResetAsync();
-        await SeedVisitAsync(1, Day.AddDays(-1));
-        await SeedVisitAsync(2, Day);
-        await SeedVisitAsync(3, Day.AddDays(1));
+        await SeedViewsAsync(Day.AddDays(-1), PageKeys.Home, 5);
         await SeedViewsAsync(Day, PageKeys.Home, 7);
+        await SeedViewsAsync(Day.AddDays(1), PageKeys.Home, 9);
 
-        var totals = await ReadAsync(Day, Day);
-
-        totals.ShouldBe(new VisitorTotals(1, 1, 7));
+        (await ReadPageViewsAsync(Day, Day)).ShouldBe(7);
     }
 
     [Fact]
-    public async Task VisitsAreReadFromTheCutDayOnAndTheCutDayItselfCounts()
+    public async Task PageViewsFromThreeYearsBackAreReadLikeAnyOther()
     {
         await database.ResetAsync();
-        await SeedVisitAsync(1, Cut.AddDays(-1));
-        await SeedVisitAsync(2, Cut);
-        await SeedVisitAsync(3, Cut.AddDays(1));
-        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Home, 10);
-        await SeedViewsAsync(Cut, PageKeys.Home, 20);
+        var old = new DateOnly(2023, 11, 20);
+        await SeedViewsAsync(old, PageKeys.Gallery, 9);
 
-        var totals = await ReadAsync(Cut.AddDays(-5), Cut.AddDays(1));
-
-        totals.Visits.ShouldBe(2);
-        totals.UniqueVisitors.ShouldBe(2);
-        totals.PageViews.ShouldBe(30);
+        (await ReadPageViewsAsync(new DateOnly(2023, 11, 15), new DateOnly(2023, 11, 30))).ShouldBe(9);
     }
 
     [Fact]
-    public async Task ARangeEndingTheDayBeforeTheCutCountsPageViewsAndNoVisits()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Cut.AddDays(-1));
-        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Gallery, 9);
-
-        var totals = await ReadAsync(Cut.AddDays(-30), Cut.AddDays(-1));
-
-        totals.ShouldBe(new VisitorTotals(0, 0, 9));
-    }
-
-    [Fact]
-    public async Task ADayTrendHasEachDaysPageViewsAndDistinctVisitorsAndOnlyDaysWithData()
+    public async Task ADayTrendHasEachDaysPageViewsAndOnlyDaysWithData()
     {
         await database.ResetAsync();
         await SeedViewsAsync(Day.AddDays(-1), PageKeys.Home, 100);
         await SeedViewsAsync(Day, PageKeys.Home, 3);
         await SeedViewsAsync(Day, PageKeys.Gallery, 5);
         await SeedViewsAsync(Day.AddDays(2), PageKeys.Home, 4);
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(2, Day);
-        await SeedVisitAsync(1, Day.AddDays(1));
-        await SeedVisitAsync(4, Day.AddDays(3));
+        await SeedViewsAsync(Day.AddDays(3), PageKeys.Home, 100);
 
         var trend = await ReadTrendAsync(Day, Day.AddDays(2), StatsBucketKind.Day);
 
-        trend.ShouldBe([new TrendCount(Day, 8, 2), new TrendCount(Day.AddDays(1), 0, 1), new TrendCount(Day.AddDays(2), 4, 0)]);
-    }
-
-    [Fact]
-    public async Task ADayTrendCountsVisitorsOnlyFromTheCutDayOnAndKeepsOlderPageViews()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Cut.AddDays(-1));
-        await SeedViewsAsync(Cut.AddDays(-1), PageKeys.Home, 10);
-        await SeedVisitAsync(2, Cut);
-
-        var trend = await ReadTrendAsync(Cut.AddDays(-1), Cut, StatsBucketKind.Day);
-
-        trend.ShouldBe([new TrendCount(Cut.AddDays(-1), 10, 0), new TrendCount(Cut, 0, 1)]);
+        trend.ShouldBe([new TrendCount(Day, 8), new TrendCount(Day.AddDays(2), 4)]);
     }
 
     [Fact]
@@ -154,36 +95,16 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
     }
 
     [Fact]
-    public async Task AMonthTrendSumsPageViewsPerMonthAndCountsAVisitorOnTwoDaysOfAMonthOnce()
+    public async Task AMonthTrendSumsPageViewsPerMonth()
     {
         await database.ResetAsync();
         await SeedViewsAsync(new DateOnly(2026, 10, 20), PageKeys.Home, 5);
         await SeedViewsAsync(Day, PageKeys.Home, 3);
         await SeedViewsAsync(Day.AddDays(5), PageKeys.Gallery, 4);
-        await SeedVisitAsync(1, new DateOnly(2026, 10, 20));
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(1, Day.AddDays(5));
-        await SeedVisitAsync(2, Day);
 
         var trend = await ReadTrendAsync(new DateOnly(2026, 10, 1), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
 
-        trend.ShouldBe([new TrendCount(new DateOnly(2026, 10, 1), 5, 1), new TrendCount(new DateOnly(2026, 11, 1), 7, 2)]);
-    }
-
-    [Fact]
-    public async Task AMonthTrendCountsVisitorsFromTheCutOnlyAndKeepsOlderPageViews()
-    {
-        await database.ResetAsync();
-        await SeedViewsAsync(new DateOnly(2025, 9, 20), PageKeys.Home, 8);
-        await SeedViewsAsync(new DateOnly(2025, 10, 10), PageKeys.Home, 6);
-        await SeedVisitAsync(3, new DateOnly(2025, 9, 20));
-        await SeedVisitAsync(1, Cut.AddDays(-1));
-        await SeedVisitAsync(2, Cut);
-        await SeedVisitAsync(1, Cut.AddDays(5));
-
-        var trend = await ReadTrendAsync(new DateOnly(2025, 9, 1), new DateOnly(2025, 10, 31), StatsBucketKind.Month);
-
-        trend.ShouldBe([new TrendCount(new DateOnly(2025, 9, 1), 8, 0), new TrendCount(new DateOnly(2025, 10, 1), 6, 2)]);
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 10, 1), 5), new TrendCount(new DateOnly(2026, 11, 1), 7)]);
     }
 
     [Fact]
@@ -192,12 +113,10 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         await database.ResetAsync();
         await SeedViewsAsync(Day, PageKeys.Home, 100);
         await SeedViewsAsync(Day.AddDays(5), PageKeys.Home, 4);
-        await SeedVisitAsync(1, Day);
-        await SeedVisitAsync(2, Day.AddDays(5));
 
         var trend = await ReadTrendAsync(Day.AddDays(2), new DateOnly(2026, 11, 30), StatsBucketKind.Month);
 
-        trend.ShouldBe([new TrendCount(new DateOnly(2026, 11, 1), 4, 1)]);
+        trend.ShouldBe([new TrendCount(new DateOnly(2026, 11, 1), 4)]);
     }
 
     [Fact]
@@ -210,149 +129,22 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         await SeedViewsAsync(Day, PageKeys.Gallery, 5);
         await SeedViewsAsync(Day.AddDays(2), PageKeys.Contact, 9);
 
-        var lists = await ReadListsAsync(Day, Day.AddDays(1));
+        var pages = await ReadPagesAsync(Day, Day.AddDays(1));
 
-        lists.Pages.OrderBy(static row => row.Name, StringComparer.Ordinal)
+        pages.OrderBy(static row => row.Name, StringComparer.Ordinal)
             .ShouldBe([new NamedCount(PageKeys.Gallery, 5), new NamedCount(PageKeys.Home, 7)]);
     }
 
     [Fact]
-    public async Task TopPagesKeepPageViewsFromBeforeTheCut()
+    public async Task TopPagesKeepPageViewsFromBeforeTheOldVisitCut()
     {
         await database.ResetAsync();
         await SeedViewsAsync(Cut.AddDays(-10), PageKeys.NotFound, 6);
         await SeedViewsAsync(Cut, PageKeys.NotFound, 1);
 
-        var lists = await ReadListsAsync(Cut.AddDays(-30), Cut);
+        var pages = await ReadPagesAsync(Cut.AddDays(-30), Cut);
 
-        lists.Pages.ShouldBe([new NamedCount(PageKeys.NotFound, 7)]);
-    }
-
-    [Fact]
-    public async Task ReferrersAddRawVisitsFromTheCutOnToTheDailyRowsBeforeIt()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Cut, "Facebook", DeviceKind.Phone, "Chrome");
-        await SeedVisitAsync(2, Cut.AddDays(1), "Facebook", DeviceKind.Phone, "Chrome");
-        await SeedVisitAsync(3, Cut.AddDays(1), "basketball-league.ph", DeviceKind.Phone, "Chrome");
-        await SeedVisitAsync(4, Cut.AddDays(-1), "Facebook", DeviceKind.Phone, "Chrome");
-        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-1), "Facebook", 4));
-        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-3), ReferrerName.Direct, 2));
-        await SeedDailyAsync(DailyReferrerCount.Of(Cut, "Facebook", 50));
-        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-30), "Google", 70));
-
-        var lists = await ReadListsAsync(Cut.AddDays(-5), Cut.AddDays(1));
-
-        lists.Referrers.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([
-            new NamedCount("Direct", 2),
-            new NamedCount("Facebook", 6),
-            new NamedCount("basketball-league.ph", 1),
-        ]);
-    }
-
-    [Fact]
-    public async Task DevicesAndBrowsersAddRawVisitsFromTheCutOnToTheDailyRowsBeforeIt()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Cut, ReferrerName.Direct, DeviceKind.Phone, "Chrome");
-        await SeedVisitAsync(2, Cut, ReferrerName.Direct, DeviceKind.Computer, "Safari");
-        await SeedVisitAsync(3, Cut.AddDays(-1), ReferrerName.Direct, DeviceKind.Tablet, "Firefox");
-        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-1), DeviceDimension.Device, "Phone", 3));
-        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-1), DeviceDimension.Browser, "Safari", 2));
-        await SeedDailyAsync(DailyDeviceCount.Of(Cut, DeviceDimension.Device, "Tablet", 40));
-        await SeedDailyAsync(DailyDeviceCount.Of(Cut, DeviceDimension.Browser, "Opera", 40));
-
-        var lists = await ReadListsAsync(Cut.AddDays(-2), Cut);
-
-        lists.Devices.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([new NamedCount("Computer", 1), new NamedCount("Phone", 4)]);
-        lists.Browsers.OrderBy(static row => row.Name, StringComparer.Ordinal).ShouldBe([new NamedCount("Chrome", 1), new NamedCount("Safari", 3)]);
-    }
-
-    [Fact]
-    public async Task ARangeWhollyBeforeTheCutReadsOnlyTheDailyRows()
-    {
-        await database.ResetAsync();
-        await SeedVisitAsync(1, Cut.AddDays(-2), "Instagram", DeviceKind.Phone, "Chrome");
-        await SeedDailyAsync(DailyReferrerCount.Of(Cut.AddDays(-2), "Messenger", 5));
-        await SeedDailyAsync(DailyDeviceCount.Of(Cut.AddDays(-2), DeviceDimension.Device, "Other", 5));
-
-        var lists = await ReadListsAsync(Cut.AddDays(-10), Cut.AddDays(-1));
-
-        lists.Referrers.ShouldBe([new NamedCount("Messenger", 5)]);
-        lists.Devices.ShouldBe([new NamedCount("Other", 5)]);
-        lists.Browsers.ShouldBeEmpty();
-    }
-
-    [Fact]
-    public async Task ARangeWithNoVisitsHasEmptyLists()
-    {
-        await database.ResetAsync();
-
-        var lists = await ReadListsAsync(Day, Day.AddDays(5));
-
-        lists.ShouldSatisfyAllConditions(
-            () => lists.Pages.ShouldBeEmpty(),
-            () => lists.Referrers.ShouldBeEmpty(),
-            () => lists.Devices.ShouldBeEmpty(),
-            () => lists.Browsers.ShouldBeEmpty());
-    }
-
-    [Fact]
-    public async Task TheSeventyFifthPercentileIsTheNearestRankSampleInAscendingOrder()
-    {
-        await database.ResetAsync();
-        await SeedSamplesAsync(Day, VitalMetric.Lcp, 3000m, 1800m, 2400m, 2100m);
-
-        var speed = await ReadSpeedAsync(Day, Day);
-
-        speed.Lcp.ShouldBe(new VitalPercentile(2400m, 4));
-    }
-
-    [Fact]
-    public async Task EachMetricHasItsOwnPercentileAndAMetricWithNoSampleIsNull()
-    {
-        await database.ResetAsync();
-        await SeedSamplesAsync(Day, VitalMetric.Lcp, 2000m);
-        await SeedSamplesAsync(Day.AddDays(1), VitalMetric.Inp, 80m, 120m, 500m);
-
-        var speed = await ReadSpeedAsync(Day, Day.AddDays(1));
-
-        speed.ShouldBe(new VisitorSpeed(new VitalPercentile(2000m, 1), null, new VitalPercentile(500m, 3)));
-    }
-
-    [Fact]
-    public async Task ALayoutShiftScoreKeepsItsDecimals()
-    {
-        await database.ResetAsync();
-        await SeedSamplesAsync(Day, VitalMetric.Cls, 0.012m, 0.3m, 0.045m, 0.25m, 0.1m);
-
-        var speed = await ReadSpeedAsync(Day, Day);
-
-        speed.Cls.ShouldBe(new VitalPercentile(0.25m, 5));
-    }
-
-    [Fact]
-    public async Task SamplesAreReadOnlyForDaysInsideTheRangeAndFromTheCutDayOn()
-    {
-        await database.ResetAsync();
-        await SeedSamplesAsync(Cut.AddDays(-1), VitalMetric.Lcp, 9000m);
-        await SeedSamplesAsync(Cut, VitalMetric.Lcp, 1000m);
-        await SeedSamplesAsync(Cut.AddDays(1), VitalMetric.Lcp, 1500m);
-        await SeedSamplesAsync(Cut.AddDays(2), VitalMetric.Lcp, 9000m);
-
-        var speed = await ReadSpeedAsync(Cut.AddDays(-5), Cut.AddDays(1));
-
-        speed.Lcp.ShouldBe(new VitalPercentile(1500m, 2));
-    }
-
-    [Fact]
-    public async Task ARangeWhollyBeforeTheCutOrWithNoSamplesHasNoSpeed()
-    {
-        await database.ResetAsync();
-        await SeedSamplesAsync(Cut.AddDays(-1), VitalMetric.Lcp, 2000m);
-
-        (await ReadSpeedAsync(Cut.AddDays(-30), Cut.AddDays(-1))).ShouldBe(new VisitorSpeed(null, null, null));
-        (await ReadSpeedAsync(Day, Day.AddDays(5))).ShouldBe(new VisitorSpeed(null, null, null));
+        pages.ShouldBe([new NamedCount(PageKeys.NotFound, 7)]);
     }
 
     [Fact]
@@ -409,55 +201,22 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         return await new VisitorStatsReader(context).ReadDailyAsync(from, to, Cut, TestContext.Current.CancellationToken);
     }
 
-    private async Task SeedDailyAsync<T>(T row)
-        where T : class
+    private async Task<IReadOnlyList<NamedCount>> ReadPagesAsync(DateOnly from, DateOnly to)
     {
         await using var context = database.CreateContext();
-        context.Add(row);
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
-
-    private async Task SeedVisitAsync(byte visitor, DateOnly day, string referrer, DeviceKind device, string browser)
-    {
-        await using var context = database.CreateContext();
-        var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
-        context.AnalyticsVisits.Add(AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, referrer, device, browser, "Android", null));
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
-
-    private async Task<VisitorSpeed> ReadSpeedAsync(DateOnly from, DateOnly to)
-    {
-        await using var context = database.CreateContext();
-        return await new VisitorStatsReader(context).ReadSpeedAsync(from, to, Cut, TestContext.Current.CancellationToken);
-    }
-
-    /// <summary>One visit on the day, with one sample of the metric per value.</summary>
-    private async Task SeedSamplesAsync(DateOnly day, VitalMetric metric, params decimal[] values)
-    {
-        await using var context = database.CreateContext();
-        var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
-        var visit = AnalyticsVisit.Start(Enumerable.Repeat((byte)7, 32).ToArray(), day, startedAt, ReferrerName.Direct, DeviceKind.Phone, "Chrome", "Android", null);
-        context.AnalyticsVisits.Add(visit);
-        context.AnalyticsVitalSamples.AddRange(values.Select(value => AnalyticsVitalSample.Of(visit.Id, day, metric, value, PageKeys.Home)));
-        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
-    }
-
-    private async Task<VisitorLists> ReadListsAsync(DateOnly from, DateOnly to)
-    {
-        await using var context = database.CreateContext();
-        return await new VisitorStatsReader(context).ReadListsAsync(from, to, Cut, TestContext.Current.CancellationToken);
+        return await new VisitorStatsReader(context).ReadPagesAsync(from, to, TestContext.Current.CancellationToken);
     }
 
     private async Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly from, DateOnly to, StatsBucketKind bucket)
     {
         await using var context = database.CreateContext();
-        return await new VisitorStatsReader(context).ReadTrendAsync(from, to, Cut, bucket, TestContext.Current.CancellationToken);
+        return await new VisitorStatsReader(context).ReadTrendAsync(from, to, bucket, TestContext.Current.CancellationToken);
     }
 
-    private async Task<VisitorTotals> ReadAsync(DateOnly from, DateOnly to)
+    private async Task<int> ReadPageViewsAsync(DateOnly from, DateOnly to)
     {
         await using var context = database.CreateContext();
-        return await new VisitorStatsReader(context).ReadTotalsAsync(from, to, Cut, TestContext.Current.CancellationToken);
+        return await new VisitorStatsReader(context).ReadPageViewsAsync(from, to, TestContext.Current.CancellationToken);
     }
 
     private async Task SeedViewsAsync(DateOnly day, string pageKey, int views)

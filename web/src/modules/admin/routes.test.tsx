@@ -719,15 +719,10 @@ function visitorStatsBackend(): URL[] {
         range: 'last-30-days',
         from: '2026-10-17',
         to: '2026-11-15',
-        cutDate: '2025-10-15',
-        totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null },
+        pageViews: 4567,
         bucket: 'day',
-        trend: [{ start: '2026-11-15', pageViews: 12, uniqueVisitors: 4 }],
+        trend: [{ start: '2026-11-15', pageViews: 12 }],
         topPages: [{ name: 'home', count: 12, share: 100 }],
-        referrers: [],
-        devices: [],
-        browsers: [],
-        speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
       });
     }),
   );
@@ -735,7 +730,7 @@ function visitorStatsBackend(): URL[] {
 }
 
 describe('Visitor Stats for Managers (ANL-08, D-23; plan 12-23)', () => {
-  it('a Manager who opens /admin/visitor-stats stays and sees the three totals', async () => {
+  it('a Manager who opens /admin/visitor-stats stays and sees the page views total', async () => {
     answerRefresh(sessionResponse());
     const calls = visitorStatsBackend();
     const router = createMemoryRouter(routes, { initialEntries: ['/admin/visitor-stats'] });

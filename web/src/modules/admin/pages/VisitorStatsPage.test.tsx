@@ -18,7 +18,6 @@ import { sessionResponse } from '@/test/sessionFixtures';
 // V1 Visitor Stats, /admin/visitor-stats (ANL-08, D-23, D-24, D-27, D-33; plan 12-23): the Manager-only page head, KPI row and
 // date range toolbar. Every count is the server's; the page only formats.
 
-type Totals = VisitorStatsResponse['totals'];
 type Trend = VisitorStatsResponse['trend'];
 
 /** `count` day buckets from `start`, the figures growing with the day. */
@@ -27,17 +26,16 @@ function dayTrend(start: string, count: number): Trend {
   return Array.from({ length: count }, (_, i) => ({
     start: new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + i)).toISOString().slice(0, 10),
     pageViews: i * 3,
-    uniqueVisitors: i,
   }));
 }
 
-function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsResponse> = {}): VisitorStatsResponse {
+function statsAnswer(totals: { pageViews?: number } = {}, rest: Partial<VisitorStatsResponse> = {}): VisitorStatsResponse {
   return {
     range: 'last-30-days',
     from: '2026-10-17',
     to: '2026-11-15',
-    cutDate: '2025-10-15',
-    totals: { uniqueVisitors: 1234, visits: 980, pageViews: 4567, countedFrom: null, ...totals },
+    pageViews: 4567,
+    ...totals,
     bucket: 'day',
     trend: dayTrend('2026-10-17', 30),
     topPages: [
@@ -46,29 +44,6 @@ function statsAnswer(totals: Partial<Totals> = {}, rest: Partial<VisitorStatsRes
       { name: 'contact', count: 200, share: 18 },
       { name: 'not-found', count: 172, share: 16 },
     ],
-    referrers: [
-      { name: 'Facebook', count: 300, share: 62 },
-      { name: 'Direct', count: 120, share: 25 },
-      { name: 'basketball-league.ph', count: 64, share: 13 },
-    ],
-    devices: [
-      { name: 'Phone', count: 400, share: 82 },
-      { name: 'Computer', count: 70, share: 14 },
-      { name: 'Tablet', count: 20, share: 4 },
-    ],
-    browsers: [
-      { name: 'Chrome', count: 200, share: 41 },
-      { name: 'Facebook in-app', count: 150, share: 31 },
-      { name: 'Safari', count: 90, share: 18 },
-      { name: 'Other', count: 50, share: 10 },
-    ],
-    speed: {
-      lcp: { p75: 2100, rating: 'good', samples: 412 },
-      cls: { p75: 0.04, rating: 'good', samples: 380 },
-      inp: { p75: 180, rating: 'good', samples: 200 },
-      pageViews: 412,
-      available: true,
-    },
     ...rest,
   };
 }
@@ -232,7 +207,7 @@ describe('V1 the KPI row', () => {
   });
 
   it('shows no 13-month note and no counted-from hint when the range starts before the old cut date', async () => {
-    backend(statsAnswer({ countedFrom: '2025-10-15' }, { from: '2025-09-01' }));
+    backend(statsAnswer({}, { from: '2025-09-01' }));
     await openPage();
 
     expect(screen.queryAllByText(/13 months/).length).toBe(0);
@@ -309,7 +284,6 @@ describe('V1 the Trend card', () => {
     const months = Array.from({ length: 11 }, (_, i) => ({
       start: `2026-${String(i + 1).padStart(2, '0')}-01`,
       pageViews: 100 + i,
-      uniqueVisitors: 10 + i,
     }));
     backend(statsAnswer({}, { range: 'this-year', from: '2026-01-01', bucket: 'month', trend: months }));
     await openPage('?range=this-year');
@@ -345,12 +319,34 @@ describe('V1 the Most viewed pages card', () => {
 
     expect(screen.queryByRole('heading', { level: 2, name: 'Most viewed pages' })).not.toBeNull();
     const card = listCard('Most viewed pages');
-    expect(within(card).getByText('Every page opened')).toBeInTheDocument();
+    expect(within(card).getByText('The top 5. Export CSV for every page.')).toBeInTheDocument();
     const rows = within(within(card).getByRole('list')).getAllByRole('listitem');
     expect(rows).toHaveLength(4);
     expect(within(rows[0] ?? card).getByText('Gallery')).toBeInTheDocument();
     expect(within(rows[0] ?? card).getByText('412 · 38%')).toBeInTheDocument();
     expect(within(rows[3] ?? card).getByText('Page not found')).toBeInTheDocument();
+  });
+
+  it('shows the five rows the server sends, with the top 5 sub line', async () => {
+    backend(
+      statsAnswer(
+        {},
+        {
+          topPages: [
+            { name: 'gallery', count: 41, share: 39 },
+            { name: 'home', count: 26, share: 25 },
+            { name: 'contact', count: 16, share: 15 },
+            { name: 'products', count: 11, share: 11 },
+            { name: 'privacy', count: 5, share: 5 },
+          ],
+        },
+      ),
+    );
+    await openPage();
+
+    const card = listCard('Most viewed pages');
+    expect(within(card).getByText('The top 5. Export CSV for every page.')).toBeInTheDocument();
+    expect(within(within(card).getByRole('list')).getAllByRole('listitem')).toHaveLength(5);
   });
 
   it('fills each bar to the share the server sent', async () => {
@@ -397,14 +393,10 @@ function rangeSelect(): HTMLElement {
 /** A range with no page views: a real zero total, no top pages and a flat trend. */
 function noVisitsAnswer(): VisitorStatsResponse {
   return statsAnswer(
-    { uniqueVisitors: 0, visits: 0, pageViews: 0 },
+    { pageViews: 0 },
     {
-      trend: dayTrend('2026-10-17', 30).map((bucket) => ({ ...bucket, pageViews: 0, uniqueVisitors: 0 })),
+      trend: dayTrend('2026-10-17', 30).map((bucket) => ({ ...bucket, pageViews: 0 })),
       topPages: [],
-      referrers: [],
-      devices: [],
-      browsers: [],
-      speed: { lcp: null, cls: null, inp: null, pageViews: 0, available: true },
     },
   );
 }
