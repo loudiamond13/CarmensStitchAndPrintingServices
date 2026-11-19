@@ -2,55 +2,30 @@ using Csps.Domain.Analytics;
 
 namespace Csps.Application.Ports;
 
-/// <summary>Read-only visitor figures for the Manager stats page (ANL-08). Totals only: no per-visitor or per-visit value leaves the store.</summary>
+/// <summary>Read-only figures for the Manager stats page (ANL-08). Totals only: no per-visitor or per-visit value leaves the store.</summary>
 public interface IVisitorStatsReader
 {
-    /// <summary>
-    /// Reads the totals for the business days <paramref name="first"/> to <paramref name="last"/>, both included. Page views are summed from the
-    /// daily counts for the whole range. Visits and unique visitors are counted from the raw visits on the days from the later of
-    /// <paramref name="first"/> and <paramref name="cut"/> to <paramref name="last"/>; they are zero when that span is empty.
-    /// </summary>
+    /// <summary>Reads every page view of the business days <paramref name="first"/> to <paramref name="last"/>, both included, from the daily page counts.</summary>
     /// <param name="first">The first business day.</param>
     /// <param name="last">The last business day.</param>
-    /// <param name="cut">The first business day raw visits are still kept for.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>The three totals; a day with no rows counts as zero.</returns>
-    Task<VisitorTotals> ReadTotalsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
+    /// <returns>The page views, capped at <see cref="int.MaxValue"/>; a day with no rows counts as zero.</returns>
+    Task<int> ReadPageViewsAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Reads page views and unique visitors per day or per month for the business days <paramref name="first"/> to <paramref name="last"/>.
-    /// Page views come from the daily counts. Unique visitors are a distinct count over each bucket's raw visits from <paramref name="cut"/> on.
-    /// </summary>
+    /// <summary>Reads page views per day or per month for the business days <paramref name="first"/> to <paramref name="last"/> from the daily page counts.</summary>
     /// <param name="first">The first business day.</param>
     /// <param name="last">The last business day.</param>
-    /// <param name="cut">The first business day raw visits are still kept for.</param>
     /// <param name="bucket">Per day or per month.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>Only the buckets that have data, oldest first; the caller fills the rest with zeros.</returns>
-    Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, DateOnly cut, StatsBucketKind bucket, CancellationToken cancellationToken);
+    Task<IReadOnlyList<TrendCount>> ReadTrendAsync(DateOnly first, DateOnly last, StatsBucketKind bucket, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Reads the grouped counts behind the ranked lists for the business days <paramref name="first"/> to <paramref name="last"/>. Page views
-    /// per page key come from the daily counts for the whole range. D-27: visits per source, device class and browser come from the raw
-    /// visits on the days from <paramref name="cut"/> on and from the rolled-up daily rows on the days before it, summed per name.
-    /// </summary>
+    /// <summary>Reads the page views per page key for the business days <paramref name="first"/> to <paramref name="last"/> from the daily page counts.</summary>
     /// <param name="first">The first business day.</param>
     /// <param name="last">The last business day.</param>
-    /// <param name="cut">The first business day raw visits are still kept for.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>One count per name, in no set order; a name with no count is left out. The caller orders, shares and trims.</returns>
-    Task<VisitorLists> ReadListsAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Reads the nearest-rank 75th percentile of each Core Web Vital (D-26) over the samples of the business days from the later of
-    /// <paramref name="first"/> and <paramref name="cut"/> to <paramref name="last"/>. Samples are kept as long as their visits.
-    /// </summary>
-    /// <param name="first">The first business day.</param>
-    /// <param name="last">The last business day.</param>
-    /// <param name="cut">The first business day samples are still kept for.</param>
-    /// <param name="cancellationToken">Cancels the read.</param>
-    /// <returns>Each metric's percentile and sample count; null for a metric with no sample.</returns>
-    Task<VisitorSpeed> ReadSpeedAsync(DateOnly first, DateOnly last, DateOnly cut, CancellationToken cancellationToken);
+    /// <returns>One count per page key, in no set order; a page with no row is left out. The caller orders, shares and trims.</returns>
+    Task<IReadOnlyList<NamedCount>> ReadPagesAsync(DateOnly first, DateOnly last, CancellationToken cancellationToken);
 
     /// <summary>
     /// Reads the figures of each business day from <paramref name="first"/> to <paramref name="last"/> for the CSV export (D-25). Page views
@@ -71,41 +46,12 @@ public interface IVisitorStatsReader
 /// <param name="UniqueVisitors">The distinct visitors of the day; zero before the cut.</param>
 public sealed record DailyCount(DateOnly Day, int PageViews, int Visits, int UniqueVisitors);
 
-/// <summary>The 75th percentile of each Core Web Vital.</summary>
-/// <param name="Lcp">Loading speed, in milliseconds.</param>
-/// <param name="Cls">Layout shifting, a score.</param>
-/// <param name="Inp">Response to taps, in milliseconds.</param>
-public sealed record VisitorSpeed(VitalPercentile? Lcp, VitalPercentile? Cls, VitalPercentile? Inp);
-
-/// <summary>One metric's percentile.</summary>
-/// <param name="P75">The value at the nearest-rank 75th percentile.</param>
-/// <param name="Samples">The samples it was taken from.</param>
-public sealed record VitalPercentile(decimal P75, int Samples);
-
-/// <summary>The grouped counts behind the ranked lists.</summary>
-/// <param name="Pages">Page views per page key.</param>
-/// <param name="Referrers">Visits per source name as stored.</param>
-/// <param name="Devices">Visits per device class name (Phone, Tablet, Computer, Other).</param>
-/// <param name="Browsers">Visits per browser family label.</param>
-public sealed record VisitorLists(
-    IReadOnlyList<NamedCount> Pages,
-    IReadOnlyList<NamedCount> Referrers,
-    IReadOnlyList<NamedCount> Devices,
-    IReadOnlyList<NamedCount> Browsers);
-
 /// <summary>One grouped count.</summary>
 /// <param name="Name">The name as stored.</param>
 /// <param name="Count">The count.</param>
 public sealed record NamedCount(string Name, long Count);
 
-/// <summary>The three totals of a range.</summary>
-/// <param name="UniqueVisitors">The distinct visitors with a visit in the raw span.</param>
-/// <param name="Visits">The visits in the raw span: one sitting, ended by 30 minutes of silence.</param>
-/// <param name="PageViews">Every page view in the range, from the daily counts.</param>
-public sealed record VisitorTotals(int UniqueVisitors, int Visits, int PageViews);
-
-/// <summary>The figures of one chart bucket that has data.</summary>
+/// <summary>The page views of one chart bucket that has data.</summary>
 /// <param name="Start">The day, or the first day of the month.</param>
 /// <param name="PageViews">The page views of the bucket inside the range.</param>
-/// <param name="UniqueVisitors">The distinct visitors of the bucket from the cut on.</param>
-public sealed record TrendCount(DateOnly Start, int PageViews, int UniqueVisitors);
+public sealed record TrendCount(DateOnly Start, int PageViews);

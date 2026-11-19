@@ -29,7 +29,10 @@ function dayTrend(start: string, count: number): Trend {
   }));
 }
 
-function statsAnswer(totals: { pageViews?: number } = {}, rest: Partial<VisitorStatsResponse> = {}): VisitorStatsResponse {
+function statsAnswer(
+  totals: { pageViews?: number } = {},
+  rest: Partial<VisitorStatsResponse> = {},
+): VisitorStatsResponse {
   return {
     range: 'last-30-days',
     from: '2026-10-17',

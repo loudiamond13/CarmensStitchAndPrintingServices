@@ -31,7 +31,7 @@ export interface VisitorStats {
   bucket: TrendBucketSize;
   /** One bar per day or month from the start of the range to its end, oldest first. */
   trend: TrendPoint[];
-  /** Up to 10 pages by page views, highest first; each name is a page key. */
+  /** Up to 5 pages by page views, highest first; each name is a page key. */
   topPages: RankedItem[];
 }
 
@@ -69,7 +69,7 @@ export function parseVisitorStats(response: VisitorStatsResponse): VisitorStats 
     range: response.range,
     from: response.from,
     to: response.to,
-    pageViews: count(response.totals.pageViews, 'page view count'),
+    pageViews: count(response.pageViews, 'page view count'),
     bucket: bucketSize(response.bucket),
     trend: response.trend.map(trendPoint),
     topPages: response.topPages.map((item) => rankedItem(item, 'page')),
