@@ -1339,7 +1339,7 @@ Plans:
 **Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 4/17 plans executed
+**Plans:** 5/17 plans executed
 
 Plans:
 **Wave 1**
@@ -1349,7 +1349,7 @@ Plans:
 - [x] 12.1-04-PLAN.md: the Show Map tap is saved in this browser (D-65, D-66) (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 12.1-05-PLAN.md: no cookie bar, Cookie Settings or Clear; dev previews and showcase demos removed; e2e fixture plants no cookie; @no-cookies spec (wave 2)
+- [x] 12.1-05-PLAN.md: no cookie bar, Cookie Settings or Clear; dev previews and showcase demos removed; e2e fixture plants no cookie; @no-cookies spec (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 12.1-06-PLAN.md: every client consent module and test fixture removed; web gates and public budget pass (wave 3)

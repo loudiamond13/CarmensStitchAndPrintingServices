@@ -6,7 +6,7 @@ status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
 last_activity: 2026-11-18
-last_activity_desc: Phase 12.1 wave 1 merged and gated
+last_activity_desc: Phase 12.1 wave 2 merged and gated
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-18: Phase 12.1 wave 1 (12.1-01 to 12.1-04) merged and gated
+Last activity: 2026-11-18: Phase 12.1 wave 2 (12.1-05) merged and gated
 
 Progress: [█████░░░░░] 47%
 
@@ -1080,6 +1080,9 @@ Phase 12.1 execution backlog (2026-11-18):
 - [ ] **12.1-03 unused cursor row (your call, low priority):** the `analytics-retention` row in the maintenance cursors table is no longer read. Recommended: leave it; removing it is a data change.
 - [ ] **12.1 wave 1 load flakes (recorded; each passed alone):** `GalleryPage` focus tests (5, under parallel worktree load) and a first-run set of 4 in PublicLayout, no-consent and no-long-dash after the uninstall; none failed in the gate.
 - [ ] **Owed to later 12.1 plans:** `web/e2e/consent.spec.ts` still clicks the removed "Always show maps?" button (12.1-05/06 delete or rewrite it); `web/e2e/gpc.spec.ts` keeps a `SPEED_READER` pattern and `docs/web/budgets.md` and `docs/web/e2e.md` still describe the speed reader (not in any plan's file list yet: check at phase end).
+- [x] **12.1 wave 2 post-merge gate (2026-11-18; plan 12.1-05, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3298, Infrastructure 1317 of 1318 (1 skipped), Server 3097 passed; web `verify` 11480 of 11480 (429 files, branches 90.32%); `build:budget` exit 0: Privacy 146.55 KB (down from 149.23), admin 222.41 KB, CSS 20.40 KB. Schema drift and UI safety gates clear. The 8 deleted files matched the executor's list.
+- [ ] **Do not ship before 12.1-10, 12.1-13 and 12.1-17 land:** the Cookie Policy (`legalCookies.ts`) and Privacy Policy (`legalPrivacy.ts`) still name Cookie Settings, the map setting and the Clear button, which 12.1-05 removed. Those plans rewrite the text.
+- [ ] **12.1-05 visitor-stats journey:** it now checks per-page counts only, not the Visits and Unique visitors cards, since a cookie-free visitor has neither (D-53). Plans 12.1-08 and 12.1-14 remove those cards.
 
 ### Blockers/Concerns
 
