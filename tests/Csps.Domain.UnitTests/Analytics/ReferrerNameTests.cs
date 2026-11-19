@@ -25,6 +25,12 @@ public sealed class ReferrerNameTests
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 346.0.0.29.92 (iPhone14,5; iOS 17_6; en_US; en; scale=3.00; 1170x2532; 634108168)";
 
     [Fact]
+    public void HasNoFromHelperBecauseNothingGroupsAReferrerAnyMore()
+    {
+        typeof(ReferrerName).GetMember("From").ShouldBeEmpty();
+    }
+
+    [Fact]
     public void NamesAreTheFixedLabels()
     {
         ReferrerName.Facebook.ShouldBe("Facebook");
