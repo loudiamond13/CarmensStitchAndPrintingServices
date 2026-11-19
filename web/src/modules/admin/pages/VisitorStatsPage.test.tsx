@@ -366,7 +366,6 @@ describe('V1 the Most viewed pages card', () => {
     ['gallery', 'Gallery'],
     ['contact', 'Contact'],
     ['privacy', 'Privacy Policy'],
-    ['cookies', 'Cookie Policy'],
     ['terms', 'Terms of Use'],
     ['accessibility', 'Accessibility Statement'],
     ['not-found', 'Page not found'],
@@ -375,6 +374,13 @@ describe('V1 the Most viewed pages card', () => {
     await openPage();
 
     expect(within(listCard('Most viewed pages')).getByText(label)).toBeInTheDocument();
+  });
+
+  it('shows an old stored key that has no name as the key itself', async () => {
+    backend(statsAnswer({}, { topPages: [{ name: 'cookies', count: 1, share: 100 }] }));
+    await openPage();
+
+    expect(within(listCard('Most viewed pages')).getByText('cookies')).toBeInTheDocument();
   });
 });
 
