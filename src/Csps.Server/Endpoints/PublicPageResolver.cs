@@ -6,7 +6,7 @@ namespace Csps.Server.Endpoints;
 
 /// <summary>
 /// Answers <see cref="IPublicPageResolver"/> with the server's route table (ANL-05, T-12-29): a known page gives its key, any other public
-/// path folds into <c>not-found</c>, and an admin or developer path gives nothing. Only these nine keys can ever reach the counts.
+/// path folds into <c>not-found</c>, and an admin or developer path gives nothing. Only these eight keys can ever reach the counts.
 /// </summary>
 /// <param name="environment">The host environment, which decides whether the developer preview paths exist.</param>
 public sealed class PublicPageResolver(IHostEnvironment environment) : IPublicPageResolver

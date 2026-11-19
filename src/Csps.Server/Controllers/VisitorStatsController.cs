@@ -24,9 +24,8 @@ public sealed class VisitorStatsController(GetVisitorStatsHandler stats, ExportV
     private const string ByteOrderMark = "\uFEFF";
 
     /// <summary>
-    /// Reads unique visitors, visits and page views for a date range. The server resolves the range in the business zone (Asia/Manila) and
-    /// returns the dates it used. Page views are kept for 3 years; visits and unique visitors for 13 months, so a range that starts earlier
-    /// counts them from the cut date, and a range wholly before it answers them as null.
+    /// Reads the total page views, the trend (per day for up to 62 days, else per month) and the 5 most viewed pages for a date range. The
+    /// server resolves the range in the business zone (Asia/Manila) and returns the dates it used. Daily page counts are kept for 3 years.
     /// </summary>
     /// <param name="range">A preset: <c>last-7-days</c>, <c>last-30-days</c> (also used when none or an unknown name is sent), <c>this-month</c>, <c>last-month</c>, <c>this-year</c>; or <c>custom</c>.</param>
     /// <param name="from">The first business day, <c>YYYY-MM-DD</c>; required when the range is <c>custom</c>.</param>

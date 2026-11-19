@@ -6,13 +6,13 @@ public static class AnalyticsRetention
     /// <summary>Months a raw visit is kept (D-03).</summary>
     public const int RawMonths = 13;
 
-    /// <summary>Months a consent record is kept after it was given (D-04).</summary>
+    /// <summary>Months a consent record is kept after it was given (D-05).</summary>
     public const int ConsentMonths = 13;
 
-    /// <summary>Years the daily roll-ups are kept (D-05).</summary>
+    /// <summary>Years the daily roll-ups are kept (D-04).</summary>
     public const int DailyYears = 3;
 
-    /// <summary>Days a visitor-hash salt lives before it is replaced (D-07).</summary>
+    /// <summary>Days a visitor-hash salt lives before it is replaced (D-07). The cleanup job keeps today's and yesterday's salt, which is this value.</summary>
     public const int SaltDays = 2;
 
     /// <summary>Raw visits dated before this business date are deleted.</summary>
