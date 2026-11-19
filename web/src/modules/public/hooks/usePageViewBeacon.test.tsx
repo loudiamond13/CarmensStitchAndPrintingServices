@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { Link, MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { setConsent } from '@/test/consentFixtures';
 import { pageViewProbe } from '@/test/msw';
 import { type BeaconSend, createBeaconMachine, usePageViewBeacon } from './usePageViewBeacon';
 
@@ -32,7 +31,6 @@ afterEach(() => {
 
 describe('usePageViewBeacon (D-53)', () => {
   it('sends the first view at once with the path only', async () => {
-    setConsent({ cookie: null });
     const probe = pageViewProbe();
 
     render(

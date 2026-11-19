@@ -4,7 +4,6 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
-import { consentRulesLoaded, setConsent } from './consentFixtures';
 import { pageViewHandler, server } from './msw';
 import {
   demoGallery,
@@ -81,12 +80,6 @@ if (typeof window !== 'undefined') {
     } catch {
       // A test that replaced storage with a throwing one restores it itself.
     }
-  });
-  // Every test starts with a decided Reject All in an in-memory jar, so no page test sees the cookie bar; a test for a
-  // first visit calls setConsent({ cookie: null }).
-  beforeEach(async () => {
-    setConsent();
-    await consentRulesLoaded();
   });
   afterEach(() => {
     server.resetHandlers();

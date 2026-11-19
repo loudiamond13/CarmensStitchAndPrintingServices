@@ -5,7 +5,6 @@ import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
-import { setConsent } from '@/test/consentFixtures';
 import { pageViewProbe } from '@/test/msw';
 import { publicLayoutRoutes } from '@/test/publicLayoutRoutes';
 import { ShellFallback } from '@/core/routes/ShellFallback';
@@ -307,7 +306,6 @@ async function expectNoCookieBar(): Promise<void> {
 
 describe('PublicLayout with no cookie bar (D-54)', () => {
   it('shows no cookie bar on a first visit', async () => {
-    setConsent({ cookie: null });
     await renderAt('/products');
 
     expect(document.querySelector('[data-consent-status]') === null).toBe(true);
@@ -315,7 +313,6 @@ describe('PublicLayout with no cookie bar (D-54)', () => {
   });
 
   it('adds no bar padding to the page or its root on a first visit', async () => {
-    setConsent({ cookie: null });
     const { container } = await renderAt('/');
 
     await expectNoCookieBar();
@@ -325,7 +322,6 @@ describe('PublicLayout with no cookie bar (D-54)', () => {
 
   it('always shows the phone Contact bar on /contact, with its bottom padding, on a first visit', async () => {
     putBootBlock(demoSite);
-    setConsent({ cookie: null });
     const { container } = await renderAt('/contact');
 
     expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
@@ -333,14 +329,7 @@ describe('PublicLayout with no cookie bar (D-54)', () => {
     expect(screen.getByRole('main').className.split(' ')).toContain(CONTACT_PAD);
   });
 
-  it('shows the Contact bar when a choice is already saved', async () => {
-    putBootBlock(demoSite);
-    await renderAt('/contact');
-    expect(await screen.findByRole('link', { name: 'Call us' })).toBeInTheDocument();
-  });
-
   it('has no axe violations on a first visit', async () => {
-    setConsent({ cookie: null });
     const { container } = await renderAt('/products');
     await expectNoCookieBar();
     await expectNoAxeViolations(container);
@@ -432,7 +421,7 @@ describe('ShellFallback and SiteFooter (research Pattern 2, Pitfall 10)', () => 
 });
 
 describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
-  it('sends one view with the path only for /gallery?q=jersey#top when a choice is saved', async () => {
+  it('sends one view with the path only for /gallery?q=jersey#top', async () => {
     const probe = pageViewProbe();
 
     await renderAt('/gallery?q=jersey#top');
@@ -482,7 +471,6 @@ describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
   });
 
   it('counts the landing page before any choice', async () => {
-    setConsent({ cookie: null });
     const probe = pageViewProbe();
 
     await renderAt('/');
