@@ -927,17 +927,18 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     [InlineData("/cookies", "Cookie Policy · CSPS", "Which cookies this site uses, why, and how to change your choice at any time.")]
     [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
     [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
-    public async Task AnApprovedLegalPageSendsItsTitleAndLeadAndCarriesNoRobotsMeta(string path, string title, string lead)
+    public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaFollowsItsApprovedFact(string path, string title, string lead)
     {
         await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
         using var client = factory.CreateClient();
+        var approved = LegalPages.ByPath(path).ShouldNotBeNull(path).Approved;
 
         var body = await GetBodyAsync(client, path);
 
         body.ShouldContain($"<title>{title}</title>", Case.Sensitive, path);
         Meta(body, "name", "description").ShouldBe(lead, path);
         Meta(body, "property", "og:description").ShouldBe(lead, path);
-        Meta(body, "name", "robots").ShouldBeNull(path);
+        Meta(body, "name", "robots").ShouldBe(approved ? null : "noindex, nofollow", path);
     }
 
     [Fact]
