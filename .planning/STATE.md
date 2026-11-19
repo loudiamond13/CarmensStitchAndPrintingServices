@@ -6,7 +6,7 @@ status: executing
 stopped_at: Phase 12.1 context gathered
 last_updated: "2026-11-19T00:50:53.692Z"
 last_activity: 2026-11-19
-last_activity_desc: Phase 12.1 wave 7 merged and gated; 12.1-16 parked for the owner
+last_activity_desc: Phase 12.1 all 8 waves merged; end-of-phase code review running
 state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
 progress:
   total_phases: 19
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-19: Phase 12.1 wave 7 (12.1-15) merged and gated; 12.1-16 Privacy approval parked for the owner
+Last activity: 2026-11-19: Phase 12.1 all 17 plans merged (12.1-16 parked for the owner); end-of-phase code review running
 
 Progress: [█████░░░░░] 47%
 
@@ -1100,6 +1100,8 @@ Phase 12.1 execution backlog (2026-11-18):
 - [ ] **UI safety gate fired after wave 6 (your check; I continued under D-78):** `ui-safety-gate` returned block: "UI files changed in this wave but no UI-SPEC.md exists for Phase 12.1. Run /gsd-ui-phase 12.1". D-78 (owner) says Phase 12.1 reuses `12-UI-SPEC.md` and has no 12.1 UI-SPEC, so the contract exists and making one would contradict the ruling. The same gate passed on waves 1 to 5, which changed more UI. Recommended: (a) keep D-78 and treat this as a false positive (what I did); (b) add a short `12.1-UI-SPEC.md` that points at `12-UI-SPEC.md` so the gate passes; (c) run `/gsd-ui-phase 12.1` for a full contract.
 - [x] **12.1 wave 7 post-merge gate (2026-11-19; plan 12.1-15 merged, plan 12.1-16 parked for the owner, no merge conflicts):** build 0 warnings, format clean; Domain 2071, Architecture 290, Application 3161, Infrastructure 1283 of 1284 (1 skipped), Server 3013 passed (0 failed); openapi types match; web `verify` 11219 of 11219 (420 files, branches 90.23%); `build:budget` exit 0: Privacy 147.17 KB, admin 222.03 KB, CSS 20.32 KB; e2e `@visitor-stats|@no-cookies|@public` 200 passed in all five projects. Schema drift clear. 12.1-16 is marked done in the roadmap as a plan, but its D-73 outcome is PARKED: the Privacy Policy approval is still open (Phase 12.1 owner backlog).
 - [ ] **12.1-15 change outside its file list (FYI):** `visitorStatsService.ts` now takes the CSV file name from the server's `Content-Disposition` (only the exact `visitor-stats-{from}-to-{to}.csv` shape), because the old code read it from the first and last data rows and a header-only file has none.
+- [x] **12.1 wave 8 gate (2026-11-19; plan 12.1-17, docs only):** the merge changed only REQUIREMENTS.md, ROADMAP.md (wording, not progress marks), PROJECT.md, CSPS-PRD.md, `.claude/CLAUDE.md` (the web-vitals phrase), `docs/web/budgets.md`, `docs/web/e2e.md` and `12-UI-SPEC.md`; no code, test or config file, so the wave 7 gate stands. TDD review gate: 5 TDD plans, 0 violations. End-of-phase code review running in three parallel groups (G1 server, G2 web app, G3 tests and tooling).
+- [ ] **Before ship (your workflow):** run `/gsd-secure-phase 12.1` and `/gsd-ui-review 12.1` (the verify:post security and UI review hooks; also `validate-phase`), then `/gsd-ship` for Phases 12 and 12.1 together (D-62).
 
 ### Blockers/Concerns
 

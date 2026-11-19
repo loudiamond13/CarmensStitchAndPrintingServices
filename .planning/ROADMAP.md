@@ -1342,7 +1342,7 @@ Plans:
 **Ships with Phase 12:** Phase 12 is never deployed alone (D-62).
 **D-73 owner approval: open.** The Privacy Policy stays DRAFT until the owner approves it; the review waits in the STATE.md Phase 12.1 owner backlog (plan 12.1-16 parked it, 2026-11-19, owner away). Phase verification reports LEGAL-01 approval as waiting on the owner.
 **Depends on:** Phase 12
-**Plans:** 16/17 plans executed
+**Plans:** 17/17 plans executed
 
 Plans:
 **Wave 1**
@@ -1376,7 +1376,7 @@ Plans:
 - [x] 12.1-16-PLAN.md: owner approves the new Privacy Policy wording (D-73 checkpoint, not autonomous) (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 12.1-17-PLAN.md: requirements, roadmap, PRD and docs describe the built site; a parked D-73 review stays an open owner item (wave 8)
+- [x] 12.1-17-PLAN.md: requirements, roadmap, PRD and docs describe the built site; a parked D-73 review stays an open owner item (wave 8)
 
 ### Phase 13: Quote Inquiries
 
