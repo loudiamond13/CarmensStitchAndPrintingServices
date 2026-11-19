@@ -1339,7 +1339,7 @@ Plans:
 **Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, for that visit (D-54, D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy and Cookie Policy wording.
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 14/17 plans executed
+**Plans:** 16/17 plans executed
 
 Plans:
 **Wave 1**
@@ -1369,8 +1369,8 @@ Plans:
 - [x] 12.1-14-PLAN.md: Visitor Stats answer: total page views, top 5 pages with shares, per day or month trend from the daily counts; Testing seed and e2e (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 12.1-15-PLAN.md: CSV "Date,Page,Page views" with page names from a shared fixture (D-69, D-75) (wave 7)
-- [ ] 12.1-16-PLAN.md: owner approves the new Privacy Policy wording (D-73 checkpoint, not autonomous) (wave 7)
+- [x] 12.1-15-PLAN.md: CSV "Date,Page,Page views" with page names from a shared fixture (D-69, D-75) (wave 7)
+- [x] 12.1-16-PLAN.md: owner approves the new Privacy Policy wording (D-73 checkpoint, not autonomous) (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 12.1-17-PLAN.md: requirements, roadmap, PRD and docs describe the built site; a parked D-73 review stays an open owner item (wave 8)
