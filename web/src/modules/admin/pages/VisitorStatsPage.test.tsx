@@ -845,7 +845,7 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
   });
 });
 
-const CSV_FILE = 'Date,Unique visitors,Visits,Page views\r\n2026-10-17,1,2,3\r\n2026-11-15,4,5,6\r\n';
+const CSV_FILE = 'Date,Page,Page views\r\n2026-10-17,Home,3\r\n2026-11-15,Gallery,6\r\n';
 
 /** The fake export call; returns the calls it answered. */
 function exportBackend(respond: () => Response | Promise<Response> = () => csvResponse()): { calls: URL[] } {
@@ -860,7 +860,12 @@ function exportBackend(respond: () => Response | Promise<Response> = () => csvRe
 }
 
 function csvResponse(): Response {
-  return new HttpResponse(CSV_FILE, { headers: { 'Content-Type': 'text/csv; charset=utf-8' } });
+  return new HttpResponse(CSV_FILE, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="visitor-stats-2026-10-17-to-2026-11-15.csv"',
+    },
+  });
 }
 
 interface SavedFile {

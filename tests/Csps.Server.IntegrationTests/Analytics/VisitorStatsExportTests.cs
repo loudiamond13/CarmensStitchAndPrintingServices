@@ -13,15 +13,15 @@ using Microsoft.Extensions.Time.Testing;
 namespace Csps.Server.IntegrationTests.Analytics;
 
 /// <summary>
-/// ANL-08, D-25, D-27, D-33: <c>GET /api/v1/visitor-stats/export</c> answers the chosen range as a UTF-8 CSV with a byte-order mark and one row per
-/// business day. Managers only.
+/// ANL-08, D-69, D-75: <c>GET /api/v1/visitor-stats/export</c> answers the chosen range as a UTF-8 CSV with a byte-order mark and one row per day
+/// and page that had views, with the page's name. Managers only.
 /// </summary>
 public sealed class VisitorStatsExportTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string Route = "/api/v1/visitor-stats/export";
-    private const string Header = "Date,Unique visitors,Visits,Page views";
+    private const string Header = "Date,Page,Page views";
 
-    // 12:00 in Manila on 2026-11-15. The cut is 2025-10-15.
+    // 12:00 in Manila on 2026-11-15.
     private static readonly DateTimeOffset Noon = new(2026, 11, 15, 4, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -46,11 +46,11 @@ public sealed class VisitorStatsExportTests(CspsDatabase database) : IClassFixtu
         var bytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         bytes.Take(3).ShouldBe(new byte[] { 0xEF, 0xBB, 0xBF });
         Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3)
-            .ShouldBe($"{Header}\r\n2026-11-13,1,1,7\r\n2026-11-14,0,0,0\r\n2026-11-15,2,3,15\r\n");
+            .ShouldBe($"{Header}\r\n2026-11-13,Home,7\r\n2026-11-15,Home,10\r\n2026-11-15,Gallery,5\r\n");
     }
 
     [Fact]
-    public async Task WithNoRangeTheFileHoldsTheLastThirtyDaysOneRowPerDay()
+    public async Task WithNoRangeAndNoViewsTheFileIsTheHeaderAloneUnderTheLastThirtyDaysName()
     {
         await using var rig = await Rig.StartAsync(database, Noon);
 
@@ -58,12 +58,22 @@ public sealed class VisitorStatsExportTests(CspsDatabase database) : IClassFixtu
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         response.Content.Headers.ContentDisposition.ShouldNotBeNull().FileName.ShouldBe("visitor-stats-2026-10-17-to-2026-11-15.csv");
-        var lines = (await ReadCsvAsync(response)).Split("\r\n");
-        lines.Length.ShouldBe(32);
-        lines[0].ShouldBe(Header);
-        lines[1].ShouldBe("2026-10-17,0,0,0");
-        lines[30].ShouldBe("2026-11-15,0,0,0");
-        lines[31].ShouldBeEmpty();
+        (await ReadCsvAsync(response)).ShouldBe($"{Header}\r\n");
+    }
+
+    [Fact]
+    public async Task AnOldPageKeyShowsItsKeyAfterTheNamedPagesAndEveryRowHasThreeCells()
+    {
+        await using var rig = await Rig.StartAsync(database, Noon);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 14), "cookies", 2);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 14), PageKeys.NotFound, 3);
+        await rig.SeedViewsAsync(new DateOnly(2026, 11, 14), PageKeys.Privacy, 4);
+
+        using var response = await rig.GetAsync("range=custom&from=2026-11-14&to=2026-11-14", rig.Manager.AccessToken);
+
+        var csv = await ReadCsvAsync(response);
+        csv.ShouldBe($"{Header}\r\n2026-11-14,Privacy Policy,4\r\n2026-11-14,Page not found,3\r\n2026-11-14,cookies,2\r\n");
+        csv[..^2].Split("\r\n").ShouldAllBe(static line => line.Split(',').Length == 3);
     }
 
     [Fact]
