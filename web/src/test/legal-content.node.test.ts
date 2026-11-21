@@ -149,6 +149,9 @@ const META = {
   lead: 'L',
 } as const;
 
+/** Every block kind LegalBlock allows; a retired kind such as the Cookie Settings button is not here. */
+const KNOWN_KINDS = new Set(['p', 'ul', 'dl', 'h3', 'facts']);
+
 const sample = (sections: LegalText['sections']): LegalText => ({ meta: META, sections });
 const para = (...parts: LegalInline[]): LegalBlock => ({ kind: 'p', parts });
 
@@ -171,11 +174,11 @@ describe('legal text modules (LEGAL-05, D-10)', () => {
     }
   });
 
-  it.each(textFiles)('%s has no block that opens Cookie Settings (D-54)', async (file) => {
-    const kinds: string[] = (await textsOf(file)).flatMap((text) =>
-      text.sections.flatMap((section) => section.blocks.map((block) => block.kind)),
+  it.each(textFiles)('%s uses only the known block kinds, so no retired kind comes back (D-54)', async (file) => {
+    const kinds = (await textsOf(file)).flatMap((text) =>
+      text.sections.flatMap((section) => section.blocks.map((block) => block.kind as string)),
     );
-    expect(kinds.filter((kind) => kind === 'cookie-settings')).toEqual([]);
+    expect(kinds.filter((kind) => !KNOWN_KINDS.has(kind))).toEqual([]);
   });
 
   it('takes the version, date and approval flag from legalPages.ts', async () => {
