@@ -2,7 +2,7 @@
 // drafted for the owner's review (D-09). It claims no lawyer review and promises nothing the owner has not ruled. The business and the
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
-// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72). It stays a draft
+// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134). It stays a draft
 // until the owner approves the wording (D-71, D-73). Quote requests are left out until the form returns (D-82).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
@@ -68,7 +68,7 @@ export const PRIVACY_TEXT: LegalText = {
             {
               term: 'The map',
               parts: [
-                'To show the Google map on the Contact page. The map loads from Google only after you tap Show Map. Our basis is your consent: that tap is your choice.',
+                'To show the Google map on the Contact page. The map loads from Google when you tap Show Map. After your first tap, this browser loads the map by itself until you clear the saved setting. Our basis is your consent: that tap is your choice.',
               ],
             },
             {
@@ -104,7 +104,9 @@ export const PRIVACY_TEXT: LegalText = {
             ['The web host that runs this website.'],
             ['Cloudinary, which stores and shows our photos.'],
             ['The email sender, which delivers the emails we send.'],
-            ['Google, for the map on the Contact page. This happens only when you tap Show Map.'],
+            [
+              'Google, for the map on the Contact page. This happens when you tap Show Map. After your first tap, this browser loads the map by itself until you clear the saved setting.',
+            ],
           ],
         },
       ],
@@ -182,7 +184,7 @@ export const PRIVACY_TEXT: LegalText = {
         { kind: 'h3', text: 'Settings saved in this browser' },
         {
           kind: 'p',
-          parts: ['These two settings are not cookies. They stay in your browser and are never sent to us.'],
+          parts: ['These settings are not cookies. They stay in your browser and are never sent to us.'],
         },
         {
           kind: 'dl',
@@ -200,7 +202,9 @@ export const PRIVACY_TEXT: LegalText = {
                 'What it does: Saved after you tap Show Map, so the map loads by itself the next time you visit from this browser. One setting covers every Google map on this site.',
               ],
               more: [
-                ['How long it lasts: It has no expiry. It stays until you clear your browser data.'],
+                [
+                  "How long it lasts: It has no expiry. It stays until you clear this website's data in your browser's settings.",
+                ],
                 [
                   'It is saved even when your browser sends Global Privacy Control, because tapping Show Map is your clear choice. It is never sent to us.',
                 ],

@@ -245,3 +245,65 @@ describe('inventoryProblems (the guard itself)', () => {
     expect(namesInText(text)).toEqual(['__Secure-csps_b']);
   });
 });
+
+const WEB_SRC_DIR = resolve(import.meta.dirname, '..');
+/** Every key the web code writes to browser storage, with the policy term that must cover it. */
+const STORAGE_TERMS: Record<string, string> = {
+  'csps-theme': 'Admin settings in this browser',
+  'csps-orders-view': 'Admin settings in this browser',
+  'csps-maps': 'Saved map setting',
+};
+const SET_ITEM_CALL = /\.setItem\(\s*(\w+)/g;
+
+/** The non-test web source files, the test folder left out. */
+function webSourceFiles(): string[] {
+  return readdirSync(WEB_SRC_DIR, { recursive: true, encoding: 'utf8' })
+    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.startsWith(`test${sep}`))
+    .map((file) => resolve(WEB_SRC_DIR, file));
+}
+
+/** The storage keys written in the web code: each setItem argument resolved to a quoted constant of the same file. */
+function storageKeysWritten(): { keys: string[]; unresolved: string[] } {
+  const keys = new Set<string>();
+  const unresolved: string[] = [];
+  for (const file of webSourceFiles()) {
+    const source = readFileSync(file, 'utf8');
+    for (const call of source.matchAll(SET_ITEM_CALL)) {
+      const name = call[1] ?? '';
+      const value = new RegExp(`const\\s+${name}\\s*=\\s*'([^']+)'`).exec(source)?.[1];
+      if (value) keys.add(value);
+      else unresolved.push(`${file}: ${name}`);
+    }
+  }
+  return { keys: [...keys].sort(), unresolved };
+}
+
+/** The terms of the description list that follows the h3 of the saved settings. */
+function savedSettingTerms(text: LegalText): string[] {
+  const blocks = text.sections.flatMap((section) => section.blocks);
+  const start = blocks.findIndex((block) => block.kind === 'h3' && block.text === 'Settings saved in this browser');
+  const list = blocks.slice(start + 1).find((block) => block.kind === 'dl');
+  return list?.kind === 'dl' ? list.items.map((item) => item.term) : [];
+}
+
+describe('the saved settings in the Privacy Policy and the web code (D-134)', () => {
+  const written = storageKeysWritten();
+
+  it('writes only keys that resolve to a quoted constant', () => {
+    expect(written.unresolved).toEqual([]);
+  });
+
+  it('writes exactly the storage keys the policy knows', () => {
+    expect(written.keys).toEqual(Object.keys(STORAGE_TERMS).sort());
+  });
+
+  it('puts every written key under a term of Settings saved in this browser', () => {
+    const terms = savedSettingTerms(PRIVACY_TEXT);
+    const needed = written.keys.map((key) => STORAGE_TERMS[key] ?? '');
+    expect(needed.filter((term) => !terms.includes(term))).toEqual([]);
+  });
+
+  it('lists exactly the two saved setting terms', () => {
+    expect(savedSettingTerms(PRIVACY_TEXT)).toEqual(['Admin settings in this browser', 'Saved map setting']);
+  });
+});

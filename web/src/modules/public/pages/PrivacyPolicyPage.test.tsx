@@ -117,8 +117,24 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
     expect(section).toHaveTextContent(/contract with you/);
     expect(section).toHaveTextContent(/the law says we must/);
     expect(section).toHaveTextContent(/legitimate interest in keeping/);
-    expect(section).toHaveTextContent(/after you tap Show Map/);
+    expect(section).toHaveTextContent(
+      'The map loads from Google when you tap Show Map. After your first tap, this browser loads the map by itself until you clear the saved setting.',
+    );
     expect(section).toHaveTextContent(/your consent/);
+  });
+
+  it('never says the map loads only on a tap (D-134)', async () => {
+    await renderPrivacy();
+    expect(screen.getByRole('main')).not.toHaveTextContent(/only (?:after|when) you tap/i);
+  });
+
+  it('says the saved settings are not cookies, with no count (D-134)', async () => {
+    await renderPrivacy();
+    const section = await sectionOf('Cookies and saved settings');
+    expect(section).toHaveTextContent(
+      'These settings are not cookies. They stay in your browser and are never sent to us.',
+    );
+    expect(section).not.toHaveTextContent(/These (?:two|three|\d+) settings/);
   });
 
   it('shows an order photo on the public site only when the customer said it is OK', async () => {
@@ -137,7 +153,9 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
     expect(items[1]).toHaveTextContent('Cloudinary');
     expect(items[2]).toHaveTextContent(/email sender/i);
     expect(items[3]).toHaveTextContent(/Google/);
-    expect(items[3]).toHaveTextContent(/only when you tap Show Map/i);
+    expect(items[3]).toHaveTextContent(
+      'This happens when you tap Show Map. After your first tap, this browser loads the map by itself until you clear the saved setting.',
+    );
     expect(section).not.toHaveTextContent(/data cent(?:er|re)|server/i);
   });
 
@@ -191,7 +209,7 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
     const text = lines.join(' ');
     expect(text).toMatch(/after you tap Show Map/);
     expect(text).toMatch(/no expiry/);
-    expect(text).toMatch(/until you clear your browser data/);
+    expect(text).toMatch(/until you clear this website's data in your browser's settings/);
     expect(text).toMatch(/even when your browser sends Global Privacy Control/);
     expect(text).toMatch(/every Google map on this site/);
     expect(text).toMatch(/never sent to us/);
