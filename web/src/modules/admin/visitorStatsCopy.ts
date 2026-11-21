@@ -7,8 +7,6 @@ export const VISITOR_STATS_COPY = {
   /** "Oct 17 to Nov 15, 2026 · Page views on the public website. Staff signed in to admin aren't counted." SPEC-GAP, D-21. */
   subline: (dates: string): string =>
     `${dates} · Page views on the public website. Staff signed in to admin aren't counted.`,
-  /** "Oct 17 to Nov 15, 2026". */
-  dates: (from: string, to: string): string => `${from} to ${to}`,
   /** The noun of the loading region and the failure line: "Loading the visitor stats…", "Couldn't load the visitor stats." */
   things: 'the visitor stats',
   /** A failed later refresh (P10 D-111): "Showing figures from 9:41 AM. Couldn't refresh." with Try Again. */

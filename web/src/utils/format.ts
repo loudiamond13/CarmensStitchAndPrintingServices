@@ -104,6 +104,14 @@ export function formatCalendarDate(ymd: string): string | null {
   return formatterFor('UTC').format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+/** "Oct 17 to Nov 15, 2026": the first day drops its year when both days are in the same year. Any bad date gives null. */
+export function formatRangeText(from: string, to: string): string | null {
+  const first = formatCalendarDate(from);
+  const last = formatCalendarDate(to);
+  if (first === null || last === null) return null;
+  return `${from.slice(0, 4) === to.slice(0, 4) ? first.replace(/, \d{4}$/, '') : first} to ${last}`;
+}
+
 const weekdayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long' });
 
 /** "Tuesday": the full weekday of a calendar date from the API ("2026-10-06"), with no zone shift. Any other text gives null. */

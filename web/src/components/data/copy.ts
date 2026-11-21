@@ -30,5 +30,5 @@ export const RECORD_META_COPY = {
 export const VISITOR_TREND_COPY = {
   pageViews: 'Page views',
   /** "Page views, Oct 17 to Nov 15, 2026": the name of the plot. SPEC-GAP. */
-  groupName: (from: string, to: string): string => `Page views, ${from} to ${to}`,
+  groupName: (range: string): string => `Page views, ${range}`,
 } as const;

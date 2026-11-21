@@ -8,7 +8,7 @@
 // and those month labels get 56px of room, the width of "Dec 2025" plus a gap.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { formatCalendarDate, formatCount, formatMonthShort } from '@/utils/format';
+import { formatCalendarDate, formatCount, formatMonthShort, formatRangeText } from '@/utils/format';
 import { VISITOR_TREND_COPY } from './copy';
 import {
   chartBarClasses,
@@ -106,13 +106,6 @@ function yearMarks(buckets: readonly TrendPoint[], step: number, show: boolean):
   return marks;
 }
 
-/** "Oct 17 to Nov 15, 2026": the first day drops its year when both days are in the same year. */
-function rangeName(from: string, to: string): string {
-  const first = formatCalendarDate(from) ?? from;
-  const last = formatCalendarDate(to) ?? to;
-  return COPY.groupName(from.slice(0, 4) === to.slice(0, 4) ? first.replace(YEAR_SUFFIX, '') : first, last);
-}
-
 /** "Nov 3, 2026" or "Oct 2026": the bucket in full, for the tooltip and the announcement. */
 function fullDate(start: string, bucket: TrendBucketSize): string {
   const label = bucket === 'day' ? formatCalendarDate(start) : formatMonthShort(start);
@@ -192,7 +185,7 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
         viewBox={`0 0 ${String(W)} ${String(H)}`}
         className={chartSvgClasses}
         role="group"
-        aria-label={rangeName(from, to)}
+        aria-label={COPY.groupName(formatRangeText(from, to) ?? `${from} to ${to}`)}
         tabIndex={0}
         onFocus={() => {
           setTip('keys');

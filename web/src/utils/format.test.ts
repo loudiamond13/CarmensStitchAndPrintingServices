@@ -10,6 +10,7 @@ import {
   formatCalendarWeekday,
   formatCount,
   formatMonthShort,
+  formatRangeText,
   isMoneyText,
   MONEY_TEXT,
   moneyTextToCentavos,
@@ -175,6 +176,28 @@ describe('formatCalendarDate', () => {
     'not a date',
   ])('gives null for %j', (value) => {
     expect(formatCalendarDate(value)).toBeNull();
+  });
+});
+
+describe('formatRangeText', () => {
+  it('drops the year from the first day when both days are in one year', () => {
+    expect(formatRangeText('2026-10-17', '2026-11-15')).toBe('Oct 17 to Nov 15, 2026');
+  });
+
+  it('keeps both years when the range crosses a year', () => {
+    expect(formatRangeText('2025-12-20', '2026-01-18')).toBe('Dec 20, 2025 to Jan 18, 2026');
+  });
+
+  it('shows a one day range', () => {
+    expect(formatRangeText('2026-10-06', '2026-10-06')).toBe('Oct 6 to Oct 6, 2026');
+  });
+
+  it.for([
+    ['not a date', '2026-10-06'],
+    ['2026-10-06', '2026-02-30'],
+    ['', ''],
+  ] as const)('gives null for %j to %j', ([from, to]) => {
+    expect(formatRangeText(from, to)).toBeNull();
   });
 });
 

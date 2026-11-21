@@ -39,20 +39,11 @@ import { useVisitorStatsQuery } from '@/modules/admin/hooks/useVisitorStatsQuery
 import type { RankedItem, VisitorStats, VisitorStatsQuery } from '@/modules/admin/services/visitorStatsService';
 import { VISITOR_STATS_COPY } from '@/modules/admin/visitorStatsCopy';
 import { DEFAULT_STATS_RANGE, statsQueryFor, type StatsRangeState } from '@/modules/admin/visitorStatsRange';
-import { formatBusinessTime, formatCalendarDate } from '@/utils/format';
+import { formatBusinessTime, formatRangeText } from '@/utils/format';
 
 const COPY = VISITOR_STATS_COPY;
 
 const DEFAULT_QUERY: VisitorStatsQuery = { range: DEFAULT_STATS_RANGE, from: null, to: null };
-
-/** "Oct 17 to Nov 15, 2026": the first day drops its year when both days are in the same year. */
-function rangeText(from: string, to: string): string | null {
-  const first = formatCalendarDate(from);
-  const last = formatCalendarDate(to);
-  if (first === null || last === null) return null;
-  const sameYear = from.slice(0, 4) === to.slice(0, 4);
-  return COPY.dates(sameYear ? first.replace(/, \d{4}$/, '') : first, last);
-}
 
 function pageLabel(key: string): string {
   return COPY.pages[key] ?? key;
@@ -118,7 +109,7 @@ export function VisitorStatsPage({
   staleAt,
   onRetry,
 }: VisitorStatsPageProps) {
-  const dates = stats === undefined ? null : rangeText(stats.from, stats.to);
+  const dates = stats === undefined ? null : formatRangeText(stats.from, stats.to);
   return (
     <>
       <div className={pageHeadClasses}>
