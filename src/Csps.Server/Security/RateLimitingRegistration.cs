@@ -26,8 +26,13 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the <c>analytics-collect</c> policy, plus the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51), which runs after the per-address limit so a call refused per address never uses a ceiling permit (D-74), plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
-    /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the
+    /// <c>analytics-collect</c> policy.
+    /// It also adds the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51). That limit runs after
+    /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74).
+    /// The slot limiter behind the app-wide cap of two uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>).
+    /// The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting record proves the proxy topology
+    /// (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The host configuration.</param>
@@ -133,6 +138,7 @@ public static class RateLimitingRegistration
 
     // The page view route's per-address limit, repeated inside the global chain so it is taken before the site-wide
     // ceiling: a call refused here never reaches the ceiling. Every other route gets no global limit.
+    // The analytics-collect policy on the route repeats this window as a fallback; a ceiling refusal still uses one address permit.
     private static PartitionedRateLimiter<HttpContext> CreatePageViewAddressLimiter(RateLimitRule rule) =>
         PartitionedRateLimiter.Create<HttpContext, string>(context =>
             IsPageView(context)
