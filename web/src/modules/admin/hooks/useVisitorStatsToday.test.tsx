@@ -1,9 +1,11 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
+import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { useVisitorStatsToday } from '@/modules/admin/hooks/useVisitorStatsToday';
+import { server } from '@/test/msw';
 import { buildOrderList, useOrderHandlers } from '@/test/orderFixtures';
 
 // The Visitor Stats custom range needs the business today (D-24). It keeps the last date it was given, so a Manager who stays on
@@ -52,6 +54,25 @@ describe('useVisitorStatsToday', () => {
 
     vi.setSystemTime(new Date('2026-10-29T15:06:00Z'));
     rerender();
+
+    expect(result.current.today).toBe('2026-10-30');
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('keeps the date and reports no error when the refresh of a stale answer fails', async () => {
+    useOrderHandlers({ list: buildOrderList([], { today: '2026-10-30' }) });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-29T15:00:00Z'));
+    const { result } = renderToday(true);
+    await waitFor(() => {
+      expect(result.current.today).toBe('2026-10-30');
+    });
+    vi.setSystemTime(new Date('2026-10-29T15:06:00Z'));
+    server.use(http.get('*/api/v1/orders', () => HttpResponse.json({ title: 'Not found' }, { status: 404 })));
+
+    await act(async () => {
+      await client?.refetchQueries({ queryKey: ['business-today'] });
+    });
 
     expect(result.current.today).toBe('2026-10-30');
     expect(result.current.isError).toBe(false);
