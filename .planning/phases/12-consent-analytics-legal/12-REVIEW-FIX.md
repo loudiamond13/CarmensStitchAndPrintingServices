@@ -1,185 +1,164 @@
 ---
 phase: 12-consent-analytics-legal
-created: 2026-11-18T15:10:00-05:00
-updated: 2026-11-18T17:40:00-05:00
-fixed_at: 2026-11-18T15:10:00-05:00
+created: 2026-11-20T19:00:00-06:00
+updated: 2026-11-20T19:25:00-06:00
+fixed_at: 2026-11-20T19:00:00-06:00
 review_path: .planning/phases/12-consent-analytics-legal/12-REVIEW.md
 iteration: 1
 findings_in_scope: 14
-fixed: 10
-skipped: 4
-status: partial
+fixed: 14
+skipped: 0
+status: all_fixed
 ---
 
 # Phase 12: Code Review Fix Report
 
-**Fixed at:** 2026-11-18T15:10:00-05:00
-**Source review:** `.planning/phases/12-consent-analytics-legal/12-REVIEW.md`
+*Created: 2026-11-20T19:00:00-06:00 · Updated: 2026-11-20T19:00:00-06:00*
+
+**Fixed at:** 2026-11-20T19:00:00-06:00
+**Source review:** `.planning/phases/12-consent-analytics-legal/12-REVIEW.md` (fresh pass, D-79)
 **Iteration:** 1
-**Scope:** the 14 Warning findings (WR-*). Info findings are out of scope.
 
 **Summary:**
-- Findings in scope: 14
-- Fixed: 10 (9 commits: WR-G4-01 and WR-G4-02 share one commit)
-- Skipped: 4 (all four need an owner decision)
+- Findings in scope: 14 (all Warning; Info findings were out of scope)
+- Fixed: 14
+- Skipped: 0
 
-**Where it ran:** all edits, tests and commits were done in the main checkout on branch `gsd/phase-12-consent-analytics-legal`, as the caller asked. `workflow.use_worktrees` is true in the config, but no worktree, temp branch or recovery sentinel was created. Nothing was pushed or merged. Every test number below comes from the main checkout, so it can be reproduced from this tree.
+The older REVIEW-FIX.md (2026-11-18) is replaced by this file; it stays in git history.
+
+**Where the checks ran:** the fixes were made in an isolated git worktree (`.claude/worktrees/rf-12-...`), then fast-forwarded onto `gsd/phase-12-consent-analytics-legal` and the worktree was removed. The worktree had its own `npm ci` install, so the web numbers below are not reproducible from a leftover tree. Re-run them in the main checkout. Local runs used LocalDB (`CSPS_TEST_SQL=localdb`, set per process). The preflight showed ports 5180, 5115, 7028 and 5199 free before every web and E2E run. No package was added or bumped.
 
 ## Fixed Issues
 
-Each fix was written test first: the new test was run and seen failing, then the fix was made and the test passed. Where the red run could only be a missing symbol, that is said.
+### D80-WR-01: Dead domain code from the removed consent and visit design
 
-### WR-G2-01: The salt cache keeps a salt one day longer than the purge job does
+**Status:** fixed: requires human verification (a model-neutral refactor; please eyeball the diff)
+**Files modified:** `src/Csps.Domain/Analytics/` (`AnalyticsVisit`, `AnalyticsPageView`, `AnalyticsVitalSample`, `AnalyticsSalt`, `ConsentRecord`, `DailyDeviceCount`, `DailyReferrerCount`, `ReferrerName`; deleted `ConsentSource`, `DeviceKind`, `VitalMetric`, `VitalBounds`), the four EF configurations for `AnalyticsVisit`, `AnalyticsVitalSample`, `ConsentRecord`, `DailyDeviceCount`, `tests/Csps.Application.UnitTests/Analytics/AnalyticsSurfaceTests.cs`, `tests/Csps.Domain.UnitTests/Analytics/` (deleted `AnalyticsVisitTests`, `ConsentRecordTests`, `DeviceKindTests`, `VitalBoundsTests`, `DailyAnalyticsCountTests`; reduced `ReferrerNameTests`; added `KeptAnalyticsEntityTests`), `tests/Csps.Testing/LegacyAnalyticsRows.cs` (new), `AnalyticsRetentionJobTests`, `VisitorStatsReaderTests`, `VisitorStatsExportTests`
+**Commit:** 359729fd
+**Applied fix:** Removed the factories (`Start`, `Of`, `Create`, `Decide`, `IsPolicyVersion`), the enums `ConsentSource`, `DeviceKind`, `VitalMetric`, `DeviceDimension`, `VitalBounds` and the five `ReferrerName` name constants. Kept all seven entity classes, their EF configurations, the tables and the four migrations. Kept `ReferrerName.MaxLength` (253).
+- The four enum columns (`Device`, `Source`, `Metric`, `Dimension`) became plain `byte` properties. The model snapshot already stored them as `byte`, so there is no schema change. `dotnet ef migrations has-pending-model-changes` printed "No changes have been made to the model since the last migration."
+- Retention and reader tests now seed old rows through the test-only helper `LegacyAnalyticsRows` (sets stored values by reflection; no EF or SQL).
+- `AnalyticsSurfaceTests`: dropped the two `ShouldContain` lines and added the removed names to the "must not exist" lists. This test failed first (RED: 2 of 4 failed), then passed.
+- Domain coverage must stay 100%, and the private constructors lost their callers. A small `KeptAnalyticsEntityTests` (constructs each entity, checks empty defaults, round-trips every stored value) covers them. No `[ExcludeFromCodeCoverage]` was used.
+**Evidence:**
+- Build of `Csps.slnx`: 0 warnings, 0 errors.
+- Domain unit tests 1994 passed; Application unit tests 3161 passed; architecture tests 290 passed; retention and reader integration tests 35 passed; export integration tests 6 passed.
+- `tools/scripts/Invoke-CoverageGate.ps1`: Csps.Domain line 100% (4321/4321), branch 100% (1845/1845); Csps.Application line 98.2%. Gate passed.
 
-**Files modified:** `src/Csps.Infrastructure/Analytics/AnalyticsSaltCache.cs`, `tests/Csps.Infrastructure.IntegrationTests/Analytics/AnalyticsVisitsTests.cs`
-**Commit:** 45b6fcb5
-**Applied fix:** the cache now keeps only today and yesterday (`SaltDays - 1` back), the same days the purge job keeps. The old test that locked in the wrong boundary was replaced by `TheCacheKeepsOnlyTodayAndYesterdayLikeThePurgeJobDoes`. It failed first ("the purge job deletes this day, so the process must not hold it"), then passed.
-**Status:** fixed
+### G2-WR-01: The 2048-byte body cap on the page view route has no test
 
-### WR-G2-02: A page view or speed sample posted while the visitor clears their data answers 500
+**Files modified:** `tests/Csps.Server.IntegrationTests/Analytics/PageViewCollectTests.cs`
+**Commit:** 1be08ac4
+**Applied fix:** Added a 2049-byte body test (413 and no rows) and an exactly-2048-byte test (204, counted as `not-found`, never 413). A chunked variant was not added: the test host does not apply the Kestrel max-body feature to chunked bodies, so it would not prove the control.
+**Evidence:** 28 tests in the class passed. With the attribute temporarily raised to 4096, the 413 test failed; the attribute was restored.
 
-**Files modified:** `src/Csps.Infrastructure/Persistence/SqlErrors.cs`, `src/Csps.Infrastructure/Analytics/AnalyticsVisits.cs`, `tests/Csps.Infrastructure.IntegrationTests/Analytics/AnalyticsVisitsTests.cs`
-**Commit:** 439154a9
-**Applied fix:** added `SqlErrors.ForeignKeyViolation` (547). `AddPageViewAsync` and `AddSamplesAsync` now catch that error, detach the rejected rows and end normally, so the beacon answers 204. Two new tests (`APageViewForAVisitClearedAMomentAgoIsDroppedWithoutAnError`, `SamplesForAVisitClearedAMomentAgoAreDroppedWithoutAnError`) failed first with the real `FK_AnalyticsPageViews_AnalyticsVisits_VisitId` and `FK_AnalyticsVitalSamples_AnalyticsVisits_VisitId` errors, then passed.
-**Status:** fixed
+### G2-WR-02: `TheCeilingLeavesOtherRoutesAlone` cannot fail if the ceiling never engages
 
-### WR-G1-01: Two parallel first page views of one visitor create two visits
+**Files modified:** `tests/Csps.Server.IntegrationTests/RateLimiting/AnalyticsRateLimitTests.cs`
+**Commit:** 0c4b7806
+**Applied fix:** The four page view answers are collected and asserted (204, 204, 204, 429) before the unrelated read.
+**Evidence:** 12 tests in the class passed. With the test's ceiling temporarily set to 300, the test failed; restored.
 
-**Files modified:** `src/Csps.Application/Ports/IAnalyticsVisits.cs`, `src/Csps.Infrastructure/Analytics/AnalyticsVisits.cs`, `src/Csps.Application/Analytics/CollectPageViewHandler.cs`, `tests/Csps.Application.UnitTests/Analytics/CollectPageViewHandlerTests.cs`, `tests/Csps.Infrastructure.IntegrationTests/Analytics/AnalyticsVisitsTests.cs`
-**Commit:** 89cec3c4
-**Applied fix:** new port method `StartUnlessCurrentAsync(visit, since)`. It finds and inserts in one serializable transaction (EF API only, no SQL, no trigger). A caller that loses a deadlock (error 1205) starts again, up to 5 times, and then finds the winner's visit. The handler keeps the fast path (find, then touch) and calls the new method only when no current visit exists. A caller that finds a visit touches it and adds its page view to it.
-**Red run:** a parallel test (8 visitors, 3 calls each) was first run against a plain find-then-insert version of the method and failed (more than one visit). It then passed with the transaction, three runs in a row. The handler unit test for the "loses the race" case failed first, then passed.
-**Status:** fixed: requires human verification. This is concurrency logic. The old `StartAsync` stays on the port (the store tests use it) but the handler no longer calls it.
+### G2-WR-03: Retention budget stop and batching only tested for raw page views
 
-### WR-G3-01: Two consent sends can overlap, and a late response can overwrite the newer choice
+**Files modified:** `tests/Csps.Infrastructure.IntegrationTests/Analytics/AnalyticsRetentionJobTests.cs`
+**Commit:** 2d355e4f
+**Applied fix:** Four new tests: 1200 old referrer rows and 1200 old device rows go in three batches each (line total 2400); a spent budget after the first `DailyPageCounts` batch ends the pass with `More` before the salt rule (and leaves a referrer row untouched); the same for consent records (daily rule absent); the same for salts, with a second run that finishes the rest.
+**Evidence:** 24 tests in the class passed. With the referrer step's batch temporarily doubled, the referrer/device batch test failed; restored.
 
-**Files modified:** `web/src/modules/public/consentSave.ts`, `web/src/modules/public/hooks/useConsent.ts`, `web/src/modules/public/hooks/useConsent.test.tsx`
-**Commit:** 23099827
-**Applied fix:** sends are queued on a per-store chain (`memory.chain`), so the second choice is posted only after the first was answered. `inFlight` is now a count, not a boolean. The "answered cookie" is recorded only by the last queued send, so a resend after a failed last send still works. The new test fires Accept All then Reject All and checks that the second request does not start until the first is answered, and that the bodies arrive in order (true, false). It failed first (two requests at once), then passed. A second guard test (resend after the last of two sends fails) passed both before and after.
-**Status:** fixed: requires human verification (ordering logic)
+### G3-WR-01: A failed "business today" lookup replaces valid Visitor Stats figures with an error page
 
-### WR-G3-02: Map frame stays loaded after the visitor rejects the map
+**Status:** fixed: requires human verification (logic change)
+**Files modified:** `web/src/modules/admin/hooks/useVisitorStatsToday.ts`, `web/src/modules/admin/hooks/useVisitorStatsToday.test.tsx`
+**Commit:** 60ec3cd6
+**Applied fix:** The hook returns `isError: state.isError && today === null`, so a failed refresh is not an error while a date is held. Added the test the review asked for (answer goes stale, the refresh answers 404, `today` stays set and `isError` is false).
+**Evidence:** The new test failed first (`expected true to be false`), then passed. The hook test file and `VisitorStatsPage.test.tsx` passed (66 tests). ESLint, Prettier and `tsc` clean.
 
-**Files modified:** `web/src/modules/public/consentSave.ts`, `web/src/modules/public/hooks/useConsent.ts`, `web/src/modules/public/components/MapCard.tsx`, `web/src/modules/public/components/contact.test.tsx`
-**Commit:** 3992bae4
-**Applied fix:** the review's suggested transition check would not have worked. The map is already off when the visitor taps Show Map, so `mapAllowed` never goes from true to false. Instead the store now counts saved choices that turn the map off (`mapRefusals`, set through a new `choseMap` member of `SaveHost`). `MapCard` clears its one-time tap when that count rises (state adjusted during render). A save that leaves the map on keeps the frame. New tests: tap Show Map then Reject All gives no iframe (failed first, then passed), and tap then a save with the map on keeps the iframe.
-**Status:** fixed: requires human verification
+### G3-WR-02: Month bars carry no year, so a multi-year trend repeats the same labels
 
-### WR-G4-03: A rounded display value can contradict its rating word at the thresholds
+**Status:** fixed: requires human verification (label logic; visual check on a 2 to 3 year range is worth doing)
+**Files modified:** `web/src/components/data/VisitorTrendChart.tsx`, `web/src/components/data/VisitorTrendChart.test.tsx`
+**Commit:** c9aed4e4
+**Applied fix:** When month bars span two calendar years, the first drawn label and each drawn label that starts a new year read like "Jan 2026". The rule works on the labels that are actually drawn (not only on January), so a thinned axis still shows every year change. Those labels use the 44px room that day labels use. A single-year range is unchanged.
+**Evidence:** New tests (two-year range, three-year range with thinned labels) failed first, then passed; the thinned-label test expectation was updated to `Jan 2026`. All 24 chart tests, and the data, admin page and dev scenario tests (550 tests) passed. ESLint, Prettier and `tsc` clean.
 
-**Files modified:** `web/src/modules/admin/components/PageSpeedCard.tsx`, `web/src/modules/admin/components/PageSpeedCard.test.tsx`
-**Commit:** 3d85f0dd
-**Applied fix:** LCP, CLS and INP now round up (to 0.1 s, 0.01 and 1 ms), with a tiny allowance so an exact value such as 0.3 is not pushed up. A value over a limit can no longer show as the limit (2530 ms shows "2.6 s", CLS 0.104 shows "0.11", INP 200.4 shows "201 ms"), and exact limits stay (2.5 s, 0.10, 200 ms). Six new table tests; the three "just over" rows failed first. One existing test changed: 12345 ms now shows "12.4 s" (was "12.3 s").
-**Status:** fixed: requires human verification. This changes the figures a Manager reads by up to one display step. The review offered other options (more decimals, whole milliseconds). Rounding up was the review's own simplest suggestion and needs no thresholds in the browser, but the owner may prefer another style.
+### G4-WR-01: "asks for nothing while it is not enabled" asserts before a request could arrive
 
-### WR-G4-01: A failed "business today" call leaves a custom-range page loading forever
+**Files modified:** `web/src/modules/admin/hooks/useVisitorStatsToday.test.tsx`
+**Commit:** e0f24f19
+**Applied fix:** The test waits 50 ms, then checks the query client is idle and no list request arrived.
+**Evidence:** Passed. With the `enabled` guard temporarily removed from `useBusinessToday.ts`, the test failed; restored.
 
-**Files modified:** `web/src/modules/admin/hooks/useVisitorStatsToday.ts` (new), `web/src/modules/admin/components/StatsCustomRange.tsx`, `web/src/modules/admin/pages/VisitorStatsPage.tsx`, `web/src/modules/admin/pages/VisitorStatsPage.test.tsx`, `web/src/modules/admin/hooks/useVisitorStatsToday.test.tsx` (new)
-**Commit:** c9ee7713 (shared with WR-G4-02, because both use the new hook)
-**Applied fix:** the route now reads the failure of the date call. A custom range with no date shows the ErrorState and Try Again (which asks for the date again) and no longer reports loading. New page test: a shared custom-range link with the orders probe answering 500 shows "Couldn't load the visitor stats.", Try Again loads the figures. It failed first, then passed.
-**Status:** fixed
+### G4-WR-02: Cookie inventory scans a fixed pair of files and only prefixed names
 
-### WR-G4-02: After 5 minutes the cached business today is dropped and custom dates silently stop applying
+**Files modified:** `web/src/test/cookie-inventory.node.test.ts`
+**Commit:** 036be05b
+**Applied fix:** The inventory reads every `.cs` file in `src/Csps.Server/Security` except `RetiredCookies.cs`, and the name pattern accepts a bare `csps_` name. A second check scans all server C# for `Cookies.Append(` and requires each call to use a name constant from the inventory files. The "reads at least one name" check now names the two cookie files. The retired file is still read separately.
+**Evidence:** 16 tests passed. A temporary extra constant plus a literal `Cookies.Append("csps_literal", ...)` made four tests fail; the temporary file was removed.
 
-**Files modified:** same commit as WR-G4-01
-**Commit:** c9ee7713
-**Applied fix:** new hook `useVisitorStatsToday` keeps the last date it was given, so the range inputs keep their limits and typed ranges still apply after the held answer goes stale. Used by the route and by `StatsCustomRange`. Tests: gives the date, keeps it after 6 minutes (Date faked), asks for nothing when not enabled. The red run was a missing module (the hook did not exist yet).
-**Status:** fixed
+### G4-WR-03: "has no block that opens Cookie Settings" can never fail
 
-### WR-G5-02: Showcase demo reconfigures the live consent store and never restores it
+**Files modified:** `web/src/test/legal-content.node.test.ts`
+**Commit:** 119ac48c
+**Applied fix:** Replaced with a check that fails on any block kind outside `p`, `ul`, `dl`, `h3`, `facts`.
+**Evidence:** 21 tests passed. With `facts` temporarily removed from the known set, 3 tests failed; restored.
 
-**Files modified:** `web/src/dev/previews/demoConsent.ts`, `web/src/dev/previews/OpenedCookieSettings.tsx`, `web/src/dev/previews/StaticConsentBar.tsx`, `web/src/modules/public/hooks/useConsent.ts`, `web/src/dev/demoConsent.test.tsx` (new)
-**Commit:** 584b6b59
-**Applied fix:** `reconfigure` now returns the options it replaced. `seedDemoConsent` remembers the first set (the real cookie reader and the real GPC signal), and both demo components return `restoreDemoConsent` from their effects. The comment on `reconfigure` now says the showcase uses it. Two new tests (Cookie Settings demo and cookie bar demo unmount) failed first on the real assertion (`gpc` still true), then passed.
-**Differs from the review:** the review suggested a `restoreConsentStore()` in `useConsent.ts`. That cost about 670 B of public JavaScript in the budget build, which has only about 350 B of room (see below), so the options-returning form was used.
-**Status:** fixed: requires human verification
+### G4-WR-04: Axe test "with the export toast shown" passes when no toast is shown
 
-### WR-G5-01: "Manager views add nothing" e2e test can fail on other specs' traffic
+**Files modified:** `web/src/modules/admin/pages/VisitorStatsPage.test.tsx`
+**Commit:** a9b8e73d
+**Applied fix:** The wait for the toast no longer swallows its failure; it is now `expect(await screen.findByText('Visitor stats exported', ...)).toBeInTheDocument()`.
+**Evidence:** All 62 tests in the file passed. With the expected text temporarily wrong, the test failed.
 
-**Files modified:** `web/e2e/visitor-stats.spec.ts`, `web/e2e/consent.spec.ts`
-**Commit:** 61f50924
-**Applied fix:** option 1 of the review. The Manager test now reads the Terms row, opens `/terms` and reads it again under `withSiteContentLock`. The consent "Clear my cookies" journey, the only other non-locked spec that opens `/terms`, now opens it under the same lock (the Terms sweep already ran under it). The false "no other journey opens it" comment was rewritten, and the Manager test's timeout is 480 s because the lock can take up to 6 minutes.
-**Evidence:** both edited specs were run in the chromium project and passed (2 passed, 28.2 s). A timing flake cannot be proven fixed by one pass; the fix removes the cause the review named.
-**Status:** fixed: requires human verification
+### G4-WR-05: Negative beacon tests wait a fixed 60 ms
+
+**Files modified:** `web/src/modules/public/hooks/usePageViewBeacon.test.tsx`, `web/src/layouts/PublicLayout.test.tsx`
+**Commit:** 55a04600
+**Applied fix:** The "skips /admin, /dev", "repeat click" and "hidden page" tests, and the PublicLayout "/dev and /admin" test, now continue to a counted path, wait for that request, and check nothing came before it. The test Beacon got a second link (Gallery) as the control for the repeat-click case.
+**Evidence:** 63 tests across the two files passed. With the admin/dev skip temporarily removed, 5 tests failed. With the same-path guard removed, 2 other tests failed (the repeat-click test cannot reach that guard, because a same-path click does not re-run the effect; its control still catches a repeat send).
+
+### G5-WR-01: "A signed-in Manager's page view adds nothing" can pass when the view is wrongly counted
+
+**Files modified:** `web/e2e/visitor-stats.spec.ts`, `docs/web/e2e.md`
+**Commit:** aaf9e839 (shared with G5-WR-02: same file, same helper)
+**Applied fix:** New helper `pageViewsByName` exports the CSV for the default range and sums each page's rows (the CSV lists every page, the top 5 list does not). The test compares the Terms of Use total before and after the Manager opens `/terms`, under the site content lock.
+**Evidence:** Playwright, chromium project, `@visitor-stats` and `@no-cookies`: 13 passed. With the staff gate in `CollectPageViewHandler` temporarily switched off, this test failed (`Expected: 0, Received: 1`); the handler was restored.
+
+### G5-WR-02: The "Manager sees each count rise" test is satisfied by other projects' traffic
+
+**Files modified:** `web/e2e/visitor-stats.spec.ts`, `docs/web/e2e.md`
+**Commit:** aaf9e839
+**Applied fix:** The visitor now opens `/terms`, `/accessibility` and `/privacy` (only opened by other specs under the site content lock), the whole sequence runs under that lock, and each page's CSV total must rise by exactly one. The test no longer calls `ensureDemoSiteContent` (the legal pages need no demo photos), so it waits for the lock once. Timeout is 480 s, as for the other lock test. Test title and file header changed to match; the `docs/web/e2e.md` `@visitor-stats` row now says "exactly one" and explains why the legal pages are exact.
+**Evidence:** Same Playwright run as G5-WR-01 (13 passed in chromium). Not run in the other four projects.
+**Note:** This commit also carries the `@no-cookies` row edit in `docs/web/e2e.md` that belongs to G5-WR-03.
+
+### G5-WR-03: The `@no-cookies` checks are narrower than the claim
+
+**Files modified:** `web/e2e/no-cookies.spec.ts`
+**Commit:** 001aaebb
+**Applied fix:** `expectNothingStored` now waits for the page view beacon and expects 204, records every response of the context and asserts none carries `Set-Cookie`, and asserts `localStorage` and `sessionStorage` are empty. The file header says so.
+**Evidence:** Same Playwright run (13 passed in chromium, including both `@no-cookies` tests). With a temporary `localStorage.setItem` in the page helper, the plain-browser test failed on "nothing in browser storage"; restored. Not run in the other four projects.
 
 ## Skipped Issues
 
-All four need an owner decision, so none was changed.
+None. No finding needed an owner decision.
 
-### WR-G1-02: The hashed address prefix is stored for 13 months and nothing reads it
+## Checks run at the end (in the fix worktree)
 
-**File:** `src/Csps.Application/Analytics/CollectPageViewHandler.cs:100-112`, `src/Csps.Domain/Analytics/AnalyticsVisit.cs:52-53`
-**Owner ruling:** D-52 (owner, 2026-11-18), option 1. Fixed after this pass: a new visit no longer stores the address hash. Dropping the column is still a separate decision.
-**Reason (at the time of this pass):** needs owner decision. Dropping `IpHash` is a schema drop (a one-way door), and keeping it changes what the Privacy Policy must say.
-**Options:**
-1. Stop writing it now and drop the column in a later migration after you approve. Recommended: nothing reads it, and storing less personal data is the safer privacy position.
-2. Keep it and write down its purpose (in the decision log and the Privacy Policy).
-3. Leave it as it is.
-**Original issue:** the hash of the address prefix is written to every visit and kept 13 months, but no code reads it, and its day salt is deleted after two days.
+- `dotnet build Csps.slnx`: 0 warnings, 0 errors.
+- `npm run lint` (`--max-warnings 0`), `npm run typecheck` and Prettier on every changed web file: clean. No em or en dash in the changed web files.
+- Full web unit run (`npx vitest run`, 420 files): 11222 passed, 2 failed, both in `scripts/license-policy.test.ts`. Re-run alone in the worktree, one still failed ("No packages found in this path", the license checker finding no packages in a git worktree). The same file run in the main checkout passed (64 of 64). The two failures are in a file these fixes did not touch, and look like a worktree artifact. Please confirm with a full web run in the main checkout.
+- E2E: only the chromium project was run, and only the `@visitor-stats` and `@no-cookies` specs. Firefox, webkit, pixel and iphone were not run.
+- Flakes: none seen.
 
-### WR-G1-03: The visitor id and consent cookie gates can be forged, so referrer names and unique visitors can be poisoned
+## Orchestrator check in the main checkout
 
-**File:** `src/Csps.Domain/Analytics/ReferrerName.cs:40-58`, `src/Csps.Application/Analytics/IdentifiedCollection.cs:17-22`, `src/Csps.Application/Analytics/CollectPageViewHandler.cs:104-112`
-**Owner ruling:** D-50 (owner, 2026-11-18) chose option 1, then D-53 removed stored referrers and the visitor id, so this is resolved by Phase 12.1 instead.
-**Reason:** needs owner decision. Signing the visitor id changes the cookie format and the security posture (old cookies stop working). Limiting referrer names changes what the Manager sees and what is stored.
-**Options:**
-1. Check referrer names as real host names (labels 1 to 63 characters, no leading or trailing hyphen, at least one dot, no trailing dot) and keep them. Recommended first step: it stops junk such as `a`, `..` and bare IP addresses and keeps real source names.
-2. Store only the fixed groups (Facebook, Messenger, Instagram, Google, Direct) and one "Other site" bucket. Simplest and closes the unbounded growth, but the Manager loses the real site names.
-3. Also sign the visitor id with a server key so only ids the server issued count. Strongest, but a security change to plan on its own.
-**Original issue:** a script can set both cookies by hand with fresh ids and post page views with any referrer name, inflating unique visitors and adding spam rows to the referrer list and `DailyReferrerCount`.
-
-### WR-G2-03: One visitor id can write unlimited page view and speed sample rows, and anyone can get a visitor id
-
-**File:** `src/Csps.Infrastructure/Analytics/AnalyticsVisits.cs:36-51, 63-74`, `src/Csps.Server/Controllers/AnalyticsController.cs:36-74`
-**Owner ruling:** D-53 (owner, 2026-11-18). Page view and speed rows are no longer written, so there is nothing to cap. Resolved by Phase 12.1.
-**Reason:** needs owner decision. A cap needs a number you choose (for example 200 page views per visit), and one speed sample per visit, page and metric needs a unique index (a schema change, additive but still a migration).
-**Options:**
-1. Add a unique index on (visit, page, metric) so a visit keeps one sample each, and cap page views per visit (for example 200). Recommended: it closes both growth paths. The answer stays 204.
-2. Cap only the speed samples (the one-per-metric index) and leave page views alone.
-3. Accept the risk for now and note it in the backlog. The anonymous counter is already documented as inflatable.
-**Original issue:** no cap per visit, page or metric, so one script could write about 500,000 rows a day, all kept 13 months, and drag the speed figures to any value.
-
-### WR-G2-04: Row-creating anonymous endpoints are limited per address only, and an IPv6 /64 is trivially rotated
-
-**File:** `src/Csps.Server/Security/RateLimitingRegistration.cs:109-146`
-**Owner ruling:** D-51 (owner, 2026-11-18), option 1: a site-wide ceiling of about 600 a minute on the anonymous write routes that remain. Built in Phase 12.1.
-**Reason:** needs owner decision. A site-wide ceiling is a rate-limit number you pick (the review suggests 600 a minute), and a /48 grouping changes who shares a bucket.
-**Options:**
-1. Add one site-wide ceiling chained to the per-address limit for the four anonymous write routes, for example 600 a minute. Recommended: simple, and it protects the one small database.
-2. Group IPv6 by /48 instead of /64 for those routes (a second step, and it may put one office or carrier into one bucket).
-3. Do both.
-**Original issue:** a client with a /48 or larger IPv6 block gets a fresh allowance in every /64, so consent and clear rows can grow without limit (kept 13 months) and could fill the host's one database.
-
-## Evidence
-
-All commands ran in the main checkout on 2026-11-18. The preflight was run first and showed ports 5180, 5115, 7028 and 5199 free and no other dev or test processes. `CSPS_TEST_SQL=localdb` was set only inside the test processes. Gitleaks found no leaks on every staged change.
-
-.NET (`dotnet test --project ...`, MTP):
-- `Csps.Infrastructure.IntegrationTests`, namespace `...Analytics`: 85 passed, 0 failed.
-- `Csps.Server.IntegrationTests`, namespace `...Analytics`: 143 passed, 0 failed.
-- `Csps.Application.UnitTests`: 3303 passed, 0 failed.
-- `Csps.ArchitectureTests`: 290 passed, 0 failed.
-- No build warnings were printed in any of these runs.
-
-Web (`vitest`, `tsc`, `eslint`):
-- `src/modules/public`: 48 files, 856 passed (run after WR-G3-01).
-- `src/modules/admin`: 95 files, 2239 passed, 0 failed (includes the new hook, page and speed card tests).
-- `src/dev`, `src/modules/public`, the showcase files: 63 files, 1388 tests, all passing after the last fix (one test of mine was first wrong about the store's starting state and was corrected, see the git history of `src/dev/demoConsent.test.tsx`).
-- `src/test` (layout, no-long-dash, cookie inventory, legal content, build config): 16 files, 276 passed.
-- `npm run typecheck`: clean. `npm run lint` (`--max-warnings 0`): clean. Prettier check on the changed files: clean.
-- `npm run build:budget` passes. Public route figures with the dev routes in the build: Privacy 149,633 B and Contact 149,508 B against the 150,000 B limit (about 350 B of room), admin 223,268 B against 250,000 B.
-- Playwright, chromium project only, for the two edited specs: 2 passed (28.2 s).
-
-**Not run:** the whole web suite as one command, the other four Playwright projects (firefox, webkit, pixel, iphone), the whole .NET Server and Infrastructure integration suites outside the Analytics namespaces, and the visual parity suite.
-
-## Things worth knowing
-
-- **Bundle room is very small.** The public JavaScript budget has about 350 B of room (Privacy 149,633 B of 150,000 B in the budget build). While fixing WR-G5-02 a new test file placed in `web/src/dev/previews/` added about 680 B to every public route and broke the budget gate. `web/src/dev/kit.ts` pulls every `*.tsx` in `previews/` into the build with an eager glob. The test now lives in `web/src/dev/`. Anyone adding files to `previews/` should keep this in mind. This relates to IN-G5-08 (the R1 and R2 reserve options need your yes).
-- **WR-G4-01 and WR-G4-02 share commit c9ee7713** because both edits use the same new hook in the same files. Each has its own tests.
-- **Dead port member:** `IAnalyticsVisits.StartAsync` is no longer called by the handler. It is kept because the store tests use it. It can be removed in a later clean-up.
+- Full web unit run (`npx vitest run`, 420 files): 11223 passed, 1 failed. `scripts/license-policy.test.ts` passed, so its worktree failure was an artifact.
+- The one failure was real and came from G5-WR-01/02: `scripts/e2e-lock-timeouts.test.ts` did not see the 8 minute timeout on the new lock-taking visitor stats test, because it was set with `testInfo.setTimeout` instead of `test.setTimeout`. Fixed in a follow-up commit (same timeout, the form the guard reads). After the fix: `e2e-lock-timeouts.test.ts` and `license-policy.test.ts` 68 of 68 passed; ESLint, Prettier and `npm run typecheck` clean.
+- Migrations: no file under any `Migrations` folder changed in the 13 fix commits (D-80 holds).
 
 ---
 
-_Fixed: 2026-11-18T15:10:00-05:00_
+_Fixed: 2026-11-20T19:00:00-06:00_
 _Fixer: Claude (gsd-code-fixer)_
 _Iteration: 1_
