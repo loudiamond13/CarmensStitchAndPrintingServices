@@ -168,9 +168,9 @@ test.describe('a visitor with no cookie choice', () => {
     browser,
     baseURL,
     request,
-  }, testInfo) => {
+  }) => {
     // The site content lock can take up to 6 minutes to get (the sweep specs hold it while they open the legal pages).
-    testInfo.setTimeout(480_000);
+    test.setTimeout(480_000);
 
     const context = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
     const watched = await guardContext(context, baseURL);
