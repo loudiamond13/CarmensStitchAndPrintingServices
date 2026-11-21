@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T14:10:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T13:10:00-06:00*
 
 ## Overview
 
@@ -64,7 +64,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [x] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers (completed 2026-11-13)
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
-- [ ] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages
+- [x] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages (completed 2026-11-21)
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
 - [ ] **Phase 14: Hardening & Release Readiness** - Full security review and ZAP, manual accessibility passes, PWA, View Transitions, runbooks and DSR/breach procedures
 - [ ] **Phase 15: Legacy Discovery & Mapping** - Read-only restore, `LEGACY-SCHEMA.md`, owner-approved `LEGACY-MAPPING.md`
@@ -1299,7 +1299,7 @@ Plans:
 
 **Research flag:** Standard patterns. The PRD and NPC guidance are already detailed.
 
-**Plans**: 32/32 plans executed
+**Plans**: 32/32 plans complete
 - [x] 12-32-PLAN.md
 - [x] 12-01-PLAN.md
 - [x] 12-02-PLAN.md
@@ -1341,7 +1341,7 @@ Plans:
 **Ships with Phase 12:** Phase 12 is never deployed alone (D-62).
 **D-73 owner approval: closed (D-135, owner, 2026-11-21).** The owner approved the Privacy Policy as written; it is version 1.0, last updated 2026-11-21, with no DRAFT notice (plan 12.1-16 Task 2).
 **Depends on:** Phase 12
-**Plans:** 17/17 plans executed
+**Plans:** 17/17 plans complete
 
 Plans:
 **Wave 1**
@@ -1619,7 +1619,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
-| 12. Consent, Analytics & Legal | 32/32 | In Progress | - |
+| 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
