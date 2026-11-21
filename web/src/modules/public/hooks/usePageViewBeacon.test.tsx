@@ -26,9 +26,6 @@ function hidePage(): void {
   document.dispatchEvent(new Event('visibilitychange'));
 }
 
-/** Lets any request that was going to be sent reach the probe. */
-const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 60));
-
 afterEach(() => {
   setReferrer('');
   Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
@@ -143,9 +140,16 @@ describe('usePageViewBeacon (D-53)', () => {
         </MemoryRouter>
       </StrictMode>,
     );
-    await settle();
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
+    // The next new path is the control: a second send of /contact would sit before it.
+    await userEvent.click(screen.getByRole('link', { name: 'Products' }));
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(2);
+    });
 
-    expect(probe.requests).toHaveLength(1);
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/contact' }, { path: '/products' }]);
   });
 
   it('drops a failed send quietly: one call, no retry and nothing logged', async () => {
@@ -158,9 +162,13 @@ describe('usePageViewBeacon (D-53)', () => {
     await waitFor(() => {
       expect(probe.requests).toHaveLength(1);
     });
-    await settle();
+    // The next new path is the control: a retry of /contact would sit before it.
+    await userEvent.click(screen.getByRole('link', { name: 'Products' }));
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(2);
+    });
 
-    expect(probe.requests).toHaveLength(1);
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/contact' }, { path: '/products' }]);
   });
 });
 
@@ -226,8 +234,10 @@ describe('createBeaconMachine', () => {
 
     machine.view('/');
     machine.view('/products');
-    await settle();
+    await Promise.resolve();
+    // The next new path is the control: a retry of a rejected send would sit before it.
+    machine.view('/contact');
 
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls.map(([body]) => body)).toEqual([{ path: '/' }, { path: '/products' }, { path: '/contact' }]);
   });
 });
