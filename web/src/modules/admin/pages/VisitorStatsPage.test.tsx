@@ -908,6 +908,8 @@ function captureDownloads(): { saved: SavedFile[]; revoked: string[] } {
 describe('V1 CSV export (D-25)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    Reflect.deleteProperty(URL, 'createObjectURL');
+    Reflect.deleteProperty(URL, 'revokeObjectURL');
   });
 
   it('pressing Export CSV asks the server for the range shown and saves the file under its name', async () => {

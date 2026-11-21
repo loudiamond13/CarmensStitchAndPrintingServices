@@ -34,6 +34,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  Reflect.deleteProperty(URL, 'createObjectURL');
+  Reflect.deleteProperty(URL, 'revokeObjectURL');
 });
 
 async function firstBytes(blob: Blob | undefined, count: number): Promise<string> {
