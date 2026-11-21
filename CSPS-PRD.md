@@ -1,5 +1,5 @@
 # CSPS — Carmen's Stitch & Printing Services
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-11-19T09:00:00-06:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-11-20T19:56:00-06:00*
 
 ## Product Requirements & Engineering Contract (for GSD Core)
 
@@ -492,7 +492,7 @@ Security follows **MITRE CWE** (weakness prevention, using the **latest CWE Top 
 | CWE-352 | CSRF | Access token in memory + `Authorization` header; refresh cookie `SameSite=Strict` + anti-CSRF header. |
 | CWE-862 / CWE-863 | Missing / incorrect authorization | Default-deny policies; authorization matrix tests for every endpoint. |
 | CWE-639 | IDOR | Resource lookups always scoped and policy-checked; GUID ids; tests for cross-access. |
-| CWE-287 / CWE-306 | Improper / missing authentication | Identity + mandatory 2FA; no unauthenticated mutating endpoints except auth flows and consent. |
+| CWE-287 / CWE-306 | Improper / missing authentication | Identity + mandatory 2FA; no unauthenticated mutating endpoints except auth flows. |
 | CWE-307 | Excessive auth attempts | Lockout + ASP.NET Core rate limiting on login, 2FA verify, resend, forgot/reset password. |
 | CWE-330 / CWE-338 | Weak randomness | `RandomNumberGenerator` for codes, tokens, ids used for security. |
 | CWE-613 | Insufficient session expiration | 15-min access tokens, rotating refresh tokens, absolute lifetimes, revocation on credential changes. |
@@ -522,7 +522,7 @@ T1110 Brute Force (incl. T1110.003 spraying, T1110.004 credential stuffing) · T
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (deny camera, mic, geolocation, etc.), `Cross-Origin-Opener-Policy: same-origin`.
 - Remove `Server`, `X-Powered-By`, `X-AspNet-Version` headers.
 - HTTPS redirection; no CORS needed for the same-origin web app (keep CORS disabled until a specific origin is required).
-- Rate limiting (fixed/sliding window, per IP and per account) on auth, consent, analytics ingestion, and public endpoints.
+- Rate limiting (fixed/sliding window, per IP and per account) on auth, analytics ingestion, and public endpoints.
 - Request body limits: JSON 1 MB; uploads per §10.
 
 ### 11.4 Audit log (append-only)

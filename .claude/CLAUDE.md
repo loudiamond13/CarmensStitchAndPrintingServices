@@ -2,11 +2,11 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-11-19T09:00:00-06:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-11-20T19:56:00-06:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
-- **Public site:** home, products, gallery, contact/quote, legal pages, cookie consent. Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
+- **Public site:** home, products, gallery, contact/quote, legal pages (no cookie banner). Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
 - **Admin portal:** staff with the roles `Admin` and `Manager` run orders (items, payments, discounts, order expenses, images), company expenses, users, site content, visitor metrics and their own profiles.
 - All production data is migrated in without loss. The API is client-agnostic, so a future Android app can use the same backend.
 
