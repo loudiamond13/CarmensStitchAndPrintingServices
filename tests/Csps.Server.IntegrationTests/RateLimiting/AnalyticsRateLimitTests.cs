@@ -21,7 +21,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     private const int CollectPerMinute = 120;
 
     [Fact]
-    public async Task OnlyThePageViewAndCeilingRulesRemainForAnalytics()
+    public async Task OnlyThePageViewRuleRemainsForAnalytics()
     {
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         var analytics = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
