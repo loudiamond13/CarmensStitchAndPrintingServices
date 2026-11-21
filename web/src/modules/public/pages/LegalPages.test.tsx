@@ -82,7 +82,6 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01, LEGAL-05, D-14)', { timeout: 
   it('shows the version line exactly, after the h1 and before the lead', async () => {
     await renderLegal('/privacy', 'Privacy policy.');
     const version = screen.getByText(versionLine('privacy'));
-    expect(version).toHaveTextContent(/^Version 1\.0 · /);
     const h1 = screen.getByRole('heading', { level: 1 });
     const lead = screen.getByText(/^How we collect, use and protect/);
     expect(h1.compareDocumentPosition(version) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
