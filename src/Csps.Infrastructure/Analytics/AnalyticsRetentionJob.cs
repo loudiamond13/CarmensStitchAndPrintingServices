@@ -8,9 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace Csps.Infrastructure.Analytics;
 
 /// <summary>
-/// Keeps visitor analytics for the published time and no longer (ANL-09, D-03 to D-05, D-07, D-61, D-64). Nothing is rolled up any more: each
-/// rule only removes rows past its cut date. A database failure in one rule is logged and reported as that rule's failed line; the other
-/// rules still run.
+/// Keeps visitor analytics for the published time and no longer (ANL-09, D-03 to D-05, D-07, D-61, D-64). Each rule only removes rows past
+/// its cut date. A database failure in one rule is logged and reported as that rule's failed line, and the other rules still run.
 /// </summary>
 /// <param name="context">The database context.</param>
 /// <param name="calendar">The business calendar (Asia/Manila by default).</param>

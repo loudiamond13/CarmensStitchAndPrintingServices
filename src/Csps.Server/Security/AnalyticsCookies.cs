@@ -1,8 +1,7 @@
 namespace Csps.Server.Security;
 
 /// <summary>
-/// The staff marker cookie and its attributes (D-21). The server sets no consent or visitor id cookie any more; the two retired names are in
-/// <see cref="RetiredCookies"/> (D-63).
+/// The staff marker cookie and its attributes (D-21). The two retired cookie names are in <see cref="RetiredCookies"/> (D-63).
 /// </summary>
 public static class AnalyticsCookies
 {
