@@ -1,7 +1,7 @@
 ---
 phase: 12-consent-analytics-legal
 created: 2026-11-20T19:00:00-06:00
-updated: 2026-11-20T19:25:00-06:00
+updated: 2026-11-20T19:35:00-06:00
 fixed_at: 2026-11-20T19:00:00-06:00
 review_path: .planning/phases/12-consent-analytics-legal/12-REVIEW.md
 iteration: 1
@@ -156,6 +156,35 @@ None. No finding needed an owner decision.
 - Full web unit run (`npx vitest run`, 420 files): 11223 passed, 1 failed. `scripts/license-policy.test.ts` passed, so its worktree failure was an artifact.
 - The one failure was real and came from G5-WR-01/02: `scripts/e2e-lock-timeouts.test.ts` did not see the 8 minute timeout on the new lock-taking visitor stats test, because it was set with `testInfo.setTimeout` instead of `test.setTimeout`. Fixed in a follow-up commit (same timeout, the form the guard reads). After the fix: `e2e-lock-timeouts.test.ts` and `license-policy.test.ts` 68 of 68 passed; ESLint, Prettier and `npm run typecheck` clean.
 - Migrations: no file under any `Migrations` folder changed in the 13 fix commits (D-80 holds).
+
+## Outcome of every finding
+
+The disposition ledger (`12-REVIEW-DISPOSITION.md`) cannot read group-prefixed ids such as `G2-WR-01` and recorded none of them, so this table is the record. Info findings were outside this fix pass (`--fix` without `--all`) and are deferred until the owner chooses to run `--fix --all` or rules on them.
+
+| Finding | Severity | Outcome | Where |
+|---|---|---|---|
+| D80-WR-01 | Warning | fixed (D-80; needs a human look at the diff) | 359729fd |
+| G2-WR-01 | Warning | fixed | 1be08ac4 |
+| G2-WR-02 | Warning | fixed | 0c4b7806 |
+| G2-WR-03 | Warning | fixed | 2d355e4f |
+| G3-WR-01 | Warning | fixed (needs a human look) | 60ec3cd6 |
+| G3-WR-02 | Warning | fixed (needs a visual check on a 2 to 3 year range) | c9aed4e4 |
+| G4-WR-01 | Warning | fixed | e0f24f19 |
+| G4-WR-02 | Warning | fixed | 036be05b |
+| G4-WR-03 | Warning | fixed | 119ac48c |
+| G4-WR-04 | Warning | fixed | a9b8e73d |
+| G4-WR-05 | Warning | fixed | 55a04600 |
+| G5-WR-01 | Warning | fixed | aaf9e839, follow-up 89e65500 |
+| G5-WR-02 | Warning | fixed | aaf9e839, follow-up 89e65500 |
+| G5-WR-03 | Warning | fixed | 001aaebb |
+| G5-IN-01 | Info | fixed in passing (the `docs/web/e2e.md` rows) | aaf9e839 |
+| G3-IN-04 | Info | deferred: owner wording, part of the D-73 Privacy Policy review | owner backlog |
+| G5-IN-02 | Info | deferred: doc wording in `.claude/CLAUDE.md` and `CSPS-PRD.md`; owner docs | owner backlog |
+| G1-IN-01 to G1-IN-04 | Info | deferred: out of fix scope | `12-REVIEW.md` |
+| G2-IN-01 to G2-IN-04 | Info | deferred: out of fix scope | `12-REVIEW.md` |
+| G3-IN-01 to G3-IN-03, G3-IN-05 | Info | deferred: out of fix scope | `12-REVIEW.md` |
+| G4-IN-01 to G4-IN-04 | Info | deferred: out of fix scope | `12-REVIEW.md` |
+| G5-IN-03 | Info | deferred: out of fix scope | `12-REVIEW.md` |
 
 ---
 
