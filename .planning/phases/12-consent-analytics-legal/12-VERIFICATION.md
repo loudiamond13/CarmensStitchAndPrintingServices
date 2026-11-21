@@ -1,8 +1,8 @@
 ---
 phase: 12-consent-analytics-legal
 created: 2026-11-21T13:05:00-06:00
-updated: 2026-11-21T13:05:00-06:00
-verified: 2026-11-21T19:05:00Z
+updated: 2026-11-21T16:40:00-06:00
+verified: 2026-11-21T22:40:00Z
 status: passed
 score: 5/5 must-haves verified
 covered_files:
@@ -84,7 +84,9 @@ covered_files:
   - "src/Csps.Server/Endpoints/LegalPageCatalog.cs"
   - "src/Csps.Server/Endpoints/PublicRouteTable.cs"
   - "src/Csps.Server/Endpoints/SeoEndpoints.cs"
+  - "src/Csps.Server/Security/RateLimitingRegistration.cs"
   - "tests/Csps.Server.IntegrationTests/Authorization/AuthorizationMatrix.cs"
+  - "tests/Csps.Server.IntegrationTests/RateLimiting/PageViewCeilingRouteTests.cs"
   - "tests/fixtures/legal-pages.json"
   - "web/src/core/routes/router.tsx"
   - "web/src/modules/admin/hooks/useVisitorStatsParams.ts"
@@ -101,9 +103,17 @@ covered_files:
   - "web/src/modules/public/legalTerms.ts"
   - "web/src/modules/public/pages/AccessibilityPage.tsx"
   - "web/src/modules/public/pages/TermsPage.tsx"
-covered_digest: "v4:sha256:27363439c2e7489aa7392f557cae8fe172903f16b876bd9fc037563156145cf1"
+covered_digest: "v4:sha256:ef632ad586633c4b79d3ab47761d0f3cb3727619819e9806dee73979d777bb51"
 behavior_unverified: 0
 overrides_applied: 0
+re_verification:
+  previous_status: passed
+  previous_score: 5/5
+  previous_verified: 2026-11-21T19:05:00Z
+  reason: "Commit 8cf3ab2a (quick task 261121-hxs, D-138) changed AnalyticsController.cs and RateLimitingRegistration.cs and added PageViewCeilingRouteTests.cs after the first report, so its fingerprint went stale."
+  gaps_closed: []
+  gaps_remaining: []
+  regressions: []
 decision_coverage:
   honored: 50
   total: 62
@@ -113,9 +123,9 @@ decision_coverage:
 # Phase 12: Consent, Analytics & Legal Verification Report
 
 **Phase Goal (as amended):** The original goal (fair cookie choice, clear my data, consented analytics, legal pages marked DRAFT) is amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18). Phase 12 and 12.1 ship together (D-62). The current meaning, from REQUIREMENTS.md (ANL-01 to ANL-09, LEGAL-01 to LEGAL-05) and the Phase 12.1 roadmap section: the public site keeps only an anonymous daily page tally, sets no optional cookies and shows no cookie banner; a Manager sees Visitor Stats with a `Date,Page,Page views` CSV; old analytics rows are cleaned up monthly; visitors can read three versioned legal pages (Privacy Policy with the Cookie Policy folded in, Terms of Use, Accessibility Statement), all linked in the footer.
-**Verified:** 2026-11-21
+**Verified:** 2026-11-21 (re-run, 22:40Z)
 **Status:** passed
-**Re-verification:** No. This is the first verification report for Phase 12.
+**Re-verification:** Yes. The first report (passed, 5 of 5, 2026-11-21T19:05Z) went stale after commit 8cf3ab2a (D-138). Every previous truth was re-checked for regressions, and the changed files were read in full.
 
 ## Summary
 
@@ -124,6 +134,18 @@ The amended goal is met. I checked the code myself for each requirement and ran 
 Owner ruling D-137 (2026-11-21) says Phase 12 closes on Phase 12.1's evidence with no UAT of its own. I cite 12.1-VERIFICATION.md (passed, 6 of 6), 12.1-UAT.md (3 of 3 pass) and 12.1-SECURITY.md (35 closed, 0 open). I also re-checked the parts that Phase 12 built and Phase 12.1 kept: the retention job and its monthly run, Manager-only Visitor Stats, the Terms and Accessibility pages, the sitemap and the footer links.
 
 Superseded criteria are marked "superseded by D-xx". They are not gaps.
+
+## What changed since the first report
+
+Only one code commit landed after the first report: 8cf3ab2a (quick task 261121-hxs, owner ruling D-138). Everything else since then is documents (security, Nyquist and UI audit notes, STATE). I confirmed this with `git diff --stat 8cf3ab2a^ HEAD -- src web/src tests .github`, which lists exactly three files.
+
+| File | Change | What I checked |
+|------|--------|----------------|
+| `src/Csps.Server/Controllers/AnalyticsController.cs` | The page view action's `[EndpointName("RecordPageView")]` became `[EndpointName(RateLimitingRegistration.PageViewEndpointName)]`. | I read the whole file. The route is still `POST api/v1/analytics/page-views`, still `[AllowAnonymous]`, `[RequireCsrfHeader]`, 4096-byte cap, `[EnableRateLimiting(RateLimitPolicies.AnalyticsCollect)]`. The name value is the same string as before, so behavior is unchanged. |
+| `src/Csps.Server/Security/RateLimitingRegistration.cs` | `PageViewEndpointName` went from `private const` to `public const` (value `"RecordPageView"`). | `IsPageView(context)` (lines 158 to 162) reads the endpoint name metadata and compares it with this one constant. Both the per-address limiter and the site-wide ceiling use `IsPageView`, so the ceiling and the route now share one constant instead of two copies of a string. |
+| `tests/Csps.Server.IntegrationTests/RateLimiting/PageViewCeilingRouteTests.cs` | New guard test. | It builds the real app, lists every route endpoint, keeps those whose name equals the constant, and requires exactly one, with route text `api/v1/analytics/page-views` and method POST. It fails if the name is missing from the route (the ceiling would silently stop applying), if a second endpoint takes the name (the ceiling would be shared), or if the route or method moves. It is not circular: it checks the live route table, not the controller source. |
+
+Result: the change is a safe refactor that locks in the link between the page view route and the site-wide ceiling. It does not alter what is collected, who can read stats, or what the legal pages say. It adds protection for ANL-06's anonymous beacon (an abuse ceiling), and no requirement lost anything.
 
 ## Goal Achievement
 
@@ -135,7 +157,7 @@ The five roadmap criteria, read in their current meaning.
 |---|-------------------------|--------|----------|
 | 1 | Criterion 1, consent banner: superseded by D-54, D-59, D-60, D-61. Now: no cookie banner, no Cookie Settings link, no optional cookies, GPC honored by design with `/.well-known/gpc.json` kept, and no consent asked or logged (ANL-01, ANL-02, ANL-03, ANL-07). | VERIFIED | No consent or cookie-bar source remains in `web/src` (`no-consent.node.test.ts` and `cookie-inventory.node.test.ts` pass in my run). `SeoEndpoints.cs` still maps `/.well-known/gpc.json` with `{"gpc":true,...}`; `SeoEndpointTests` (includes the GPC test) passes. No `ConsentController` exists; `RemovedAnalyticsRoutesTests` passes. |
 | 2 | Criterion 2, clear my data: superseded by D-55, D-63, D-65. Now: no Clear button; the Privacy Policy explains how to clear the saved map setting; the server expires the two old consent and visitor id cookies when a browser sends them (ANL-04). | VERIFIED | `RetiredCookiesMiddleware` is registered at `Program.cs:135`. `RetiredCookiesTests` passes in my run. The "Cookies and saved settings" section is in `legalPrivacy.ts` (line 138). |
-| 3 | Criterion 3, analytics capture: reduced by D-53. Now: each public page view adds one to the anonymous count for that path and day; the path is cut at `?` or `#`; bots and signed-in staff are not counted; no raw events and no roll-up; the monthly cleanup removes old rows in every analytics table, daily counts kept about 3 years (ANL-05, ANL-06, ANL-09). | VERIFIED | Client: `usePageViewBeacon(pathname)` in `PublicLayout.tsx` sends `{ path }` only, from `useLocation().pathname`. Server: `CollectPageViewHandler` gates on validation, `AnalyticsBots.IsBot`, `IsStaff`, then `AnalyticsPath.Cut` (`IndexOfAny('?', '#')`), and its only write is `counts.IncrementAsync`. Retention: `AnalyticsRetentionJob` (delete-only, four rules, label "Old daily page counts removed", `DailyYears = 3`) is registered in `MaintenanceRegistration`, run by `RunMaintenanceHandler`, and scheduled by `.github/workflows/maintenance.yml` (cron `17 19 1 * *`). This is a state change, so I required tests: `AnalyticsRetentionJobTests` (24) pass, and `MaintenanceEndpointTests` passes, which proves the real `/maintenance/run` endpoint reports the "Old daily page counts removed" line. `PageViewCollectTests` passes. |
+| 3 | Criterion 3, analytics capture: reduced by D-53. Now: each public page view adds one to the anonymous count for that path and day; the path is cut at `?` or `#`; bots and signed-in staff are not counted; no raw events and no roll-up; the monthly cleanup removes old rows in every analytics table, daily counts kept about 3 years (ANL-05, ANL-06, ANL-09). | VERIFIED | Client: `usePageViewBeacon(pathname)` in `PublicLayout.tsx` sends `{ path }` only, from `useLocation().pathname`. Server: `CollectPageViewHandler` gates on validation, `AnalyticsBots.IsBot`, `IsStaff`, then `AnalyticsPath.Cut` (`IndexOfAny('?', '#')`), and its only write is `counts.IncrementAsync`. Retention: `AnalyticsRetentionJob` (delete-only, four rules, label "Old daily page counts removed", `DailyYears = 3`) is registered in `MaintenanceRegistration`, run by `RunMaintenanceHandler`, and scheduled by `.github/workflows/maintenance.yml` (cron `17 19 1 * *`). This is a state change, so I required tests: `AnalyticsRetentionJobTests` (24) pass, and `MaintenanceEndpointTests` passes, which proves the real `/maintenance/run` endpoint reports the "Old daily page counts removed" line. `PageViewCollectTests` passes. Re-run today (22:40Z) with the D-138 change in place: the page view route still carries the ceiling name (`PageViewCeilingRouteTests`), and `AnalyticsRateLimitTests` and `PageViewCollectTests` pass. |
 | 4 | Criterion 4, metrics dashboard: reduced by D-57, D-67 to D-70, D-75. Now: a Manager views Visitor Stats for a date range (total page views, top 5 pages with share, per day or month chart), exports `Date,Page,Page views`, the picker reaches back 3 years, and the range lives in the URL (ANL-08). | VERIFIED | `VisitorStatsController` has `[Authorize(Policy = Policies.Manager)]`; the policy is `RequireRole(Roles.Manager)` in `SecurityRegistration.cs:55`. The authorization matrix lists both routes as Anonymous 401, Admin 403, Manager 200, and `AuthorizationMatrixTests` passes. The web route `visitor-stats` has `loader: requireManager`; the routes test "an Admin who opens /admin/visitor-stats lands on the dashboard" passes. `VisitorStatsCsv.Header` is `"Date,Page,Page views"`. `visitorStatsRange.ts` sets `STATS_KEPT_YEARS = 3`; `useVisitorStatsParams` keeps the range in the URL through `createListParams`. `VisitorStatsEndpointTests`, `VisitorStatsExportTests`, `VisitorStatsPage.test.tsx` and `useVisitorStatsParams.test.tsx` pass. |
 | 5 | Criterion 5, legal pages: reduced by D-72. Now: three legal pages (Privacy Policy with the cookie section, Terms of Use, Accessibility Statement with a contact method), linked in the footer, versioned with "last updated" dates, DRAFT until approved; `/cookies` is "not found" (LEGAL-01 to LEGAL-05). | VERIFIED | Routes `privacy`, `terms` and `accessibility` in `router.tsx`; no `cookies` route, so `/cookies` falls to the `*` Not Found page. Footer Legal row (`SiteFooter.tsx` `LegalRow`) lists the three pages from `copy.ts` lines 272 to 274, with no "Cookie settings". `LegalPage.tsx` shows `versionLine(version, lastUpdated)` and the DRAFT notice only when `approved` is false. All three are approved at 1.0: Privacy 2026-11-21 (D-135), Terms and Accessibility 2026-11-18 (owner "Approved all" in plan 12-22, after D-47 and D-48). The Domain `LegalPages.cs`, `tests/fixtures/legal-pages.json` and `legalPages.ts` agree. The Accessibility Statement shows the contact facts block (`show: ['contact']`). Sitemap: `SeoEndpoints.SitemapAsync` lists every `PublicRouteTable` page except drafts; `SeoEndpointTests` expects `/privacy`, `/terms` and `/accessibility` and never `/cookies`. `LegalPagesTests`, `legal-pages.node.test.ts`, `legal-content.node.test.ts`, `LegalPages.test.tsx`, `TermsPage.test.tsx`, `AccessibilityPage.test.tsx`, `PrivacyPolicyPage.test.tsx`, `SiteFooter.test.tsx`, `PublicRouteTableTests` and `ShellHeadTests` pass. |
 
@@ -155,6 +177,9 @@ Plan frontmatter artifacts from the 32 Phase 12 plans were checked with `verify.
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
 | `src/Csps.Server/Controllers/VisitorStatsController.cs` | Manager-only stats and CSV | VERIFIED | Policy attribute present; matrix test passes. |
+| `src/Csps.Server/Controllers/AnalyticsController.cs` | The page view beacon, count only | VERIFIED | Read in full after D-138. Name comes from the shared constant; the route and its guards are unchanged. |
+| `src/Csps.Server/Security/RateLimitingRegistration.cs` | Per-address limit and site-wide ceiling for the page view route | VERIFIED | `PageViewEndpointName` is public; `IsPageView` keys both limiters on it. |
+| `tests/Csps.Server.IntegrationTests/RateLimiting/PageViewCeilingRouteTests.cs` | Guard test for the shared name | VERIFIED | Passes today; asserts one endpoint, the right route, POST only. |
 | `src/Csps.Infrastructure/Analytics/AnalyticsRetentionJob.cs` | Monthly cleanup, delete only | VERIFIED | Registered and run by the maintenance endpoint. |
 | `src/Csps.Domain/Analytics/AnalyticsRetention.cs` | Retention periods | VERIFIED | 13 months raw, 3 years daily. |
 | `src/Csps.Application/Analytics/CollectPageViewHandler.cs` | Count only | VERIFIED | Bot, staff and path gates. |
@@ -170,6 +195,7 @@ Plan frontmatter artifacts from the 32 Phase 12 plans were checked with `verify.
 |------|----|-----|--------|---------|
 | `PublicLayout` | `POST /api/v1/analytics/page-views` | `usePageViewBeacon` then `analyticsService` | WIRED | Beacon tests pass. |
 | `AnalyticsController.RecordPageView` | `CollectPageViewHandler` | direct call | WIRED | `PageViewCollectTests` pass. |
+| `AnalyticsController.RecordPageView` | Site-wide page view ceiling | `[EndpointName(RateLimitingRegistration.PageViewEndpointName)]` read by `IsPageView` | WIRED (new in this re-run) | `PageViewCeilingRouteTests` proves exactly one endpoint carries the name and it is `POST api/v1/analytics/page-views`; `AnalyticsRateLimitTests` pass. |
 | `maintenance.yml` cron | `RunMaintenanceHandler` | `POST /maintenance/run` | WIRED | `MaintenanceEndpointTests` pass. |
 | `RunMaintenanceHandler` | `AnalyticsRetentionJob` | `IEnumerable<IMaintenanceJob>` from `AddCspsMaintenance` | WIRED | Endpoint test sees the job's line. |
 | `VisitorStatsController` | Manager role | `Policies.Manager` then `RequireRole(Roles.Manager)` | WIRED | Matrix: Admin 403, Anonymous 401. |
@@ -196,6 +222,20 @@ All run on 2026-11-21 by me. Preflight first: ports 5180, 5115, 7028 and 5199 fr
 | Old cookies expired, removed routes answer 404 | same project, `RetiredCookiesTests`, `RemovedAnalyticsRoutesTests` | 10 of 10 passed | PASS |
 | Retention job | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class ...AnalyticsRetentionJobTests` | 24 of 24 passed | PASS |
 | Legal page facts, retention periods | `dotnet test --project tests/Csps.Domain.UnitTests` with `LegalPagesTests`, `AnalyticsRetentionTests` | 20 of 20 passed | PASS |
+
+Re-run additions (2026-11-21, after D-138). Preflight first: ports 5180, 5115, 7028 and 5199 free, no dev or test processes. `CSPS_TEST_SQL=localdb` set in the one process only.
+
+| Behavior | Command | Result | Status |
+|----------|---------|--------|--------|
+| Ceiling name and route agree; page view limits; page view collect; auth matrix; removed routes | `dotnet test --project tests/Csps.Server.IntegrationTests` with `--filter-class` for `PageViewCeilingRouteTests`, `AnalyticsRateLimitTests`, `PageViewCollectTests`, `AuthorizationMatrixTests`, `RemovedAnalyticsRoutesTests` | 611 of 611 passed, 0 failed, 0 skipped (1m 55s) | PASS |
+
+Regression evidence gathered by the orchestrator on 2026-11-21 on branch `gsd/phase-12-consent-analytics-legal` (quoted, not re-run by me, because the full suites were not to be run again):
+
+- `dotnet build Csps.slnx`: 0 warnings, 0 errors.
+- .NET tests (`CSPS_TEST_SQL=localdb`): Domain.UnitTests 2018 of 2018, Application.UnitTests 3161 of 3161, HostProbe.Tests 9 of 9, ArchitectureTests 290 of 290, Infrastructure.IntegrationTests 1287 passed and 1 skipped, Server.IntegrationTests 3018 of 3018, LegacyFitCheck.Tests 275 passed and 1 skipped. 0 failures.
+- Web: typecheck exit 0, eslint `--max-warnings 0` exit 0, vitest 11276 of 11277 passed. The one failure was a timeout (172 s against a 120 s limit) in `web/scripts/third-party-notices.test.ts`, "--check exits 1 and names the first differing package...", while the .NET suite ran at the same time. Run alone it passed 11 of 11 in 9.8 s. I record it as a load-related flake, not a regression, and I am not hiding it. It is outside this phase's files.
+
+The first report's own spot-check results (383 web tests, 753 server tests, 10, 24 and 20 targeted .NET tests) were produced before D-138. The only code changed since then is the three files above, and the orchestrator's full runs today cover the rest.
 
 Not run: the full browser e2e suite (out of scope for this check). 12.1-VERIFICATION notes its last run had 5 stable mobile Safari failures in pages outside this phase; I did not check that claim.
 
@@ -265,9 +305,9 @@ None. Owner ruling D-137 closes Phase 12 on Phase 12.1's evidence with no separa
 
 No gaps. Each requirement in its current meaning is backed by code I read and by tests I ran today. The superseded parts of the original criteria (consent banner, Customize, Cookie settings link, Clear my data, consented visitor ids, sessions, referrers, devices, Web Vitals, separate Cookie Policy) are superseded by owner rulings D-53 to D-72, not missing.
 
-Known limits of this check, so nothing is hidden: (a) the full browser e2e suite was not run; (b) I ran targeted test classes only, not the whole solution; (c) the Phase 11 live Gallery photo check is in Phase 13 (D-49) and is not passed here.
+Known limits of this check, so nothing is hidden: (a) the full browser e2e suite was not run; (b) I ran targeted test classes only, not the whole solution (the full-suite numbers above are the orchestrator's); (b2) one web test timed out under load and passed alone (noted above); (c) the Phase 11 live Gallery photo check is in Phase 13 (D-49) and is not passed here.
 
 ---
 
-_Verified: 2026-11-21_
+_Verified: 2026-11-21 (re-run after D-138)_
 _Verifier: Claude (gsd-verifier)_
