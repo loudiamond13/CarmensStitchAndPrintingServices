@@ -153,14 +153,14 @@ internal sealed partial class AnalyticsRetentionJob(
             cancellationToken);
     }
 
-    // Removes salts older than yesterday, so an old address hash can never be recomputed (D-07).
+    // Removes salts older than the salt life, so an old address hash can never be recomputed (D-07).
     private Task<(long Count, bool More)> PurgeSaltsAsync(DateOnly today, MaintenanceBudget budget, CancellationToken cancellationToken)
     {
-        var yesterday = today.AddDays(-1);
+        var before = AnalyticsRetention.SaltCut(today);
         return DrainAsync(
             [
                 token => context.AnalyticsSalts
-                    .Where(salt => salt.BusinessDay < yesterday)
+                    .Where(salt => salt.BusinessDay < before)
                     .OrderBy(salt => salt.BusinessDay)
                     .Take(BatchSize)
                     .ExecuteDeleteAsync(token),

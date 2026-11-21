@@ -12,7 +12,7 @@ public static class AnalyticsRetention
     /// <summary>Years the daily roll-ups are kept (D-04).</summary>
     public const int DailyYears = 3;
 
-    /// <summary>Days a visitor-hash salt lives before it is replaced (D-07). The cleanup job keeps today's and yesterday's salt, which is this value.</summary>
+    /// <summary>Days a visitor-hash salt lives before it is replaced (D-07): today's salt and the day before's.</summary>
     public const int SaltDays = 2;
 
     /// <summary>Raw visits dated before this business date are deleted.</summary>
@@ -20,6 +20,9 @@ public static class AnalyticsRetention
 
     /// <summary>Daily roll-ups dated before this business date are deleted.</summary>
     public static DateOnly DailyFloor(DateOnly today) => today.AddYears(-DailyYears);
+
+    /// <summary>Salts dated before this business date are deleted, so only the last <see cref="SaltDays"/> days stay.</summary>
+    public static DateOnly SaltCut(DateOnly today) => today.AddDays(-(SaltDays - 1));
 
     /// <summary>Consent records given before this moment are deleted.</summary>
     public static DateTimeOffset ConsentPurgeBefore(DateTimeOffset utcNow) => utcNow.AddMonths(-ConsentMonths);

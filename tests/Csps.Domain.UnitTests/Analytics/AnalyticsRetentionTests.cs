@@ -31,6 +31,14 @@ public sealed class AnalyticsRetentionTests
         AnalyticsRetention.DailyFloor(new DateOnly(year, month, day)).ShouldBe(new DateOnly(floorYear, floorMonth, floorDay));
     }
 
+    [Theory]
+    [InlineData(2026, 11, 15, 2026, 11, 14)]
+    [InlineData(2027, 1, 1, 2026, 12, 31)]
+    public void TheSaltCutIsOneDayBackSoTodayAndYesterdayStay(int year, int month, int day, int cutYear, int cutMonth, int cutDay)
+    {
+        AnalyticsRetention.SaltCut(new DateOnly(year, month, day)).ShouldBe(new DateOnly(cutYear, cutMonth, cutDay));
+    }
+
     [Fact]
     public void ConsentRecordsAreKeptThirteenMonths()
     {
