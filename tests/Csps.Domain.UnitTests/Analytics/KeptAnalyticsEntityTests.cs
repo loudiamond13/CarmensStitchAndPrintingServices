@@ -39,6 +39,14 @@ public sealed class KeptAnalyticsEntityTests
 
     [Theory]
     [MemberData(nameof(Entities))]
+    public void NothingCanMakeARowInCode(Type entity)
+    {
+        entity.GetConstructors(BindingFlags.Public | BindingFlags.Instance).ShouldBeEmpty();
+        entity.GetMethods(BindingFlags.Public | BindingFlags.Static).Where(method => method.ReturnType == entity).ShouldBeEmpty();
+    }
+
+    [Theory]
+    [MemberData(nameof(Entities))]
     public void EveryStoredValueIsReadBackAsItWasSet(Type entity)
     {
         var row = Create(entity);
