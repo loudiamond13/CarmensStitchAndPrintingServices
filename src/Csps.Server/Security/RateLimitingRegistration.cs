@@ -55,11 +55,11 @@ public static class RateLimitingRegistration
         var ceiling = AnalyticsCeilingRateLimit.Default();
         configuration.GetSection(AnalyticsCeilingRateLimit.SectionName).Bind(ceiling);
         var problems = settings.Validate()
-            .Concat(AnalyticsCeilingRateLimit.Validate(ceiling))
-            .Concat(AnalyticsCollectRateLimit.Validate(collect))
-            .Concat(MaintenanceRateLimit.Validate(maintenance))
-            .Concat(ImageUploadRateLimit.Validate(images))
-            .Concat(PublicReadRateLimit.Validate(publicRead))
+            .Concat(RateLimitRule.Problems(ceiling, AnalyticsCeilingRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(collect, AnalyticsCollectRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(maintenance, MaintenanceRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(images, ImageUploadRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(publicRead, PublicReadRateLimit.SectionName))
             .ToList();
         if (problems.Count > 0)
         {

@@ -93,7 +93,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         var rule = AnalyticsCollectRateLimit.Default();
 
         (rule.PermitLimit, rule.Window).ShouldBe((120, TimeSpan.FromMinutes(1)));
-        AnalyticsCollectRateLimit.Validate(rule).ShouldBeEmpty();
+        RateLimitRule.Problems(rule, AnalyticsCollectRateLimit.SectionName).ShouldBeEmpty();
         AnalyticsCollectRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsCollect");
         RateLimitPolicies.AnalyticsCollect.ShouldBe("analytics-collect");
     }
@@ -101,7 +101,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
     [Fact]
     public void AnUnusablePageViewLimitIsNamedAndNeverEchoed()
     {
-        var problems = AnalyticsCollectRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+        var problems = RateLimitRule.Problems(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) }, AnalyticsCollectRateLimit.SectionName);
 
         problems.ShouldBe(["RateLimits:AnalyticsCollect:PermitLimit must be at least 1.", "RateLimits:AnalyticsCollect:Window must be at least 6 seconds."]);
     }
@@ -199,14 +199,14 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         var rule = AnalyticsCeilingRateLimit.Default();
 
         (rule.PermitLimit, rule.Window).ShouldBe((600, TimeSpan.FromMinutes(1)));
-        AnalyticsCeilingRateLimit.Validate(rule).ShouldBeEmpty();
+        RateLimitRule.Problems(rule, AnalyticsCeilingRateLimit.SectionName).ShouldBeEmpty();
         AnalyticsCeilingRateLimit.SectionName.ShouldBe("RateLimits:AnalyticsCeiling");
     }
 
     [Fact]
     public void TheCeilingRuleNamesTheSettingForABadLimitOrWindow()
     {
-        var problems = AnalyticsCeilingRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+        var problems = RateLimitRule.Problems(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) }, AnalyticsCeilingRateLimit.SectionName);
 
         problems.ShouldBe(["RateLimits:AnalyticsCeiling:PermitLimit must be at least 1.", "RateLimits:AnalyticsCeiling:Window must be at least 6 seconds."]);
     }
