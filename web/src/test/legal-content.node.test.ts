@@ -30,7 +30,7 @@ const PUBLIC_PATHS: readonly string[] = (
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LONG_DASH = new RegExp(`[${String.fromCharCode(0x2012)}-${String.fromCharCode(0x2015)}]`);
-const SAFE_HREF = /^(?:\/|mailto:|tel:|https:\/\/)/;
+const SAFE_HREF = /^(?:\/(?!\/)|mailto:|tel:|https:\/\/)/;
 
 function isLegalText(value: unknown): value is LegalText {
   return typeof value === 'object' && value !== null && 'sections' in value && Array.isArray(value.sections);
@@ -268,6 +268,21 @@ describe('legalTextProblems (the guard itself)', () => {
       ]),
     );
     expect(good).toEqual([]);
+  });
+
+  it('fails a protocol-relative link, even when it is marked external', () => {
+    const problems = legalTextProblems(
+      sample([
+        {
+          id: 'one',
+          heading: 'One',
+          blocks: [para({ text: 'x', href: '//other.example/page', external: true })],
+        },
+      ]),
+    );
+    expect(problems).toEqual([
+      'section "one" block 0 part 0: href "//other.example/page" is not /, mailto:, tel: or https://',
+    ]);
   });
 
   it('checks the extra description lines of a term too', () => {
