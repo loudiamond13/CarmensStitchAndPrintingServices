@@ -19,6 +19,7 @@ namespace Csps.Server.IntegrationTests.RateLimiting;
 public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const int CollectPerMinute = 120;
+    private const string PerAddressDetail = "Too many attempts from this address. Please wait and try again.";
 
     [Fact]
     public async Task OnlyThePageViewRuleRemainsForAnalytics()
@@ -62,6 +63,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("rate-limited");
+        problem.GetProperty("detail").GetString().ShouldBe(PerAddressDetail);
         rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
         other.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         await using var context = database.CreateContext();
@@ -137,6 +139,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         rejected.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         var problem = await ProblemJson.ReadAsync(rejected, TestContext.Current.CancellationToken);
         problem.GetProperty("code").GetString().ShouldBe("rate-limited");
+        problem.GetProperty("detail").GetString().ShouldBe("The site is busy. Please try again in a minute.");
         rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
     }
 
@@ -160,6 +163,11 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         {
             using var noisy = await PostPageViewAsync(client, "203.0.113.90");
             noisy.StatusCode.ShouldBe(attempt <= 2 ? HttpStatusCode.NoContent : HttpStatusCode.TooManyRequests);
+            if (attempt > 2)
+            {
+                var problem = await ProblemJson.ReadAsync(noisy, TestContext.Current.CancellationToken);
+                problem.GetProperty("detail").GetString().ShouldBe(PerAddressDetail);
+            }
         }
 
         using var other = await PostPageViewAsync(client, "203.0.113.91");

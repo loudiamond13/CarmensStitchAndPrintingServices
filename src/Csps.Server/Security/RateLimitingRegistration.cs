@@ -17,6 +17,7 @@ public static class RateLimitingRegistration
     public const string RateLimitedCode = "rate-limited";
 
     internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
+    internal const string SiteBusyDetail = "The site is busy. Please try again in a minute.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
     private const string PageViewEndpointName = "RecordPageView";
@@ -29,7 +30,7 @@ public static class RateLimitingRegistration
     /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the
     /// <c>analytics-collect</c> policy.
     /// It also adds the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51). That limit runs after
-    /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74).
+    /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74). A ceiling refusal answers that the site is busy.
     /// The slot limiter behind the app-wide cap of two uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>).
     /// The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting record proves the proxy topology
     /// (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
@@ -146,11 +147,11 @@ public static class RateLimitingRegistration
                 : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
 
     // One shared window for the page view route, whatever the address; every other route has no site-wide limit.
-    private static PartitionedRateLimiter<HttpContext> CreateSiteWideLimiter(RateLimitRule rule) =>
-        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+    private static SiteWideCeilingLimiter CreateSiteWideLimiter(RateLimitRule rule) =>
+        new(PartitionedRateLimiter.Create<HttpContext, string>(context =>
             IsPageView(context)
                 ? RateLimitPartition.GetSlidingWindowLimiter(SiteWidePartitionKey, _ => WindowOptions(rule))
-                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey)));
 
     private static bool IsPageView(HttpContext context) =>
         string.Equals(
@@ -191,6 +192,7 @@ public static class RateLimitingRegistration
         var detail = policy switch
         {
             RateLimitPolicies.ImageUpload => UploadsBusyDetail,
+            _ when SiteWideCeilingLimiter.Refused(http) => SiteBusyDetail,
             _ => AttemptsDetail,
         };
         var problem = CspsProblemDetails.Build(http, StatusCodes.Status429TooManyRequests, detail, code: RateLimitedCode);
