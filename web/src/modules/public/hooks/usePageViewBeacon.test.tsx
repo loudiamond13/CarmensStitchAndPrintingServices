@@ -9,7 +9,12 @@ import { type BeaconSend, createBeaconMachine, usePageViewBeacon } from './usePa
 
 function Beacon() {
   usePageViewBeacon(useLocation().pathname);
-  return <Link to="/products">Products</Link>;
+  return (
+    <>
+      <Link to="/products">Products</Link>
+      <Link to="/gallery">Gallery</Link>
+    </>
+  );
 }
 
 function setReferrer(value: string): void {
@@ -93,9 +98,17 @@ describe('usePageViewBeacon (D-53)', () => {
       expect(probe.requests).toHaveLength(2);
     });
     await userEvent.click(screen.getByRole('link', { name: 'Products' }));
-    await settle();
+    // The next new path is the control: a repeat view of /products would sit before it.
+    await userEvent.click(screen.getByRole('link', { name: 'Gallery' }));
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(3);
+    });
 
-    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/' }, { path: '/products' }]);
+    expect(probe.requests.map((request) => request.body)).toEqual([
+      { path: '/' },
+      { path: '/products' },
+      { path: '/gallery' },
+    ]);
   });
 
   it('does not send again when the page is hidden', async () => {
@@ -112,9 +125,13 @@ describe('usePageViewBeacon (D-53)', () => {
     act(() => {
       hidePage();
     });
-    await settle();
+    // The next view is the control: a send caused by hiding would sit before it.
+    await userEvent.click(screen.getByRole('link', { name: 'Products' }));
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(2);
+    });
 
-    expect(probe.requests).toHaveLength(1);
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/' }, { path: '/products' }]);
   });
 
   it('counts one view in React StrictMode, where effects run twice', async () => {
@@ -155,9 +172,13 @@ describe('usePageViewBeacon out of scope paths', () => {
         <Beacon />
       </MemoryRouter>,
     );
-    await settle();
+    // The first counted view is the control: a send for the skipped path would sit before it.
+    await userEvent.click(screen.getByRole('link', { name: 'Products' }));
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
 
-    expect(probe.requests).toHaveLength(0);
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/products' }]);
   });
 
   it('counts /administrator, which is a public not-found path', async () => {

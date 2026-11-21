@@ -482,7 +482,7 @@ describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
     expect(probe.requests[0]?.body).toEqual({ path: '/' });
   });
 
-  it('does not count a /dev path or an /admin path', async () => {
+  it('does not count a /dev path or an /admin path, only the next public one', async () => {
     const probe = pageViewProbe();
     const router = createMemoryRouter(
       [{ path: '/', Component: PublicLayout, children: [{ path: '*', element: <h1>Check page</h1> }] }],
@@ -493,8 +493,14 @@ describe('PublicLayout page-view beacon (ANL-05, ANL-06)', () => {
     await act(async () => {
       await router.navigate('/admin/orders');
     });
-    await new Promise<void>((resolve) => setTimeout(resolve, 60));
+    // The first counted view is the control: a send for /dev or /admin would sit before it.
+    await act(async () => {
+      await router.navigate('/products');
+    });
+    await waitFor(() => {
+      expect(probe.requests).toHaveLength(1);
+    });
 
-    expect(probe.requests).toHaveLength(0);
+    expect(probe.requests.map((request) => request.body)).toEqual([{ path: '/products' }]);
   });
 });
