@@ -1021,7 +1021,7 @@ describe('V1 CSV export (D-25)', () => {
     const { container } = await openPage();
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
-    await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
+    expect(await screen.findByText('Visitor stats exported', {}, { timeout: 3000 })).toBeInTheDocument();
 
     await expectNoAxeViolations(container);
   });
