@@ -170,14 +170,36 @@ describe('VisitorTrendChart: month buckets', () => {
     vi.unstubAllGlobals();
   });
 
-  it('labels month buckets with the short month', () => {
+  it('labels month buckets with the short month when the range is inside one year', () => {
+    const { container } = render(
+      <VisitorTrendChart buckets={months(2026, 1, 12, () => 100)} bucket="month" from="2026-01-01" to="2026-12-31" />,
+    );
+
+    expect(bucketLabels(container)).toEqual([
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]);
+    expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Page views, Jan 1 to Dec 31, 2026');
+  });
+
+  it('adds the year to the first month label and to the first label of each new year when the range crosses a year', () => {
     const { container } = render(
       <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
     );
 
     expect(bucketLabels(container)).toEqual([
-      'Dec',
-      'Jan',
+      'Dec 2025',
+      'Jan 2026',
       'Feb',
       'Mar',
       'Apr',
@@ -190,6 +212,16 @@ describe('VisitorTrendChart: month buckets', () => {
       'Nov',
     ]);
     expect(screen.getByRole('group').getAttribute('aria-label')).toBe('Page views, Dec 1, 2025 to Nov 30, 2026');
+  });
+
+  it('marks each new year on a three year range even when thinned labels skip January', () => {
+    const { container } = render(
+      <VisitorTrendChart buckets={months(2024, 1, 36, () => 10)} bucket="month" from="2024-01-01" to="2026-12-31" />,
+    );
+
+    const labels = bucketLabels(container);
+    expect(labels.filter((label) => label !== null)).toHaveLength(12);
+    expect(labels.filter((label) => label?.includes('20'))).toEqual(['Mar 2024', 'Mar 2025', 'Mar 2026']);
   });
 
   it('draws a bar for every month that has page views, with no line over them', () => {
@@ -227,7 +259,7 @@ describe('VisitorTrendChart: month buckets', () => {
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 320 220');
     expect(bucketLabels(container)).toEqual([
       null,
-      'Jan',
+      'Jan 2026',
       null,
       'Mar',
       null,

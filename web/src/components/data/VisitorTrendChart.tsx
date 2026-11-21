@@ -3,7 +3,9 @@
 // under each bucket. Every figure is the server's; the chart only draws and formats it. The view box is as wide as the frame
 // (fitWidth, D-51), 220 high.
 // SPEC-DEVIATION: D-51 a group under 28px gets every other label, as IncomeExpenseChart; a day label ("Nov 15") is wider than
-// a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart.
+// a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart. When month
+// bars span two calendar years, the first drawn label and each drawn label that starts a new year carry the year ("Jan 2026"),
+// and those month labels get the same 44px room.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { formatCalendarDate, formatCount, formatMonthShort } from '@/utils/format';
@@ -75,17 +77,32 @@ function axisTop(max: number): number {
   return top < 10 && top % 2 === 1 ? top + 1 : top;
 }
 
-/** "Nov 3" or "Oct": the bucket's label under its bar. */
-function shortLabel(start: string, bucket: TrendBucketSize): string {
+/** "Nov 3", "Oct" or, with the year, "Jan 2026": the bucket's label under its bar. */
+function shortLabel(start: string, bucket: TrendBucketSize, withYear: boolean): string {
   const label = bucket === 'day' ? formatCalendarDate(start)?.replace(YEAR_SUFFIX, '') : formatMonthShort(start);
-  return label ?? start;
+  if (label === undefined || label === null) return start;
+  return withYear ? `${label} ${start.slice(0, 4)}` : label;
 }
 
 /** Every how many buckets a label is drawn: every one when there is room, else enough that labels never overlap. */
-function labelStep(gw: number, bucket: TrendBucketSize): number {
-  const room = bucket === 'day' ? MIN_DAY_LABEL_GROUP : MIN_LABEL_GROUP;
+function labelStep(gw: number, bucket: TrendBucketSize, wideLabels: boolean): number {
+  const room = bucket === 'day' || wideLabels ? MIN_DAY_LABEL_GROUP : MIN_LABEL_GROUP;
   if (gw >= room) return 1;
   return Math.max(2, Math.ceil(room / gw));
+}
+
+/** The bars whose drawn label carries the year: the first drawn one and each that starts a new year. */
+function yearMarks(buckets: readonly TrendPoint[], step: number, show: boolean): ReadonlySet<number> {
+  const marks = new Set<number>();
+  if (!show) return marks;
+  let previous = '';
+  buckets.forEach((b, i) => {
+    if ((buckets.length - 1 - i) % step !== 0) return;
+    const year = b.start.slice(0, 4);
+    if (year !== previous) marks.add(i);
+    previous = year;
+  });
+  return marks;
 }
 
 /** "Oct 17 to Nov 15, 2026": the first day drops its year when both days are in the same year. */
@@ -134,7 +151,9 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
   const gw = (W - L) / Math.max(1, buckets.length);
   const bw = Math.min(18, gw * 0.6);
   const cx = (i: number) => L + gw * i + gw / 2;
-  const step = labelStep(gw, bucket);
+  const showYear = bucket === 'month' && from.slice(0, 4) !== to.slice(0, 4);
+  const step = labelStep(gw, bucket, showYear);
+  const years = yearMarks(buckets, step, showYear);
   const last = buckets.length - 1;
   const current = Math.min(active, Math.max(0, last));
   const cur = tip === 'none' ? undefined : buckets[current];
@@ -219,7 +238,7 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
             />
             {(buckets.length - 1 - i) % step === 0 && (
               <text x={cx(i)} y={H - 8} textAnchor="middle" className={chartTickClasses}>
-                {shortLabel(b.start, bucket)}
+                {shortLabel(b.start, bucket, years.has(i))}
               </text>
             )}
           </g>
