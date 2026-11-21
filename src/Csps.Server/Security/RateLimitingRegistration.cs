@@ -16,11 +16,13 @@ public static class RateLimitingRegistration
     /// <summary>The machine code a limiter rejection carries.</summary>
     public const string RateLimitedCode = "rate-limited";
 
+    /// <summary>The endpoint name the site-wide page view ceiling keys on. The page view action takes its name from it.</summary>
+    public const string PageViewEndpointName = "RecordPageView";
+
     internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
     internal const string SiteBusyDetail = "The site is busy. Please try again in a minute.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
-    private const string PageViewEndpointName = "RecordPageView";
     private const string SiteWidePartitionKey = "analytics-site";
     private const string NoSiteWideLimitKey = "no-site-wide-limit";
     private const int SegmentsPerWindow = 6;

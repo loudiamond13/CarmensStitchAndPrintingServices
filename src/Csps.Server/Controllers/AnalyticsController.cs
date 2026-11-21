@@ -30,7 +30,7 @@ public sealed class AnalyticsController(CollectPageViewHandler collectPageView) 
     [IdempotencyExempt("An analytics beacon: a repeat only adds one page view, and beacons are exempt by SEC-06.")]
     [RequireCsrfHeader]
     [RequestSizeLimitMetadata(4096)]
-    [EndpointName("RecordPageView")]
+    [EndpointName(RateLimitingRegistration.PageViewEndpointName)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
