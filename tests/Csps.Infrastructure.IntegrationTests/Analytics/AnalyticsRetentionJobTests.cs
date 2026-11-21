@@ -279,6 +279,95 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
+    public async Task ABacklogOfOldReferrerAndDeviceRowsIsRemovedInBatchesOf500PerTable()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2020, 1, 1);
+        await using (var context = database.CreateContext())
+        {
+            context.DailyReferrerCounts.AddRange(Enumerable.Range(0, 1200).Select(index => LegacyAnalyticsRows.ReferrerCount(day, "source" + index, 1)));
+            context.DailyDeviceCounts.AddRange(Enumerable.Range(0, 1200).Select(index => LegacyAnalyticsRows.DeviceCount(day, 1, "device" + index, 1)));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var counter = new CommandCounter();
+
+        var report = await RunAsync(new FakeTimeProvider(Now), counter);
+
+        Line(report, DailyLabel).Value.ShouldBe(2400);
+        report.More.ShouldBeFalse();
+        DeleteCount(counter, "DailyReferrerCounts").ShouldBe(3);
+        DeleteCount(counter, "DailyDeviceCounts").ShouldBe(3);
+        await using var check = database.CreateContext();
+        (await check.DailyReferrerCounts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await check.DailyDeviceCounts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ASpentBudgetAfterTheFirstDailyPageBatchStopsWithMoreBeforeTheSaltRule()
+    {
+        await database.ResetAsync();
+        var day = new DateOnly(2020, 1, 1);
+        await using (var context = database.CreateContext())
+        {
+            context.DailyPageCounts.AddRange(Enumerable.Range(0, 1200).Select(index => DailyPageCount.First(day, "page" + index)));
+            context.DailyReferrerCounts.Add(LegacyAnalyticsRows.ReferrerCount(day, "Facebook", 1));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var clock = new FakeTimeProvider(Now);
+
+        var report = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "DELETE|DailyPageCounts"), new MaintenanceBudget(clock));
+
+        Line(report, DailyLabel).Value.ShouldBe(500);
+        report.More.ShouldBeTrue();
+        report.Lines.Select(line => line.Label).ShouldNotContain(SaltLabel);
+        await using var check = database.CreateContext();
+        (await check.DailyPageCounts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(700);
+        (await check.DailyReferrerCounts.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ASpentBudgetAfterTheFirstCookieChoiceBatchStopsWithMoreBeforeTheDailyRule()
+    {
+        await database.ResetAsync();
+        await using (var context = database.CreateContext())
+        {
+            context.ConsentRecords.AddRange(Enumerable.Range(0, 1200).Select(index =>
+                LegacyAnalyticsRows.Consent(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero).AddMinutes(index))));
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero));
+
+        var report = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "DELETE|ConsentRecords"), new MaintenanceBudget(clock));
+
+        Line(report, ConsentLabel).Value.ShouldBe(500);
+        report.More.ShouldBeTrue();
+        report.Lines.Select(line => line.Label).ShouldNotContain(DailyLabel);
+        await using var check = database.CreateContext();
+        (await check.ConsentRecords.CountAsync(TestContext.Current.CancellationToken)).ShouldBe(700);
+    }
+
+    [Fact]
+    public async Task ASpentBudgetAfterTheFirstSaltBatchStopsWithMoreAndTheNextRunFinishes()
+    {
+        await database.ResetAsync();
+        await AddSaltsAsync([.. Enumerable.Range(0, 1200).Select(index => new DateOnly(2000, 1, 1).AddDays(index))]);
+        var clock = new FakeTimeProvider(Now);
+
+        var first = await RunAsync(clock, new SpendBudgetAfterFirst(clock, MaintenanceBudget.DefaultDuration, "DELETE|AnalyticsSalts"), new MaintenanceBudget(clock));
+
+        Line(first, SaltLabel).Value.ShouldBe(500);
+        first.More.ShouldBeTrue();
+
+        var second = await RunAsync(new FakeTimeProvider(Now));
+
+        Line(second, SaltLabel).Value.ShouldBe(700);
+        second.More.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task AddressSaltsForTodayAndYesterdayStayAndOlderOnesGo()
     {
         await database.ResetAsync();
@@ -363,6 +452,9 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         job.Order.ShouldBe(15);
         job.Name.ShouldBe(JobName);
     }
+
+    private static int DeleteCount(CommandCounter counter, string table) =>
+        counter.Commands.Count(command => command.Contains("DELETE", StringComparison.Ordinal) && command.Contains(table, StringComparison.Ordinal));
 
     private static MaintenanceLine Line(MaintenanceJobReport report, string label) => report.Lines.Single(line => line.Label == label);
 
