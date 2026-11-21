@@ -1,4 +1,4 @@
-// The shop's Contact email for the four legal pages (D-13, D-29). It has no boot key, so no other page ever carries it.
+// The shop's Contact email for the three legal pages (D-13, D-29). It has no boot key, so no other page ever carries it.
 import { createPublicResource, type PublicResourceState } from '@/lib/public-data/publicResource';
 import type { PrivacyContact } from '../services/privacyContactService';
 
