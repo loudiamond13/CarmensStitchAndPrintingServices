@@ -338,18 +338,31 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
-        row.PageKey.ShouldBe("not-found");
+        row.PageKey.ShouldBe("gallery");
+    }
+
+    [Fact]
+    public async Task APathOfTheLongestAllowedLengthIsNotRefusedForTheSizeOfItsBody()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = AnalyticsHttp.NewClient(factory);
+        var longest = "/" + new string('a', AnalyticsPath.MaxLength - 1);
+
+        using var response = await PostAsync(client, PathBody(longest));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await ReadRowsAsync()).ShouldHaveSingleItem().PageKey.ShouldBe("not-found");
     }
 
     // The limit on the beacon route (RequestSizeLimitMetadata on AnalyticsController.RecordPageView).
-    private const int BodyCap = 2048;
+    private const int BodyCap = 4096;
 
-    // A well-formed path body of exactly this many bytes: {"path":"/aaa..."}.
+    // A valid gallery body padded with trailing spaces to exactly this many bytes.
     private static string BodyOfBytes(int bytes)
     {
-        const string Open = "{\"path\":\"/";
-        const string Close = "\"}";
-        return Open + new string('a', bytes - Open.Length - Close.Length) + Close;
+        var body = PathBody("/gallery");
+        return body + new string(' ', bytes - body.Length);
     }
 
     private const string OldVisitorId = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
