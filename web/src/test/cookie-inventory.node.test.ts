@@ -2,7 +2,7 @@
 // SPEC-GAP: LEGAL-02, D-17, D-72, T-12-54. The cookies the Privacy Policy lists are exactly the cookies the server sets, and it names no
 // retired cookie. The names are read from every C# file in the Security folder (except the retired names), and every place the
 // server sets a cookie must use one of those constants, so a cookie added to or taken out of the code fails here until the policy
-// text changes too.
+// text changes too. A cookie set as a raw Set-Cookie header, outside the cookie API, fails as well.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +10,7 @@ import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legal
 import { PRIVACY_TEXT } from '../modules/public/legalPrivacy';
 
 const SERVER_DIR = resolve(import.meta.dirname, '../../../src/Csps.Server');
+const SRC_DIR = resolve(import.meta.dirname, '../../../src');
 const SECURITY_DIR = resolve(SERVER_DIR, 'Security');
 /** The file that holds the two retired cookie names, kept out of the inventory files on purpose. */
 const RETIRED_FILE = 'RetiredCookies.cs';
@@ -21,6 +22,10 @@ const CODE_NAME = /"((?:__Host-|__Secure-)?csps_[a-z0-9]+)"/g;
 const CODE_CONSTANT = /const\s+string\s+(\w+)\s*=\s*"((?:__Host-|__Secure-)?csps_[a-z0-9]+)"/g;
 /** The first argument of a call that sets a cookie on a response. */
 const COOKIE_APPEND = /cookies\.Append\(\s*([^,)\s]+)/gi;
+/** Any use of the raw cookie header or the response cookie feature, which would set a cookie without the constants above. */
+const RAW_COOKIE_HEADER = /Set-?Cookie|ResponseCookiesFeature/i;
+/** The one raw use that only reads the response, so it sets nothing. */
+const READ_ONLY_USE = /Headers\.ContainsKey\(\s*HeaderNames\.SetCookie\s*\)/;
 /** A cookie name in the policy text, with or without its prefix, so a name written without it is caught as a mismatch. */
 const TEXT_NAME = /(?:__Host-|__Secure-)?csps_[a-z0-9]+/g;
 
@@ -37,6 +42,15 @@ function csFilesUnder(dir: string): string[] {
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('.cs') && !file.split(sep).some((part) => part === 'bin' || part === 'obj'))
     .map((file) => resolve(dir, file));
+}
+
+/** The code lines of a C# source that use the raw cookie header to set a cookie; comments and the read-only check are left out. */
+export function rawCookieHeaderLines(file: string, source: string): string[] {
+  return source
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => !line.startsWith('//') && RAW_COOKIE_HEADER.test(line) && !READ_ONLY_USE.test(line))
+    .map((line) => `${file}: ${line}`);
 }
 
 function inlineText(parts: readonly LegalInline[]): string[] {
@@ -104,6 +118,8 @@ const codeConstants = new Set(
 const appendCalls = csFilesUnder(SERVER_DIR).flatMap((file) =>
   Array.from(readFileSync(file, 'utf8').matchAll(COOKIE_APPEND), (match) => ({ file, argument: match[1] ?? '' })),
 );
+/** The raw cookie header lines in all the C# code. */
+const rawHeaderLines = csFilesUnder(SRC_DIR).flatMap((file) => rawCookieHeaderLines(file, readFileSync(file, 'utf8')));
 const retiredNames = existsSync(resolve(SECURITY_DIR, RETIRED_FILE))
   ? namesInCode(readFileSync(resolve(SECURITY_DIR, RETIRED_FILE), 'utf8'))
   : [];
@@ -122,6 +138,10 @@ describe('the Privacy Policy cookie list and the code (LEGAL-02, D-72, T-12-54)'
   it('sets every cookie through a name constant the inventory reads', () => {
     expect(appendCalls.length).toBeGreaterThan(0);
     expect(appendCalls.filter((call) => !codeConstants.has(call.argument))).toEqual([]);
+  });
+
+  it('sets no cookie as a raw Set-Cookie header', () => {
+    expect(rawHeaderLines).toEqual([]);
   });
 
   it.each(['AuthCookies.cs', 'AnalyticsCookies.cs'])('reads at least one cookie name from %s', (file) => {
@@ -155,6 +175,28 @@ describe('the Privacy Policy cookie list and the code (LEGAL-02, D-72, T-12-54)'
 
   it('has no problem as a whole', () => {
     expect(inventoryProblems(codeNames, PRIVACY_TEXT)).toEqual([]);
+  });
+});
+
+describe('rawCookieHeaderLines (the guard itself)', () => {
+  it.each([
+    'context.Response.Headers.Append("Set-Cookie", value);',
+    'response.Headers["Set-Cookie"] = value;',
+    'response.Headers.SetCookie = value;',
+    'response.Headers.Append(HeaderNames.SetCookie, value);',
+    'var feature = context.Features.Get<IResponseCookiesFeature>();',
+  ])('flags %s', (line) => {
+    expect(rawCookieHeaderLines('A.cs', `  ${line}\n`)).toEqual([`A.cs: ${line}`]);
+  });
+
+  it('leaves out a comment, the read-only check and ordinary code', () => {
+    const source = [
+      '/// A long-cached asset never carries a Set-Cookie.',
+      '// Set-Cookie is not touched here.',
+      '&& !response.Headers.ContainsKey(HeaderNames.SetCookie)',
+      'response.Cookies.Append(Name, value, options);',
+    ].join('\n');
+    expect(rawCookieHeaderLines('A.cs', source)).toEqual([]);
   });
 });
 
