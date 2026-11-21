@@ -113,7 +113,6 @@ test.describe('a plain browser', () => {
   });
 });
 
-const ORIGIN = 'https://localhost:5199';
 const OLD_CONSENT_COOKIE = '__Host-csps_consent';
 const OLD_VISITOR_COOKIE = '__Secure-csps_vid';
 
@@ -124,9 +123,16 @@ async function cookieNamed(context: BrowserContext, name: string) {
 
 // D-63: the server expires the two retired cookies when a browser still sends them. WebKit does not report SameSite on
 // read, so the case asserts names only, as @auth-cookies does for the parts it cannot read.
-test('@no-cookies a browser holding the old consent and visitor id cookies loses both', async ({ page, context }) => {
+test('@no-cookies a browser holding the old consent and visitor id cookies loses both', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  if (baseURL === undefined) {
+    throw new Error('The Playwright config sets no baseURL.');
+  }
   await context.addCookies([
-    { name: OLD_CONSENT_COOKIE, value: 'x', url: ORIGIN, secure: true, sameSite: 'Lax' },
+    { name: OLD_CONSENT_COOKIE, value: 'x', url: baseURL, secure: true, sameSite: 'Lax' },
     {
       name: OLD_VISITOR_COOKIE,
       value: 'x',
