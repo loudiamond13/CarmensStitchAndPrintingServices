@@ -1,6 +1,6 @@
 ---
 created: 2026-11-21T10:00:00-06:00
-updated: 2026-11-21T10:00:00-06:00
+updated: 2026-11-21T07:50:00-06:00
 ---
 
 # Phase 12 UI Review
@@ -82,3 +82,20 @@ No pillar is below 3, so there are no blockers. I scored 3 and not 4 because of 
 - `web/src/modules/admin/pages/VisitorStatsPage.tsx`
 - `web/src/modules/admin/components/{VisitorTrendCard,StatBarList,visitorStats.recipe}`
 - 12-CONTEXT.md, 12.1-CONTEXT.md, 12-UI-SPEC.md (spec and decisions)
+
+## Outcomes (quick 261121-9qz, 2026-11-21)
+
+Every finding above has an outcome. The owner chose "Fix all first" (2026-11-21).
+
+| Finding | Outcome | Where or why |
+|---------|---------|--------------|
+| Fix 1: Privacy Policy is `approved: false` | Open | Waits for the owner's approval (D-73, 12.1-UAT test 2). Unchanged on purpose: `approved`, version and date were not touched. |
+| Fix 2: no rendered check | Open | The orchestrator runs the rendered check after this quick task. No dev server or Playwright was run here. |
+| Fix 3: chart text alternative | Fixed | A visually hidden table with one row per day or month (dcef091b). |
+| Pillar 1: Privacy draft | Open | Same as fix 1. |
+| Pillar 2: chart accessibility | Fixed | Same as fix 3 (dcef091b). |
+| Pillar 3: notice contrast on the warning ground | Not needed | Measured: `--ink-muted` on `--warning-soft` is 6.55:1, `--ink` is 11.79:1, the warning icon is 5.05:1 (needs 3:1). A test pins the text ratios at 4.5:1 or more (6ed7d8d6). |
+| Pillar 4: raw `text-[14px]` and `text-[24px]` | Fixed | `text-14` and `text-24` (86017edf). |
+| Pillar 5: `max-w-[640px]` | Fixed | `--spacing-reading` and `max-w-reading` (6ed7d8d6). |
+| Pillar 5: `top-[calc(...)]` on the contents column | Not needed | Built from theme tokens only (`--header-height`, `--space-6`). |
+| Pillar 6: static DRAFT box | Not needed | Static by design (D-14), and shown until D-73. |
