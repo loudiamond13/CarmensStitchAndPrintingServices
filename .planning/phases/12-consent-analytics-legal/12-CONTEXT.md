@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-18T16:21:06-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-20T09:30:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -95,6 +95,10 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 - **D-57:** **The smaller Visitor Stats page shows total page views, the most viewed pages and a page views per day or month chart, with CSV export.** (owner, 2026-11-18)
 - **D-58:** **The D-53 to D-57 work is a new Phase 12.1,** with its own plan and review, and the owner approves the new Privacy and Cookie Policy wording there. **Amended by 12.1 D-72:** the Cookie Policy is folded into the Privacy Policy. Phase 12 records stay as they are. D-50 (referrer name check) no longer applies once referrers are not stored. D-51 (site-wide ceiling) still applies to the anonymous routes that remain. (owner, 2026-11-18)
 - These rulings settle wording only. Each page stays DRAFT until the owner approves it page by page (D-09, D-14, plan 12-22 Task 1).
+
+### Code review rulings (owner, 2026-11-20, answered in chat during /gsd-code-review 12 --fix)
+- **D-79:** **The fix pass runs on a fresh review.** A new phase 12 review (scope: everything changed since the first `12-REVIEW.md`) replaces `12-REVIEW.md`, and the fixer works from it. `12-REVIEW-ALL.md` stays as a record. (owner, 2026-11-20)
+- **D-80:** **Dead consent and visit domain code goes; the tables stay** (12-REVIEW-ALL G1-WR-01, option "remove dead code, keep tables"). Remove the unused factories, enums and their tests. The seven unused tables, their entities and the four migrations stay as they are; no schema change. Narrows D-56. (owner, 2026-11-20)
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.
