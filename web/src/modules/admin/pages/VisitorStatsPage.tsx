@@ -85,8 +85,8 @@ function sameQuery(a: VisitorStatsQuery, b: VisitorStatsQuery): boolean {
 export interface VisitorStatsPageProps {
   range: StatsRangeState;
   onRangeChange: (next: StatsRangeState) => void;
-  /** The range the figures are read for; Export CSV saves the same one. */
-  exportQuery: VisitorStatsQuery;
+  /** The range the figures are read for; Export CSV saves the same one. Null while that range is not known, so Export CSV is off. */
+  exportQuery: VisitorStatsQuery | null;
   stats: VisitorStats | undefined;
   /** The first read, or a new range, is loading. */
   loading: boolean;
@@ -168,6 +168,11 @@ export function VisitorStatsRoute() {
   if (wanted !== null && !sameQuery(wanted, applied)) {
     setApplied(wanted);
   }
+  // False only for a shared custom link whose dates were never resolved: `applied` is then the default, not what the toolbar shows.
+  const [resolved, setResolved] = useState(wanted !== null);
+  if (wanted !== null && !resolved) {
+    setResolved(true);
+  }
   // A custom range waits for today, so a shared link asks for its own dates, not the default first.
   const read = wanted ?? applied;
   const query = useVisitorStatsQuery(read, !(custom && today === null));
@@ -184,7 +189,7 @@ export function VisitorStatsRoute() {
       onRangeChange={(next) => {
         set.setFilters(next);
       }}
-      exportQuery={read}
+      exportQuery={noToday || !resolved ? null : read}
       stats={query.data}
       loading={!noToday && (query.isPending || query.isPlaceholderData)}
       error={noToday ? todayError : query.error}

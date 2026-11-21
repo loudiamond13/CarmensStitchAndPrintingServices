@@ -21,8 +21,8 @@ function asRange(value: string): StatsRange | null {
 export interface VisitorStatsToolbarProps {
   value: StatsRangeState;
   onChange: (next: StatsRangeState) => void;
-  /** The range the page last applied: the one Export CSV saves. */
-  exportQuery: VisitorStatsQuery;
+  /** The range the page last applied: the one Export CSV saves. Null turns Export CSV off. */
+  exportQuery: VisitorStatsQuery | null;
 }
 
 export function VisitorStatsToolbar({ value, onChange, exportQuery }: VisitorStatsToolbarProps) {
@@ -52,14 +52,14 @@ export function VisitorStatsToolbar({ value, onChange, exportQuery }: VisitorSta
 }
 
 /** Export CSV (UI-SPEC V1 "CSV export"): "Exporting" while the file is made, then a toast says whether it was saved. */
-function ExportCsvButton({ query }: { query: VisitorStatsQuery }) {
+function ExportCsvButton({ query }: { query: VisitorStatsQuery | null }) {
   const toast = useToast();
   const [pending, setPending] = useState(false);
 
-  async function exportFile(): Promise<void> {
+  async function exportFile(range: VisitorStatsQuery): Promise<void> {
     setPending(true);
     try {
-      const file = await visitorStatsService.exportCsv(query);
+      const file = await visitorStatsService.exportCsv(range);
       downloadCsv(file.text, file.fileName);
       toast.show({ title: COPY.export.done.title, message: COPY.export.done.message(file.fileName) });
     } catch {
@@ -74,8 +74,9 @@ function ExportCsvButton({ query }: { query: VisitorStatsQuery }) {
       variant="secondary"
       icon="download"
       pending={pending}
+      disabled={query === null}
       onClick={() => {
-        void exportFile();
+        if (query !== null) void exportFile(query);
       }}
     >
       {pending ? COPY.export.pending : COPY.toolbar.exportCsv}

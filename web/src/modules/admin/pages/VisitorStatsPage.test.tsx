@@ -741,6 +741,33 @@ describe('V1 the date range toolbar (D-24, WEB-10)', () => {
     expect(screen.queryByText("Couldn't load the visitor stats.")).toBeNull();
   });
 
+  it('keeps Export CSV off for a shared custom range until the business today is known, so it never saves a range the page does not show', async () => {
+    backend(echo);
+    const { calls: exports } = exportBackend();
+    let asked = 0;
+    server.use(
+      http.get('*/api/v1/orders', () => {
+        asked += 1;
+        return asked === 1
+          ? new HttpResponse(null, { status: 500 })
+          : HttpResponse.json({ items: [], page: 1, pageSize: 1, total: 0, today: TODAY });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage('?range=custom&from=2026-01-05&to=2026-02-04');
+    await screen.findByText("Couldn't load the visitor stats.");
+
+    expect(screen.getByRole('button', { name: 'Export CSV' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+    expect(exports).toHaveLength(0);
+
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Export CSV' })).toBeEnabled();
+    });
+  });
+
   it('a shared link with a custom range reopens with the dates filled and asks for them', async () => {
     const { calls } = backend(echo);
     renderPage('?range=custom&from=2026-01-05&to=2026-02-04');
