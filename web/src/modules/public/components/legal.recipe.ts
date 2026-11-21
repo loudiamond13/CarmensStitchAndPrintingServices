@@ -3,7 +3,7 @@ import { tw } from '@/ui/tw';
 
 /** The DRAFT notice: a warning box, 16px padding, 8px between the icon and the text. */
 export const noticeClasses = tw(
-  'flex max-w-[640px] items-start gap-2 rounded-md border border-warning bg-warning-soft p-4',
+  'flex max-w-reading items-start gap-2 rounded-md border border-warning bg-warning-soft p-4',
 );
 
 /** The notice icon, level with the first line. */
@@ -23,7 +23,7 @@ export const articleAreaClasses = tw('mx-auto w-full max-w-(--container-max) px-
 
 /** The two columns from 1024px: a 240px table of contents and a 640px article, 64px apart; one column below that, 32px apart. */
 export const articleGridClasses = tw(
-  'grid grid-cols-[240px_minmax(0,640px)] items-start gap-16 pg-lt-lg:grid-cols-[minmax(0,1fr)] pg-lt-lg:gap-8',
+  'grid grid-cols-[240px_minmax(0,var(--spacing-reading))] items-start gap-16 pg-lt-lg:grid-cols-[minmax(0,1fr)] pg-lt-lg:gap-8',
 );
 
 /** The wide table of contents: sticky under the header (header height plus 24px); hidden at 1023px and below. */
@@ -54,7 +54,7 @@ export const tocLinkClasses = tw(
 );
 
 /** The article text column: at most 640px, and long words and pasted URLs wrap. */
-export const articleClasses = tw('max-w-[640px] min-w-0 wrap-anywhere');
+export const articleClasses = tw('max-w-reading min-w-0 wrap-anywhere');
 
 /** One section: 48px above each one after the first. The header scroll padding clears a jump to its heading. */
 export const sectionClasses = tw('mt-12 first:mt-0');

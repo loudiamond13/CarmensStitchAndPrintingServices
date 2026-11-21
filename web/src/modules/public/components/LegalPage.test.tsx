@@ -138,7 +138,7 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
     const { container } = renderPage();
     const grid = screen.getByRole('article').parentElement;
     const classes = grid?.className ?? '';
-    expect(classes).toContain('grid-cols-[240px_minmax(0,640px)]');
+    expect(classes).toContain('grid-cols-[240px_minmax(0,var(--spacing-reading))]');
     expect(classes).toContain('gap-16');
     expect(classes).toContain('pg-lt-lg:grid-cols-[minmax(0,1fr)]');
     const wide = container.querySelector('nav[class*="sticky"]');
