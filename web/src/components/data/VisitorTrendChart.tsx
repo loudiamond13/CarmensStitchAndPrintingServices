@@ -5,7 +5,7 @@
 // SPEC-DEVIATION: D-51 a group under 28px gets every other label, as IncomeExpenseChart; a day label ("Nov 15") is wider than
 // a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart. When month
 // bars span two calendar years, the first drawn label and each drawn label that starts a new year carry the year ("Jan 2026"),
-// and those month labels get the same 44px room.
+// and those month labels get 56px of room, the width of "Dec 2025" plus a gap.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { formatCalendarDate, formatCount, formatMonthShort } from '@/utils/format';
@@ -57,6 +57,7 @@ const TICK_FRACTIONS = [0, 0.5, 1] as const;
 /** A bucket narrower than this (px) gets every other label (D-51); a day label needs the wider room. */
 const MIN_LABEL_GROUP = 28;
 const MIN_DAY_LABEL_GROUP = 44;
+const MIN_YEAR_LABEL_GROUP = 56;
 
 const YEAR_SUFFIX = /, \d{4}$/;
 
@@ -86,7 +87,7 @@ function shortLabel(start: string, bucket: TrendBucketSize, withYear: boolean): 
 
 /** Every how many buckets a label is drawn: every one when there is room, else enough that labels never overlap. */
 function labelStep(gw: number, bucket: TrendBucketSize, wideLabels: boolean): number {
-  const room = bucket === 'day' || wideLabels ? MIN_DAY_LABEL_GROUP : MIN_LABEL_GROUP;
+  const room = bucket === 'day' ? MIN_DAY_LABEL_GROUP : wideLabels ? MIN_YEAR_LABEL_GROUP : MIN_LABEL_GROUP;
   if (gw >= room) return 1;
   return Math.max(2, Math.ceil(room / gw));
 }

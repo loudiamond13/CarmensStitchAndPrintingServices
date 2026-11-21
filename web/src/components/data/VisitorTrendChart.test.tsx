@@ -193,9 +193,12 @@ describe('VisitorTrendChart: month buckets', () => {
   });
 
   it('adds the year to the first month label and to the first label of each new year when the range crosses a year', () => {
+    const observer = stubResizeObserver();
     const { container } = render(
       <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
     );
+
+    observer.resize(730);
 
     expect(bucketLabels(container)).toEqual([
       'Dec 2025',
@@ -220,8 +223,8 @@ describe('VisitorTrendChart: month buckets', () => {
     );
 
     const labels = bucketLabels(container);
-    expect(labels.filter((label) => label !== null)).toHaveLength(12);
-    expect(labels.filter((label) => label?.includes('20'))).toEqual(['Mar 2024', 'Mar 2025', 'Mar 2026']);
+    expect(labels.filter((label) => label !== null)).toHaveLength(9);
+    expect(labels.filter((label) => label?.includes('20'))).toEqual(['Apr 2024', 'Apr 2025', 'Apr 2026']);
   });
 
   it('draws a bar for every month that has page views, with no line over them', () => {
@@ -237,40 +240,98 @@ describe('VisitorTrendChart: month buckets', () => {
     expect(container.querySelectorAll('path')).toHaveLength(6);
   });
 
-  it('keeps every month label when a group is 28px or wider', () => {
+  it('keeps every month label of a single year when a group is 28px or wider', () => {
     const observer = stubResizeObserver();
     const { container } = render(
-      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+      <VisitorTrendChart buckets={months(2026, 1, 12, () => 100)} bucket="month" from="2026-01-01" to="2026-12-31" />,
     );
 
-    observer.resize(640);
+    // (400 - 52) / 12 is 29px a month.
+    observer.resize(400);
 
     expect(bucketLabels(container).every((label) => label !== null)).toBe(true);
   });
 
-  it('thins the month labels to every other one, counting back from the last, when a group is under 28px', () => {
+  it('thins the month labels of a single year to every other one, counting back from the last, under 28px', () => {
     const observer = stubResizeObserver();
     const { container } = render(
-      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+      <VisitorTrendChart buckets={months(2026, 1, 12, () => 100)} bucket="month" from="2026-01-01" to="2026-12-31" />,
     );
 
+    // (320 - 52) / 12 is 22.3px a month.
     observer.resize(320);
 
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 320 220');
     expect(bucketLabels(container)).toEqual([
       null,
-      'Jan 2026',
+      'Feb',
       null,
-      'Mar',
+      'Apr',
+      null,
+      'Jun',
+      null,
+      'Aug',
+      null,
+      'Oct',
+      null,
+      'Dec',
+    ]);
+  });
+
+  it('keeps every month label of a range that crosses a year when a group is 56px or wider', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    // (730 - 52) / 12 is 56.5px a month.
+    observer.resize(730);
+
+    expect(bucketLabels(container).every((label) => label !== null)).toBe(true);
+  });
+
+  it('thins the month labels of a range that crosses a year to fit the 56px a year label needs', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    // (320 - 52) / 12 is 22.3px a month, so every third label shows, counting back from Nov.
+    observer.resize(320);
+
+    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 320 220');
+    expect(bucketLabels(container)).toEqual([
+      null,
+      null,
+      'Feb 2026',
+      null,
       null,
       'May',
       null,
-      'Jul',
       null,
-      'Sep',
+      'Aug',
+      null,
       null,
       'Nov',
     ]);
+  });
+
+  it('never draws two labels that carry a year closer than a year label is wide', () => {
+    const observer = stubResizeObserver();
+    const { container } = render(
+      <VisitorTrendChart buckets={TWELVE} bucket="month" from="2025-12-01" to="2026-11-30" />,
+    );
+
+    // (604 - 52) / 12 is 46px a month, about the width of "Dec 2025" itself.
+    observer.resize(604);
+
+    const yearLabelX = [...container.querySelectorAll('[data-bucket] text')]
+      .filter((text) => /[0-9]{4}/.test(text.textContent))
+      .map((text) => Number(text.getAttribute('x')));
+    expect(yearLabelX.length).toBeGreaterThan(0);
+    yearLabelX.slice(1).forEach((x, i) => {
+      expect(x - (yearLabelX[i] ?? 0)).toBeGreaterThanOrEqual(56);
+    });
   });
 
   it('thins the wider day labels further so they never overlap', () => {
