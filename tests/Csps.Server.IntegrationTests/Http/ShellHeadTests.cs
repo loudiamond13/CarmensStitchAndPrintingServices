@@ -924,7 +924,7 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
     // The draft flag is a literal here and in SeoEndpointTests.DefaultSitemapLocs on purpose: the owner approving the Privacy Policy (D-73)
     // means editing both, so the change is seen.
     [Theory]
-    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.", true)]
+    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.", false)]
     [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.", false)]
     [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.", false)]
     public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaMatchesTheKnownApprovalState(string path, string title, string lead, bool draft)

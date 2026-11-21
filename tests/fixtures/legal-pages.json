@@ -1,6 +1,6 @@
 {
   "pages": [
-    { "key": "privacy", "path": "/privacy", "version": "1.0", "lastUpdated": "2026-11-19", "approved": false },
+    { "key": "privacy", "path": "/privacy", "version": "1.0", "lastUpdated": "2026-11-21", "approved": true },
     { "key": "terms", "path": "/terms", "version": "1.0", "lastUpdated": "2026-11-18", "approved": true },
     { "key": "accessibility", "path": "/accessibility", "version": "1.0", "lastUpdated": "2026-11-18", "approved": true }
   ]

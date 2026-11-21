@@ -14,7 +14,7 @@ public sealed class SeoEndpointTests
 
     // The one literal sitemap for the default factory: a change to the legal page facts must show up as an edit here.
     private static readonly string[] DefaultSitemapLocs =
-        [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/terms", $"{Origin}/accessibility"];
+        [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/privacy", $"{Origin}/terms", $"{Origin}/accessibility"];
 
     [Fact]
     public async Task RobotsAllowsTheSiteDisallowsAdminAndApiAndNamesTheSitemap()

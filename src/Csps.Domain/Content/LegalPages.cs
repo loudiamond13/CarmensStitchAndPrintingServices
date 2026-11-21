@@ -15,7 +15,7 @@ public sealed record LegalPageFacts(string Key, string Path, string Version, Dat
 public static class LegalPages
 {
     /// <summary>Gets the Privacy Policy.</summary>
-    public static LegalPageFacts Privacy { get; } = new("privacy", "/privacy", "1.0", new DateOnly(2026, 11, 19), Approved: false);
+    public static LegalPageFacts Privacy { get; } = new("privacy", "/privacy", "1.0", new DateOnly(2026, 11, 21), Approved: true);
 
     /// <summary>Gets the Terms of Use.</summary>
     public static LegalPageFacts Terms { get; } = new("terms", "/terms", "1.0", new DateOnly(2026, 11, 18), Approved: true);

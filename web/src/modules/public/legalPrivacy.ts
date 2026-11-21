@@ -2,8 +2,8 @@
 // drafted for the owner's review (D-09). It claims no lawyer review and promises nothing the owner has not ruled. The business and the
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
-// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134). It stays a draft
-// until the owner approves the wording (D-71, D-73). Quote requests are left out until the form returns (D-82).
+// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134). The owner approved
+// the wording at version 1.0 (D-73, D-135). Quote requests are left out until the form returns (D-82).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
 
