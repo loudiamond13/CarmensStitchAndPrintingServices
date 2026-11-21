@@ -78,12 +78,15 @@ describe('useVisitorStatsToday', () => {
     expect(result.current.isError).toBe(false);
   });
 
-  it('asks for nothing while it is not enabled', () => {
+  it('asks for nothing while it is not enabled', async () => {
     const backend = useOrderHandlers({ list: buildOrderList([], { today: '2026-10-30' }) });
 
     const { result } = renderToday(false);
+    // Time for a wrongly sent request to reach the handler.
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
 
     expect(result.current.today).toBeNull();
+    expect(client?.isFetching()).toBe(0);
     expect(backend.lists).toHaveLength(0);
   });
 });
