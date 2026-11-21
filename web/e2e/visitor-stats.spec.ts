@@ -1,16 +1,18 @@
 // Visitor Stats end to end (PRD §14 "metrics dashboard shows recorded page views"; ANL-08, D-21, D-23, D-57, D-67, D-68, D-70, WEB-10),
 // in all five projects. A visitor with no cookie choice (there is no cookie bar) opens three public pages; a Manager in a separate
-// browser context then sees each page count rise on Visitor Stats. Pages a signed-in Manager opens add nothing (D-21). An Admin never
-// reaches the page (D-23). The range lives in the URL, a custom range that does not pass sends nothing, a range two years back shows
-// the seeded page views, and Export CSV saves the range. Other specs and the other projects count page views on the same CSPS_E2E
-// database at the same time, so live counts are "at least"; days seeded through the Testing route are exact, and each project
-// seeds its own days.
+// browser context then sees each of those page counts rise by exactly one on Visitor Stats. Pages a signed-in Manager opens add
+// nothing (D-21). An Admin never reaches the page (D-23). The range lives in the URL, a custom range that does not pass sends
+// nothing, a range two years back shows the seeded page views, and Export CSV saves the range. Other specs and the other projects
+// count page views on the same CSPS_E2E database at the same time. The Terms, Accessibility and Privacy pages are opened by other
+// specs only under the site content lock, so under that lock their counts are exact: they are read from the CSV export, which
+// lists every page (the Most viewed pages list shows 5 at most). Days seeded through the Testing route are exact too, and each
+// project seeds its own days.
 import { readFileSync } from 'node:fs';
 import type { APIRequestContext, Locator, Page, Request, Response } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, guardContext, test, type Guard } from './fixtures.ts';
 import { manilaDate, NO_SIDEWAYS_SCROLL } from './helpers.ts';
-import { ensureDemoSiteContent, isDemoSeeded, withSiteContentLock } from './site-content-lock.ts';
+import { withSiteContentLock } from './site-content-lock.ts';
 import { createStaff, seedAnalytics, type AnalyticsSeedDay } from './testing-api.ts';
 
 const STATS = '/admin/visitor-stats';
@@ -120,6 +122,26 @@ async function openStats(page: Page): Promise<void> {
   await expect(kpiValue(page, 'Page views')).toBeVisible();
 }
 
+/**
+ * The page views of each page over the default range (last 30 days), summed from the CSV export, which lists every page. The Most
+ * viewed pages list shows 5 pages at most, so a page outside the top 5 would read 0 there.
+ */
+async function pageViewsByName(page: Page): Promise<Map<string, number>> {
+  await openStats(page);
+  await settle(page);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export CSV' }).click();
+  const text = readFileSync(await (await download).path())
+    .subarray(3)
+    .toString('utf8');
+  const totals = new Map<string, number>();
+  for (const line of text.split('\r\n').slice(1, -1)) {
+    const [, name = '', views = ''] = line.split(',');
+    totals.set(name, (totals.get(name) ?? 0) + Number(views));
+  }
+  return totals;
+}
+
 /** The full admin menu: the sidebar on desktop, or on a phone the navigation drawer, opened. The phone tab bar is not the menu. */
 async function adminMenu(page: Page): Promise<Locator> {
   const opener = page.getByRole('button', { name: 'Open navigation' }).filter({ visible: true });
@@ -133,19 +155,22 @@ async function adminMenu(page: Page): Promise<Locator> {
   return menu;
 }
 
+/** The pages the visitor opens: other specs open them only under the site content lock, so their counts are exact under it. */
+const COUNTED_PAGES = [
+  { path: '/terms', name: 'Terms of Use' },
+  { path: '/accessibility', name: 'Accessibility Statement' },
+  { path: '/privacy', name: 'Privacy Policy' },
+] as const;
+
 test.describe('a visitor with no cookie choice', () => {
-  test('@visitor-stats a visitor with no choice opens Home, Products and Gallery, and a Manager in another browser sees each count rise', async ({
+  test('@visitor-stats a visitor with no choice opens Terms, Accessibility and Privacy, and a Manager in another browser sees each count rise by one', async ({
     page,
     browser,
     baseURL,
     request,
   }, testInfo) => {
-    testInfo.setTimeout(180_000);
-    // The first test of a worker can wait up to 6 minutes for the site content lock (the Gallery needs the demo photos).
-    if (!isDemoSeeded()) {
-      testInfo.setTimeout(testInfo.timeout + 480_000);
-    }
-    await ensureDemoSiteContent(request);
+    // The site content lock can take up to 6 minutes to get (the sweep specs hold it while they open the legal pages).
+    testInfo.setTimeout(480_000);
 
     const context = await browser.newContext({ baseURL: baseURL ?? 'https://localhost:5199', ignoreHTTPSErrors: true });
     const watched = await guardContext(context, baseURL);
@@ -159,18 +184,20 @@ test.describe('a visitor with no cookie choice', () => {
       await expect(manager.getByRole('heading', { level: 1, name: 'Visitor Stats' })).toBeVisible();
       await expect(manager).toHaveTitle('Visitor Stats · CSPS Admin');
 
-      const sent = 3;
-      const before = await kpiCount(manager, 'Page views');
+      await withSiteContentLock(async () => {
+        const before = await pageViewsByName(manager);
 
-      await openCounted(page, '/');
-      await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
-      await openCounted(page, '/products');
-      await openCounted(page, '/gallery');
+        await openCounted(page, COUNTED_PAGES[0].path);
+        await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
+        await openCounted(page, COUNTED_PAGES[1].path);
+        await openCounted(page, COUNTED_PAGES[2].path);
 
-      await openStats(manager);
+        const after = await pageViewsByName(manager);
+        for (const { name } of COUNTED_PAGES) {
+          expect(after.get(name) ?? 0, `${name} rose by one`).toBe((before.get(name) ?? 0) + 1);
+        }
+      });
       await expect(manager.locator(`svg [data-bucket="${manilaDate(0)}"]`)).toHaveCount(1);
-      // The Page views total, not the top 5 list: a page outside the top 5 reads 0 there. Other specs share the database, so "at least".
-      expect(await kpiCount(manager, 'Page views')).toBeGreaterThanOrEqual(before + sent);
       await watched.finish();
     } finally {
       await context.close();
@@ -194,13 +221,11 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
   ).toBe(true);
 
   // Terms of Use: the Terms sweep also opens it, and a visitor view of it is counted. Every spec that opens
-  // /terms does so under the site content lock, so under it the row moves only if this Manager's view is counted.
+  // /terms does so under the site content lock, so under it the CSV total of the page moves only if this Manager's view is counted.
   await withSiteContentLock(async () => {
-    await openStats(page);
-    const before = await listCount(page, 'Most viewed pages', 'Terms of Use');
+    const before = (await pageViewsByName(page)).get('Terms of Use') ?? 0;
     await openCounted(page, '/terms');
-    await openStats(page);
-    expect(await listCount(page, 'Most viewed pages', 'Terms of Use')).toBe(before);
+    expect((await pageViewsByName(page)).get('Terms of Use') ?? 0).toBe(before);
   });
 });
 
