@@ -1,5 +1,6 @@
 #if CSPS_TESTING
 using System.Text.Json;
+using Csps.Application.Analytics;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Infrastructure.Analytics;
@@ -35,9 +36,7 @@ public sealed class TestingAnalyticsController(TestingAnalyticsSeeder seeder, IB
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private static readonly HashSet<string> KnownPages = new(
-        [PageKeys.Home, PageKeys.Products, PageKeys.Gallery, PageKeys.Contact, PageKeys.Privacy, PageKeys.Terms, PageKeys.Accessibility, PageKeys.NotFound],
-        StringComparer.Ordinal);
+    private static readonly HashSet<string> KnownPages = new(PageNames.Ordered.Select(static page => page.Key), StringComparer.Ordinal);
 
     /// <summary>The body of the seed call.</summary>
     /// <param name="Days">The days to put in place.</param>
