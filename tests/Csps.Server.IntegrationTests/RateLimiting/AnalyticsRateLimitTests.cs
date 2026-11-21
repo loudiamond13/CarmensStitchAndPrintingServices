@@ -7,6 +7,7 @@ using Csps.Server.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.RateLimiting;
@@ -64,7 +65,7 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         rejected.Headers.RetryAfter.ShouldNotBeNull().Delta.ShouldNotBeNull().TotalSeconds.ShouldBeInRange(1, 60);
         other.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         await using var context = database.CreateContext();
-        context.DailyPageCounts.Sum(row => row.Views).ShouldBe(CollectPerMinute + 1);
+        (await context.DailyPageCounts.SumAsync(row => row.Views, TestContext.Current.CancellationToken)).ShouldBe(CollectPerMinute + 1);
     }
 
     [Fact]
