@@ -24,6 +24,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     private const string DailyLabel = "Old daily page counts removed";
     private const string SaltLabel = "Old address salts removed";
     private const string JobName = "analytics-retention";
+    private const byte Phone = 1;
+    private const byte Computer = 3;
 
     // 2026-11-16 12:00 in Manila.
     private static readonly DateTimeOffset Now = new(2026, 11, 16, 4, 0, 0, TimeSpan.Zero);
@@ -34,8 +36,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await database.ResetAsync();
         var gone = new DateOnly(2025, 10, 14);
         var kept = new DateOnly(2025, 10, 15);
-        await AddVisitAsync(gone, "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(kept, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(gone, "Facebook", Phone, "Chrome");
+        await AddVisitAsync(kept, "Facebook", Phone, "Chrome");
 
         var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero)));
 
@@ -52,12 +54,12 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         var old = cut.AddDays(-1);
         foreach (var _ in new[] { 1, 2 })
         {
-            var visitId = await AddVisitAsync(old, "Facebook", DeviceKind.Phone, "Chrome");
+            var visitId = await AddVisitAsync(old, "Facebook", Phone, "Chrome");
             await AddPageViewsAsync(visitId, old, 1);
             await AddSampleAsync(visitId, old);
         }
 
-        await AddVisitAsync(cut, "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(cut, "Facebook", Phone, "Chrome");
         (await ReadCursorAsync()).ShouldBeNull();
 
         // Writes to the source totals fail, so nothing can have been rolled up and no cursor is ever saved.
@@ -77,8 +79,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await database.ResetAsync();
         var yesterday = new DateOnly(2026, 11, 15);
-        await AddVisitAsync(yesterday, "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(yesterday, ReferrerName.Direct, DeviceKind.Computer, "Edge");
+        await AddVisitAsync(yesterday, "Facebook", Phone, "Chrome");
+        await AddVisitAsync(yesterday, "Direct", Computer, "Edge");
 
         await RunAsync(new FakeTimeProvider(Now));
 
@@ -90,8 +92,8 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     public async Task TheCutDateAtTheEndOfFebruaryKeepsTheFirstSurvivingDay()
     {
         await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2026, 2, 27), "Facebook", DeviceKind.Phone, "Chrome");
-        await AddVisitAsync(new DateOnly(2026, 2, 28), "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(new DateOnly(2026, 2, 27), "Facebook", Phone, "Chrome");
+        await AddVisitAsync(new DateOnly(2026, 2, 28), "Facebook", Phone, "Chrome");
 
         await RunAsync(new FakeTimeProvider(new DateTimeOffset(2027, 3, 31, 4, 0, 0, TimeSpan.Zero)));
 
@@ -103,7 +105,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await database.ResetAsync();
         var day = new DateOnly(2025, 10, 14);
-        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        var visitId = await AddVisitAsync(day, "Facebook", Phone, "Chrome");
         await AddPageViewsAsync(visitId, day, 2);
         await AddSampleAsync(visitId, day);
 
@@ -120,7 +122,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await database.ResetAsync();
         var day = new DateOnly(2025, 10, 14);
-        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        var visitId = await AddVisitAsync(day, "Facebook", Phone, "Chrome");
         await AddPageViewsAsync(visitId, day, 1200);
         var counter = new CommandCounter();
 
@@ -137,7 +139,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await database.ResetAsync();
         var day = new DateOnly(2025, 10, 14);
-        var visitId = await AddVisitAsync(day, "Facebook", DeviceKind.Phone, "Chrome");
+        var visitId = await AddVisitAsync(day, "Facebook", Phone, "Chrome");
         await AddPageViewsAsync(visitId, day, 1200);
         var now = new DateTimeOffset(2026, 11, 15, 4, 0, 0, TimeSpan.Zero);
         var clock = new FakeTimeProvider(now);
@@ -163,7 +165,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     public async Task AFailedVisitRemovalIsThatRulesFailedLineAndTheConsentRuleStillRuns()
     {
         await database.ResetAsync();
-        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", DeviceKind.Phone, "Chrome");
+        await AddVisitAsync(new DateOnly(2025, 10, 14), "Facebook", Phone, "Chrome");
         await AddConsentAsync(new DateTimeOffset(2025, 10, 14, 23, 59, 0, TimeSpan.Zero));
 
         var report = await RunAsync(new FakeTimeProvider(new DateTimeOffset(2026, 11, 15, 0, 0, 0, TimeSpan.Zero)), new FailDeletesOn("AnalyticsVisits"));
@@ -197,7 +199,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         await using (var context = database.CreateContext())
         {
             context.ConsentRecords.AddRange(Enumerable.Range(0, 1200).Select(index =>
-                ConsentRecord.Decide(Guid.NewGuid(), "1.0", true, false, false, ConsentSource.Bar, new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero).AddMinutes(index))));
+                LegacyAnalyticsRows.Consent(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero).AddMinutes(index))));
             await context.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
 
@@ -374,11 +376,11 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         return await job.RunAsync(budget ?? new MaintenanceBudget(clock), TestContext.Current.CancellationToken);
     }
 
-    private async Task<Guid> AddVisitAsync(DateOnly day, string referrer, DeviceKind device, string browser)
+    private async Task<Guid> AddVisitAsync(DateOnly day, string referrer, byte device, string browser)
     {
         var hash = System.Security.Cryptography.RandomNumberGenerator.GetBytes(AnalyticsVisit.HashLength);
         var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(4, 0)), TimeSpan.Zero);
-        var visit = AnalyticsVisit.Start(hash, day, startedAt, referrer, device, browser, "Windows", null);
+        var visit = LegacyAnalyticsRows.Visit(hash, day, startedAt, referrer, device, browser);
         await using var context = database.CreateContext();
         context.AnalyticsVisits.Add(visit);
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -389,21 +391,21 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         var at = new DateTimeOffset(day.ToDateTime(new TimeOnly(5, 0)), TimeSpan.Zero);
         await using var context = database.CreateContext();
-        context.AnalyticsPageViews.AddRange(Enumerable.Range(0, count).Select(_ => AnalyticsPageView.Of(visitId, day, at, PageKeys.Gallery)));
+        context.AnalyticsPageViews.AddRange(Enumerable.Range(0, count).Select(_ => LegacyAnalyticsRows.PageView(visitId, day, at, PageKeys.Gallery)));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task AddSampleAsync(Guid visitId, DateOnly day)
     {
         await using var context = database.CreateContext();
-        context.AnalyticsVitalSamples.Add(AnalyticsVitalSample.Of(visitId, day, VitalMetric.Lcp, 2100m, PageKeys.Gallery));
+        context.AnalyticsVitalSamples.Add(LegacyAnalyticsRows.VitalSample(visitId, day, 1, 2100m, PageKeys.Gallery));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task AddConsentAsync(DateTimeOffset decidedAt)
     {
         await using var context = database.CreateContext();
-        context.ConsentRecords.Add(ConsentRecord.Decide(Guid.NewGuid(), "1.0", true, false, false, ConsentSource.Bar, decidedAt));
+        context.ConsentRecords.Add(LegacyAnalyticsRows.Consent(decidedAt));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
@@ -412,16 +414,16 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     {
         await using var context = database.CreateContext();
         context.DailyPageCounts.Add(DailyPageCount.First(day, PageKeys.Gallery));
-        context.DailyReferrerCounts.Add(DailyReferrerCount.Of(day, "Facebook", 1));
-        context.DailyDeviceCounts.Add(DailyDeviceCount.Of(day, DeviceDimension.Device, "Phone", 1));
-        context.DailyDeviceCounts.Add(DailyDeviceCount.Of(day, DeviceDimension.Browser, "Chrome", 1));
+        context.DailyReferrerCounts.Add(LegacyAnalyticsRows.ReferrerCount(day, "Facebook", 1));
+        context.DailyDeviceCounts.Add(LegacyAnalyticsRows.DeviceCount(day, 1, "Phone", 1));
+        context.DailyDeviceCounts.Add(LegacyAnalyticsRows.DeviceCount(day, 2, "Chrome", 1));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task AddSaltsAsync(params DateOnly[] days)
     {
         await using var context = database.CreateContext();
-        context.AnalyticsSalts.AddRange(days.Select(day => AnalyticsSalt.Create(day, System.Security.Cryptography.RandomNumberGenerator.GetBytes(AnalyticsSalt.Length))));
+        context.AnalyticsSalts.AddRange(days.Select(LegacyAnalyticsRows.Salt));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 
@@ -444,7 +446,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         return [.. rows.OrderBy(row => row.BusinessDay).ThenBy(row => row.Referrer, StringComparer.Ordinal).Select(row => (row.BusinessDay, row.Referrer, row.Visits))];
     }
 
-    private async Task<List<(DateOnly Day, DeviceDimension Dimension, string Name, int Visits)>> ReadDevicesAsync()
+    private async Task<List<(DateOnly Day, byte Dimension, string Name, int Visits)>> ReadDevicesAsync()
     {
         await using var context = database.CreateContext();
         var rows = await context.DailyDeviceCounts.AsNoTracking().ToListAsync(TestContext.Current.CancellationToken);

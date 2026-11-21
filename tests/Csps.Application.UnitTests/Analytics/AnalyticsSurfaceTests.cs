@@ -63,8 +63,7 @@ public sealed class AnalyticsSurfaceTests
         var domain = typeof(DailyPageCount).Assembly;
         var names = domain.GetTypes().Select(type => type.Name).ToList();
 
-        names.Intersect(["ConsentCookie", "DeviceClass", "OsFamily"], StringComparer.Ordinal).ShouldBeEmpty();
-        names.ShouldContain("DeviceKind");
+        names.Intersect(["ConsentCookie", "DeviceClass", "OsFamily", "DeviceKind", "DeviceDimension", "ConsentSource"], StringComparer.Ordinal).ShouldBeEmpty();
         var retention = domain.GetType("Csps.Domain.Analytics.AnalyticsRetention").ShouldNotBeNull();
         retention.GetMember("SessionMinutes").ShouldBeEmpty();
         retention.GetMember("ConsentLifetimeMonths").ShouldBeEmpty();
@@ -75,7 +74,6 @@ public sealed class AnalyticsSurfaceTests
     {
         var names = typeof(DailyPageCount).Assembly.GetTypes().Select(type => type.Name).ToList();
 
-        names.Intersect(["VitalRating", "VitalGrade", "NearestRank"], StringComparer.Ordinal).Order(StringComparer.Ordinal).ShouldBeEmpty();
-        names.ShouldContain("VitalBounds");
+        names.Intersect(["VitalRating", "VitalGrade", "NearestRank", "VitalBounds", "VitalMetric"], StringComparer.Ordinal).Order(StringComparer.Ordinal).ShouldBeEmpty();
     }
 }

@@ -239,7 +239,7 @@ public sealed class VisitorStatsReaderTests(CspsDatabase database) : IClassFixtu
         await using var context = database.CreateContext();
         var startedAt = new DateTimeOffset(day.ToDateTime(new TimeOnly(10, 0)), TimeSpan.FromHours(8)).ToUniversalTime();
         context.AnalyticsVisits.Add(
-            AnalyticsVisit.Start(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, ReferrerName.Direct, DeviceKind.Phone, "Chrome", "Android", null));
+            LegacyAnalyticsRows.Visit(Enumerable.Repeat(visitor, 32).ToArray(), day, startedAt, "Direct", 1, "Chrome"));
         await context.SaveChangesAsync(TestContext.Current.CancellationToken);
     }
 }

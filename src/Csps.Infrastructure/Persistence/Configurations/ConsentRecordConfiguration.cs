@@ -21,7 +21,7 @@ internal sealed class ConsentRecordConfiguration : IEntityTypeConfiguration<Cons
         builder.Property(record => record.Stats);
         builder.Property(record => record.Map).IsRequired();
         builder.Property(record => record.Gpc).IsRequired();
-        builder.Property(record => record.Source).IsRequired().HasConversion<byte>();
+        builder.Property(record => record.Source).IsRequired();
         builder.Property(record => record.DecidedAtUtc).IsRequired();
         builder.HasIndex(record => record.DecidedAtUtc);
     }

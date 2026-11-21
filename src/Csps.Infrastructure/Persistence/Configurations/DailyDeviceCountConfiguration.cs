@@ -16,7 +16,7 @@ internal sealed class DailyDeviceCountConfiguration : IEntityTypeConfiguration<D
 
         builder.HasKey(row => new { row.BusinessDay, row.Dimension, row.Name });
         builder.Property(row => row.BusinessDay).HasColumnType("date");
-        builder.Property(row => row.Dimension).IsRequired().HasConversion<byte>();
+        builder.Property(row => row.Dimension).IsRequired();
         builder.Property(row => row.Name).IsRequired().IsUnicode(false).HasMaxLength(AnalyticsVisit.LabelMaxLength);
         builder.Property(row => row.Visits).IsRequired();
     }

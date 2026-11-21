@@ -18,7 +18,7 @@ internal sealed class AnalyticsVitalSampleConfiguration : IEntityTypeConfigurati
         builder.Property(sample => sample.Id).ValueGeneratedOnAdd();
         builder.Property(sample => sample.VisitId).IsRequired();
         builder.Property(sample => sample.BusinessDay).HasColumnType("date");
-        builder.Property(sample => sample.Metric).IsRequired().HasConversion<byte>();
+        builder.Property(sample => sample.Metric).IsRequired();
         builder.Property(sample => sample.Value).IsRequired().HasPrecision(9, AnalyticsVitalSample.Scale);
         builder.Property(sample => sample.PageKey).IsRequired().IsUnicode(false).HasMaxLength(PageKeys.MaxLength);
 

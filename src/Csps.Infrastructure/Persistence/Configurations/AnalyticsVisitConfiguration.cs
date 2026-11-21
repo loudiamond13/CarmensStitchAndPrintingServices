@@ -22,7 +22,7 @@ internal sealed class AnalyticsVisitConfiguration : IEntityTypeConfiguration<Ana
         builder.Property(visit => visit.StartedAtUtc).IsRequired();
         builder.Property(visit => visit.LastSeenAtUtc).IsRequired();
         builder.Property(visit => visit.Referrer).IsRequired().IsUnicode(false).HasMaxLength(ReferrerName.MaxLength);
-        builder.Property(visit => visit.Device).IsRequired().HasConversion<byte>();
+        builder.Property(visit => visit.Device).IsRequired();
         builder.Property(visit => visit.Browser).IsRequired().IsUnicode(false).HasMaxLength(AnalyticsVisit.LabelMaxLength);
         builder.Property(visit => visit.Os).IsRequired().IsUnicode(false).HasMaxLength(AnalyticsVisit.LabelMaxLength);
         builder.Property(visit => visit.IpHash).HasColumnType("binary(32)");
