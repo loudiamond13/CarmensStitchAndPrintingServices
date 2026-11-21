@@ -958,8 +958,7 @@ describe('V1 CSV export (D-25)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
 
-    const title = await screen.findByText('Visitor stats exported', {}, { timeout: 3000 }).catch(() => null);
-    expect(title?.textContent).toBe('Visitor stats exported');
+    expect(await screen.findByText('Visitor stats exported', {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByText('visitor-stats-2026-10-17-to-2026-11-15.csv is in your downloads.')).toBeInTheDocument();
   });
 
@@ -980,10 +979,10 @@ describe('V1 CSV export (D-25)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
 
-    const busy = await screen.findByRole('button', { name: 'Exporting' }, { timeout: 3000 }).catch(() => null);
-    expect(busy?.getAttribute('aria-busy')).toBe('true');
-    expect(busy?.getAttribute('aria-disabled')).toBe('true');
-    if (busy !== null) await user.click(busy);
+    const busy = await screen.findByRole('button', { name: 'Exporting' }, { timeout: 3000 });
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    expect(busy).toHaveAttribute('aria-disabled', 'true');
+    await user.click(busy);
     await waitFor(() => {
       expect(calls).toHaveLength(1);
     });
@@ -1004,11 +1003,7 @@ describe('V1 CSV export (D-25)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Export CSV' }));
 
-    const title = await screen
-      .findByText("Couldn't export the visitor stats.", {}, { timeout: 3000 })
-      .catch(() => null);
-    expect(title).not.toBeNull();
-    expect(title?.textContent).toBe("Couldn't export the visitor stats.");
+    expect(await screen.findByText("Couldn't export the visitor stats.", {}, { timeout: 3000 })).toBeInTheDocument();
     expect(screen.getByText('Check your internet connection and try again.')).toBeInTheDocument();
     expect(saved).toHaveLength(0);
     const rest = screen.getByRole('button', { name: 'Export CSV' });
