@@ -22,6 +22,35 @@ public sealed class PublicPageResolverTests
         new PublicPageResolver(new FakeEnvironment("Production")).PageKeyFor(path).ShouldBe(key);
     }
 
+    // The client router and web/src/utils/urlPath.ts drop every trailing slash, so a page the visitor saw counts as that page.
+    [Theory]
+    [InlineData("/privacy//", "privacy")]
+    [InlineData("/Privacy///", "privacy")]
+    [InlineData("/products//", "products")]
+    [InlineData("//", "home")]
+    [InlineData("///", "home")]
+    public void RepeatedTrailingSlashesCountAsThePage(string path, string key)
+    {
+        new PublicPageResolver(new FakeEnvironment("Production")).PageKeyFor(path).ShouldBe(key);
+    }
+
+    [Theory]
+    [InlineData("/admin//")]
+    [InlineData("/admin/orders///")]
+    public void AnAdminPathWithRepeatedTrailingSlashesStoresNothing(string path)
+    {
+        new PublicPageResolver(new FakeEnvironment("Production")).PageKeyFor(path).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("//products")]
+    [InlineData("/products//old")]
+    [InlineData("/nope//")]
+    public void OnlyTrailingSlashesAreDropped(string path)
+    {
+        new PublicPageResolver(new FakeEnvironment("Production")).PageKeyFor(path).ShouldBe(PageKeys.NotFound);
+    }
+
     [Theory]
     [InlineData("/nope")]
     [InlineData("/cookies")]

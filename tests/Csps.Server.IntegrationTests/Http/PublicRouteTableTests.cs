@@ -78,6 +78,7 @@ public sealed class PublicRouteTableTests
     [InlineData("/nope")]
     [InlineData("/products/old")]
     [InlineData("/products//")]
+    [InlineData("/privacy//")]
     [InlineData("//products")]
     [InlineData("/administrator")]
     [InlineData("/developer")]
