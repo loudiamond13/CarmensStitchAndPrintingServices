@@ -1,6 +1,7 @@
 // The page-view beacon (ANL-06, D-53): one POST per new public path, sent at once with the path only. This file is in the
 // first download, so it stays small; the service and the HTTP client load on demand (PERF-01). A failed send is dropped.
 import { useEffect, useState } from 'react';
+import { isPageViewPath } from '@/utils/pageViewPath';
 import type { PageViewBody } from '../services/analyticsService';
 
 export type BeaconSend = (body: PageViewBody) => Promise<void>;
@@ -15,6 +16,8 @@ export function createBeaconMachine(send: BeaconSend): BeaconMachine {
   let last: string | undefined;
   return {
     view: (path) => {
+      // A path the server would refuse is dropped here, so nothing loads and nothing is sent (OR-3).
+      if (!isPageViewPath(path)) return;
       // The same path twice in a row is one view (React StrictMode runs effects twice).
       if (path === last) return;
       last = path;

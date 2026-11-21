@@ -20,6 +20,18 @@ describe('analyticsService.pageView', () => {
     expect(fake.calls[0]?.init).not.toHaveProperty('keepalive');
   });
 
+  it.each(['', 'gallery', `/${'a'.repeat(2048)}`])(
+    'sends no request for a path the server would refuse (OR-3): case %#',
+    async (path) => {
+      const fake = createFakeFetch([{ status: 204 }]);
+      const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+      await createAnalyticsService(client).pageView({ path });
+
+      expect(fake.calls).toHaveLength(0);
+    },
+  );
+
   it('sends the anti-CSRF header the shared client carries', async () => {
     const fake = createFakeFetch([{ status: 204 }]);
     const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch, headers: { 'X-CSPS-CSRF': '1' } });

@@ -228,6 +228,18 @@ describe('createBeaconMachine', () => {
     expect(send.mock.calls.map(([body]) => body)).toEqual([{ path: '/' }, { path: '/products' }, { path: '/' }]);
   });
 
+  it('drops a path the server would refuse without sending it (OR-3)', () => {
+    const send = sender();
+    const machine = createBeaconMachine(send);
+
+    machine.view('');
+    machine.view('gallery');
+    machine.view(`/${'a'.repeat(2048)}`);
+    machine.view('/gallery');
+
+    expect(send.mock.calls.map(([body]) => body)).toEqual([{ path: '/gallery' }]);
+  });
+
   it('swallows a rejected send without a retry', async () => {
     const send = vi.fn<BeaconSend>(() => Promise.reject(new Error('Failed to fetch')));
     const machine = createBeaconMachine(send);
