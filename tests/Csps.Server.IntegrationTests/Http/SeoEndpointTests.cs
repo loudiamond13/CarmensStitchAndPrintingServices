@@ -103,10 +103,12 @@ public sealed class SeoEndpointTests
             [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/terms"]);
     }
 
+    // Each URL has the UTC date of the newest content change; a legal page has the later of that and its own text date.
+    // The literal legal dates are LegalPages' LastUpdated values: a change to those facts must show up as an edit here.
     [Fact]
-    public async Task EachSitemapUrlHasTheDateOfTheNewestContentChange()
+    public async Task ALegalPageWhoseTextChangedAfterTheContentHasItsOwnDate()
     {
-        var lastChanged = new DateTimeOffset(2026, 11, 10, 23, 30, 0, TimeSpan.Zero);
+        var lastChanged = new DateTimeOffset(2026, 11, 1, 8, 0, 0, TimeSpan.Zero);
         await using var factory = new ShellTestFactory(new StubPublicContentReader(StubPublicContentReader.Site("Sample Shop"), lastChanged));
         using var client = factory.CreateClient();
 
@@ -114,7 +116,21 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            Enumerable.Repeat("2026-11-10", DefaultSitemapLocs.Length));
+            ["2026-11-01", "2026-11-01", "2026-11-01", "2026-11-01", "2026-11-21", "2026-11-18", "2026-11-18"]);
+    }
+
+    [Fact]
+    public async Task ALegalPageTakesTheContentDateWhenTheContentChangedLater()
+    {
+        var lastChanged = new DateTimeOffset(2026, 12, 31, 8, 0, 0, TimeSpan.Zero);
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(StubPublicContentReader.Site("Sample Shop"), lastChanged));
+        using var client = factory.CreateClient();
+
+        var document = XDocument.Parse(await client.GetStringAsync(new Uri("/sitemap.xml", UriKind.Relative), TestContext.Current.CancellationToken));
+
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
+            Enumerable.Repeat("2026-12-31", DefaultSitemapLocs.Length));
     }
 
     [Fact]
