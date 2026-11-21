@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Csps.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// Maps the ConsentRecords table (ANL-07): one row per cookie decision, never edited. There is no row version, no JSON column and no
-/// trigger (OR-7). It holds no address and no browser name (PRD section 5.4). The index on the decision time serves the 13-month cleanup.
+/// Maps the ConsentRecords table (ANL-07): one row per cookie decision, never edited. Nothing writes it any more (D-80); the retention job
+/// only deletes old rows. No row version, no JSON column, no trigger (OR-7). It holds no address and no browser name (PRD section 5.4).
+/// The index on the decision time serves the 13-month cleanup.
 /// </summary>
 internal sealed class ConsentRecordConfiguration : IEntityTypeConfiguration<ConsentRecord>
 {

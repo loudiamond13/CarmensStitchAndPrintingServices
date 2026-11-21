@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Csps.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// Maps the AnalyticsVisits table (ANL-05): one row per visit of a visitor who allowed stats. The visitor id and the address are
-/// stored only as 32-byte hashes. There is no row version (counters change through <c>ExecuteUpdate</c>), no JSON column and no trigger
-/// (OR-7). The first index finds a visitor's current visit; the second serves the day roll-ups without touching the table.
+/// Maps the AnalyticsVisits table (ANL-05): one row per visit. Nothing writes or reads it any more (D-56, D-80); the retention job only
+/// deletes old rows. Any visitor id and address are stored only as 32-byte hashes. No row version, no JSON column, no trigger (OR-7).
+/// The indexes are kept because the schema stays (D-80), not because a reader uses them.
 /// </summary>
 internal sealed class AnalyticsVisitConfiguration : IEntityTypeConfiguration<AnalyticsVisit>
 {

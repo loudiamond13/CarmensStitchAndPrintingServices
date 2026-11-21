@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Csps.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// Maps the AnalyticsVitalSamples table (ANL-05, D-26): one row per measured metric of a visit. A visit's rows go with it (cascade). The
-/// index serves the percentile reads by day and metric. There is no row version, no JSON column and no trigger (OR-7).
+/// Maps the AnalyticsVitalSamples table (ANL-05, D-26): one row per measured metric of a visit. A visit's rows go with it (cascade).
+/// Nothing writes or reads it any more (D-80). The indexes are kept because the schema stays, not because a reader uses them.
+/// No row version, no JSON column, no trigger (OR-7).
 /// </summary>
 internal sealed class AnalyticsVitalSampleConfiguration : IEntityTypeConfiguration<AnalyticsVitalSample>
 {
