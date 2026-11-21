@@ -6,6 +6,7 @@
 // a month, so day labels keep every nth one, counting back from the last, so that two labels are at least 44px apart. When month
 // bars span two calendar years, the first drawn label and each drawn label that starts a new year carry the year ("Jan 2026"),
 // and those month labels get 56px of room, the width of "Dec 2025" plus a gap.
+// A visually hidden table after the plot gives screen readers every figure, not only the bar under the keys.
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { formatCalendarDate, formatCount, formatMonthShort, formatRangeText } from '@/utils/format';
@@ -251,6 +252,27 @@ export function VisitorTrendChart({ buckets, bucket, from, to, height = 220 }: V
           </span>
         </div>
       )}
+      <div className={srOnlyClasses}>
+        <table>
+          <caption>
+            {(bucket === 'day' ? COPY.dayTable : COPY.monthTable)(formatRangeText(from, to) ?? `${from} to ${to}`)}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{bucket === 'day' ? COPY.dayColumn : COPY.monthColumn}</th>
+              <th scope="col">{COPY.pageViews}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {buckets.map((b) => (
+              <tr key={b.start}>
+                <th scope="row">{fullDate(b.start, bucket)}</th>
+                <td>{formatCount(b.pageViews)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className={srOnlyClasses} aria-live="polite">
         {tip === 'keys' && lines !== null ? lines.join(', ') : ''}
       </p>

@@ -31,4 +31,12 @@ export const VISITOR_TREND_COPY = {
   pageViews: 'Page views',
   /** "Page views, Oct 17 to Nov 15, 2026": the name of the plot. SPEC-GAP. */
   groupName: (range: string): string => `Page views, ${range}`,
+  /** "Page views by day, Oct 17 to Nov 15, 2026": the name of the figures table for day bars. SPEC-GAP. */
+  dayTable: (range: string): string => `Page views by day, ${range}`,
+  /** "Page views by month, Jan 1 to Dec 31, 2026": the name of the figures table for month bars. SPEC-GAP. */
+  monthTable: (range: string): string => `Page views by month, ${range}`,
+  /** The first column header of the figures table for day bars. SPEC-GAP. */
+  dayColumn: 'Day',
+  /** The first column header of the figures table for month bars. SPEC-GAP. */
+  monthColumn: 'Month',
 } as const;

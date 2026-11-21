@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { expectNoAxeViolations } from '@/test/axe';
 import { VisitorTrendChart, type TrendPoint } from '@/components/data';
 import {
@@ -113,7 +114,7 @@ describe('VisitorTrendChart: 30 day buckets', () => {
 
   it('shows the legend: a Page views swatch and nothing else', () => {
     renderThirty();
-    const legend = screen.getByText('Page views').parentElement;
+    const legend = screen.getByText('Page views', { selector: 'span' }).parentElement;
 
     expect(classTokens(legend)).toEqual(tokens(chartLegendClasses));
     const swatches = [...(legend?.querySelectorAll('i') ?? [])];
@@ -475,6 +476,73 @@ describe('VisitorTrendChart: keyboard and tooltip (SPEC-DEVIATION A11Y-CHART)', 
     const { container } = renderThirty();
     await user.tab();
     await user.keyboard('{ArrowRight}');
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('VisitorTrendChart: the figures table for screen readers', () => {
+  it('names a day table with the range and gives one row per day', () => {
+    renderThirty();
+    const table = screen.getByRole('table', { name: 'Page views by day, Oct 17 to Nov 15, 2026' });
+
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Day', 'Page views']);
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(30);
+    expect(within(rows[0] ?? table).getByRole('rowheader')).toHaveTextContent('Oct 17, 2026');
+    expect(within(rows[0] ?? table).getByRole('cell')).toHaveTextContent('0');
+    expect(within(rows[1] ?? table).getByRole('rowheader')).toHaveTextContent('Oct 18, 2026');
+    expect(within(rows[1] ?? table).getByRole('cell')).toHaveTextContent('2');
+  });
+
+  it('groups a large count with commas', () => {
+    render(
+      <VisitorTrendChart
+        buckets={days('2026-11-01', 3, (i) => 1233 + i)}
+        bucket="day"
+        from="2026-11-01"
+        to="2026-11-03"
+      />,
+    );
+    const table = screen.getByRole('table');
+
+    expect(within(within(table).getAllByRole('row')[2] ?? table).getByRole('cell')).toHaveTextContent('1,234');
+  });
+
+  it('hides the table from sight with the shared screen reader classes and no inline style', () => {
+    const { container } = renderThirty();
+    const wrapper = screen.getByRole('table').parentElement;
+
+    expect(tokens(wrapper?.className ?? '')).toEqual(tokens(srOnlyClasses));
+    expect(container.querySelector('table [data-bucket]')).toBeNull();
+    expect(container.querySelector('table [style]')).toBeNull();
+  });
+
+  it('names a month table by month, with the month and year as row headers', () => {
+    render(
+      <VisitorTrendChart buckets={months(2026, 1, 12, () => 100)} bucket="month" from="2026-01-01" to="2026-12-31" />,
+    );
+    const table = screen.getByRole('table', { name: 'Page views by month, Jan 1 to Dec 31, 2026' });
+
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Month', 'Page views']);
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(12);
+    expect(within(rows[0] ?? table).getByRole('rowheader')).toHaveTextContent('Jan 2026');
+    expect(within(rows[11] ?? table).getByRole('rowheader')).toHaveTextContent('Dec 2026');
+  });
+
+  it('has no axe violations with month buckets', async () => {
+    const { container } = render(
+      <VisitorTrendChart buckets={months(2026, 1, 12, () => 100)} bucket="month" from="2026-01-01" to="2026-12-31" />,
+    );
 
     await expectNoAxeViolations(container);
   });
