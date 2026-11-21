@@ -143,7 +143,7 @@ public sealed class PublicSiteController(
     }
 
     /// <summary>
-    /// Reads the shop's Contact email for the four legal pages only (D-13, D-29): <c>email</c>, or null when none is stored. It is a
+    /// Reads the shop's Contact email for the three legal pages only (D-13, D-29): <c>email</c>, or null when none is stored. It is a
     /// separate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is
     /// never stored by a browser or a cache.
     /// </summary>

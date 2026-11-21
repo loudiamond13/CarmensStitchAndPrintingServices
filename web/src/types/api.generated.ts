@@ -2118,7 +2118,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Reads the shop's Contact email for the four legal pages only (D-13, D-29): `email`, or null when none is stored. It is a
+         * Reads the shop's Contact email for the three legal pages only (D-13, D-29): `email`, or null when none is stored. It is a
          *     separate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is
          *     never stored by a browser or a cache.
          */
@@ -4874,7 +4874,7 @@ export interface components {
             number: null | string;
         };
         /**
-         * @description The contact email the four legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts
+         * @description The contact email the three legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts
          *     that every page embeds.
          */
         PrivacyContactDto: {

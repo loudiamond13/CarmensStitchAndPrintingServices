@@ -4926,7 +4926,7 @@
         "type": "object"
       },
       "PrivacyContactDto": {
-        "description": "The contact email the four legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts\nthat every page embeds.",
+        "description": "The contact email the three legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts\nthat every page embeds.",
         "properties": {
           "email": {
             "description": "The shop's Contact email from the site settings; null when none is stored.",
@@ -18793,7 +18793,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Reads the shop's Contact email for the four legal pages only (D-13, D-29): `email`, or null when none is stored. It is a\nseparate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is\nnever stored by a browser or a cache.",
+        "summary": "Reads the shop's Contact email for the three legal pages only (D-13, D-29): `email`, or null when none is stored. It is a\nseparate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is\nnever stored by a browser or a cache.",
         "tags": [
           "PublicSite"
         ]
