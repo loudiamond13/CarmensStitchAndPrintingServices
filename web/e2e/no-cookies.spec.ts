@@ -1,8 +1,9 @@
 // No cookie bar, no cookie and no tracker on the public site (D-54, D-60, ANL-01, ANL-02), in every project. A browser that
 // sends Global Privacy Control (Sec-GPC: 1 on every request and navigator.globalPrivacyControl true before any page script runs)
-// and a plain browser are treated the same: opening Home and Gallery shows no cookie bar, leaves the cookie jar empty, loads no
-// speed reader chunk and makes no request to google.com (the map loads only after a tap). The site still states that it honors GPC.
-import type { BrowserContext, Page, Request } from '@playwright/test';
+// and a plain browser are treated the same: opening Home and Gallery shows no cookie bar, leaves the cookie jar empty, sets no
+// cookie from any response, saves nothing in local or session storage, loads no speed reader chunk and makes no request to
+// google.com (the map loads only after a tap). The page view beacon is answered. The site still states that it honors GPC.
+import type { BrowserContext, Page, Request, Response } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 
 // A cheap extra guard: it matches only a chunk named speedReport. The package check in no-consent.node.test.ts is the real one.
@@ -33,10 +34,27 @@ async function openQuietly(page: Page, path: string): Promise<void> {
   await page.waitForLoadState('networkidle');
 }
 
-/** Opens Home and Gallery and checks everything the site must not do: a bar, a Cookie Settings button, a cookie, a speed reader, a Google request. */
+const isPageView = (response: Response): boolean => new URL(response.url()).pathname === '/api/v1/analytics/page-views';
+
+/** Records every response of the context, so the Set-Cookie headers of all of them can be checked. */
+function recordResponses(context: BrowserContext): Response[] {
+  const seen: Response[] = [];
+  context.on('response', (response) => {
+    seen.push(response);
+  });
+  return seen;
+}
+
+/**
+ * Opens Home and Gallery and checks everything the site must not do: a bar, a Cookie Settings button, a cookie, a Set-Cookie header,
+ * saved browser storage, a speed reader, a Google request. The page view beacon is waited for, so its answer is checked too.
+ */
 async function expectNothingStored(page: Page, context: BrowserContext): Promise<Request[]> {
   const requests = recordRequests(context);
+  const responses = recordResponses(context);
+  const counted = page.waitForResponse(isPageView);
   await openQuietly(page, '/');
+  expect((await counted).status(), 'the page view beacon was answered').toBe(204);
   await expect(bar(page)).toHaveCount(0);
   const legal = page.getByRole('contentinfo').getByRole('navigation', { name: 'Legal' });
   await expect(legal.getByRole('link')).toHaveCount(3);
@@ -45,6 +63,16 @@ async function expectNothingStored(page: Page, context: BrowserContext): Promise
   await expect(bar(page)).toHaveCount(0);
 
   expect(await context.cookies()).toEqual([]);
+  const setters = await Promise.all(
+    responses.map(async (response) =>
+      (await response.allHeaders())['set-cookie'] === undefined ? null : response.url(),
+    ),
+  );
+  expect(
+    setters.filter((url) => url !== null),
+    'no response sets a cookie',
+  ).toEqual([]);
+  expect(await page.evaluate('({ ...localStorage, ...sessionStorage })'), 'nothing in browser storage').toEqual({});
   expect(requests.filter(isSpeedReader).map((request) => request.url())).toEqual([]);
   expect(requests.filter(isGoogle).map((request) => request.url())).toEqual([]);
   return requests;
