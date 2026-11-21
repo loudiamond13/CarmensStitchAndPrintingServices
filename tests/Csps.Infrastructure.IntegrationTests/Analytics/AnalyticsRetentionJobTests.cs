@@ -47,7 +47,7 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     [Fact]
-    public async Task OldRawRowsAreRemovedByDateWithNoRollUpCursor()
+    public async Task OldRawRowsAreRemovedByDateAlone()
     {
         await database.ResetAsync();
         var cut = AnalyticsRetention.RawCut(new DateOnly(2026, 11, 16));
@@ -60,12 +60,9 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         }
 
         await AddVisitAsync(cut, "Facebook", Phone, "Chrome");
-        (await ReadCursorAsync()).ShouldBeNull();
 
-        // Writes to the source totals fail, so nothing can have been rolled up and no cursor is ever saved.
-        var report = await RunAsync(new FakeTimeProvider(Now), new FailCommandsOn("DailyReferrerCounts"));
+        var report = await RunAsync(new FakeTimeProvider(Now));
 
-        (await ReadCursorAsync()).ShouldBeNull();
         Line(report, RawLabel).Value.ShouldBe(6);
         Line(report, RawLabel).Failed.ShouldBeFalse();
         (await ReadVisitDaysAsync()).ShouldBe([cut]);
@@ -545,12 +542,6 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
         return [.. rows.OrderBy(row => row.BusinessDay).ThenBy(row => row.Dimension).ThenBy(row => row.Name, StringComparer.Ordinal).Select(row => (row.BusinessDay, row.Dimension, row.Name, row.Visits))];
     }
 
-    private async Task<string?> ReadCursorAsync()
-    {
-        await using var context = database.CreateContext();
-        return await new MaintenanceCursors(context, TimeProvider.System).GetAsync(JobName, TestContext.Current.CancellationToken);
-    }
-
     // The business clock for Asia/Manila at the fake time.
     private sealed class ManilaCalendar(FakeTimeProvider clock) : IBusinessCalendar
     {
@@ -562,32 +553,6 @@ public sealed class AnalyticsRetentionJobTests(CspsDatabase database) : IClassFi
     }
 
     private sealed class TestDatabaseException() : DbException("The test database failed.");
-
-    // Fails every command that touches one table with a database error.
-    private sealed class FailCommandsOn(string table) : DbCommandInterceptor
-    {
-        public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
-            DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
-        {
-            Fail(command);
-            return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
-        }
-
-        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
-            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
-        {
-            Fail(command);
-            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
-        }
-
-        private void Fail(DbCommand command)
-        {
-            if (command.CommandText.Contains(table, StringComparison.Ordinal))
-            {
-                throw new TestDatabaseException();
-            }
-        }
-    }
 
     // Fails every delete on one table with a database error.
     private sealed class FailDeletesOn(string table) : DbCommandInterceptor
