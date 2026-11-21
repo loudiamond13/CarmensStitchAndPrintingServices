@@ -4,10 +4,9 @@ current_phase: "12.1"
 current_phase_name: "Analytics simplification: daily page tally only, no cookie banner"
 status: executing
 stopped_at: Phase 12.1 context gathered
-last_updated: "2026-11-19T00:50:53.692Z"
-last_activity: 2026-11-19
-last_activity_desc: Phase 12.1 verified human_needed; full e2e has 5 stable failures to debug
-state_head: f579e1581af26a66aa922ad1f004b7ad8105b846
+last_updated: "2026-11-21T13:51:30.042Z"
+last_activity: "2026-11-19: Phase 12.1 executed and verified human_needed (UAT 3 items); code review fixed; full e2e has 5 stable mobile Safari failures to debug"
+state_head: 4ec2666270b667324b70ebd79765c94726ab0332
 progress:
   total_phases: 19
   completed_phases: 9
@@ -15,7 +14,8 @@ progress:
   completed_plans: 373
   percent: 47
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-18T15:10:00-06:00"
+updated: 2026-11-21T08:00:00-06:00
+last_activity_desc: Phase 12.1 verified human_needed; full e2e has 5 stable failures to debug
 ---
 
 # Project State
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 12.1 (Analytics simplification: daily page tally only, no cookie banner) — EXECUTING
 Plan: 1 of 17
 Status: Executing Phase 12.1
-Last activity: 2026-11-19: Phase 12.1 executed and verified human_needed (UAT 3 items); code review fixed; full e2e has 5 stable mobile Safari failures to debug
+Last activity: 2026-11-21 - Completed quick task 261121-9qz: Fix UI review findings for phases 12 and 12.1 (D-134)
 
 Progress: [█████░░░░░] 47%
 
@@ -1171,6 +1171,7 @@ Phase 12.1 execution backlog (2026-11-18):
 | 261115-fjr | Slow slide for the public phone menu: 0.45 s open, 0.3 s close, staggered links, burger to X, none under reduced motion (D-131); close logic inside SiteHeader to keep the 150 KB budget (D-132) | 2026-11-15 | f1fd421d | [261115-fjr-public-phone-menu-slow-slide-d-131](./quick/261115-fjr-public-phone-menu-slow-slide-d-131/) |
 | 43 | Give the Contact bar Messenger button the 48px button shape (D-P11-BL-67) | 2026-11-14 | babb2667 | — |
 | 44 | Format nine web files so the CI Prettier step passes (D-39-1) | 2026-11-15 | da6e311e | — |
+| 261121-9qz | Fix UI review findings for phases 12 and 12.1 (D-134) | 2026-11-21 | 4ec26662 | [261121-9qz-fix-ui-review-findings-for-phases-12-and](./quick/261121-9qz-fix-ui-review-findings-for-phases-12-and/) |
 
 ### Roadmap Evolution
 
