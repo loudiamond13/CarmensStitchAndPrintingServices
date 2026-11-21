@@ -5,8 +5,8 @@ titles: json
 findings:
 open: 0
 total: 0
-unparsed: 37
-recorded: 2026-11-18T21:09:07.836Z
+unparsed: 34
+recorded: 2026-11-21T01:21:06.001Z
 ---
 
 # Phase 12: Code Review Disposition
