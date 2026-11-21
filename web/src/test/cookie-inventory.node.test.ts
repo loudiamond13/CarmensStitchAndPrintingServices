@@ -1,25 +1,42 @@
 // @vitest-environment node
 // SPEC-GAP: LEGAL-02, D-17, D-72, T-12-54. The cookies the Privacy Policy lists are exactly the cookies the server sets, and it names no
-// retired cookie. The names are read from the C# files that hold the cookie name constants, so a cookie added to or taken out of the
-// code fails here until the policy text changes too.
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+// retired cookie. The names are read from every C# file in the Security folder (except the retired names), and every place the
+// server sets a cookie must use one of those constants, so a cookie added to or taken out of the code fails here until the policy
+// text changes too.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legalContent';
 import { PRIVACY_TEXT } from '../modules/public/legalPrivacy';
 
-const SECURITY_DIR = resolve(import.meta.dirname, '../../../src/Csps.Server/Security');
-const CODE_FILES = ['AuthCookies.cs', 'AnalyticsCookies.cs'] as const;
+const SERVER_DIR = resolve(import.meta.dirname, '../../../src/Csps.Server');
+const SECURITY_DIR = resolve(SERVER_DIR, 'Security');
 /** The file that holds the two retired cookie names, kept out of the inventory files on purpose. */
 const RETIRED_FILE = 'RetiredCookies.cs';
+const CODE_FILES = readdirSync(SECURITY_DIR).filter((file) => file.endsWith('.cs') && file !== RETIRED_FILE);
 
-/** A cookie name constant in C#: a quoted string with the __Host- or __Secure- prefix. */
-const CODE_NAME = /"((?:__Host-|__Secure-)csps_[a-z0-9]+)"/g;
+/** A cookie name in C#: a quoted string with the csps_ stem, with or without the __Host- or __Secure- prefix. */
+const CODE_NAME = /"((?:__Host-|__Secure-)?csps_[a-z0-9]+)"/g;
+/** A cookie name constant in C#: its identifier and its value. */
+const CODE_CONSTANT = /const\s+string\s+(\w+)\s*=\s*"((?:__Host-|__Secure-)?csps_[a-z0-9]+)"/g;
+/** The first argument of a call that sets a cookie on a response. */
+const COOKIE_APPEND = /cookies\.Append\(\s*([^,)\s]+)/gi;
 /** A cookie name in the policy text, with or without its prefix, so a name written without it is caught as a mismatch. */
 const TEXT_NAME = /(?:__Host-|__Secure-)?csps_[a-z0-9]+/g;
 
 function namesInCode(source: string): string[] {
   return Array.from(source.matchAll(CODE_NAME), (match) => match[1] ?? '');
+}
+
+function constantsInCode(source: string): string[] {
+  return Array.from(source.matchAll(CODE_CONSTANT), (match) => match[1] ?? '');
+}
+
+/** Every C# file under a folder, build output left out. */
+function csFilesUnder(dir: string): string[] {
+  return readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.cs') && !file.split(sep).some((part) => part === 'bin' || part === 'obj'))
+    .map((file) => resolve(dir, file));
 }
 
 function inlineText(parts: readonly LegalInline[]): string[] {
@@ -80,6 +97,13 @@ const sources = CODE_FILES.map((file) => ({
   names: namesInCode(readFileSync(resolve(SECURITY_DIR, file), 'utf8')),
 }));
 const codeNames = sources.flatMap((source) => source.names);
+const codeConstants = new Set(
+  CODE_FILES.flatMap((file) => constantsInCode(readFileSync(resolve(SECURITY_DIR, file), 'utf8'))),
+);
+/** The first argument of every cookie-setting call in the server, with the file it is in. */
+const appendCalls = csFilesUnder(SERVER_DIR).flatMap((file) =>
+  Array.from(readFileSync(file, 'utf8').matchAll(COOKIE_APPEND), (match) => ({ file, argument: match[1] ?? '' })),
+);
 const retiredNames = existsSync(resolve(SECURITY_DIR, RETIRED_FILE))
   ? namesInCode(readFileSync(resolve(SECURITY_DIR, RETIRED_FILE), 'utf8'))
   : [];
@@ -90,8 +114,18 @@ const sample = (blocks: LegalBlock[]): LegalText => ({
 });
 
 describe('the Privacy Policy cookie list and the code (LEGAL-02, D-72, T-12-54)', () => {
-  it.each(sources)('reads at least one cookie name from $file', ({ names }) => {
-    expect(names.length).toBeGreaterThan(0);
+  it('finds the cookie files by folder, not by a fixed list', () => {
+    expect(CODE_FILES).toEqual(expect.arrayContaining(['AuthCookies.cs', 'AnalyticsCookies.cs']));
+    expect(CODE_FILES).not.toContain(RETIRED_FILE);
+  });
+
+  it('sets every cookie through a name constant the inventory reads', () => {
+    expect(appendCalls.length).toBeGreaterThan(0);
+    expect(appendCalls.filter((call) => !codeConstants.has(call.argument))).toEqual([]);
+  });
+
+  it.each(['AuthCookies.cs', 'AnalyticsCookies.cs'])('reads at least one cookie name from %s', (file) => {
+    expect(sources.find((source) => source.file === file)?.names.length).toBeGreaterThan(0);
   });
 
   it('lists every cookie name the code sets', () => {
