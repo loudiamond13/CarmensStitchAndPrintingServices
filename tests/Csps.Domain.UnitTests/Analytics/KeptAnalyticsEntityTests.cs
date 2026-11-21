@@ -3,7 +3,8 @@ using Csps.Domain.Analytics;
 
 namespace Csps.Domain.UnitTests.Analytics;
 
-// D-80: the seven tables nothing writes any more keep their entities so EF can read and age out old rows.
+// D-80: the seven tables nothing writes any more keep their entities so EF can read and age out old rows. The property tests exist for the
+// private constructors and the 100% Domain coverage gate; EF round-trips are covered by the retention tests.
 public sealed class KeptAnalyticsEntityTests
 {
     public static TheoryData<Type> Entities =>
@@ -30,7 +31,7 @@ public sealed class KeptAnalyticsEntityTests
             {
                 value.ShouldBe(string.Empty, property.Name);
             }
-            else if (property.PropertyType == typeof(byte[]) && !property.Name.Equals("IpHash", StringComparison.Ordinal))
+            else if (property.PropertyType == typeof(byte[]) && !property.Name.Equals(nameof(AnalyticsVisit.IpHash), StringComparison.Ordinal))
             {
                 ((byte[])value!).ShouldBeEmpty(property.Name);
             }
