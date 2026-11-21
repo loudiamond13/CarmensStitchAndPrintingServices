@@ -26,8 +26,14 @@ export const articleGridClasses = tw(
   'grid grid-cols-[240px_minmax(0,var(--spacing-reading))] items-start gap-16 pg-lt-lg:grid-cols-[minmax(0,1fr)] pg-lt-lg:gap-8',
 );
 
-/** The wide table of contents: sticky under the header (header height plus 24px); hidden at 1023px and below. */
-export const tocWideClasses = tw('sticky top-[calc(var(--header-height)+var(--space-6))] pg-lt-lg:hidden');
+/**
+ * The wide table of contents: its links stick 24px under the header, and it scrolls when it is taller than the window below
+ * that. The 4px padding keeps the focus ring inside the scroll box; the -4px margin and top keep the links where they were.
+ * Hidden at 1023px and below.
+ */
+export const tocWideClasses = tw(
+  'sticky top-[calc(var(--header-height)+var(--space-6)-var(--space-1))] -m-1 max-h-[calc(100dvh-var(--header-height)-var(--space-6)+var(--space-1))] overflow-y-auto overscroll-contain p-1 pg-lt-lg:hidden',
+);
 
 /** The phone table of contents box: closed by default, `--surface` ground, 1px line border; hidden at 1024px and above. */
 export const tocBoxClasses = tw('group hidden rounded-md border border-line bg-surface pg-lt-lg:block');

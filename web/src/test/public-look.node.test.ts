@@ -13,6 +13,7 @@ import {
   noticeClasses,
   noticeLabelClasses,
   noticeSmallClasses,
+  tocWideClasses,
 } from '../modules/public/components/legal.recipe';
 
 const srcDir = fileURLToPath(new URL('../', import.meta.url));
@@ -216,6 +217,27 @@ describe('legal page look (12-UI-REVIEW)', () => {
     expect(articleGridClasses).toContain('grid-cols-[240px_minmax(0,var(--spacing-reading))]');
     const css = compact(await buildCss(['grid-cols-[240px_minmax(0,var(--spacing-reading))]']));
     expect(css).toContain('grid-template-columns:240pxminmax(0,var(--spacing-reading))');
+  });
+
+  it('bounds the wide table of contents to the viewport under its sticky offset and scrolls it', async () => {
+    const css = compact(await buildCss(tocWideClasses.split(/\s+/)));
+    const offset = /top:calc\(([^;]+)\);/.exec(css)?.[1];
+    expect(offset).toBe('var(--header-height)+var(--space-6)-var(--space-1)');
+    expect(css).toContain('max-height:calc(100dvh-var(--header-height)-var(--space-6)+var(--space-1))');
+    expect(css).toContain('overflow-y:auto');
+    expect(css).toContain('overscroll-behavior:contain');
+  });
+
+  it('pads the wide table of contents by the focus ring width and takes it back with a margin, so no ring is clipped', async () => {
+    const tokens = tocWideClasses.split(/\s+/);
+    expect(tokens).toEqual(expect.arrayContaining(['-m-1', 'p-1']));
+    const css = compact(await buildCss(['-m-1', 'p-1']));
+    expect(css).toContain('margin:calc(var(--spacing)*-1)');
+    expect(css).toContain('padding:var(--spacing)');
+    expect(css).toContain('--spacing:4px');
+    // The ring is a 2px outline 2px out (base.css): 4px, which is also --space-1 in the sticky offset.
+    expect(baseCss).toMatch(/:focus-visible\s*\{\s*outline:\s*2px[^;]*;\s*outline-offset:\s*2px;/);
+    expect(baseCss).toMatch(/--space-1:\s*4px/);
   });
 
   it('keeps the DRAFT notice text at least 4.5:1 on its ground (guard)', () => {
