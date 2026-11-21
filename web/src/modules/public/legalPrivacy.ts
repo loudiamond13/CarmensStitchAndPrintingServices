@@ -3,7 +3,7 @@
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
 // It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72). It stays a draft
-// until the owner approves the wording (D-71, D-73).
+// until the owner approves the wording (D-71, D-73). Quote requests are left out until the form returns (D-82).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
 
@@ -32,7 +32,6 @@ export const PRIVACY_TEXT: LegalText = {
         {
           kind: 'ul',
           items: [
-            ['When you send a quote request: the details you type into the form, and any files you attach.'],
             [
               'When you place an order with us: the details our staff enter about it, such as who it is for, what is ordered, the price and the payments.',
             ],
@@ -58,12 +57,6 @@ export const PRIVACY_TEXT: LegalText = {
               term: 'Orders and payments',
               parts: [
                 'To make your order, keep track of payments and tell you about it. Our basis is the contract with you. We also keep our bookkeeping and tax records because the law says we must.',
-              ],
-            },
-            {
-              term: 'Quote requests',
-              parts: [
-                'To read your request and send you a quote. Our basis is that you asked us to, as a step before a contract.',
               ],
             },
             {
@@ -126,10 +119,6 @@ export const PRIVACY_TEXT: LegalText = {
             {
               term: 'Orders, payments, discounts and expenses',
               parts: ['Kept for good. They are our bookkeeping and tax records.'],
-            },
-            {
-              term: "Quote requests that didn't become an order, and their files",
-              parts: ['Kept for about 6 months after we receive them; removed at the next monthly cleanup.'],
             },
             {
               term: 'Daily page counts',
@@ -263,7 +252,7 @@ export const PRIVACY_TEXT: LegalText = {
             { term: 'To access', parts: ['You can ask for a copy of the personal information we hold about you.'] },
             {
               term: 'To object',
-              parts: ['You can say no to some uses of your information, such as the details of a quote request.'],
+              parts: ['You can say no to some uses of your information.'],
             },
             {
               term: 'To erasure or blocking',
@@ -331,3 +320,17 @@ export const PRIVACY_TEXT: LegalText = {
     },
   ],
 };
+
+/** The quote-request lines held out of the policy until the quote request form returns in Phase 13 (D-82). */
+export const PRIVACY_QUOTE_REQUEST_LINES = {
+  collect: 'When you send a quote request: the details you type into the form, and any files you attach.',
+  purpose: {
+    term: 'Quote requests',
+    text: 'To read your request and send you a quote. Our basis is that you asked us to, as a step before a contract.',
+  },
+  retention: {
+    term: "Quote requests that didn't become an order, and their files",
+    text: 'Kept for about 6 months after we receive them; removed at the next monthly cleanup.',
+  },
+  object: 'You can say no to some uses of your information, such as the details of a quote request.',
+} as const;

@@ -26,10 +26,6 @@ async function sectionOf(name: string): Promise<HTMLElement> {
 
 const RETENTION: readonly (readonly [string, string])[] = [
   ['Orders, payments, discounts and expenses', 'Kept for good. They are our bookkeeping and tax records.'],
-  [
-    "Quote requests that didn't become an order, and their files",
-    'Kept for about 6 months after we receive them; removed at the next monthly cleanup.',
-  ],
   ['Daily page counts', 'Kept for about 3 years; removed at the next monthly cleanup.'],
   ['Staff account activity log', 'Kept for about 8 months; removed at the next monthly cleanup.'],
 ];
@@ -102,18 +98,22 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
   it('says what is collected for each purpose, with the daily page count as the page and the day only', async () => {
     await renderPrivacy();
     const section = await sectionOf('What we collect');
-    expect(within(section).getAllByRole('listitem')).toHaveLength(5);
-    expect(section).toHaveTextContent(/quote request/i);
+    expect(within(section).getAllByRole('listitem')).toHaveLength(4);
     expect(section).toHaveTextContent(/page and the day/i);
     expect(section).toHaveTextContent(/staff account/i);
     expect(section).not.toHaveTextContent(/only if you allow/i);
+  });
+
+  it('says nothing about quote requests until the form is back (D-82)', async () => {
+    await renderPrivacy();
+    expect(screen.getByRole('main')).not.toHaveTextContent(/quote/i);
   });
 
   it('gives each purpose its basis in plain words', async () => {
     await renderPrivacy();
     const section = await sectionOf('Why we use it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
-    expect(terms).toEqual(['Orders and payments', 'Quote requests', 'Page counts', 'The map', 'Staff accounts']);
+    expect(terms).toEqual(['Orders and payments', 'Page counts', 'The map', 'Staff accounts']);
     expect(section).toHaveTextContent(/contract with you/);
     expect(section).toHaveTextContent(/the law says we must/);
     expect(section).toHaveTextContent(/legitimate interest in keeping/);
