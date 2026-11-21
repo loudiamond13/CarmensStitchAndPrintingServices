@@ -1,6 +1,6 @@
 # Requirements: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-11-19T09:00:00-06:00*
+*Created: 2026-10-06T23:54:39-05:00 · Updated: 2026-11-21T10:18:45-06:00*
 
 **Defined:** 2026-10-06
 **Core Value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
@@ -231,7 +231,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 
 ### Legal (LEGAL)
 
-- [ ] **LEGAL-01**: Visitors can read a Privacy Policy covering the controller, purposes (orders, inquiries, the daily page count), retention, rights and contact, drafted for the owner's jurisdiction, plus a section on cookies and saved settings: the necessary cookies, the one saved map setting, that Google may set its own cookies when the map loads, and how to clear them. It stays version 1.0 and carries the DRAFT notice until the owner approves it ⚑ OD-11. **D-73 owner approval: open.** The Privacy Policy stays DRAFT until the owner approves it; the review is parked in the STATE.md Phase 12.1 owner backlog (the owner was away, 2026-11-19) (Phase 12.1: rewritten by D-71, D-72, D-73)
+- [ ] **LEGAL-01**: Visitors can read a Privacy Policy covering the controller, purposes (orders, inquiries, the daily page count), retention, rights and contact, drafted for the owner's jurisdiction, plus a section on cookies and saved settings: the necessary cookies, the one saved map setting, that Google may set its own cookies when the map loads, and how to clear them. It stays version 1.0 and carries the DRAFT notice until the owner approves it ⚑ OD-11. **D-73 owner approval: closed.** The owner approved it as written on 2026-11-21 (D-135); it shows version 1.0, last updated 2026-11-21, with no DRAFT notice (Phase 12.1: rewritten by D-71, D-72, D-73)
 - [ ] **LEGAL-02**: Folded into LEGAL-01: there is no separate Cookie Policy, and `/cookies` shows the normal "page not found" (Phase 12.1: superseded by D-72)
 - [ ] **LEGAL-03**: Visitors can read Terms of Use ⚑ OD-11
 - [ ] **LEGAL-04**: Visitors can read an Accessibility Statement with a contact method for issues

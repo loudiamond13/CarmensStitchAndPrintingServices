@@ -1,5 +1,5 @@
 # CSPS — Carmen's Stitch & Printing Services
-*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-11-20T19:56:00-06:00*
+*Created: 2026-10-07T17:17:38-05:00 · Updated: 2026-11-21T10:18:55-06:00*
 
 ## Product Requirements & Engineering Contract (for GSD Core)
 
@@ -551,7 +551,7 @@ Sign-in success/failure, 2FA issued/verified/failed, lockouts, password reset/ch
 
 ## 13. Legal & Privacy (best effort — owner must have it reviewed by a lawyer)
 
-- Pages (Phase 12.1, D-72): **Privacy Policy**, **Terms of Use**, **Accessibility Statement**: three pages, all linked in the footer, versioned, with "last updated" dates; text supplied/approved by the owner (GSD drafts templates clearly marked DRAFT). The Cookie Policy is folded into the Privacy Policy, which has a section on cookies and saved settings; `/cookies` shows the normal "page not found". The Privacy Policy is DRAFT again at version 1.0 until the owner approves it (D-71, D-73).
+- Pages (Phase 12.1, D-72): **Privacy Policy**, **Terms of Use**, **Accessibility Statement**: three pages, all linked in the footer, versioned, with "last updated" dates; text supplied/approved by the owner (GSD drafts templates clearly marked DRAFT). The Cookie Policy is folded into the Privacy Policy, which has a section on cookies and saved settings; `/cookies` shows the normal "page not found". The owner approved the Privacy Policy at version 1.0 on 2026-11-21 (D-73, D-135).
 - Privacy by design & data minimization: collect only what orders require; customer data visible only to staff.
 - Cookies (§6.7): no cookie banner, because the site sets no optional cookies and collects only the daily page count. The one saved map setting is written only by the visitor's tap on Show Map (D-54, D-65). GPC is honored by design (D-60).
 - Data retention rules configurable and documented (orders and financial records per local tax/bookkeeping rules — [OWNER DECISION]).
