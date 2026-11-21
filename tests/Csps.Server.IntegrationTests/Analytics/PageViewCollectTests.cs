@@ -299,6 +299,44 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
         row.Views.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task ABodyOverTheCapIs413AndCountsNothing()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, BodyOfBytes(BodyCap + 1));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
+        (await ReadRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ABodyOfExactlyTheCapIsNotRefusedForItsSize()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = NewClient(factory);
+
+        using var response = await PostAsync(client, BodyOfBytes(BodyCap));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var row = (await ReadRowsAsync()).ShouldHaveSingleItem();
+        row.PageKey.ShouldBe("not-found");
+    }
+
+    // The limit on the beacon route (RequestSizeLimitMetadata on AnalyticsController.RecordPageView).
+    private const int BodyCap = 2048;
+
+    // A well-formed path body of exactly this many bytes: {"path":"/aaa..."}.
+    private static string BodyOfBytes(int bytes)
+    {
+        const string Open = "{\"path\":\"/";
+        const string Close = "\"}";
+        return Open + new string('a', bytes - Open.Length - Close.Length) + Close;
+    }
+
     private const string OldVisitorId = "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv";
 
     internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";
