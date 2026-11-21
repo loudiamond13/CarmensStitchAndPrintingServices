@@ -235,7 +235,7 @@ Added by the owner on 2026-10-07: "Every user can have money tied to them and us
 - [ ] **LEGAL-02**: Folded into LEGAL-01: there is no separate Cookie Policy, and `/cookies` shows the normal "page not found" (Phase 12.1: superseded by D-72)
 - [ ] **LEGAL-03**: Visitors can read Terms of Use ⚑ OD-11
 - [ ] **LEGAL-04**: Visitors can read an Accessibility Statement with a contact method for issues
-- [ ] **LEGAL-05**: All three legal pages (Privacy Policy, Terms of Use, Accessibility Statement) are linked in the footer, versioned with "last updated" dates, and clearly marked DRAFT until the owner approves the text. The Privacy Policy is DRAFT again (Phase 12.1: reduced to three pages by D-72; Privacy back to DRAFT by D-71)
+- [ ] **LEGAL-05**: All three legal pages (Privacy Policy, Terms of Use, Accessibility Statement) are linked in the footer, versioned with "last updated" dates, and clearly marked DRAFT until the owner approves the text. The owner approved the Privacy Policy on 2026-11-21 (D-135), so no page shows DRAFT now (Phase 12.1: reduced to three pages by D-72; Privacy back to DRAFT by D-71, approved by D-135)
 - [ ] **LEGAL-06**: Documented Manager procedures exist for data subject requests (access, correction, deletion of a customer's data) and breach response, including the owner notification steps
 
 ### Accessibility (A11Y)
