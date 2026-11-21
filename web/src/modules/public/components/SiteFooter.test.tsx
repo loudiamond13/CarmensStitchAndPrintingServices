@@ -304,6 +304,16 @@ describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL
     expect(current).toEqual([name]);
   });
 
+  it('marks the link of a legal page opened with a trailing slash', () => {
+    drawAt(variant, '/privacy/');
+    const current = within(legalNav())
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+      .map((link) => link.textContent);
+
+    expect(current).toEqual(['Privacy Policy']);
+  });
+
   it('marks no link on another page', () => {
     drawAt(variant, '/products');
 

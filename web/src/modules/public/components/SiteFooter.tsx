@@ -21,6 +21,7 @@ import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Logo } from '@/components/brand/Logo';
 import { tw } from '@/ui/tw';
+import { withoutTrailingSlash } from '@/utils/urlPath';
 import { PUBLIC_COPY } from '../copy';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import { addressLine, mainPhone, telHref } from '../siteFacts';
@@ -126,13 +127,13 @@ function StaffLogin() {
 
 /** The Legal row (UI-SPEC FT). */
 function LegalRow({ className }: { className: string }) {
-  const { pathname } = useLocation();
+  const path = withoutTrailingSlash(useLocation().pathname);
   return (
     <nav aria-label={FOOTER.legal.label} className={className}>
       <ul className="flex flex-wrap gap-x-4 gap-y-2">
         {FOOTER.legal.links.map((link) => (
           <li key={link.to}>
-            <UiLink to={link.to} className={legalLinkClasses} aria-current={pathname === link.to ? 'page' : undefined}>
+            <UiLink to={link.to} className={legalLinkClasses} aria-current={path === link.to ? 'page' : undefined}>
               {link.text}
             </UiLink>
           </li>
