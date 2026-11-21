@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Csps.Server.IntegrationTests.Analytics;
 
-/// <summary>ANL-05, T-12-29: a path maps through the route table to one of the nine page keys; admin and developer paths map to nothing.</summary>
+/// <summary>ANL-05, T-12-29: a path maps through the route table to one of the eight page keys; admin and developer paths map to nothing.</summary>
 public sealed class PublicPageResolverTests
 {
     [Theory]
