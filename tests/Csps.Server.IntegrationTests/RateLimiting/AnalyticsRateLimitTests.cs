@@ -176,10 +176,14 @@ public sealed class AnalyticsRateLimitTests(CspsDatabase database) : IClassFixtu
         };
         using var client = AnalyticsHttp.NewClient(factory);
 
+        var statuses = new List<HttpStatusCode>();
         foreach (var address in new[] { "203.0.113.81", "203.0.113.82", "203.0.113.83", "203.0.113.84" })
         {
             using var page = await PostPageViewAsync(client, address);
+            statuses.Add(page.StatusCode);
         }
+
+        statuses.ShouldBe([HttpStatusCode.NoContent, HttpStatusCode.NoContent, HttpStatusCode.NoContent, HttpStatusCode.TooManyRequests]);
 
         using var read = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/v1/public/site", UriKind.Relative));
         read.Headers.Add(RemoteIpStartupFilter.HeaderName, "203.0.113.85");
