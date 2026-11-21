@@ -1,5 +1,5 @@
 # Phase 12: Consent, Analytics & Legal - Context
-*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-20T09:30:00-06:00*
+*Created: 2026-11-15T21:05:00-06:00 · Updated: 2026-11-20T21:30:00-06:00*
 
 **Gathered:** 2026-11-15
 **Status:** Ready for planning
@@ -99,6 +99,7 @@ All rulings below: owner, 2026-11-15, in this discussion. They close OD-10 and O
 ### Code review rulings (owner, 2026-11-20, answered in chat during /gsd-code-review 12 --fix)
 - **D-79:** **The fix pass runs on a fresh review.** A new phase 12 review (scope: everything changed since the first `12-REVIEW.md`) replaces `12-REVIEW.md`, and the fixer works from it. `12-REVIEW-ALL.md` stays as a record. (owner, 2026-11-20)
 - **D-80:** **Dead consent and visit domain code goes; the tables stay** (12-REVIEW-ALL G1-WR-01, option "remove dead code, keep tables"). Remove the unused factories, enums and their tests. The seven unused tables, their entities and the four migrations stay as they are; no schema change. Narrows D-56. (owner, 2026-11-20)
+- **D-81:** **Second fix pass: review the changes, carry the open Info findings.** The new `12-REVIEW.md` covers only the files changed since the last phase 12 and 12.1 reviews (the D-79 fix commits) and carries forward the 20 open Info findings from the D-79 review. The fixer then works on every finding, Info included (`--fix --all`). Owner-wording items stay with the owner. (owner, 2026-11-20)
 
 ### Claude's Discretion
 - How consent is stored in the browser (a first-party necessary cookie is expected), cookie names, and the consent record and analytics table design, within PRD §5.4, "no JSON columns" and the 256 MB host limits.
