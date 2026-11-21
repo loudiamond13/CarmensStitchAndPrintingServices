@@ -156,8 +156,8 @@ const sample = (sections: LegalText['sections']): LegalText => ({ meta: META, se
 const para = (...parts: LegalInline[]): LegalBlock => ({ kind: 'p', parts });
 
 describe('legal text modules (LEGAL-05, D-10)', () => {
-  it('finds the Accessibility text module by its file name', () => {
-    expect(textFiles).toContain('legalAccessibility.ts');
+  it('finds the Accessibility, Privacy and Terms text modules by their file names', () => {
+    expect(textFiles).toEqual(expect.arrayContaining(['legalAccessibility.ts', 'legalPrivacy.ts', 'legalTerms.ts']));
   });
 
   it.each(textFiles)('%s exports a sound text', async (file) => {
