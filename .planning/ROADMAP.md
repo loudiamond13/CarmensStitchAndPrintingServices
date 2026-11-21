@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T10:18:45-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T14:10:00-06:00*
 
 ## Overview
 
@@ -1266,8 +1266,7 @@ Plans:
 ### Phase 12: Consent, Analytics & Legal
 
 **Goal**: Visitors get a fair cookie choice and can wipe their data. Managers see visitor metrics that respect privacy. Visitors can read versioned legal pages marked DRAFT.
-**Amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18):** Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62). The shipped result is a daily page tally only, no cookie banner, no Cookie Settings link and no Clear button (success criteria 1 to 3 below are superseded or reduced), a smaller Visitor Stats page with a `Date,Page,Page views` CSV (criterion 4 reduced), and three legal pages with the Cookie Policy folded into the Privacy Policy (criterion 5 reduced). The criteria below keep their original Phase 12 wording for history; REQUIREMENTS.md and the Phase 12.1 section hold the current meaning. D-73 owner approval: closed (D-135, 2026-11-21).
-**Mode:** mvp
+**Amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18):** Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62). The shipped result is a daily page tally only, no cookie banner, no Cookie Settings link and no Clear button (success criteria 1 to 3 below are superseded or reduced), a smaller Visitor Stats page with a `Date,Page,Page views` CSV (criterion 4 reduced), and three legal pages with the Cookie Policy folded into the Privacy Policy (criterion 5 reduced). The criteria below keep their original Phase 12 wording for history; REQUIREMENTS.md and the Phase 12.1 section hold the current meaning. D-73 owner approval: closed (D-135, 2026-11-21). MVP mark removed (D-137, owner, 2026-11-21): Phase 12 closes on Phase 12.1's UAT, verification and security review.
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08, ANL-09, LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05
 **Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21). **Moved to Phase 13 (D-49, owner, 2026-11-18).**
