@@ -1,6 +1,6 @@
 ---
 created: 2026-11-21T10:00:00-06:00
-updated: 2026-11-21T07:50:00-06:00
+updated: 2026-11-21T08:40:00-06:00
 ---
 
 # Phase 12 UI Review
@@ -90,7 +90,7 @@ Every finding above has an outcome. The owner chose "Fix all first" (2026-11-21)
 | Finding | Outcome | Where or why |
 |---------|---------|--------------|
 | Fix 1: Privacy Policy is `approved: false` | Open | Waits for the owner's approval (D-73, 12.1-UAT test 2). Unchanged on purpose: `approved`, version and date were not touched. |
-| Fix 2: no rendered check | Open | The orchestrator runs the rendered check after this quick task. No dev server or Playwright was run here. |
+| Fix 2: no rendered check | Done | 2026-11-21, after 261121-9qz. /privacy, /terms, /accessibility and /contact at 320, 375, 768 and 1440 px, and /admin/visitor-stats (signed in as a test Manager) at the same widths. No sideways scroll and no console errors on any page. The new map wording shows. The phone contents box and the 320 px map card fit. The stats cards fill the row, and the hidden chart table has one row per day. Screenshots were kept out of git. |
 | Fix 3: chart text alternative | Fixed | A visually hidden table with one row per day or month (dcef091b). |
 | Pillar 1: Privacy draft | Open | Same as fix 1. |
 | Pillar 2: chart accessibility | Fixed | Same as fix 3 (dcef091b). |
