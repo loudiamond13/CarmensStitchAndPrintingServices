@@ -5,7 +5,7 @@
 // test loads every page with JavaScript on, so the strict CSP and the guard see the JSON-LD and csps-boot blocks (no report).
 // Every test seeds the demo shop (share picture included) under the site content lock, because the head reads the shared content.
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
@@ -27,7 +27,9 @@ const PAGES: readonly PublicUrl[] = [
 
 /** The approved legal pages from the shared facts file (LEGAL-05, D-71), so the sitemap lists them after the public pages. */
 const LEGAL_PATHS: readonly string[] = (
-  JSON.parse(readFileSync(resolve(import.meta.dirname, '../../tests/fixtures/legal-pages.json'), 'utf8')) as {
+  JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../tests/fixtures/legal-pages.json', import.meta.url)), 'utf8'),
+  ) as {
     pages: { path: string; approved: boolean }[];
   }
 ).pages

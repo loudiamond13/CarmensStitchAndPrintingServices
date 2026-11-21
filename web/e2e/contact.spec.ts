@@ -40,6 +40,7 @@ test('@contact the footer shows the stored tagline and main phone from the first
 
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
 // A page script as text: the node program has no DOM types.
+const READ_SAVED_MAP = "window.localStorage.getItem('csps-maps')";
 const CLEAR_SAVED_MAP = "window.localStorage.removeItem('csps-maps')";
 const MAP_EMBED = 'https://www.google.com/maps/embed**';
 const MAP_STUB =
@@ -136,6 +137,7 @@ test('@contact clearing the saved map brings back Show Map', async ({ page, requ
     await page.getByRole('button', { name: 'Show Map' }).click();
     await expect(page.frameLocator('iframe').getByText('Map stub')).toBeVisible();
 
+    expect(await page.evaluate(READ_SAVED_MAP), 'the tap is saved under the key this test clears').not.toBeNull();
     await page.evaluate(CLEAR_SAVED_MAP);
     await page.reload();
 
