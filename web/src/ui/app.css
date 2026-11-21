@@ -230,6 +230,7 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-chart-income: var(--chart-income);
   --color-chart-expense: var(--chart-expense);
+  --color-chart-views: var(--chart-views);
   --color-scrim: var(--scrim);
   --color-link: var(--link);
   --color-transparent: transparent;

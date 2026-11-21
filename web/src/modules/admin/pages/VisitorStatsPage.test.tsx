@@ -316,6 +316,13 @@ function listCard(title: string): HTMLElement {
 }
 
 describe('V1 the Most viewed pages card', () => {
+  it('puts the Most viewed pages card straight in the page body, full width', async () => {
+    backend();
+    await openPage();
+
+    expect(listCard('Most viewed pages').parentElement).toBe(trendCard().parentElement);
+  });
+
   it('shows "Most viewed pages" with its sub line and the server rows by page name', async () => {
     backend();
     await openPage();

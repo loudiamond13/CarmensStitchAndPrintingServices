@@ -18,16 +18,10 @@ export const visitorStatsBodyClasses = tw(
 );
 
 /**
- * The KPI row: the dashboard KPI grid, holding the one Page views card; two columns up to 1023px, one column at 767px and below. On
- * phones a 12px gap, 16px card padding and no icon tile, as the dashboard row.
+ * The KPI row: one column holding the one Page views card. On phones 16px card padding and no icon tile, as the dashboard row.
  */
 export const visitorKpiRowClasses = tw(
-  'grid grid-cols-[repeat(3,minmax(0,1fr))] gap-4 pg-phone:grid-cols-[minmax(0,1fr)] pg-phone:gap-3 pg-phone:*:p-4 pg-tablet:grid-cols-[repeat(2,minmax(0,1fr))] pg-phone:[&_[data-kpi-icon]]:hidden pg-xs:[&_[data-kpi-value=normal]]:text-[24px]',
-);
-
-/** A row of two list cards side by side, one column at 1023px and below (UI-SPEC V1 layout). */
-export const visitorStatsListRowClasses = tw(
-  'grid grid-cols-[repeat(2,minmax(0,1fr))] items-start gap-6 pg-lt-lg:grid-cols-[minmax(0,1fr)]',
+  'grid grid-cols-[minmax(0,1fr)] pg-phone:*:p-4 pg-phone:[&_[data-kpi-icon]]:hidden pg-xs:[&_[data-kpi-value=normal]]:text-24',
 );
 
 /** StatBarList: the `ol`, rows 16px apart, inside the card padding. */
@@ -40,16 +34,16 @@ export const statBarRowClasses = tw('flex flex-col gap-2');
 export const statBarHeadClasses = tw('flex flex-wrap items-baseline justify-between gap-x-3');
 
 /** The name: Label 14/600; a long host wraps anywhere (UI-SPEC long-text row). */
-export const statBarNameClasses = tw('min-w-0 text-[14px] leading-5 font-semibold wrap-anywhere');
+export const statBarNameClasses = tw('min-w-0 text-14 leading-5 font-semibold wrap-anywhere');
 
 /** The figure "412 · 38%": Small 14/400 muted, never split across lines. */
-export const statBarFigureClasses = tw('text-[14px] leading-5 whitespace-nowrap text-ink-muted tabular-nums');
+export const statBarFigureClasses = tw('text-14 leading-5 whitespace-nowrap text-ink-muted tabular-nums');
 
 /** The bar fill, as wide as the server's share through `--bar-w` (set through the React style object, strict CSP). */
-export const statBarFillClasses = tw('block h-full w-(--bar-w) rounded-xs bg-chart-expense');
+export const statBarFillClasses = tw('block h-full w-(--bar-w) rounded-xs bg-chart-views');
 
 /** The line a list with no rows shows: Small muted. */
-export const statBarEmptyClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
+export const statBarEmptyClasses = tw('m-0 text-14 leading-5 text-ink-muted');
 
 /** The body of a list card. */
 export const statListBodyClasses = tw('p-5');

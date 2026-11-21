@@ -46,7 +46,7 @@ describe('StatBarList: rows', () => {
     expect(fill(first).style.getPropertyValue('--bar-w')).toBe('38%');
     expect(fill(rows()[1] ?? document.body).style.getPropertyValue('--bar-w')).toBe('62%');
     expect(fill(first).parentElement).toHaveAttribute('aria-hidden', 'true');
-    expect(fill(first).className.split(/\s+/)).toEqual(expect.arrayContaining(['w-(--bar-w)', 'bg-chart-expense']));
+    expect(fill(first).className.split(/\s+/)).toEqual(expect.arrayContaining(['w-(--bar-w)', 'bg-chart-views']));
   });
 
   it('shows each name through labelFor when one is given', () => {

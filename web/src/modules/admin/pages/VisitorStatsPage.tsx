@@ -24,11 +24,7 @@ import {
   dashboardStaleTextClasses,
 } from '@/modules/admin/components/dashboard.recipe';
 import { StatBarList } from '@/modules/admin/components/StatBarList';
-import {
-  statListBodyClasses,
-  visitorStatsBodyClasses,
-  visitorStatsListRowClasses,
-} from '@/modules/admin/components/visitorStats.recipe';
+import { statListBodyClasses, visitorStatsBodyClasses } from '@/modules/admin/components/visitorStats.recipe';
 import { VisitorKpiRow } from '@/modules/admin/components/VisitorKpiRow';
 import { VisitorStatsToolbar } from '@/modules/admin/components/VisitorStatsToolbar';
 import { VisitorTrendCard } from '@/modules/admin/components/VisitorTrendCard';
@@ -141,14 +137,12 @@ export function VisitorStatsPage({
           ) : (
             <>
               <VisitorTrendCard stats={stats} />
-              <div className={visitorStatsListRowClasses}>
-                <StatListCard
-                  title={COPY.lists.topPages}
-                  sub={COPY.lists.topPagesSub}
-                  items={stats?.topPages}
-                  labelFor={pageLabel}
-                />
-              </div>
+              <StatListCard
+                title={COPY.lists.topPages}
+                sub={COPY.lists.topPagesSub}
+                items={stats?.topPages}
+                labelFor={pageLabel}
+              />
             </>
           )}
         </LoadingRegion>
