@@ -18,8 +18,9 @@ internal static class AnalyticsHttp
     /// <param name="route">The relative route.</param>
     /// <param name="json">The request body.</param>
     /// <param name="csrf">Whether to add the anti-CSRF header.</param>
+    /// <param name="userAgent">The User-Agent header, or null to send none.</param>
     /// <returns>The request.</returns>
-    internal static HttpRequestMessage NewPost(string route, string json, bool csrf = true)
+    internal static HttpRequestMessage NewPost(string route, string json, bool csrf = true, string? userAgent = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, new Uri(route, UriKind.Relative))
         {
@@ -28,6 +29,11 @@ internal static class AnalyticsHttp
         if (csrf)
         {
             request.Headers.Add(RequireCsrfHeaderAttribute.HeaderName, "1");
+        }
+
+        if (userAgent is not null)
+        {
+            request.Headers.TryAddWithoutValidation("User-Agent", userAgent);
         }
 
         return request;

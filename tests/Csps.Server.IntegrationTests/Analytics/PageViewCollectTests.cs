@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Net;
-using System.Text;
 using Csps.Application.Ports;
 using Csps.Domain.Analytics;
 using Csps.Server.IntegrationTests.Auth;
@@ -27,7 +26,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         var before = await BusinessDayAsync(factory);
 
         using var response = await PostAsync(client, PathBody("/gallery"));
@@ -47,7 +46,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostAsync(client, PathBody("/"));
         using var second = await PostAsync(client, PathBody("/"));
@@ -64,7 +63,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, PathBody("/gallery"), csrf: false);
 
@@ -77,7 +76,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, PathBody("/gallery?q=secret#x"));
 
@@ -95,7 +94,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var first = await PostAsync(client, PathBody("/nope"));
         using var second = await PostAsync(client, PathBody("/wp-login.php"));
@@ -117,7 +116,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, PathBody(path));
 
@@ -133,7 +132,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, PathBody("/gallery"), userAgent);
 
@@ -152,7 +151,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, json);
 
@@ -167,7 +166,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         const string Marker = "zq7marker91";
         using var counted = NewPost($"{{\"path\":\"/gallery?{Marker}-query#{Marker}-fragment\",\"referrerHost\":\"{Marker}.example\"}}", $"{DesktopChrome} {Marker}-agent");
         counted.Headers.Add("Cookie", $"__Secure-csps_vid={Marker}-visitor; __Host-csps_consent={Marker}-consent");
@@ -223,7 +222,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewPost(PathBody("/gallery"));
         request.Headers.Add("Cookie", $"{AnalyticsCookies.StaffCookieName}={value}");
 
@@ -238,7 +237,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewPost(PathBody("/gallery"));
         request.Headers.TryAddWithoutValidation("Authorization", "Bearer not-a-real-token");
 
@@ -253,7 +252,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         using var request = NewPost("{}");
         request.Headers.Add("Cookie", $"{AnalyticsCookies.StaffCookieName}=1");
 
@@ -267,7 +266,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
         var day = (await BusinessDayAsync(factory)).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         using var request = NewPost(PathBody("/gallery"));
         request.Headers.Add("Cookie", $"__Secure-csps_vid={OldVisitorId}; __Host-csps_consent=1_0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d_1.0_1_1_{day}");
@@ -289,7 +288,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, "{\"path\":\"/gallery\",\"referrerHost\":\"m.facebook.com\"}");
 
@@ -304,7 +303,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, BodyOfBytes(BodyCap + 1));
 
@@ -317,7 +316,7 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
     {
         await database.ResetAsync();
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
-        using var client = NewClient(factory);
+        using var client = AnalyticsHttp.NewClient(factory);
 
         using var response = await PostAsync(client, BodyOfBytes(BodyCap));
 
@@ -341,27 +340,9 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
 
     internal static string PathBody(string path) => $"{{\"path\":\"{path}\"}}";
 
-    internal static HttpClient NewClient(WebApplicationFactory<Program> factory) =>
-        factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-
-    internal static HttpRequestMessage NewPost(string json, string? userAgent = DesktopChrome, bool csrf = true)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, new Uri(Route, UriKind.Relative))
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json"),
-        };
-        if (csrf)
-        {
-            request.Headers.Add(RequireCsrfHeaderAttribute.HeaderName, "1");
-        }
-
-        if (userAgent is not null)
-        {
-            request.Headers.TryAddWithoutValidation("User-Agent", userAgent);
-        }
-
-        return request;
-    }
+    // The page view post with a desktop browser User-Agent unless another is given.
+    internal static HttpRequestMessage NewPost(string json, string? userAgent = DesktopChrome, bool csrf = true) =>
+        AnalyticsHttp.NewPost(Route, json, csrf, userAgent);
 
     internal static async Task<HttpResponseMessage> PostAsync(HttpClient client, string json, string? userAgent = DesktopChrome, bool csrf = true)
     {
