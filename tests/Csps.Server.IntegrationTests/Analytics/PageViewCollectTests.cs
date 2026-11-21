@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using Csps.Application.Ports;
@@ -177,11 +178,26 @@ public sealed class PageViewCollectTests(CspsDatabase database) : IClassFixture<
 
         first.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         second.StatusCode.ShouldBe(HttpStatusCode.NoContent);
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitForRequestLogLinesAsync(factory, 2);
         var lines = factory.Sink.Events.Select(logEvent => logEvent.RenderMessage(CultureInfo.InvariantCulture) + " " + string.Join(' ', logEvent.Properties.Values.Select(value => value.ToString())) + " " + logEvent.Exception).ToList();
         lines.ShouldNotBeEmpty();
         lines.ShouldAllBe(line => !line.Contains(Marker, StringComparison.Ordinal));
     }
+
+    // Waits until the host has logged a completion line for each request, so the checks below read the finished log.
+    private static async Task WaitForRequestLogLinesAsync(CspsApiFactory factory, int expected)
+    {
+        var clock = Stopwatch.StartNew();
+        while (RequestLogLines(factory) < expected && clock.Elapsed < TimeSpan.FromSeconds(10))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
+        }
+
+        RequestLogLines(factory).ShouldBeGreaterThanOrEqualTo(expected, "each request must log one completion line");
+    }
+
+    private static int RequestLogLines(CspsApiFactory factory) =>
+        factory.Sink.Events.Count(logEvent => logEvent.MessageTemplate.Text.Contains("responded", StringComparison.Ordinal));
 
     [Fact]
     public async Task AStaffMemberSignedInInTheSameBrowserIsNotCountedNotEvenAnonymously()
