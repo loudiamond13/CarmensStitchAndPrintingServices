@@ -4,10 +4,10 @@ current_phase: 9
 current_phase_name: Order Images & Maintenance Jobs
 status: verifying
 stopped_at: Phase 12.1 complete, ready to verify Phase 9
-last_updated: "2026-11-21T19:08:53.089Z"
+last_updated: "2026-11-21T22:47:56.101Z"
 last_activity: 2026-11-21
-last_activity_desc: Phase 12.1 complete, transitioned to Phase 9
-state_head: 5de97c438f7a8935cdcb815695f909c5a016f1bf
+last_activity_desc: "Phases 12 and 12.1 shipped together as PR #28"
+state_head: d623eea0453390a2cdc199e4464a9ba6a6a9cfcc
 progress:
   total_phases: 19
   completed_phases: 10
@@ -32,7 +32,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 Phase: 9 — Order Images & Maintenance Jobs
 Plan: 33
 Status: Phase complete — ready for verification
-Last activity: 2026-11-21 - Completed quick task 261121-hxs: IN-G1-03 guard test (D-138); Phases 12 and 12.1 complete
+Last activity: 2026-11-21 -- Phases 12 and 12.1 shipped together as PR #28
 
 Progress: [█████░░░░░] 53%
 
