@@ -17,7 +17,7 @@ internal sealed class AnalyticsVisitConfiguration : IEntityTypeConfiguration<Ana
 
         builder.HasKey(visit => visit.Id);
         builder.Property(visit => visit.Id).ValueGeneratedNever();
-        builder.Property(visit => visit.VisitorHash).IsRequired().HasColumnType("binary(32)");
+        builder.Property(visit => visit.VisitorHash).IsRequired().HasColumnType($"binary({AnalyticsVisit.HashLength})");
         builder.Property(visit => visit.BusinessDay).HasColumnType("date");
         builder.Property(visit => visit.StartedAtUtc).IsRequired();
         builder.Property(visit => visit.LastSeenAtUtc).IsRequired();
@@ -25,7 +25,7 @@ internal sealed class AnalyticsVisitConfiguration : IEntityTypeConfiguration<Ana
         builder.Property(visit => visit.Device).IsRequired();
         builder.Property(visit => visit.Browser).IsRequired().IsUnicode(false).HasMaxLength(AnalyticsVisit.LabelMaxLength);
         builder.Property(visit => visit.Os).IsRequired().IsUnicode(false).HasMaxLength(AnalyticsVisit.LabelMaxLength);
-        builder.Property(visit => visit.IpHash).HasColumnType("binary(32)");
+        builder.Property(visit => visit.IpHash).HasColumnType($"binary({AnalyticsVisit.HashLength})");
         builder.Property(visit => visit.PageViews).IsRequired();
 
         builder.HasIndex(visit => new { visit.VisitorHash, visit.LastSeenAtUtc });
