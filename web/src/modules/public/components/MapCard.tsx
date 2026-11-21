@@ -1,5 +1,5 @@
 // SPEC-DEVIATION: D-20 App. E.4's map is a drawing ("may be swapped for an embedded map", spec §7.4). Here the drawing stays
-// until the visitor taps Show Map; only then does the Google frame load, so no Google request is made before the tap. The
+// until the visitor taps Show Map once (saved in this browser, D-65); only then does the Google frame load. The
 // frame fills the same 16:10 box (no layout shift), and the label card moves under it so it never covers the map's own
 // controls. The frame has a title, loads lazily, sends a strict referrer and gets no `allow` features; the CSP allows only
 // the embed path (SecurityHeadersMiddleware).
