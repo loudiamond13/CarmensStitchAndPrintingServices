@@ -142,6 +142,22 @@ async function pageViewsByName(page: Page): Promise<Map<string, number>> {
   return totals;
 }
 
+/**
+ * Runs a count check that reads the default 30 day range before and after. If the business date turned over during the run, the
+ * window moved and a total can fall with no product defect, so the whole block runs once more.
+ */
+async function withStableWindow(block: () => Promise<void>): Promise<void> {
+  const start = manilaDate(0);
+  try {
+    await block();
+  } catch (error) {
+    if (manilaDate(0) === start) {
+      throw error;
+    }
+    await block();
+  }
+}
+
 /** The full admin menu: the sidebar on desktop, or on a phone the navigation drawer, opened. The phone tab bar is not the menu. */
 async function adminMenu(page: Page): Promise<Locator> {
   const opener = page.getByRole('button', { name: 'Open navigation' }).filter({ visible: true });
@@ -185,17 +201,19 @@ test.describe('a visitor with no cookie choice', () => {
       await expect(manager).toHaveTitle('Visitor Stats · CSPS Admin');
 
       await withSiteContentLock(async () => {
-        const before = await pageViewsByName(manager);
+        await withStableWindow(async () => {
+          const before = await pageViewsByName(manager);
 
-        await openCounted(page, COUNTED_PAGES[0].path);
-        await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
-        await openCounted(page, COUNTED_PAGES[1].path);
-        await openCounted(page, COUNTED_PAGES[2].path);
+          await openCounted(page, COUNTED_PAGES[0].path);
+          await expect(page.getByRole('region', { name: 'Cookie choices' })).toHaveCount(0);
+          await openCounted(page, COUNTED_PAGES[1].path);
+          await openCounted(page, COUNTED_PAGES[2].path);
 
-        const after = await pageViewsByName(manager);
-        for (const { name } of COUNTED_PAGES) {
-          expect(after.get(name) ?? 0, `${name} rose by one`).toBe((before.get(name) ?? 0) + 1);
-        }
+          const after = await pageViewsByName(manager);
+          for (const { name } of COUNTED_PAGES) {
+            expect(after.get(name) ?? 0, `${name} rose by one`).toBe((before.get(name) ?? 0) + 1);
+          }
+        });
       });
       await expect(manager.locator(`svg [data-bucket="${manilaDate(0)}"]`)).toHaveCount(1);
       await watched.finish();
@@ -223,9 +241,11 @@ test('@visitor-stats a page a signed-in Manager opens on the public site adds no
   // Terms of Use: the Terms sweep also opens it, and a visitor view of it is counted. Every spec that opens
   // /terms does so under the site content lock, so under it the CSV total of the page moves only if this Manager's view is counted.
   await withSiteContentLock(async () => {
-    const before = (await pageViewsByName(page)).get('Terms of Use') ?? 0;
-    await openCounted(page, '/terms');
-    expect((await pageViewsByName(page)).get('Terms of Use') ?? 0).toBe(before);
+    await withStableWindow(async () => {
+      const before = (await pageViewsByName(page)).get('Terms of Use') ?? 0;
+      await openCounted(page, '/terms');
+      expect((await pageViewsByName(page)).get('Terms of Use') ?? 0).toBe(before);
+    });
   });
 });
 
