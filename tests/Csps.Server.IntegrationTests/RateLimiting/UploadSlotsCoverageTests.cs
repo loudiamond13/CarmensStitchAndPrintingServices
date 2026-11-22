@@ -25,7 +25,7 @@ public sealed class UploadSlotsCoverageTests
             .Where(method => method.GetParameters().Any(parameter => CarriesFile(parameter.ParameterType, [])))
             .ToList();
 
-        uploadActions.Count.ShouldBe(5, "the order photo, the gallery upload and replace, the product line photo and the share picture");
+        uploadActions.Count.ShouldBe(6, "the order photo, the gallery upload and replace, the product line photo, the share picture and the quote photo");
         uploadActions.Where(method => !Has<EnableRateLimitingAttribute>(method, attribute => attribute.PolicyName == RateLimitPolicies.ImageUpload))
             .Select(Name)
             .ShouldBeEmpty("every file upload action carries the image upload rate limit");
