@@ -1324,7 +1324,7 @@ export interface paths {
          *     and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
          *     cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A
          *     Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the
-         *     same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+         *     same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The delete is
          *     recorded in the audit log.
          */
         delete: operations["RemoveOrderImage"];
@@ -1811,7 +1811,7 @@ export interface paths {
         post: operations["UploadProductLinePhoto"];
         /**
          * Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal
-         *     in the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The
+         *     in the same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The
          *     change is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.
          */
         delete: operations["RemoveProductLinePhoto"];
@@ -2332,7 +2332,7 @@ export interface paths {
         post: operations["UploadSharePicture"];
         /**
          * Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
-         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next daily cleanup run;
          *     nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
          */
         delete: operations["RemoveSharePicture"];

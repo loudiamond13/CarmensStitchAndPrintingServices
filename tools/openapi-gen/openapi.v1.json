@@ -14783,7 +14783,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again\nand decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the\ncover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A\nCompleted or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the\nsame save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is\nrecorded in the audit log.",
+        "summary": "Deletes one photo of a saved order. No version is sent: the delete applies to the latest state, and a lost race is read again\nand decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the\ncover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A\nCompleted or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the\nsame save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The delete is\nrecorded in the audit log.",
         "tags": [
           "OrderImages"
         ]
@@ -17500,7 +17500,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal\nin the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The\nchange is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.",
+        "summary": "Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal\nin the same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The\nchange is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.",
         "tags": [
           "ProductLinePhotos"
         ]
@@ -19655,7 +19655,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages\ncarry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;\nnothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.",
+        "summary": "Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages\ncarry the small card. The file is queued for removal in the same save and leaves the storage on the next daily cleanup run;\nnothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.",
         "tags": [
           "SharePicture"
         ]
