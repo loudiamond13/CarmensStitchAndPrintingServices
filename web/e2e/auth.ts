@@ -108,6 +108,9 @@ export async function signInAs(
   }
   // Every bundle, the e2e one included, lands on the dashboard at /admin (DASH-01).
   await expect(page).toHaveURL(/\/admin(\/sessions)?$/);
+  // The sign-in layout has a main of its own that stays on screen for a moment after the address changes, so main is not proof
+  // of the shell. The top bar belongs to the admin shell only, and the phone and desktop layouts both show its search box.
+  await expect(page.getByRole('searchbox', { name: 'Search', exact: true })).toBeVisible();
   await expect(page.getByRole('main')).toBeVisible();
   return sessionUser;
 }

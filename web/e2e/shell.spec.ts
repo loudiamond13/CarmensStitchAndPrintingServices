@@ -113,7 +113,14 @@ for (const { width, height } of [
 ] as const) {
   test(`@shell full bleed admin at ${String(width)}x${String(height)}`, async ({ page, request, guard }) => {
     await signInFreshStaff(page, request, guard);
+    // The device list answers late, as it does on a slow engine. Its loading rows stand taller than the one real row, so the
+    // page is short only once the list has loaded.
+    await page.route('**/api/v1/sessions', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
     await openAt(page, SHORT_ADMIN_PAGE, width, height);
+    await expect(page.getByRole('status').filter({ hasText: 'Signed-in devices loaded.' })).toBeAttached();
     const reading = await geometry(page);
     expect(reading.documentHeight, 'a short page needs no scroll').toBeLessThanOrEqual(reading.innerHeight + 1);
     expect(reading.rootBottom ?? 0, 'page root reaches the viewport bottom').toBeGreaterThanOrEqual(

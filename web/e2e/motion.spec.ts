@@ -37,7 +37,8 @@ async function openShowcase(page: Page): Promise<void> {
   test.setTimeout(120_000);
   const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  // The showcase draws about 250 cases in one commit, which WebKit takes 6 to 10 s to show, longer than the 5 s default.
+  await expect(page.locator('h1')).toHaveText('Component Showcase', { timeout: 30_000 });
 }
 
 /** Opens by keyboard: WebKit does not focus a button on a mouse click, and the trap returns focus to what had it. */
