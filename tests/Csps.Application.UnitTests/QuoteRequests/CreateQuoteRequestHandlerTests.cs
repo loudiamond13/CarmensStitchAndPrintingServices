@@ -106,6 +106,51 @@ public sealed class CreateQuoteRequestHandlerTests
         harness.Unit.Saves.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task DeclaredPhotosAreSavedAsEmptyPlacesWithTheHashOfTheKeyAndItsEndTime()
+    {
+        var harness = new Harness();
+        var key = System.Buffers.Text.Base64Url.EncodeToString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+
+        var result = await harness.Handler.HandleAsync(Request() with { Photos = ["logo.png", "back.jpg"], UploadKey = key }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.PhotoSlots.Select(slot => (slot.Slot, slot.FileName)).ShouldBe([(0, "logo.png"), (1, "back.jpg")]);
+        var saved = harness.Added.ShouldHaveSingleItem();
+        saved.Photos.Count.ShouldBe(2);
+        QuoteUploadKey.TryHash(key, out var hash).ShouldBeTrue();
+        saved.UploadKeyHash.ShouldBe(hash);
+        saved.UploadKeyExpiresAtUtc.ShouldBe(Now.AddHours(2));
+    }
+
+    [Fact]
+    public async Task AFormWithNoPhotosKeepsNoKeyAndAnswersNoSlots()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request() with { UploadKey = "ignored" }, TestContext.Current.CancellationToken);
+
+        result.Value.PhotoSlots.ShouldBeEmpty();
+        var saved = harness.Added.ShouldHaveSingleItem();
+        saved.UploadKeyHash.ShouldBeNull();
+        saved.Photos.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task APhotoListTheDomainRefusesSavesNothing()
+    {
+        var harness = new Harness(PassingValidator());
+
+        var result = await harness.Handler.HandleAsync(
+            Request() with { Photos = ["1", "2", "3", "4", "5", "6"], UploadKey = System.Buffers.Text.Base64Url.EncodeToString(new byte[32]) },
+            TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["photos"]);
+        harness.Added.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
     private static CreateQuoteRequestRequest Request() =>
         CreateQuoteRequestRequest.Empty with { CustomerName = "Juan Dela Cruz", ContactNumber = "0917 123 4567" };
 
@@ -122,7 +167,7 @@ public sealed class CreateQuoteRequestHandlerTests
         {
             Store = Substitute.For<IQuoteRequestStore>();
             Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call => Added.Add(call.Arg<QuoteRequest>()));
-            Handler = new CreateQuoteRequestHandler(Store, new FixedCalendar(), Unit, validator ?? new CreateQuoteRequestRequestValidator());
+            Handler = new CreateQuoteRequestHandler(Store, new FixedCalendar(), Unit, validator ?? new CreateQuoteRequestRequestValidator(), new QuoteRequestSettings());
         }
 
         public IQuoteRequestStore Store { get; }

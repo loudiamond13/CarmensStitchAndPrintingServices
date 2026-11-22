@@ -9,6 +9,8 @@ namespace Csps.Domain.QuoteRequests;
 /// </summary>
 public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 {
+    private readonly List<QuoteRequestPhoto> _photos = [];
+
     // Used by EF Core (constructor binding) and by Receive.
     private QuoteRequest(
         Guid id,
@@ -92,6 +94,58 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the row version a save must match (409 on a conflict).</summary>
     public byte[] RowVersion { get; private set; }
+
+    /// <summary>Gets the SHA-256 of the upload key the visitor made; null when no photo was declared. The key itself is never stored (CWE-639).</summary>
+    public byte[]? UploadKeyHash { get; private set; }
+
+    /// <summary>Gets when the upload key stops working, in UTC; null when no photo was declared.</summary>
+    public DateTimeOffset? UploadKeyExpiresAtUtc { get; private set; }
+
+    /// <summary>Gets the photo places the visitor declared, in slot order.</summary>
+    public IReadOnlyList<QuoteRequestPhoto> Photos => _photos;
+
+    /// <summary>
+    /// Declares the photos the visitor is about to send, one empty place per file name in the order given, and keeps the hash and the
+    /// end time of the upload key. Each photo then travels in its own call (INQ-02). Allowed once, on a request that has no photo yet.
+    /// </summary>
+    /// <param name="fileNames">The file names as the visitor's browser reports them; at most <see cref="QuoteRequestRules.MaxPhotos"/>.</param>
+    /// <param name="uploadKeyHash">The SHA-256 of the upload key, 32 bytes.</param>
+    /// <param name="expiresAtUtc">When the key stops working.</param>
+    /// <returns>A validation error on <c>photos</c> or <c>uploadKey</c> when a rule is broken; nothing changes then.</returns>
+    public Result DeclarePhotos(IReadOnlyList<string> fileNames, byte[] uploadKeyHash, DateTimeOffset expiresAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(fileNames);
+        ArgumentNullException.ThrowIfNull(uploadKeyHash);
+
+        if (fileNames.Count == 0 || _photos.Count > 0)
+        {
+            return QuoteRequestRules.Reject(QuoteRequestRules.PhotosField, QuoteRequestRules.PhotosInvalid);
+        }
+
+        if (fileNames.Count > QuoteRequestRules.MaxPhotos)
+        {
+            return QuoteRequestRules.Reject(QuoteRequestRules.PhotosField, QuoteRequestRules.PhotosTooMany);
+        }
+
+        if (fileNames.Any(static name => name.Length > QuoteRequestRules.PhotoNameMaxLength))
+        {
+            return QuoteRequestRules.Reject(QuoteRequestRules.PhotosField, QuoteRequestRules.PhotoNameTooLong);
+        }
+
+        if (uploadKeyHash.Length != QuoteRequestRules.UploadKeyHashLength)
+        {
+            return QuoteRequestRules.Reject(QuoteRequestRules.UploadKeyField, QuoteRequestRules.UploadKeyInvalid);
+        }
+
+        for (var slot = 0; slot < fileNames.Count; slot++)
+        {
+            _photos.Add(new QuoteRequestPhoto(Id, slot, QuoteRequestRules.CleanPhotoName(fileNames[slot], slot)));
+        }
+
+        UploadKeyHash = [.. uploadKeyHash];
+        UploadKeyExpiresAtUtc = expiresAtUtc;
+        return Result.Success();
+    }
 
     /// <summary>Makes a new request at status New, checking every field rule again so no caller can skip one.</summary>
     /// <param name="id">The new id, a version 7 id.</param>

@@ -2547,6 +2547,12 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset?>("UploadKeyExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("UploadKeyHash")
+                        .HasColumnType("varbinary(32)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAtUtc")
@@ -2578,6 +2584,55 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_QuoteRequests_QuantityRange", "[QuantityRange] IS NULL OR [QuantityRange] BETWEEN 1 AND 5");
 
                             t.HasCheckConstraint("CK_QuoteRequests_Status", "[Status] BETWEEN 1 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
+                {
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<int?>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("StoredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("QuoteRequestId", "Slot");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_QuoteRequestPhotos_PublicId")
+                        .HasFilter("[PublicId] IS NOT NULL");
+
+                    b.ToTable("QuoteRequestPhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_QuoteRequestPhotos_Slot", "[Slot] BETWEEN 0 AND 4");
                         });
                 });
 
@@ -3834,6 +3889,15 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
+                {
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("Photos")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -3918,6 +3982,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Refunds");
 
                     b.Navigation("StatusChanges");
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
+                {
+                    b.Navigation("Photos");
                 });
 #pragma warning restore 612, 618
         }

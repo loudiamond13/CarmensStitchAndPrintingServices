@@ -29,6 +29,22 @@ public static class PublicIds
     /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
     public static string New(string root, Guid orderId) => $"{Folder(root, orderId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
 
+    /// <summary>Gets the storage folder of a quote request's photos. It sits beside <c>orders</c> and <c>content</c>, so the stray sweep tells the three apart.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <param name="requestId">The quote request id.</param>
+    /// <returns>The folder, without a trailing slash.</returns>
+    public static string QuoteFolder(string root, Guid requestId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        return $"{root}/quotes/{requestId:D}";
+    }
+
+    /// <summary>Makes a new random public id inside the quote request's folder.</summary>
+    /// <param name="root">The environment's root folder.</param>
+    /// <param name="requestId">The quote request id.</param>
+    /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
+    public static string NewQuote(string root, Guid requestId) => $"{QuoteFolder(root, requestId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
+
     /// <summary>
     /// Gets the storage folder of the content photos of one owner, such as a product line. Content photos live under <c>{root}/content/</c>,
     /// never under the orders folder, so the stray sweep tells them apart (IMG-03, RESEARCH P-9).

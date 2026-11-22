@@ -13,6 +13,8 @@ namespace Csps.Application.QuoteRequests;
 /// <param name="ProductLineKey">The key of the chosen product line, when the choice is <c>line</c>.</param>
 /// <param name="Quantity">The estimated quantity: <c>1-9</c>, <c>10-20</c>, <c>21-50</c>, <c>51-100</c> or <c>100+</c>.</param>
 /// <param name="Message">What the visitor wants made.</param>
+/// <param name="Photos">The file names of up to 5 photos the visitor will send next, one call each; none when null or empty.</param>
+/// <param name="UploadKey">A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos.</param>
 public sealed record CreateQuoteRequestRequest(
     string? CustomerName,
     string? TeamName,
@@ -21,7 +23,9 @@ public sealed record CreateQuoteRequestRequest(
     string? ProductChoice,
     string? ProductLineKey,
     string? Quantity,
-    string? Message)
+    string? Message,
+    IReadOnlyList<string>? Photos = null,
+    string? UploadKey = null)
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateQuoteRequestRequest Empty { get; } = new(null, null, null, null, null, null, null, null);

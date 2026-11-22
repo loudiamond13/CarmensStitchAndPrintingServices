@@ -44,6 +44,15 @@ public sealed class CreateQuoteRequestRequestValidator : AbstractValidator<Creat
 
         RuleFor(request => request.Message)
             .Must(static text => text is null || text.Trim().Length <= QuoteRequestRules.MessageMaxLength).WithMessage(QuoteRequestRules.MessageTooLong);
+
+        RuleFor(request => request.Photos)
+            .Cascade(CascadeMode.Stop)
+            .Must(static names => names is null || names.Count <= QuoteRequestRules.MaxPhotos).WithMessage(QuoteRequestRules.PhotosTooMany)
+            .Must(static names => names is null || names.All(static name => name is not null)).WithMessage(QuoteRequestRules.PhotosInvalid)
+            .Must(static names => names is null || names.All(static name => name.Length <= QuoteRequestRules.PhotoNameMaxLength)).WithMessage(QuoteRequestRules.PhotoNameTooLong);
+
+        RuleFor(request => request.UploadKey)
+            .Must(static (request, key) => request.Photos is not { Count: > 0 } || QuoteUploadKey.TryHash(key, out _)).WithMessage(QuoteRequestRules.UploadKeyInvalid);
     }
 
     // True when the choice is the "line" key; a bad choice reports on its own field.

@@ -2166,9 +2166,37 @@ export interface paths {
         /**
          * Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
          *     saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
-         *     is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves nothing more.
+         *     is ignored. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
+         *     (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one `photoSlots` entry per
+         *     file and never echoes the key. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves
+         *     nothing more.
          */
         post: operations["CreateQuoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/quote-requests/{id}/photos/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends one photo to a place the request declared, as a multipart form with the file in the `file` part. The header
+         *     `X-Upload-Key` must carry the key sent when the request was saved. The type is read from the first bytes of the file
+         *     (JPG, PNG, WEBP or HEIC), never from its name or content type; the photo's location and camera data is removed and the file
+         *     is kept as sent otherwise, in private storage under the quotes folder. A wrong key, a wrong id, an expired key, a place that
+         *     is outside the declared ones or already filled, and a request marked Spam all answer the same 404, so nothing tells which part
+         *     was wrong. When photo storage fails the request stays saved and the place stays empty. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and stores nothing more.
+         */
+        post: operations["UploadQuotePhoto"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3392,6 +3420,8 @@ export interface components {
             email: null | string;
             /** @description What the visitor wants made. */
             message: null | string;
+            /** @description The file names of up to 5 photos the visitor will send next, one call each; none when null or empty. */
+            photos?: null | string[];
             /** @description `line`, `custom` or `not-sure`; empty when nothing was chosen. */
             productChoice: null | string;
             /** @description The key of the chosen product line, when the choice is `line`. */
@@ -3400,14 +3430,21 @@ export interface components {
             quantity: null | string;
             /** @description The team or organization. */
             teamName: null | string;
+            /** @description A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos. */
+            uploadKey?: null | string;
         };
-        /** @description The answer to a saved quote request. It names the request so the next steps (photos) can refer to it, and nothing more. */
+        /**
+         * @description The answer to a saved quote request. It names the request and the photo places the visitor declared, so each photo can be sent
+         *     to its own place, and nothing more. It holds no secret: the upload key is never sent back.
+         */
         CreateQuoteRequestResponse: {
             /**
              * Format: uuid
              * @description The id of the new request.
              */
             id: string;
+            /** @description One entry per declared photo, in slot order; empty when none were declared. */
+            photoSlots: components["schemas"]["QuotePhotoSlotResponse"][];
         };
         /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
@@ -5456,6 +5493,16 @@ export interface components {
             stars: number | string;
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
+        };
+        /** @description One declared photo place. */
+        QuotePhotoSlotResponse: {
+            /** @description The cleaned file name the visitor declared. */
+            fileName: string;
+            /**
+             * Format: int32
+             * @description The place, from 0 to 4; the photo is sent to `/photos/{slot}`.
+             */
+            slot: number | string;
         };
         /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
@@ -13596,6 +13643,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadQuotePhoto: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Upload-Key"?: string;
+            };
+            path: {
+                /** @description The quote request id from the create answer. */
+                id: string;
+                /** @description The place from the create answer, from 0 to 4. */
+                slot: number;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
