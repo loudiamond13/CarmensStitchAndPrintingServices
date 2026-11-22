@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:15:42-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:40:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -65,6 +65,12 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-31:** **Visitors see the design's "Inquiry" words:** "Inquiry form", "Send Inquiry", "Inquiry sent". The staff side stays "Quote Requests". (owner, 2026-11-21)
 - **D-32:** **The staff alert email leaves the Photos line out when no photos were sent**, the same as every other empty value (D-08). (owner, 2026-11-21)
 - **D-33:** **The alert email subject cuts the visitor's name at 60 characters with "…"**; the body keeps the full name. (owner, 2026-11-21)
+
+### Plan phase rulings (2026-11-21, from 13-RESEARCH OQ-1 to OQ-3 and bot-guard follow-up)
+- **D-34:** **The maintenance cleanup runs daily** (one schedule line in the maintenance workflow, plus its pinned test). Jobs that are meant to be monthly keep their own monthly pace inside the run. This makes D-04 ("within a day") and the 6-month purge true. It reverses Phase 12 D-36 ("stays monthly"). (owner, 2026-11-21)
+- **D-35:** **The quote form loads as its own piece right after the Contact page appears**, into a placeholder of the same size so nothing shifts (CLS). The form keeps the same tools as the admin forms (react-hook-form, the resolver, zod). The form piece gets its own size limit in `build:budget` (about 45 KB gz) so it cannot grow unnoticed. The Contact page itself stays within the 150 KB public limit; no limit is raised. (owner, 2026-11-21)
+- **D-36:** **Staff view quote photos at 2000 pixels on the long side** (the existing `csps_full_2000` size). No new Cloudinary named size and no Cloudinary setup rerun. "Open Full Size" means this view. (owner, 2026-11-21)
+- **D-37:** **A per-sender limit on quote requests: at most 3 a day from the same phone number or the same email**, on top of the per-address limit (D-26), the site-wide hourly ceiling and the staff email cap (D-09). It catches a bot that keeps changing address without blocking people who share a mobile network. The numbers are settings with tests; a request over it sees the same plain D-26 message. (owner, 2026-11-21)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.

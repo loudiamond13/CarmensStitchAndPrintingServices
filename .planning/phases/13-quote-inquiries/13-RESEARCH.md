@@ -1,6 +1,6 @@
 # Phase 13: Quote Inquiries - Research
 
-*Created: 2026-11-21T22:30:00-06:00 · Updated: 2026-11-21T22:30:00-06:00*
+*Created: 2026-11-21T20:33:00-06:00 · Updated: 2026-11-21T20:41:00-06:00*
 
 **Researched:** 2026-11-21
 **Domain:** Anonymous lead capture (form, photos, bot guards), staff inbox, order conversion, retention jobs, on the existing .NET 10 + React 19 CSPS stack
@@ -476,6 +476,8 @@ public static RateLimitRule Default() => new() { PermitLimit = 30, Window = Time
 | A7 | The upload key lifetime of 2 hours is long enough for slow mobile uploads | Pattern 1 | Too short turns slow uploads into missing photos |
 
 ## Open Questions
+
+**Resolved (owner, 2026-11-21):** OQ-1 → D-34 (daily cleanup), OQ-2 → D-35 (form loads as its own piece), OQ-3 → D-36 (keep 2000 px). Bot-guard follow-up → D-37 (3 a day per phone or email). See `13-CONTEXT.md`.
 
 These need the owner (plain words, recommendation first). Record each answer as a dated ruling in `13-CONTEXT.md` (D-34 onward).
 
