@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T19:50:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:15:42-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -58,6 +58,13 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-26:** **When the per-connection rate limit is hit,** the visitor sees a plain message to wait a few minutes or message the shop on Messenger, and the form keeps what they typed. The starting limit is 5 requests an hour per connection; the plan confirms the numbers as settings with tests.
 - **D-27:** **The privacy notice is accurate**, replacing the UI spec's "We never share your details": roughly "We use your details only to reply to this request and prepare your quote. We keep requests that don't become orders for 6 months. See our Privacy Policy." with the link (INQ-08). The planner or UI phase may polish the wording but must not promise more than the site does.
 - **D-28:** **The Privacy Policy is updated in code** (Phase 12 D-10) to say photos are stored with Cloudinary, converted requests are kept with their order (D-22) and spam photos are removed early (D-04). Its version and last-updated date are bumped, and it stays DRAFT until the owner approves it (Phase 12 D-14).
+
+### UI phase rulings (2026-11-21, from 13-UI-SPEC OQ-1 to OQ-3)
+- **D-29:** **The "Quote Requests" menu item uses the inbox tray icon** (`inbox` from the installed lucide-react, registered in `icons.ts`; no new package). Also used on the dashboard strip and the inbox empty state. (owner, 2026-11-21)
+- **D-30:** **Staff phones get a fifth bottom tab "Quotes"** after Orders, carrying the New count, so new leads are seen at a glance. (owner, 2026-11-21)
+- **D-31:** **Visitors see the design's "Inquiry" words:** "Inquiry form", "Send Inquiry", "Inquiry sent". The staff side stays "Quote Requests". (owner, 2026-11-21)
+- **D-32:** **The staff alert email leaves the Photos line out when no photos were sent**, the same as every other empty value (D-08). (owner, 2026-11-21)
+- **D-33:** **The alert email subject cuts the visitor's name at 60 characters with "…"**; the body keeps the full name. (owner, 2026-11-21)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
