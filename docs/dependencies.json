@@ -66,6 +66,16 @@
       "date": "2026-10-31",
       "by": "owner",
       "scope": "Phase 9 package (D-37), approved before install: NuGet CloudinaryDotNet 1.29.3 (MIT, published 2026-08-16, past the 14-day cool-down, no known advisory). It is referenced by Csps.Infrastructure only and needs Newtonsoft.Json, which the project already ships. No other package is added."
+    },
+    {
+      "date": "2026-11-15",
+      "by": "owner",
+      "scope": "Phase 12 package (D-38, open question 3 answer A), approved before install: npm web-vitals 6.2.3 (Apache-2.0, published 2026-10-05, 41 days old on 2026-11-15, no advisories, no install scripts, no dependencies). Loaded only after Visitor stats consent, in its own chunk, with an exact pin. Installed by plan 12-16 on 2026-11-17. No other package is added."
+    },
+    {
+      "date": "2026-11-18",
+      "by": "owner",
+      "scope": "D-59 (Phase 12.1): web-vitals 6.2.3 removed. Uninstalled by plan 12.1-01. No package added."
     }
   ],
   "packages": [

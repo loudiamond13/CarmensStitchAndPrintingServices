@@ -72,7 +72,7 @@ function outputAsset(fileName: string, source: string | Uint8Array): Rollup.Outp
   return { type: 'asset', fileName, source } as unknown as Rollup.OutputAsset;
 }
 
-/** The public layout and the five public pages, each a lazy chunk (PUB-01, RESEARCH P-7). */
+/** The public layout, the eight public pages and the legal loader the three legal routes fetch first, each a lazy chunk (PUB-01, D-42). */
 function publicChunks(): Rollup.OutputChunk[] {
   const lazy = (fileName: string, relative: string): Rollup.OutputChunk =>
     outputChunk(fileName, 'export const b = 2;', {
@@ -86,6 +86,10 @@ function publicChunks(): Rollup.OutputChunk[] {
     lazy('assets/ProductsPage-D5.js', 'src/modules/public/pages/ProductsPage.tsx'),
     lazy('assets/GalleryPage-D6.js', 'src/modules/public/pages/GalleryPage.tsx'),
     lazy('assets/ContactPage-D7.js', 'src/modules/public/pages/ContactPage.tsx'),
+    lazy('assets/legalLoaders-DD.js', 'src/modules/public/legalLoaders.ts'),
+    lazy('assets/PrivacyPolicyPage-D9.js', 'src/modules/public/pages/PrivacyPolicyPage.tsx'),
+    lazy('assets/TermsPage-DB.js', 'src/modules/public/pages/TermsPage.tsx'),
+    lazy('assets/AccessibilityPage-DC.js', 'src/modules/public/pages/AccessibilityPage.tsx'),
     lazy('assets/NotFoundPage-D8.js', 'src/modules/public/pages/NotFoundPage.tsx'),
   ];
 }
@@ -100,6 +104,7 @@ function adminChunks(): Rollup.OutputChunk[] {
     });
   return [
     lazy('assets/QueryRoot-Q5.js', 'src/core/routes/QueryRoot.tsx'),
+    lazy('assets/routes-R6.js', 'src/modules/admin/routes.tsx'),
     lazy('assets/AdminLayout-H8.js', 'src/layouts/AdminLayout.tsx'),
     lazy('assets/UrlStateLayout-I9.js', 'src/lib/url-state/UrlStateLayout.tsx'),
     lazy('assets/SessionsPage-J1.js', 'src/modules/admin/pages/SessionsPage.tsx'),
@@ -218,6 +223,9 @@ describe('budgetPlugin (PERF-01)', () => {
       'products',
       'gallery',
       'contact',
+      'privacy',
+      'terms',
+      'accessibility',
       'notFound',
     ]);
     expect(Object.values(summary.publicRoutes as Record<string, number>).every((bytes) => bytes > 0)).toBe(true);
@@ -235,8 +243,8 @@ describe('budgetPlugin (PERF-01)', () => {
     const plugin = budgetPlugin({ build: 'production', reportDir });
     await expect(generate(plugin, 'production', bundle(incompressible(200_000)), { info: [] })).rejects.toThrow();
     const summary = JSON.parse(readFileSync(path.join(reportDir, 'budget.json'), 'utf8')) as { errors: string[] };
-    // The 200 KB entry is part of every public page, so each of the five pages is over its limit.
-    expect(summary.errors).toHaveLength(5);
+    // The 200 KB entry is part of every public page, so each of the eight pages is over its limit.
+    expect(summary.errors).toHaveLength(8);
     expect(summary.errors.every((error) => error.startsWith('public JS ('))).toBe(true);
   });
 
@@ -283,10 +291,18 @@ describe('budgetPlugin (PERF-01)', () => {
     );
   });
 
-  it('lets the guarded admin app ship code in the production build (D-20 reversed in Phase 4)', async () => {
+  it('lets the guarded admin app ship code in the production build, the route table in its own lazy chunk (D-20 reversed in Phase 4, D-42)', async () => {
+    const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
+    const output = bundle('export const main = 1;');
+    await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+  });
+
+  it('fails the production build when the admin route table sits in the public entry (D-42, PERF-02)', async () => {
     const plugin = budgetPlugin({ build: 'production', reportDir: temporaryDirectory() });
     const output = bundle('export const main = 1;', { [`${ROOT}/src/modules/admin/routes.tsx`]: 120 });
-    await expect(generate(plugin, 'production', output, { info: [] })).resolves.toBeUndefined();
+    await expect(generate(plugin, 'production', output, { info: [] })).rejects.toThrow(
+      /The public initial JS \(assets\/index-A1\.js\) contains src\/modules\/admin\/routes\.tsx/,
+    );
   });
 
   it('fails the production build when a dev-only module ships code', async () => {

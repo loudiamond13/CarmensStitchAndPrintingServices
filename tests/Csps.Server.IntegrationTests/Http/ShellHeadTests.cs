@@ -904,6 +904,83 @@ public sealed partial class ShellHeadTests(CspsDatabase database) : IClassFixtur
         new PublicLinePhotosDto(null, null, null),
         true);
 
+    [Theory]
+    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.")]
+    [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.")]
+    [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.")]
+    public async Task ALegalPageSendsItsTitleAndLeadAndIsKeptOutOfSearchResultsWhileDraft(string path, string title, string lead)
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(Site(tagline: "Sample tagline")), new ApprovedLegalPages());
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        body.ShouldContain($"<title>{title}</title>", Case.Sensitive, path);
+        Meta(body, "name", "description").ShouldBe(lead, path);
+        Meta(body, "property", "og:description").ShouldBe(lead, path);
+        Meta(body, "name", "robots").ShouldBe("noindex, nofollow", path);
+    }
+
+    // The draft flag is a literal here and in SeoEndpointTests.DefaultSitemapLocs on purpose: the owner approving the Privacy Policy (D-73)
+    // means editing both, so the change is seen.
+    [Theory]
+    [InlineData("/privacy", "Privacy Policy · CSPS", "How we collect, use and protect your personal information, and your rights under the Data Privacy Act of 2012.", false)]
+    [InlineData("/terms", "Terms of Use · CSPS", "The rules for using this website and asking us for a quote.", false)]
+    [InlineData("/accessibility", "Accessibility Statement · CSPS", "We want everyone to be able to use this website. Here is what we do, and how to tell us about a problem.", false)]
+    public async Task ALegalPageSendsItsTitleAndLeadAndItsRobotsMetaMatchesTheKnownApprovalState(string path, string title, string lead, bool draft)
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        body.ShouldContain($"<title>{title}</title>", Case.Sensitive, path);
+        Meta(body, "name", "description").ShouldBe(lead, path);
+        Meta(body, "property", "og:description").ShouldBe(lead, path);
+        Meta(body, "name", "robots").ShouldBe(draft ? "noindex, nofollow" : null, path);
+    }
+
+    [Fact]
+    public async Task ApprovingOneLegalPageRemovesItsNoindexAndLeavesTheOthersMarked()
+    {
+        await using var factory = new ShellTestFactory(new StubPublicContentReader(Site(tagline: "Sample tagline")), new ApprovedLegalPages("/terms"));
+        using var client = factory.CreateClient();
+
+        Meta(await GetBodyAsync(client, "/terms"), "name", "robots").ShouldBeNull();
+        Meta(await GetBodyAsync(client, "/privacy"), "name", "robots").ShouldBe("noindex, nofollow");
+        Meta(await GetBodyAsync(client, "/accessibility"), "name", "robots").ShouldBe("noindex, nofollow");
+    }
+
+    [Fact]
+    public async Task TheOldCookiePolicyPathIsNotFound()
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/cookies", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Headers.Location.ShouldBeNull();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldContain("<title>Page Not Found · CSPS</title>", Case.Sensitive);
+        Meta(body, "name", "robots").ShouldBe("noindex, nofollow");
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    public async Task APageThatIsNotLegalCarriesNoRobotsMeta(string path)
+    {
+        await using var factory = FactoryFor(Site(tagline: "Sample tagline"));
+        using var client = factory.CreateClient();
+
+        var body = await GetBodyAsync(client, path);
+
+        Meta(body, "name", "robots").ShouldBeNull(path);
+    }
+
     private static ShellTestFactory FactoryFor(PublicSiteDto site) => new(new StubPublicContentReader(site));
 
     private static PublicSiteDto Site(string tagline) => StubPublicContentReader.Site("Sample Shop", tagline);

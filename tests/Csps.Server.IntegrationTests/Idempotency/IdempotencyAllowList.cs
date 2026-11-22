@@ -48,6 +48,7 @@ public static class IdempotencyAllowList
         new("POST /api/v1/auth/password/set-new/check", "Read-only lookup; changes nothing.", Decision),
         new("POST /api/v1/auth/password/set-new", "The answer carries an access token and sets the refresh cookie; the pending ticket is single-use, so a repeat cannot set the password twice.", Decision),
         new("POST /api/v1/maintenance/run", "A scheduled machine call with no body; each run is guarded by a database lease, so a repeat is harmless.", Decision),
+        new("POST /api/v1/analytics/page-views", "An analytics beacon: a repeat only adds one page view, and beacons are exempt by SEC-06.", Decision),
     ];
 
     // The Testing-only staff, expense, order and photo-failure fixtures exist in Debug builds in the Testing environment only (QUAL-05).
@@ -58,6 +59,7 @@ public static class IdempotencyAllowList
             new("POST /api/testing/expenses", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/orders", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/site-content", "Testing-only test data, compiled out of Release.", Decision),
+            new("POST /api/testing/analytics", "Testing-only test data, compiled out of Release.", Decision),
             new("POST /api/testing/images/fail-next", "Testing-only test switch, compiled out of Release.", Decision),
         ]
         : [];

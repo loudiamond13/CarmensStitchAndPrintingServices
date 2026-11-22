@@ -44,7 +44,8 @@ for (const path of ['/', '/dev/components']) {
   }) => {
     const response = await page.goto(path);
     expect(response?.status()).toBe(200);
-    await expect(page.locator('h1')).toHaveCount(1);
+    // The showcase takes WebKit 6 to 10 s to show its h1, longer than the 5 s default.
+    await expect(page.locator('h1')).toHaveCount(1, { timeout: 20_000 });
 
     const skip = page.getByRole('link', { name: 'Skip to main content' }).first();
     expect(await page.evaluate(FIRST_FOCUSABLE_TEXT)).toBe('Skip to main content');

@@ -201,6 +201,10 @@ export const HOST_ENV = Object.freeze({
   RateLimits__Auth__Refresh__PermitLimit: NO_THROTTLE,
   // The Phase 9 pictures upload about 80 photos from this one address (30 per 10 minutes in production, IMG-02).
   RateLimits__Images__PermitLimit: NO_THROTTLE,
+  // The review pages send a beacon on every page view from this one address too (120 a minute in production, ANL-06).
+  RateLimits__AnalyticsCollect__PermitLimit: NO_THROTTLE,
+  // The one site-wide page view ceiling (600 a minute in production, D-51) is lifted too: all review pages share one address.
+  RateLimits__AnalyticsCeiling__PermitLimit: NO_THROTTLE,
 });
 // The Development host also loads the build-time static web assets manifest, whose wwwroot files would win over
 // --webroot; a manifest path that never exists turns that loader off for this host only (playwright.config.ts).

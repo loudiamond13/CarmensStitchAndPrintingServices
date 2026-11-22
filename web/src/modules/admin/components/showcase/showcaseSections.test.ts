@@ -17,7 +17,7 @@ function scenario(id: string, group: string): Scenario {
 }
 
 describe('scenariosBySection', () => {
-  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos, Dashboard and staff money and Site content and public website', () => {
+  it('lists the sections in the UI-SPEC order, then Navigation, Marketing, Sign-in and devices, Staff and audit, Expenses and settings, Orders, Order photos, Dashboard and staff money, Site content and public website, Visitor stats and Legal', () => {
     expect(SHOWCASE_SECTIONS.map((section) => section.title)).toEqual([
       'Brand & icons',
       'Buttons',
@@ -35,6 +35,8 @@ describe('scenariosBySection', () => {
       'Order photos',
       'Dashboard and staff money',
       'Site content and public website',
+      'Visitor stats',
+      'Legal',
     ]);
   });
 
@@ -43,6 +45,12 @@ describe('scenariosBySection', () => {
 
     expect(section?.groups).toEqual([]);
     expect(scenariosBySection(scenarios).get('site-content')).toEqual([]);
+  });
+
+  it('gives the Legal section only the legal notice scenario', () => {
+    const legal = scenariosBySection(scenarios).get('legal');
+
+    expect(legal?.map((item) => item.id)).toEqual(['legal-notice']);
   });
 
   it('places every scenario of the shared list once, except the whole-page layouts', () => {

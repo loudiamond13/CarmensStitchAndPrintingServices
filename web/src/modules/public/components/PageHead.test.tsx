@@ -66,6 +66,27 @@ describe('PageHead (UI-SPEC Component Inventory, App. E.2)', () => {
     expect(container.querySelector('section')?.className.split(' ')).toContain('pb-12');
   });
 
+  it('puts the notice slot first, above the breadcrumb', () => {
+    const { container } = renderHead({ crumb: 'Products', notice: <p>A notice.</p> });
+    const wrap = container.querySelector('section > div');
+    expect(wrap?.firstElementChild).toHaveTextContent('A notice.');
+    expect(wrap?.children[1]?.tagName).toBe('NAV');
+  });
+
+  it('puts the meta slot under the h1 and before the lead', () => {
+    renderHead({ lead: 'A lead.', meta: <p>Some meta.</p> });
+    const h1 = screen.getByRole('heading', { level: 1 });
+    const meta = screen.getByText('Some meta.');
+    const lead = screen.getByText('A lead.');
+    expect(h1.nextElementSibling).toBe(meta);
+    expect(meta.nextElementSibling).toBe(lead);
+  });
+
+  it('leaves both slots out when none is given', () => {
+    const { container } = renderHead({ crumb: 'Products' });
+    expect(container.querySelector('section > div')?.firstElementChild?.tagName).toBe('NAV');
+  });
+
   it('has no style attribute (strict CSP) and no axe violations', async () => {
     const { container } = renderHead({ crumb: 'Products', lead: 'A lead.', actions: <a href="/">Home</a> });
     expect(container.querySelector('[style]')).toBeNull();

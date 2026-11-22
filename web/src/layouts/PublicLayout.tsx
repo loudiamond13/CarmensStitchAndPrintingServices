@@ -22,9 +22,11 @@ import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation/SiteHeader';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { usePageViewBeacon } from '@/modules/public/hooks/usePageViewBeacon';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicOutletContext } from '@/modules/public/outletContext';
 import { tw } from '@/ui/tw';
+import { withoutTrailingSlash } from '@/utils/urlPath';
 
 // The sticky bar loads as its own chunk, only on /contact, so the other pages never carry it (public bundle budget, PERF-01).
 const ContactBarSlot = lazy(() => import('@/modules/public/components/ContactBarSlot'));
@@ -44,14 +46,16 @@ const productsBarClasses = tw('[:root:has(&)]:[--bar-top:69px]');
 
 /** The label of the header link for `pathname`, or '' (no link current) for any other path. */
 function currentSiteLink(pathname: string): string {
-  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+  const path = withoutTrailingSlash(pathname);
   return SITE_LINKS.find((link) => link.to === path)?.label ?? '';
 }
 
 export function PublicLayout() {
   const { pathname } = useLocation();
+  usePageViewBeacon(pathname);
   const link = currentSiteLink(pathname);
   const onContact = link === 'Contact';
+  const showContactBar = onContact;
   const onBarPage = link === 'Products' || link === 'Gallery';
   const site = useSiteQuery();
   const outletContext: PublicOutletContext = {
@@ -73,13 +77,13 @@ export function PublicLayout() {
             'min-h-[calc(100dvh-var(--header-height))]',
             topScrollPaddingClasses,
             onBarPage && productsBarClasses,
-            onContact && contactScrollPaddingClasses,
+            showContactBar && contactScrollPaddingClasses,
           )}
         >
           <Outlet context={outletContext} />
         </main>
         <SiteFooter variant={fullFooter ? 'full' : 'base'} />
-        {onContact && (
+        {showContactBar && (
           <Suspense fallback={null}>
             <ContactBarSlot />
           </Suspense>

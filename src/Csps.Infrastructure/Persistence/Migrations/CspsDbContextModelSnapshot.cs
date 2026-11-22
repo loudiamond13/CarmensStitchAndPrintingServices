@@ -22,6 +22,237 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsPageView", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PageKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDay");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("AnalyticsPageViews", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsSalt", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<byte[]>("Salt")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.HasKey("BusinessDay");
+
+                    b.ToTable("AnalyticsSalts", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsVisit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Browser")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<byte>("Device")
+                        .HasColumnType("tinyint");
+
+                    b.Property<byte[]>("IpHash")
+                        .HasColumnType("binary(32)");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Os")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("PageViews")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Referrer")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(253)");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("VisitorHash")
+                        .IsRequired()
+                        .HasColumnType("binary(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BusinessDay");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("BusinessDay"), new[] { "VisitorHash", "Referrer", "Device", "Browser" });
+
+                    b.HasIndex("VisitorHash", "LastSeenAtUtc");
+
+                    b.ToTable("AnalyticsVisits", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsVitalSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<byte>("Metric")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("PageKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(9, 3)
+                        .HasColumnType("decimal(9,3)");
+
+                    b.Property<Guid>("VisitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VisitId");
+
+                    b.HasIndex("BusinessDay", "Metric", "Value");
+
+                    b.ToTable("AnalyticsVitalSamples", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.ConsentRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConsentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("DecidedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("Gpc")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Map")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<byte>("Source")
+                        .HasColumnType("tinyint");
+
+                    b.Property<bool?>("Stats")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecidedAtUtc");
+
+                    b.ToTable("ConsentRecords", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyDeviceCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<byte>("Dimension")
+                        .HasColumnType("tinyint");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("Visits")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "Dimension", "Name");
+
+                    b.ToTable("DailyDeviceCounts", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyPageCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PageKey")
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "PageKey");
+
+                    b.ToTable("DailyPageCounts", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.DailyReferrerCount", b =>
+                {
+                    b.Property<DateOnly>("BusinessDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Referrer")
+                        .HasMaxLength(253)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(253)");
+
+                    b.Property<int>("Visits")
+                        .HasColumnType("int");
+
+                    b.HasKey("BusinessDay", "Referrer");
+
+                    b.ToTable("DailyReferrerCounts", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.Auditing.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -3068,6 +3299,24 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsPageView", b =>
+                {
+                    b.HasOne("Csps.Domain.Analytics.AnalyticsVisit", null)
+                        .WithMany()
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.Analytics.AnalyticsVitalSample", b =>
+                {
+                    b.HasOne("Csps.Domain.Analytics.AnalyticsVisit", null)
+                        .WithMany()
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Csps.Domain.Content.GalleryEntry", b =>

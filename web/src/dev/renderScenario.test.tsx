@@ -1,8 +1,12 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { MemoryRouter } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { kit as appKit } from './kit';
 import { renderNode, type Kit } from './renderScenario';
-import { scenarioById } from './scenarios';
+import { scenarioById, scenarios } from './scenarios';
 import type { ScenarioNode } from './scenarios/types';
 
 afterEach(cleanup);
@@ -67,5 +71,145 @@ describe('renderNode', () => {
   it('renders a visible alert for a component the kit does not have', () => {
     render(renderNode(kit, node('Nope'), []));
     expect(screen.queryByRole('alert')?.textContent).toBe('Missing component: Nope');
+  });
+});
+
+/** Renders a scenario with the real kit, as the showcase does, inside a router for the public links. */
+function renderCase(id: string) {
+  const scenario = scenarioById(id);
+  return render(<MemoryRouter>{renderNode(appKit, scenario.node, scenario.handlers ?? [])}</MemoryRouter>);
+}
+
+function idsOf(group: string): string[] {
+  return scenarios.filter((scenario) => scenario.group === group).map((scenario) => scenario.id);
+}
+
+/** The field names of every bucket of a VisitorTrendChart scenario, sorted, as one text per bucket. */
+function bucketFields(id: string): string[] {
+  const buckets = scenarioById(id).node.props?.buckets;
+  return Array.isArray(buckets) ? buckets.map((bucket: object) => Object.keys(bucket).sort().join(',')) : [];
+}
+
+const requests: string[] = [];
+let fetchSpy: MockInstance<typeof fetch>;
+
+beforeEach(() => {
+  requests.length = 0;
+  server.events.on('request:start', ({ request }) => {
+    requests.push(request.url);
+  });
+  fetchSpy = vi.spyOn(globalThis, 'fetch');
+});
+
+afterEach(() => {
+  server.events.removeAllListeners();
+  fetchSpy.mockRestore();
+});
+
+// Axe runs over every case: a busy machine needs more than the 5 s default.
+vi.setConfig({ testTimeout: 30_000 });
+
+const VISITOR_STATS_CASES = [
+  'visitor-trend-30-days',
+  'visitor-trend-12-months',
+  'stat-bar-list-empty',
+  'stat-bar-list-one',
+  'stat-bar-list-ten',
+  'visitor-stats-no-visits',
+  'visitor-stats-load-error',
+  'visitor-stats-stale',
+];
+
+describe('the Visitor Stats scenarios (plan 12-29)', () => {
+  it('lists every Visitor Stats state in the visitor-stats group, in both themes, as SPEC-GAP cases', () => {
+    expect(idsOf('visitor-stats').length).toBe(VISITOR_STATS_CASES.length);
+    expect(idsOf('visitor-stats')).toEqual(VISITOR_STATS_CASES);
+    for (const id of VISITOR_STATS_CASES) {
+      const scenario = scenarioById(id);
+      expect(scenario.themes, id).toEqual(['light', 'dark']);
+      expect(scenario.parity, id).toBe(false);
+    }
+  });
+
+  it.each(VISITOR_STATS_CASES)('%s renders with no axe findings and sends nothing', async (id) => {
+    expect(idsOf('visitor-stats')).toContain(id);
+    const { container } = renderCase(id);
+    expect(container.textContent).not.toContain('Missing component');
+    await expectNoAxeViolations(container);
+    expect(requests).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('draws the trend with 30 day bars and 12 month bars, page views only', () => {
+    expect(idsOf('visitor-stats')).toContain('visitor-trend-30-days');
+    const days = renderCase('visitor-trend-30-days').container;
+    expect(days.querySelectorAll('[data-bucket]')).toHaveLength(30);
+    expect(days.querySelectorAll('circle')).toHaveLength(0);
+    expect([...new Set(bucketFields('visitor-trend-30-days'))]).toEqual(['pageViews,start']);
+    cleanup();
+
+    const months = renderCase('visitor-trend-12-months').container;
+    expect(months.querySelectorAll('[data-bucket]')).toHaveLength(12);
+    expect([...new Set(bucketFields('visitor-trend-12-months'))]).toEqual(['pageViews,start']);
+  });
+
+  it('shows StatBarList with no rows, one row and ten rows', () => {
+    expect(idsOf('visitor-stats')).toContain('stat-bar-list-empty');
+    renderCase('stat-bar-list-empty');
+    expect(screen.getByText('No pages were opened in these dates.')).toBeInTheDocument();
+    cleanup();
+
+    renderCase('stat-bar-list-one');
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    cleanup();
+
+    renderCase('stat-bar-list-ten');
+    expect(screen.getAllByRole('listitem')).toHaveLength(10);
+  });
+
+  it('shows the no-visits state, the failed read and the failed refresh', () => {
+    expect(idsOf('visitor-stats')).toContain('visitor-stats-no-visits');
+    renderCase('visitor-stats-no-visits');
+    expect(screen.getByRole('heading', { level: 2, name: 'No page views in these dates' })).toBeInTheDocument();
+    cleanup();
+
+    renderCase('visitor-stats-load-error');
+    expect(screen.getByText("Couldn't load the visitor stats.")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    cleanup();
+
+    renderCase('visitor-stats-stale');
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toBe("Showing figures from 9:41 AM. Couldn't refresh.");
+    expect(within(alert.parentElement ?? alert).getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+  });
+});
+
+const LEGAL_CASES = ['legal-notice'];
+
+describe('the legal scenarios (plan 12-29, D-54)', () => {
+  it('lists only the DRAFT notice in the legal group, Blush only, and no consent group', () => {
+    expect(idsOf('legal')).toEqual(LEGAL_CASES);
+    expect(idsOf('consent')).toEqual([]);
+    for (const id of LEGAL_CASES) {
+      const scenario = scenarioById(id);
+      expect(scenario.themes, id).toEqual(['light']);
+      expect(scenario.parity, id).toBe(false);
+      expect(scenario.frame, id).toBeUndefined();
+    }
+  });
+
+  it('names no cookie bar or Cookie Settings preview in any scenario', () => {
+    const named = scenarios.map((scenario) => scenario.node.component);
+    expect(named.filter((name) => name === 'StaticConsentBar' || name === 'OpenedCookieSettings')).toEqual([]);
+  });
+
+  it.each(LEGAL_CASES)('%s settles with no axe findings and sends nothing', async (id) => {
+    const { container } = renderCase(id);
+    expect(container.textContent).not.toContain('Missing component');
+    expect((await screen.findAllByText('Draft: this text is not final yet.')).length).toBeGreaterThan(0);
+    await expectNoAxeViolations(container);
+    expect(requests).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

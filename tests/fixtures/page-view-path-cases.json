@@ -1,0 +1,5 @@
+{
+  "maxLength": 2048,
+  "accept": ["/", "/gallery", "/privacy//", "/gallery?q=jersey#top", "/admin", "//products", "/a b"],
+  "refuse": ["", "gallery", "?q=jersey", "#top", " /gallery", "\\gallery"]
+}

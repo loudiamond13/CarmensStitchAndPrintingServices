@@ -7,6 +7,14 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { buildCss } from '../../scripts/class-gate.mjs';
 import { barClasses, barPrimaryClasses, barSecondaryClasses } from '../modules/public/components/contact.recipe';
+import {
+  articleClasses,
+  articleGridClasses,
+  noticeClasses,
+  noticeLabelClasses,
+  noticeSmallClasses,
+  tocWideClasses,
+} from '../modules/public/components/legal.recipe';
 
 const srcDir = fileURLToPath(new URL('../', import.meta.url));
 const publicDir = join(srcDir, 'modules', 'public');
@@ -166,5 +174,78 @@ describe('public spacing tokens (11-UI-REVIEW N-02)', () => {
 describe('public copy (11-UI-REVIEW N-01)', () => {
   it('names nothing with a string-literal aria-label in public TSX: labels come from the copy module', () => {
     expect(hitsOf(/aria-label=(?:"|\{\s*['"`])/, (name) => name.endsWith('.tsx'))).toEqual([]);
+  });
+});
+
+const legalRecipe = publicSources.find(({ name }) => name.endsWith('/legal.recipe.ts'))?.source ?? '';
+
+/** The WCAG relative luminance of a #rrggbb colour. */
+function luminance(hex: string): number {
+  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) => {
+    const channel = parseInt(hex.slice(at, at + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string): number {
+  const [hi = 0, lo = 0] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** A #rrggbb token of the light block of base.css, which comes before the dark block. */
+function lightToken(name: string): string {
+  const light = baseCss.slice(0, baseCss.indexOf('[data-theme="dark"]'));
+  return new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`).exec(light)?.[1] ?? '';
+}
+
+describe('legal page look (12-UI-REVIEW)', () => {
+  it('names the reading width as --spacing-reading, 640px', async () => {
+    expect(appCss).toMatch(/--spacing-reading:\s*640px;/);
+    expect(legalRecipe).not.toMatch(/\[[^\]]*640px[^\]]*\]/);
+    const css = compact(await buildCss(['max-w-reading']));
+    expect(css).toContain('max-width:var(--spacing-reading)');
+    expect(css).toContain('--spacing-reading:640px');
+  });
+
+  it('gives the DRAFT notice and the article the reading width token', () => {
+    expect(noticeClasses.split(/\s+/)).toContain('max-w-reading');
+    expect(articleClasses.split(/\s+/)).toContain('max-w-reading');
+  });
+
+  it('uses the reading width token as the article column of the grid', async () => {
+    expect(articleGridClasses).toContain('grid-cols-[240px_minmax(0,var(--spacing-reading))]');
+    const css = compact(await buildCss(['grid-cols-[240px_minmax(0,var(--spacing-reading))]']));
+    expect(css).toContain('grid-template-columns:240pxminmax(0,var(--spacing-reading))');
+  });
+
+  it('bounds the wide table of contents to the viewport under its sticky offset and scrolls it', async () => {
+    const css = compact(await buildCss(tocWideClasses.split(/\s+/)));
+    const offset = /top:calc\(([^;]+)\);/.exec(css)?.[1];
+    expect(offset).toBe('var(--header-height)+var(--space-6)-var(--space-1)');
+    expect(css).toContain('max-height:calc(100dvh-var(--header-height)-var(--space-6)+var(--space-1))');
+    expect(css).toContain('overflow-y:auto');
+    expect(css).toContain('overscroll-behavior:contain');
+  });
+
+  it('pads the wide table of contents by the focus ring width and takes it back with a margin, so no ring is clipped', async () => {
+    const tokens = tocWideClasses.split(/\s+/);
+    expect(tokens).toEqual(expect.arrayContaining(['-m-1', 'p-1']));
+    const css = compact(await buildCss(['-m-1', 'p-1']));
+    expect(css).toContain('margin:calc(var(--spacing)*-1)');
+    expect(css).toContain('padding:var(--spacing)');
+    expect(css).toContain('--spacing:4px');
+    // The ring is a 2px outline 2px out (base.css): 4px, which is also --space-1 in the sticky offset.
+    expect(baseCss).toMatch(/:focus-visible\s*\{\s*outline:\s*2px[^;]*;\s*outline-offset:\s*2px;/);
+    expect(baseCss).toMatch(/--space-1:\s*4px/);
+  });
+
+  it('keeps the DRAFT notice text at least 4.5:1 on its ground (guard)', () => {
+    expect(noticeClasses.split(/\s+/)).toContain('bg-warning-soft');
+    expect(noticeLabelClasses.split(/\s+/)).toContain('text-ink');
+    expect(noticeSmallClasses.split(/\s+/)).toContain('text-ink-muted');
+    const ground = lightToken('--warning-soft');
+    expect(contrast(lightToken('--ink-muted'), ground)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(lightToken('--ink'), ground)).toBeGreaterThanOrEqual(4.5);
   });
 });

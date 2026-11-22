@@ -161,6 +161,26 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task TheRunAnswerListsTheDailyPageCountsLineAfterThePurgeLinesAndNoRollUpLine()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
+        using var client = factory.CreateClient();
+
+        using var response = await RunAsync(client, TestKey);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        document.RootElement.GetProperty("ok").GetBoolean().ShouldBeTrue();
+        var labels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
+        labels.ShouldContain("Old daily page counts removed");
+        labels.IndexOf("Old daily page counts removed").ShouldBeGreaterThan(labels.IndexOf("Old sent emails removed"));
+        labels.ShouldNotContain("Visitor days rolled up");
+    }
+
+    [Fact]
     public async Task NinetyPercentOfTheFreePlanMakesTheRunNotOkAndSaysSo()
     {
         await database.ResetAsync();

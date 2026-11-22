@@ -9,9 +9,9 @@ import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { collectConsole } from '@/test/consoleGuard';
 import { AdminRootErrorBoundary, AdminRouteErrorBoundary, ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
-import { lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
+import { discoverRoutes, lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
 import { AdminPreviewRoute } from '@/modules/admin/pages/AdminPreviewPage';
-import { devRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/devRoutes';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@/modules/admin/services/session';
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
@@ -124,7 +124,8 @@ function expectOnlyReportsOf(error: Error): void {
 
 /** The dev route tree in a memory router at `path`, settled once the page's h1 is on screen. */
 async function renderAt(path: string) {
-  const router = createMemoryRouter(devTree(), { initialEntries: [path] });
+  // The admin table (the sign-in screens) arrives through discovery, as in the app (D-42).
+  const router = createMemoryRouter(devTree(), { initialEntries: [path], patchRoutesOnNavigation: discoverRoutes });
   const view = render(<RouterProvider router={router} />);
   // The first render transforms the lazy route modules on demand, which can take over the default 1 s in a full run.
   await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
@@ -210,7 +211,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(screen.getAllByText('Carmen Reyes').length).toBeGreaterThan(0);
   });
 
-  it('gives the Manager My Money after Company Expenses and an Audit Log, a Settings and a Site Content item after Users in the sidebar and the drawer, but no tab (D-39, D-40, OQ-2, OQ-3, D-27)', async () => {
+  it('gives the Manager My Money after Company Expenses and an Audit Log, a Settings, a Site Content and a Visitor Stats item after Users in the sidebar and the drawer, but no tab (D-39, D-40, OQ-2, OQ-3, D-27, D-23)', async () => {
     await renderAt('/admin');
     const labels = within(sidebarNav())
       .getAllByRole('link')
@@ -224,12 +225,14 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
       'Audit Log',
       'Settings',
       'Site Content',
+      'Visitor Stats',
       'My Profile',
     ]);
     expect(sidebarLink('My Money')).toHaveAttribute('href', '/admin/money');
     expect(sidebarLink('Audit Log')).toHaveAttribute('href', '/admin/audit-log');
     expect(sidebarLink('Settings')).toHaveAttribute('href', '/admin/settings');
     expect(sidebarLink('Site Content')).toHaveAttribute('href', '/admin/site-content');
+    expect(sidebarLink('Visitor Stats')).toHaveAttribute('href', '/admin/visitor-stats');
 
     await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
     const drawer = screen.getByRole('dialog', { name: 'Navigation' });
@@ -237,6 +240,10 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(within(drawer).getByRole('link', { name: /^Audit Log/ })).toHaveAttribute('href', '/admin/audit-log');
     expect(within(drawer).getByRole('link', { name: /^Settings/ })).toHaveAttribute('href', '/admin/settings');
     expect(within(drawer).getByRole('link', { name: /^Site Content/ })).toHaveAttribute('href', '/admin/site-content');
+    expect(within(drawer).getByRole('link', { name: /^Visitor Stats/ })).toHaveAttribute(
+      'href',
+      '/admin/visitor-stats',
+    );
 
     const tabBar = document.querySelectorAll('nav[aria-label="Admin"]');
     const tabs = [...tabBar].filter((nav) => !nav.closest('aside'));
@@ -832,7 +839,10 @@ describe('AdminLayout user menu (spec §6.6; SPEC-GAP UserMenu, plan 02-32)', ()
         return new HttpResponse(null, { status: 204 });
       }),
     );
-    const router = createMemoryRouter(routes, { initialEntries: ['/admin/sessions'] });
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/admin/sessions'],
+      patchRoutesOnNavigation: discoverRoutes,
+    });
     render(<RouterProvider router={router} />);
     expect(await screen.findByText('Safari on iPhone', undefined, { timeout: 5000 })).toBeInTheDocument();
     await userEvent.click(userButton());

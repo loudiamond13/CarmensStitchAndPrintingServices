@@ -1,3 +1,4 @@
+using Csps.Server.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -53,6 +54,8 @@ internal sealed class RealLimitsFactory : CspsApiFactory
 
         builder.UseSetting("RateLimits:Images:PermitLimit", "30");
         builder.UseSetting("RateLimits:PublicRead:PermitLimit", "600");
+        builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", AnalyticsCollectRateLimit.Default().PermitLimit.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        builder.UseSetting("RateLimits:AnalyticsCeiling:PermitLimit", AnalyticsCeilingRateLimit.Default().PermitLimit.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
         if (RemoteIpFromHeader)
         {

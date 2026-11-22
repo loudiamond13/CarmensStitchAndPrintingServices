@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-03T09:00:00-06:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-18T19:15:00-06:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -95,6 +95,21 @@ Order photos are stored in the shop's own Cloudinary account. The owner approved
 - **Old enough and clean.** Version 1.29.3 was published on 2026-08-16, well past the 14-day wait. At install time (2026-11-03) NuGet showed it as listed, not deprecated and with no known security problem, and the GitHub advisory list had nothing for it.
 - **One project only.** Only `Csps.Infrastructure` refers to it. A test (`LayerTests`) fails if `Csps.Application` or `Csps.Domain` ever do.
 - **One helper library.** It needs Newtonsoft.Json (MIT), which the project already ships. The test and tool projects resolve it at the lowest version Cloudinary allows (13.0.3, no known problem); the app itself keeps 13.0.4.
+
+## Phase 12 package: web-vitals for page speed (approved 2026-11-15, removed 2026-11-18)
+
+**Removed on 2026-11-18 by the owner's ruling D-59 (Phase 12.1, plan 12.1-01).** The browser no longer measures page speed, so `web-vitals` is uninstalled and has no entry in the package list. The removal is a dated row under `approvals` in `docs/dependencies.json`. The text below is kept as history of what was approved and why.
+
+The stats page could show how fast the site felt on visitors' own phones. The owner approved the one package below on **2026-11-15** (decision D-38, open question 3, answer A), before anything was installed. It was recorded under `approvals` in `docs/dependencies.json`.
+
+| Package | What it does for the shop | License |
+|---------|---------------------------|---------|
+| web-vitals 6.2.3 | Google's own small library. It reads how fast the main picture appears (LCP), how much the page jumps while loading (CLS) and how quickly the page answers a tap (INP). | Apache-2.0 |
+
+- **Free.** Apache-2.0 is on the allowed list: free to use in a business. We only keep the author's notice in `web/THIRD-PARTY-NOTICES.txt`.
+- **Old enough and clean.** Version 6.2.3 was published on 2026-10-05, so it was 43 days old when it was installed on 2026-11-17. It is the latest version. It is not deprecated, has no install script and needs no other package. The npm advisory list had nothing for it, and the npm audit after the install names no web-vitals advisory.
+- **Only with a yes.** It loads only after the visitor allows "Visitor stats", in its own file, so it is never part of the first download. Before a choice, after Reject All and under Global Privacy Control, the browser never asks for it and nothing is sent.
+- **Nothing third party runs.** The code is bundled into the site's own files, so the strict content security policy does not change.
 
 ## A bundled list of common passwords (approved 2026-10-14)
 

@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-15T15:50:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T13:10:00-06:00*
 
 ## Overview
 
@@ -64,7 +64,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 9: Order Images & Maintenance Jobs** - Server-signed Cloudinary uploads, accessible reorder/cover, responsive delivery, cleanup job framework
 - [x] **Phase 10: Admin Dashboard** - Greeting, KPIs, income vs expenses chart, orders by status, recent orders, staff money on hand and coworker transfers (completed 2026-11-13)
 - [ ] **Phase 11: Public Site & Content Management** - Home/Products/Gallery/Contact from database content, OG/JSON-LD in server HTML, Manager content editing
-- [ ] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages
+- [x] **Phase 12: Consent, Analytics & Legal** - Cookie consent with GPC and clear-my-data, consented analytics, metrics dashboard, DRAFT legal pages (completed 2026-11-21)
 - [ ] **Phase 13: Quote Inquiries** - Get a Quote form with safe attachments, staff notification, admin inbox, convert to order, retention
 - [ ] **Phase 14: Hardening & Release Readiness** - Full security review and ZAP, manual accessibility passes, PWA, View Transitions, runbooks and DSR/breach procedures
 - [ ] **Phase 15: Legacy Discovery & Mapping** - Read-only restore, `LEGACY-SCHEMA.md`, owner-approved `LEGACY-MAPPING.md`
@@ -1266,10 +1266,10 @@ Plans:
 ### Phase 12: Consent, Analytics & Legal
 
 **Goal**: Visitors get a fair cookie choice and can wipe their data. Managers see visitor metrics that respect privacy. Visitors can read versioned legal pages marked DRAFT.
-**Mode:** mvp
+**Amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18):** Phase 12 and Phase 12.1 ship together and Phase 12 is never deployed alone (D-62). The shipped result is a daily page tally only, no cookie banner, no Cookie Settings link and no Clear button (success criteria 1 to 3 below are superseded or reduced), a smaller Visitor Stats page with a `Date,Page,Page views` CSV (criterion 4 reduced), and three legal pages with the Cookie Policy folded into the Privacy Policy (criterion 5 reduced). The criteria below keep their original Phase 12 wording for history; REQUIREMENTS.md and the Phase 12.1 section hold the current meaning. D-73 owner approval: closed (D-135, 2026-11-21). MVP mark removed (D-137, owner, 2026-11-21): Phase 12 closes on Phase 12.1's UAT, verification and security review.
 **Depends on**: Phase 11 (public pages), Phase 9 (maintenance jobs for aggregation and purge)
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04, ANL-05, ANL-06, ANL-07, ANL-08, ANL-09, LEGAL-01, LEGAL-02, LEGAL-03, LEGAL-04, LEGAL-05
-**Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21).
+**Carried over from Phase 11 (D-133):** add the first public Gallery photo on the live site and check that it loads (the gallery part of UAT 11-21). **Moved to Phase 13 (D-49, owner, 2026-11-18).**
 **Success Criteria** (what must be TRUE):
   1. **Consent banner:**
      - On a first visit, visitors see Accept all and Reject all with equal prominence, plus Customize. Nothing non-essential is set before they choose.
@@ -1299,8 +1299,83 @@ Plans:
 
 **Research flag:** Standard patterns. The PRD and NPC guidance are already detailed.
 
-**Plans**: TBD
+**Plans**: 32/32 plans complete
+- [x] 12-32-PLAN.md
+- [x] 12-01-PLAN.md
+- [x] 12-02-PLAN.md
+- [x] 12-03-PLAN.md
+- [x] 12-04-PLAN.md
+- [x] 12-05-PLAN.md
+- [x] 12-06-PLAN.md
+- [x] 12-07-PLAN.md
+- [x] 12-08-PLAN.md
+- [x] 12-09-PLAN.md
+- [x] 12-10-PLAN.md
+- [x] 12-11-PLAN.md
+- [x] 12-12-PLAN.md
+- [x] 12-13-PLAN.md
+- [x] 12-14-PLAN.md
+- [x] 12-15-PLAN.md
+- [x] 12-16-PLAN.md
+- [x] 12-17-PLAN.md
+- [x] 12-18-PLAN.md
+- [x] 12-19-PLAN.md
+- [x] 12-20-PLAN.md
+- [x] 12-21-PLAN.md
+- [x] 12-22-PLAN.md
+- [x] 12-23-PLAN.md
+- [x] 12-24-PLAN.md
+- [x] 12-25-PLAN.md
+- [x] 12-26-PLAN.md
+- [x] 12-27-PLAN.md
+- [x] 12-28-PLAN.md
+- [x] 12-29-PLAN.md
+- [x] 12-30-PLAN.md
+- [x] 12-31-PLAN.md
 **UI hint**: yes
+
+### Phase 12.1: Analytics simplification: daily page tally only, no cookie banner (D-53 to D-58) (INSERTED)
+
+**Goal:** The public site writes only the anonymous daily page tally (D-53), sets no optional cookies, and shows no cookie banner: the Contact map loads only after a tap, and the tap is saved in this browser so the map loads by itself next time (D-54; D-65 amends D-55). Visitor Stats shows total page views, the most viewed pages and a per day or month chart, with CSV export (D-57). The unused visit tables stay until a separate drop approval (D-56). The owner approves the new Privacy Policy wording, with the Cookie Policy folded in (D-72).
+**Requirements**: none new; reduces ANL-01 to ANL-09, LEGAL-01, LEGAL-02, LEGAL-05 (see REQUIREMENTS.md)
+**Ships with Phase 12:** Phase 12 is never deployed alone (D-62).
+**D-73 owner approval: closed (D-135, owner, 2026-11-21).** The owner approved the Privacy Policy as written; it is version 1.0, last updated 2026-11-21, with no DRAFT notice (plan 12.1-16 Task 2).
+**Depends on:** Phase 12
+**Plans:** 17/17 plans complete
+
+Plans:
+**Wave 1**
+- [x] 12.1-01-PLAN.md: every public page view is sent with only its path; speed reader and web-vitals removed (wave 1)
+- [x] 12.1-02-PLAN.md: site-wide ceiling on the page view route, RateLimits:AnalyticsCeiling (D-74, D-51) (wave 1)
+- [x] 12.1-03-PLAN.md: monthly cleanup without roll-up, raw rows purged by date, "Old daily page counts removed" (wave 1)
+- [x] 12.1-04-PLAN.md: the Show Map tap is saved in this browser (D-65, D-66) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 12.1-05-PLAN.md: no cookie bar, Cookie Settings or Clear; dev previews and showcase demos removed; e2e fixture plants no cookie; @no-cookies spec (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 12.1-06-PLAN.md: every client consent module and test fixture removed; web gates and public budget pass (wave 3)
+- [x] 12.1-07-PLAN.md: old consent and visitor id cookies expired when a browser sends them (D-63) (wave 3)
+- [x] 12.1-08-PLAN.md: Visitor Stats page: one Page views figure, bars-only chart, plain-words copy; speed and device cards and circle-x removed (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 12.1-09-PLAN.md: consent, clear and speed routes answer 404; the Application code only they used is removed (wave 4)
+- [x] 12.1-10-PLAN.md: Privacy Policy rewritten with cookies and saved settings, DRAFT again at 1.0 (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 12.1-11-PLAN.md: page view only adds to the daily count; visit stores, visitor key and Domain helpers removed (wave 5)
+- [x] 12.1-12-PLAN.md: only the page view limit and the ceiling remain for analytics; hosts cleaned; gpc.json cites D-60 (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 12.1-13-PLAN.md: /cookies removed, three footer legal links, cookie inventory checks the Privacy Policy (wave 6)
+- [x] 12.1-14-PLAN.md: Visitor Stats answer: total page views, top 5 pages with shares, per day or month trend from the daily counts; Testing seed and e2e (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 12.1-15-PLAN.md: CSV "Date,Page,Page views" with page names from a shared fixture (D-69, D-75) (wave 7)
+- [x] 12.1-16-PLAN.md: owner approves the new Privacy Policy wording (D-73 checkpoint, not autonomous) (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 12.1-17-PLAN.md: requirements, roadmap, PRD and docs describe the built site; a parked D-73 review stays an open owner item (wave 8)
 
 ### Phase 13: Quote Inquiries
 
@@ -1308,6 +1383,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 12 (Privacy Policy for the collection notice), Phase 8 (order creation), Phase 9 (private storage and jobs)
 **Requirements**: INQ-01, INQ-02, INQ-03, INQ-04, INQ-05, INQ-06, INQ-07, INQ-08
+**Carried over from Phase 12 (D-49, first D-133):** after the deploy, the owner adds the first public Gallery photo on the live site and checks it loads on a phone from res.cloudinary.com with no CSP error in the console (old plan 12-01; the gallery part of UAT 11-21). Owner only, no code.
 **Success Criteria** (what must be TRUE):
   1. **Quote form.** A visitor can submit "Get a Quote" (name, team, PH mobile, email, product type, quantity range, message), with the UI-spec validation copy and success state.
      - They see a privacy notice that links to the Privacy Policy.
@@ -1543,7 +1619,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 9. Order Images & Maintenance Jobs | 33/33 | In Progress | - |
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
-| 12. Consent, Analytics & Legal | 0/TBD | Not started | - |
+| 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
 | 13. Quote Inquiries | 0/TBD | Not started | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |

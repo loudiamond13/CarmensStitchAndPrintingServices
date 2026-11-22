@@ -40,6 +40,8 @@
   --neutral-soft: #ead1c4;
   --chart-income: #d45500;
   --chart-expense: #572e2b;
+  /* The Visitor Stats bar fill, the same colour as --chart-expense. */
+  --chart-views: #572e2b;
   --scrim: #3b1f1ccc;
   --status-pending: var(--ink-muted);
   --status-mockup: var(--mockup);
@@ -89,6 +91,7 @@
   --neutral-soft: #34221f;
   --chart-income: #ff6a1a;
   --chart-expense: #d4bbab;
+  --chart-views: #d4bbab;
   --scrim: #000000b8;
   --status-pending: var(--ink-muted);
   --status-mockup: var(--mockup);

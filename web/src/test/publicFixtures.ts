@@ -161,6 +161,24 @@ export function siteFailureHandler(status = 500) {
   );
 }
 
+/** The email the demo shop keeps for the legal pages (a made-up address). */
+export const demoPrivacyEmail = 'shop-private@example.test';
+
+/** An MSW handler that answers GET /api/v1/public/privacy-contact with `email` (null: none stored). */
+export function privacyContactHandler(email: string | null = demoPrivacyEmail) {
+  return http.get('*/api/v1/public/privacy-contact', () => HttpResponse.json({ email }));
+}
+
+/** An MSW handler that answers GET /api/v1/public/privacy-contact with a failure. */
+export function privacyContactFailureHandler(status = 500) {
+  return http.get('*/api/v1/public/privacy-contact', () =>
+    HttpResponse.json(
+      { title: 'Something went wrong.', status },
+      { status, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
+  );
+}
+
 /** Answers the site read with `site` for the rest of the test. */
 export function answerSite(site: PublicSiteFixture): void {
   server.use(siteHandler(site));

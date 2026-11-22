@@ -1,8 +1,10 @@
 // Phase 11 public sweep (PUB-01, A11Y-01, WCAG 2.2 AA, strict CSP; D-13, D-25; plan 11-37), in all five projects. Each public page
-// (Home, Products, Gallery, Contact) and the 404 page is opened with the demo shop in place and checked at the eight P2 widths
-// (320 to 1920 px): no sideways scroll, one h1 and zero axe findings (target-size and scrollable-region-focusable are in the rule set).
-// The guard fails every test on a console, page or CSP finding or an undeclared failed response. The rendered page holds no "@" in
-// its text, no email in its markup and none of the demo customer's private values (D-13, D-25). A Tab walk through Products, Gallery
+// (Home, Products, Gallery, Contact, the three legal pages, LEGAL-05, D-72) and the 404 page is opened with the demo
+// shop in place and checked at the eight P2 widths (320 to 1920 px): no sideways scroll, one h1 and zero axe findings (target-size
+// and scrollable-region-focusable are in the rule set). The guard fails every test on a console, page or CSP finding or an
+// undeclared failed response. The rendered page holds no "@" in its text, no email in its markup and none of the demo customer's
+// private values (D-13, D-25). A legal page shows only the shop's own email as a mailto link (12 D-29), may show the DRAFT notice,
+// and has the base footer with the Legal row. A Tab walk through Products, Gallery
 // and Contact at 390 and 1440 px proves a focused control is never under the header, a sticky bar or the Contact bar. The pages
 // read the shared site content, so each test seeds the demo shop under the site content lock.
 import type { Page } from '@playwright/test';
@@ -25,12 +27,23 @@ interface SweepPage {
   readonly status: number;
   /** Waits for the part of the page that arrives after the first paint, so the checks see the whole page. */
   readonly ready: (page: Page) => Promise<void>;
+  /** A legal page: it shows the shop's own email (12 D-29) and has the base footer. */
+  readonly legal?: true;
 }
 
 async function settled(page: Page): Promise<void> {
   await page.evaluate('document.fonts.ready.then(() => true)');
   await page.waitForLoadState('networkidle');
   await settle(page);
+}
+
+/** The shop's public email in the demo seed (TestingSiteContentSeeder). Only the legal pages show it. */
+const SHOP_EMAIL = 'demo-shop@csps.test';
+
+/** A legal page is whole once its contact lines have come from the site settings. */
+async function legalReady(page: Page): Promise<void> {
+  await expect(page.locator(`a[href="mailto:${SHOP_EMAIL}"]`).first()).toBeVisible();
+  await settled(page);
 }
 
 const PAGES: readonly SweepPage[] = [
@@ -77,6 +90,16 @@ const PAGES: readonly SweepPage[] = [
     status: 200,
     ready: settled,
   },
+  { name: 'Privacy Policy', path: '/privacy', h1: 'Privacy policy.', status: 200, ready: legalReady, legal: true },
+  { name: 'Terms of Use', path: '/terms', h1: 'Terms of use.', status: 200, ready: legalReady, legal: true },
+  {
+    name: 'Accessibility Statement',
+    path: '/accessibility',
+    h1: 'Accessibility statement.',
+    status: 200,
+    ready: legalReady,
+    legal: true,
+  },
   {
     name: '404',
     path: '/nope',
@@ -86,10 +109,26 @@ const PAGES: readonly SweepPage[] = [
   },
 ];
 
+test('@public-sweep the old Cookie Policy address shows Page not found', async ({ page, request, guard }) => {
+  guard.expectStatus('/cookies', 404);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const response = await page.goto('/cookies');
+    expect(response?.status()).toBe(404);
+    await expect(page.locator('h1')).toHaveText('Out of bounds.');
+    await expect(page).toHaveTitle('Page Not Found · CSPS');
+    await settled(page);
+    const legal = page.getByRole('contentinfo').getByRole('navigation', { name: 'Legal' });
+    await expect(legal.getByRole('link')).toHaveText(['Privacy Policy', 'Terms of Use', 'Accessibility Statement']);
+  });
+});
+
 /** The text and markup the demo customer's private values would show up in. */
 const EMAIL_IN_MARKUP = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
 /** The seeded customer values all carry this marker (TestingSiteContentSeeder.PrivateMarker); the phone is the demo customer's. */
 const PRIVATE_VALUES = ['PRIVATE-DEMO', 'private-demo', '0917 999 0002'] as const;
+/** The demo tagline: only the full footer shows it. */
+const DEMO_TAGLINE = 'Custom tailoring and full-sublimation printing for teams, leagues and riding groups.';
 
 async function axeProblem(page: Page): Promise<string | null> {
   try {
@@ -117,10 +156,21 @@ for (const sweepPage of PAGES) {
       await sweepPage.ready(page);
 
       // D-25 and D-13: no "@" in what a visitor reads, no email in the markup (the data blocks included), none of the private values.
-      expect(await page.locator('body').innerText(), 'the visible text has no @').not.toContain('@');
+      // A legal page shows the shop's own email and its mailto link, and no other (12 D-29).
+      const withoutShopEmail = (text: string): string =>
+        sweepPage.legal === true ? text.replaceAll(`mailto:${SHOP_EMAIL}`, '').replaceAll(SHOP_EMAIL, '') : text;
+      expect(withoutShopEmail(await page.locator('body').innerText()), 'the visible text has no @').not.toContain('@');
       const markup = await page.content();
-      expect(EMAIL_IN_MARKUP.exec(markup)?.[0] ?? null, 'the markup holds no email address').toBeNull();
-      expect(markup, 'the markup has no mailto link').not.toContain('mailto:');
+      expect(
+        EMAIL_IN_MARKUP.exec(withoutShopEmail(markup))?.[0] ?? null,
+        'the markup holds no email address',
+      ).toBeNull();
+      expect(withoutShopEmail(markup), 'the markup has no mailto link').not.toContain('mailto:');
+      if (sweepPage.legal === true) {
+        const footer = page.getByRole('contentinfo');
+        await expect(footer.getByRole('navigation', { name: 'Legal' })).toBeVisible();
+        await expect(footer.getByText(DEMO_TAGLINE), 'the base footer has no tagline column').toHaveCount(0);
+      }
       for (const value of PRIVATE_VALUES) {
         expect(markup, `the markup has none of the private value ${value}`).not.toContain(value);
       }

@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 4
+open_count: 5
 waived_count: 1
 fixed_count: 3
-total_count: 8
-last_updated: 2026-11-13T06:26:00.000Z
+total_count: 9
+last_updated: 2026-11-18T03:19:08.076Z
 ---
 
 # Broken Windows Ledger
@@ -23,6 +23,7 @@ last_updated: 2026-11-13T06:26:00.000Z
 | 6 | 08 | unrun-verify | .planning/phases/08-order-screens/08-UI-SPEC.md |  | Visual Review screenshot set at 390, 820 and 1440 px in Blush and Espresso (UIC-71) awaits the owner; run npm --prefix web run review | open |  | 2026-10-30T18:16:26.158Z |  |
 | 7 | 08 | deviation | web/e2e/dialog-fit.spec.ts |  | Full e2e not green: dialog-fit 1274x585, dialog-scrollbars, long-text four-chip and shell 1440x900 fail at the pre-08-24 commit too (see deferred-items 08-24 item 8) | open |  | 2026-10-30T18:16:26.940Z |  |
 | 8 | 09 | stub | src/Csps.Infrastructure/Images/UnconfiguredImageStorage.cs |  | Image storage answers 503 on every non-Testing host until plan 09-19 adds Cloudinary | open |  | 2026-11-03T13:11:22.204Z |  |
+| 9 | 12 | unmet-truth | web/scripts/lighthouse.mjs |  | 12-24 PERF truth unmet: npm run lighthouse not green in 3 runs; /gallery performance 0.91 to 0.94 on CSPS_Dev (LCP is a real Cloudinary photo); with seeded CSPS_E2E data all four pages reach 0.95 with the consent bar. Owner choice in 12-24-SUMMARY. | open |  | 2026-11-18T03:19:08.076Z |  |
 
 ````json
 [
@@ -127,6 +128,19 @@ last_updated: 2026-11-13T06:26:00.000Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-03T13:11:22.204Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 9,
+    "kind": "unmet-truth",
+    "phase": "12",
+    "file": "web/scripts/lighthouse.mjs",
+    "line": null,
+    "description": "12-24 PERF truth unmet: npm run lighthouse not green in 3 runs; /gallery performance 0.91 to 0.94 on CSPS_Dev (LCP is a real Cloudinary photo); with seeded CSPS_E2E data all four pages reach 0.95 with the consent bar. Owner choice in 12-24-SUMMARY.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-18T03:19:08.076Z",
     "resolved_at": null,
     "milestone": null
   }

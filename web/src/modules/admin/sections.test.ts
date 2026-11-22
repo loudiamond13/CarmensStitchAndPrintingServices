@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIT_NAV_ITEM, CONTENT_NAV_ITEM, MONEY_NAV_ITEM, SETTINGS_NAV_ITEM } from '@/components/navigation';
+import {
+  AUDIT_NAV_ITEM,
+  CONTENT_NAV_ITEM,
+  MONEY_NAV_ITEM,
+  SETTINGS_NAV_ITEM,
+  VISITOR_STATS_NAV_ITEM,
+} from '@/components/navigation';
 import { adminNavItemForPath } from './sections';
 
 // adminNavItemForPath (plan 02-31) names the section the shell marks current; the Audit Log joined it in plan 05-32 (OQ-2).
@@ -29,6 +35,12 @@ describe('adminNavItemForPath', () => {
     expect(adminNavItemForPath('/admin/site-content/products/new')).toBe(CONTENT_NAV_ITEM);
     expect(adminNavItemForPath(`/admin/site-content/products/${id}`)).toBe(CONTENT_NAV_ITEM);
     expect(adminNavItemForPath(`/admin/site-content/products/${id}/`)?.id).toBe('content');
+  });
+
+  it('finds the Visitor Stats item for /admin/visitor-stats, so the shell marks it current and no tab is (D-23)', () => {
+    expect(adminNavItemForPath('/admin/visitor-stats')?.id).toBe('stats');
+    expect(adminNavItemForPath('/admin/visitor-stats')).toBe(VISITOR_STATS_NAV_ITEM);
+    expect(adminNavItemForPath('/admin/visitor-stats/')?.id).toBe('stats');
   });
 
   it('does not take the bare products path or another path under Site Content for the item', () => {

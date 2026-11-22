@@ -132,6 +132,23 @@ describe('vite.config.ts', () => {
       }
     },
   );
+
+  // D-42: the single-entry builds ship the entry's static import chain as one chunk (fewer files, one gzip stream).
+  it.each(['production', 'e2e', 'budget'])(
+    'puts the entry chain of the %s build in one $initial group, with no test, no entriesAware (D-42)',
+    async (mode) => {
+      const output = (await load('build', mode)).build?.rolldownOptions?.output;
+      const codeSplitting = output !== undefined && !Array.isArray(output) ? output.codeSplitting : undefined;
+      expect(codeSplitting).toEqual({ groups: [{ name: 'index', tags: ['$initial'] }] });
+    },
+  );
+
+  // D-42: with two entries the tag covers both chains and would merge parity.html into the visitor entry.
+  it('keeps the default chunking in the parity build, which has two entries (D-42)', async () => {
+    const output = (await load('build', 'parity')).build?.rolldownOptions?.output;
+    const codeSplitting = output !== undefined && !Array.isArray(output) ? output.codeSplitting : 'not an object';
+    expect(codeSplitting).toBeUndefined();
+  });
 });
 
 describe('TypeScript alias pair (D-15)', () => {

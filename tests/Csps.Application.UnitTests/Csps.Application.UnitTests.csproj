@@ -10,6 +10,12 @@
     <Compile Include="..\Csps.Testing\Images\SyntheticImages.cs" Link="Images\SyntheticImages.cs" />
   </ItemGroup>
 
+  <!-- The page names (D-69, D-75) and the page view path cases (OR-3) are shared with the web node tests and linked, never copied. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\page-names.json" Link="Fixtures\page-names.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\page-view-path-cases.json" Link="Fixtures\page-view-path-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="NSubstitute" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />

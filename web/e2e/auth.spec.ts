@@ -29,6 +29,35 @@ test('@auth a staff member signs in with the emailed code and stays signed in ac
   await expect(page).toHaveURL(/\/admin$/);
 });
 
+test('@auth signing in returns only once the admin shell is on screen, even on a slow phone', async ({
+  page,
+  request,
+  guard,
+  browserName,
+}) => {
+  test.skip(
+    browserName !== 'chromium',
+    'CPU throttling is a Chromium feature, and the wait is the same in every engine.',
+  );
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // After the code is verified the address changes to /admin, and the admin shell is drawn a moment later. A phone engine under
+  // load takes long enough for that gap to be seen, with the sign-in layout's empty main still on screen. Slowing the page
+  // down from the verify answer on makes the gap long enough to catch.
+  const cdp = await page.context().newCDPSession(page);
+  page.on('response', (response) => {
+    if (response.url().endsWith('/api/v1/auth/two-factor/verify')) {
+      cdp.send('Emulation.setCPUThrottlingRate', { rate: 8 }).catch(() => undefined);
+    }
+  });
+
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+
+  expect(
+    await page.getByRole('searchbox', { name: 'Search', exact: true }).isVisible(),
+    'the top bar is already on screen',
+  ).toBe(true);
+});
+
 test('@auth the code step names the typed email and never submits by itself', async ({ page, request, guard }) => {
   guard.expectStatus('/api/v1/auth/refresh', 401);
   const staff = await createStaff(request, 'Admin');

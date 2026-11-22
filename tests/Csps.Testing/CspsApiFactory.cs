@@ -146,6 +146,12 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The public reads too; RealLimitsFactory restores the real 600 a minute.
         builder.UseSetting("RateLimits:PublicRead:PermitLimit", "100000");
 
+        // The page view beacons too; RealLimitsFactory restores the real 120 a minute.
+        builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", "100000");
+
+        // The site-wide page view ceiling too; RealLimitsFactory restores the real 600 a minute.
+        builder.UseSetting("RateLimits:AnalyticsCeiling:PermitLimit", "100000");
+
         ConfigureSettings(builder);
     }
 

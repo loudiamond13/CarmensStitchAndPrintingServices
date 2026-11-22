@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/v1/analytics/page-views": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Counts one public page view for the business day, anonymously. */
+        post: operations["RecordPageView"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/audit-log": {
         parameters: {
             query?: never;
@@ -2093,6 +2110,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/privacy-contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the shop's Contact email for the three legal pages only (D-13, D-29): `email`, or null when none is stored. It is a
+         *     separate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is
+         *     never stored by a browser or a cache.
+         */
+        get: operations["GetPrivacyContact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/product-lines": {
         parameters: {
             query?: never;
@@ -2740,6 +2778,47 @@ export interface paths {
          *     it on a person who is not locked is a 204 that changes nothing. It takes no version.
          */
         post: operations["UnlockUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visitor-stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the total page views, the trend (per day for up to 62 days, else per month) and the 5 most viewed pages for a date range. The
+         *     server resolves the range in the business zone (Asia/Manila) and returns the dates it used. Daily page counts are kept for 3 years.
+         */
+        get: operations["GetVisitorStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/visitor-stats/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Downloads the same range as a CSV file (D-69, D-75): UTF-8 with a byte-order mark, the header `Date,Page,Page views`, then one CRLF
+         *     line per day and page that had views, with the page's name, ordered by date and then the fixed page order. A day or page with no views has
+         *     no line, so a range with no views is the header alone. The file name is `visitor-stats-{from}-to-{to}.csv` with the dates the server used.
+         */
+        get: operations["ExportVisitorStats"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4777,6 +4856,14 @@ export interface components {
              */
             total: number | string;
         };
+        /**
+         * @description One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`
+         *     and never stores it as sent. A body from an old cached page that still carries a referrer property is read as the path alone.
+         */
+        PageViewRequest: {
+            /** @description The page path, starting with a slash. */
+            path?: null | string;
+        };
         /** @description One phone number of the Business Info form. */
         PhoneEntry: {
             /** @description True for the number the Call buttons dial; exactly one number is the main one. */
@@ -4785,6 +4872,14 @@ export interface components {
             label: null | string;
             /** @description The number as typed; a Philippine mobile or landline number. */
             number: null | string;
+        };
+        /**
+         * @description The contact email the three legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts
+         *     that every page embeds.
+         */
+        PrivacyContactDto: {
+            /** @description The shop's Contact email from the site settings; null when none is stored. */
+            email: null | string;
         };
         ProblemDetails: {
             detail?: null | string;
@@ -5310,6 +5405,21 @@ export interface components {
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
         };
+        /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
+        RankedItemDto: {
+            /**
+             * Format: int32
+             * @description The page views of the page in the range.
+             */
+            count: number | string;
+            /** @description The page key as stored. */
+            name: string;
+            /**
+             * Format: int32
+             * @description The whole percent of all page views in the list's range; a full list's shares add up to 100.
+             */
+            share: number | string;
+        };
         /** @description The My Profile change-email form: the new sign-in email and the current password (PROF-02). */
         RequestEmailChangeRequest: {
             /** @description The current password as typed. */
@@ -5722,6 +5832,16 @@ export interface components {
             /** @description One of `active`, `deactivated` or `deleted`. */
             status: string;
         };
+        /** @description One bar of the page views chart (ANL-08, D-68): a day, or a month of the range. */
+        TrendBucketDto: {
+            /**
+             * Format: int32
+             * @description The page views of the bar; a bar with no data is 0.
+             */
+            pageViews: number | string;
+            /** @description The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range. */
+            start: string;
+        };
         /**
          * @description The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a
          *     forged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when
@@ -6099,6 +6219,26 @@ export interface components {
             reason: null | string;
             session: null | components["schemas"]["SessionResponse"];
         };
+        /** @description The visitor stats answer (ANL-08, D-57). Dates are business days as `YYYY-MM-DD`; every figure comes from the daily page counts. */
+        VisitorStatsResponse: {
+            /** @description The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`. */
+            bucket: string;
+            /** @description The first business day of the range, resolved on the server. */
+            from: string;
+            /**
+             * Format: int32
+             * @description Every page view in the range.
+             */
+            pageViews: number | string;
+            /** @description The range that was read: a preset name or `custom`. */
+            range: string;
+            /** @description The last business day of the range, resolved on the server. */
+            to: string;
+            /** @description Up to 5 pages by page views, highest first; each name is a page key. */
+            topPages: components["schemas"]["RankedItemDto"][];
+            /** @description One bar per day or month from the start of the range to its end, oldest first. */
+            trend: components["schemas"]["TrendBucketDto"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -6108,6 +6248,60 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    RecordPageView: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["PageViewRequest"];
+                "application/json": null | components["schemas"]["PageViewRequest"];
+                "text/json": null | components["schemas"]["PageViewRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListAuditLog: {
         parameters: {
             query?: {
@@ -13242,6 +13436,35 @@ export interface operations {
             };
         };
     };
+    GetPrivacyContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyContactDto"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetPublicProductLines: {
         parameters: {
             query?: never;
@@ -15411,6 +15634,114 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetVisitorStats: {
+        parameters: {
+            query?: {
+                /** @description A preset: `last-7-days`, `last-30-days` (also used when none or an unknown name is sent), `this-month`, `last-month`, `this-year`; or `custom`. */
+                range?: string;
+                /** @description The first business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitorStatsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ExportVisitorStats: {
+        parameters: {
+            query?: {
+                /** @description The same range as the stats read. */
+                range?: string;
+                /** @description The first business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                from?: string;
+                /** @description The last business day, `YYYY-MM-DD`; required when the range is `custom`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

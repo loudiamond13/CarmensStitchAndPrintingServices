@@ -29,6 +29,31 @@ public static class RateLimitPolicies
 
     /// <summary>Anonymous reads of <c>/api/v1/public/*</c> (SEC-03, P-10): a generous per-address window. The shell, robots.txt and sitemap.xml have no limit.</summary>
     public const string PublicRead = "public-read";
+
+    /// <summary>The anonymous page view beacon (ANL-06, T-12-28): a per-address window so the counts cannot be inflated by one address.</summary>
+    public const string AnalyticsCollect = "analytics-collect";
+}
+
+/// <summary>The per-address limit on page view beacons, read from <c>RateLimits:AnalyticsCollect</c>: 120 a minute by default.</summary>
+public static class AnalyticsCollectRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:AnalyticsCollect";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 120, Window = TimeSpan.FromMinutes(1) };
+}
+
+/// <summary>The one site-wide limit on the page view route (D-51, D-74), read from <c>RateLimits:AnalyticsCeiling</c>: 600 a minute by default.</summary>
+public static class AnalyticsCeilingRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:AnalyticsCeiling";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
 }
 
 /// <summary>The per-address limit on the public reads, read from <c>RateLimits:PublicRead</c>: 600 reads per minute by default.</summary>
@@ -40,26 +65,6 @@ public static class PublicReadRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
-
-    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
-    /// <param name="rule">The rule to check.</param>
-    /// <returns>One message per problem; empty when the rule is usable.</returns>
-    public static IReadOnlyList<string> Validate(RateLimitRule rule)
-    {
-        ArgumentNullException.ThrowIfNull(rule);
-        var problems = new List<string>();
-        if (rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
-        }
-
-        if (rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
-        }
-
-        return problems;
-    }
 }
 
 /// <summary>The per-address limit on photo uploads, read from <c>RateLimits:Images</c>: 30 uploads per 10 minutes by default.</summary>
@@ -71,26 +76,6 @@ public static class ImageUploadRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 30, Window = TimeSpan.FromMinutes(10) };
-
-    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
-    /// <param name="rule">The rule to check.</param>
-    /// <returns>One message per problem; empty when the rule is usable.</returns>
-    public static IReadOnlyList<string> Validate(RateLimitRule rule)
-    {
-        ArgumentNullException.ThrowIfNull(rule);
-        var problems = new List<string>();
-        if (rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
-        }
-
-        if (rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
-        }
-
-        return problems;
-    }
 }
 
 /// <summary>The per-address limit on the maintenance run, read from <c>RateLimits:Maintenance</c>: 12 requests per 10 minutes by default.</summary>
@@ -102,26 +87,6 @@ public static class MaintenanceRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 12, Window = TimeSpan.FromMinutes(10) };
-
-    /// <summary>Lists what is wrong with the rule, naming each setting and never a value.</summary>
-    /// <param name="rule">The rule to check.</param>
-    /// <returns>One message per problem; empty when the rule is usable.</returns>
-    public static IReadOnlyList<string> Validate(RateLimitRule rule)
-    {
-        ArgumentNullException.ThrowIfNull(rule);
-        var problems = new List<string>();
-        if (rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:PermitLimit must be at least 1.");
-        }
-
-        if (rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:Window must be at least 6 seconds.");
-        }
-
-        return problems;
-    }
 }
 
 /// <summary>One sliding-window rule: how many requests one address may make in a window.</summary>
@@ -135,6 +100,26 @@ public sealed class RateLimitRule
 
     /// <summary>Gets or sets the window length.</summary>
     public TimeSpan Window { get; set; }
+
+    /// <summary>Lists what is wrong with a rule, naming each setting and never a value.</summary>
+    /// <param name="rule">The rule to check; a missing rule has both problems.</param>
+    /// <param name="section">The configuration section the rule binds from.</param>
+    /// <returns>One message per problem; empty when the rule is usable.</returns>
+    public static IReadOnlyList<string> Problems(RateLimitRule? rule, string section)
+    {
+        var problems = new List<string>();
+        if (rule is null || rule.PermitLimit < 1)
+        {
+            problems.Add($"{section}:PermitLimit must be at least 1.");
+        }
+
+        if (rule is null || rule.Window < MinWindow)
+        {
+            problems.Add($"{section}:Window must be at least 6 seconds.");
+        }
+
+        return problems;
+    }
 }
 
 /// <summary>
@@ -180,16 +165,6 @@ public sealed class RateLimitSettings
 
     private static RateLimitRule Rule(int permitLimit, TimeSpan window) => new() { PermitLimit = permitLimit, Window = window };
 
-    private static void Check(List<string> problems, string name, RateLimitRule? rule)
-    {
-        if (rule is null || rule.PermitLimit < 1)
-        {
-            problems.Add($"{SectionName}:{name}:PermitLimit must be at least 1.");
-        }
-
-        if (rule is null || rule.Window < RateLimitRule.MinWindow)
-        {
-            problems.Add($"{SectionName}:{name}:Window must be at least 6 seconds.");
-        }
-    }
+    private static void Check(List<string> problems, string name, RateLimitRule? rule) =>
+        problems.AddRange(RateLimitRule.Problems(rule, $"{SectionName}:{name}"));
 }

@@ -5,6 +5,7 @@ using Csps.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog.Events;
 
 namespace Csps.Server.IntegrationTests.Authorization;
 
@@ -110,7 +111,11 @@ public sealed class AuthorizationMatrixTests(CspsDatabase database) : IClassFixt
             if (!calls[i].row.Allows(calls[i].caller, statuses[i]))
             {
                 var also = calls[i].caller == Caller.Manager && calls[i].row.ManagerAlso is { } other ? $" (or {other}, which depends on data another row changes)" : string.Empty;
-                statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}{also}");
+                // The host's logged exceptions say why a call failed, which the status alone does not.
+                var errors = string.Join(
+                    "\n---\n",
+                    factory.Sink.Events.Where(static e => e.Level >= LogEventLevel.Error && e.Exception is not null).Select(static e => e.Exception!.ToString()).Take(3));
+                statuses[i].ShouldBe(calls[i].row.ExpectedFor(calls[i].caller), $"{calls[i].caller} calling {calls[i].row.Key}{also}\nServer errors:\n{errors}");
             }
         }
     }

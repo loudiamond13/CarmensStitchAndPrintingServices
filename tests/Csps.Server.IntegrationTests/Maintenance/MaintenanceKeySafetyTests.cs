@@ -95,7 +95,7 @@ public sealed class MaintenanceKeySafetyTests(CspsDatabase database) : IClassFix
         var rule = MaintenanceRateLimit.Default();
 
         (rule.PermitLimit, rule.Window).ShouldBe((12, TimeSpan.FromMinutes(10)));
-        MaintenanceRateLimit.Validate(rule).ShouldBeEmpty();
+        RateLimitRule.Problems(rule, MaintenanceRateLimit.SectionName).ShouldBeEmpty();
         MaintenanceRateLimit.SectionName.ShouldBe("RateLimits:Maintenance");
         RateLimitPolicies.Maintenance.ShouldBe("maintenance-run");
     }
@@ -103,7 +103,7 @@ public sealed class MaintenanceKeySafetyTests(CspsDatabase database) : IClassFix
     [Fact]
     public void AnUnusableMaintenanceLimitIsNamedAndNeverEchoed()
     {
-        var problems = MaintenanceRateLimit.Validate(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) });
+        var problems = RateLimitRule.Problems(new RateLimitRule { PermitLimit = 0, Window = TimeSpan.FromSeconds(1) }, MaintenanceRateLimit.SectionName);
 
         problems.ShouldBe(
             ["RateLimits:Maintenance:PermitLimit must be at least 1.", "RateLimits:Maintenance:Window must be at least 6 seconds."]);

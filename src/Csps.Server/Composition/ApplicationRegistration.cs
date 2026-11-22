@@ -67,6 +67,7 @@ public static class ApplicationRegistration
         services.AddCspsMoneyHandlers();
         services.AddCspsMaintenanceHandlers();
         services.AddCspsContentHandlers();
+        services.AddCspsAnalyticsHandlers();
         return services;
     }
 }

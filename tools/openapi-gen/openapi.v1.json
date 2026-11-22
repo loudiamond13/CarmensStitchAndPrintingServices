@@ -4883,6 +4883,19 @@
         ],
         "type": "object"
       },
+      "PageViewRequest": {
+        "description": "One page view as the browser sends it (ANL-05, ANL-06). The path is the page's pathname; the server cuts it at the first `?` or `#`\nand never stores it as sent. A body from an old cached page that still carries a referrer property is read as the path alone.",
+        "properties": {
+          "path": {
+            "description": "The page path, starting with a slash.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "PhoneEntry": {
         "description": "One phone number of the Business Info form.",
         "properties": {
@@ -4909,6 +4922,22 @@
           "number",
           "label",
           "isMain"
+        ],
+        "type": "object"
+      },
+      "PrivacyContactDto": {
+        "description": "The contact email the three legal pages show so a visitor can write about their data (D-13, D-29). It is kept out of the site facts\nthat every page embeds.",
+        "properties": {
+          "email": {
+            "description": "The shop's Contact email from the site settings; null when none is stored.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "email"
         ],
         "type": "object"
       },
@@ -6333,6 +6362,39 @@
         ],
         "type": "object"
       },
+      "RankedItemDto": {
+        "description": "One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share.",
+        "properties": {
+          "count": {
+            "description": "The page views of the page in the range.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "name": {
+            "description": "The page key as stored.",
+            "type": "string"
+          },
+          "share": {
+            "description": "The whole percent of all page views in the list's range; a full list's shares add up to 100.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "share"
+        ],
+        "type": "object"
+      },
       "RequestEmailChangeRequest": {
         "description": "The My Profile change-email form: the new sign-in email and the current password (PROF-02).",
         "properties": {
@@ -7330,6 +7392,29 @@
         ],
         "type": "object"
       },
+      "TrendBucketDto": {
+        "description": "One bar of the page views chart (ANL-08, D-68): a day, or a month of the range.",
+        "properties": {
+          "pageViews": {
+            "description": "The page views of the bar; a bar with no data is 0.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "start": {
+            "description": "The first business day of the bar inside the range, `YYYY-MM-DD`: the day itself, or the month's first day in the range.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "pageViews"
+        ],
+        "type": "object"
+      },
       "UpdateCompanyExpenseRequest": {
         "description": "The Edit Expense form (CEXP-02, SEC-07). It carries the version the form was opened with. Any other member in the body, such as a\nforged `createdById`, `createdAt`, `updatedById` or `updatedAt`, is ignored: who changed the expense and when\ncome from the token and the clock (SEC-08).",
         "properties": {
@@ -8321,6 +8406,60 @@
           "session"
         ],
         "type": "object"
+      },
+      "VisitorStatsResponse": {
+        "description": "The visitor stats answer (ANL-08, D-57). Dates are business days as `YYYY-MM-DD`; every figure comes from the daily page counts.",
+        "properties": {
+          "bucket": {
+            "description": "The bar size the server chose: `day` for a range of up to 62 days, otherwise `month`.",
+            "type": "string"
+          },
+          "from": {
+            "description": "The first business day of the range, resolved on the server.",
+            "type": "string"
+          },
+          "pageViews": {
+            "description": "Every page view in the range.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "range": {
+            "description": "The range that was read: a preset name or `custom`.",
+            "type": "string"
+          },
+          "to": {
+            "description": "The last business day of the range, resolved on the server.",
+            "type": "string"
+          },
+          "topPages": {
+            "description": "Up to 5 pages by page views, highest first; each name is a page key.",
+            "items": {
+              "$ref": "#/components/schemas/RankedItemDto"
+            },
+            "type": "array"
+          },
+          "trend": {
+            "description": "One bar per day or month from the start of the range to its end, oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/TrendBucketDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "range",
+          "from",
+          "to",
+          "pageViews",
+          "bucket",
+          "trend",
+          "topPages"
+        ],
+        "type": "object"
       }
     }
   },
@@ -8330,6 +8469,94 @@
   },
   "openapi": "3.1.1",
   "paths": {
+    "/api/v1/analytics/page-views": {
+      "post": {
+        "operationId": "RecordPageView",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PageViewRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Counts one public page view for the business day, anonymously.",
+        "tags": [
+          "Analytics"
+        ]
+      }
+    },
     "/api/v1/audit-log": {
       "get": {
         "operationId": "ListAuditLog",
@@ -18541,6 +18768,37 @@
         ]
       }
     },
+    "/api/v1/public/privacy-contact": {
+      "get": {
+        "operationId": "GetPrivacyContact",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivacyContactDto"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reads the shop's Contact email for the three legal pages only (D-13, D-29): `email`, or null when none is stored. It is a\nseparate read so the email is never in the site facts, the page data or the structured data of any other page. The answer is\nnever stored by a browser or a cache.",
+        "tags": [
+          "PublicSite"
+        ]
+      }
+    },
     "/api/v1/public/product-lines": {
       "get": {
         "operationId": "GetPublicProductLines",
@@ -21427,6 +21685,160 @@
           "Users"
         ]
       }
+    },
+    "/api/v1/visitor-stats": {
+      "get": {
+        "operationId": "GetVisitorStats",
+        "parameters": [
+          {
+            "description": "A preset: `last-7-days`, `last-30-days` (also used when none or an unknown name is sent), `this-month`, `last-month`, `this-year`; or `custom`.",
+            "in": "query",
+            "name": "range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitorStatsResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Reads the total page views, the trend (per day for up to 62 days, else per month) and the 5 most viewed pages for a date range. The\nserver resolves the range in the business zone (Asia/Manila) and returns the dates it used. Daily page counts are kept for 3 years.",
+        "tags": [
+          "VisitorStats"
+        ]
+      }
+    },
+    "/api/v1/visitor-stats/export": {
+      "get": {
+        "operationId": "ExportVisitorStats",
+        "parameters": [
+          {
+            "description": "The same range as the stats read.",
+            "in": "query",
+            "name": "range",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The first business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The last business day, `YYYY-MM-DD`; required when the range is `custom`.",
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          }
+        },
+        "summary": "Downloads the same range as a CSV file (D-69, D-75): UTF-8 with a byte-order mark, the header `Date,Page,Page views`, then one CRLF\nline per day and page that had views, with the page's name, ordered by date and then the fixed page order. A day or page with no views has\nno line, so a range with no views is the header alone. The file name is `visitor-stats-{from}-to-{to}.csv` with the dates the server used.",
+        "tags": [
+          "VisitorStats"
+        ]
+      }
     }
   },
   "servers": [
@@ -21435,6 +21847,9 @@
     }
   ],
   "tags": [
+    {
+      "name": "Analytics"
+    },
     {
       "name": "AuditLog"
     },
@@ -21542,6 +21957,9 @@
     },
     {
       "name": "Users"
+    },
+    {
+      "name": "VisitorStats"
     }
   ]
 }

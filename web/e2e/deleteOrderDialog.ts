@@ -133,7 +133,8 @@ export async function openDeleteOrder(
   }
   const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  // The showcase draws about 250 cases in one commit, which WebKit takes 6 to 10 s to show, longer than the 5 s default.
+  await expect(page.locator('h1')).toHaveText('Component Showcase', { timeout: 30_000 });
 
   await page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }).click();
   const dialog = page.getByRole('dialog', { name: DIALOG_NAME });

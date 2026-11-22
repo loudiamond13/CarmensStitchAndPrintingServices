@@ -35,6 +35,8 @@
   --spacing-contact-bar: 77px;
   /* The footer tagline's max width. */
   --spacing-tagline: 320px;
+  /* The legal pages' reading width. */
+  --spacing-reading: 640px;
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
@@ -228,6 +230,7 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-chart-income: var(--chart-income);
   --color-chart-expense: var(--chart-expense);
+  --color-chart-views: var(--chart-views);
   --color-scrim: var(--scrim);
   --color-link: var(--link);
   --color-transparent: transparent;

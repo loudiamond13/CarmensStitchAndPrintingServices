@@ -68,7 +68,7 @@ public static class AuthorizationMatrix
     ];
 
     // The Testing-only routes exist in Debug builds in the Testing environment only (QUAL-05); a Release run has no such rows.
-    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400. POST /api/testing/site-content needs no body and answers 204.
+    // POST /api/testing/staff, POST /api/testing/expenses, POST /api/testing/orders, POST /api/testing/analytics and POST /api/testing/images/fail-next get no body here, so every caller meets the same 400. POST /api/testing/site-content needs no body and answers 204.
     private static MatrixRow[] TestingRows => BuildFlavor.HasTestingFeatures
         ?
         [
@@ -77,6 +77,7 @@ public static class AuthorizationMatrix
             new("POST", "/api/testing/expenses", "/api/testing/expenses", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/orders", "/api/testing/orders", Anonymous: 400, Admin: 400, Manager: 400),
             new("POST", "/api/testing/site-content", "/api/testing/site-content", Anonymous: 204, Admin: 204, Manager: 204),
+            new("POST", "/api/testing/analytics", "/api/testing/analytics", Anonymous: 400, Admin: 400, Manager: 400),
             new("GET", "/api/testing/images/{id}", "/api/testing/images/unknown-photo", Anonymous: 404, Admin: 404, Manager: 404),
             new("POST", "/api/testing/images/fail-next", "/api/testing/images/fail-next", Anonymous: 400, Admin: 400, Manager: 400),
         ]
@@ -97,6 +98,7 @@ public static class AuthorizationMatrix
         new("DELETE", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 404, ManagerAlso: 204),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
+        new("GET", "/api/v1/public/privacy-contact", "/api/v1/public/privacy-contact", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/gallery", "/api/v1/public/gallery", Anonymous: 200, Admin: 200, Manager: 200),
@@ -141,6 +143,9 @@ public static class AuthorizationMatrix
         new("DELETE", "/api/v1/gallery-items/{id:guid}","/api/v1/gallery-items/e84b0c27-6d91-4a53-b7f2-1c5d9e3a8f06", Anonymous: 401, Admin: 403, Manager: 404),
         // Sign-in is anonymous; with no body every caller meets the same 400 field errors (the token is ignored).
         new("POST", "/api/v1/auth/sign-in", "/api/v1/auth/sign-in", Anonymous: 400, Admin: 400, Manager: 400),
+        // A page view beacon (ANL-06): anonymous, with the anti-CSRF header. With no body every caller meets the same 400 for the missing path;
+        // the body check comes before the staff check, so a signed-in caller is not told apart.
+        new("POST", "/api/v1/analytics/page-views", "/api/v1/analytics/page-views", Anonymous: 400, Admin: 400, Manager: 400),
         // The code step reads the ticket cookie; with no cookie every caller meets the same 401 (the token is ignored).
         new("POST", "/api/v1/auth/two-factor/verify", "/api/v1/auth/two-factor/verify", Anonymous: 401, Admin: 401, Manager: 401),
         new("POST", "/api/v1/auth/two-factor/resend", "/api/v1/auth/two-factor/resend", Anonymous: 401, Admin: 401, Manager: 401),
@@ -210,6 +215,11 @@ public static class AuthorizationMatrix
         // The audit log viewer (AUDIT-02, D-26): Managers only, so an Admin meets 403. Read only; there is no export (D-29).
         new("GET", "/api/v1/audit-log", "/api/v1/audit-log", Anonymous: 401, Admin: 403, Manager: 200),
         new("GET", "/api/v1/audit-log/people", "/api/v1/audit-log/people", Anonymous: 401, Admin: 403, Manager: 200),
+
+        // The visitor stats read (ANL-08, D-23): Managers only, so an Admin meets 403.
+        new("GET", "/api/v1/visitor-stats", "/api/v1/visitor-stats", Anonymous: 401, Admin: 403, Manager: 200),
+        // The visitor stats CSV export (ANL-08, D-25): Managers only, like the read.
+        new("GET", "/api/v1/visitor-stats/export", "/api/v1/visitor-stats/export", Anonymous: 401, Admin: 403, Manager: 200),
 
         // The order lists (D-16, D-17, D-18, D-19): Staff only, both roles read them.
         new("GET", "/api/v1/product-types", "/api/v1/product-types", Anonymous: 401, Admin: 200, Manager: 200),
@@ -372,6 +382,10 @@ public static class AuthorizationMatrix
         new("GET", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
         new("HEAD", "/sitemap.xml", "/sitemap.xml", Anonymous: 200, Admin: 200, Manager: 200),
 
+        // The Global Privacy Control statement (D-39): anonymous GET and HEAD, never rate limited.
+        new("GET", "/.well-known/gpc.json", "/.well-known/gpc.json", Anonymous: 200, Admin: 200, Manager: 200),
+        new("HEAD", "/.well-known/gpc.json", "/.well-known/gpc.json", Anonymous: 200, Admin: 200, Manager: 200),
+
         // A missing file is a 404 for everyone (research Pitfall 11). The matrix host runs in the Testing environment,
         // not Development, so the two reserved API-doc prefixes are mapped as 404 fallbacks too (D-29).
         new("*", "{*path:file}", "/missing.js", Anonymous: 404, Admin: 404, Manager: 404),
@@ -386,6 +400,7 @@ public static class AuthorizationMatrix
             "GET /health",
             "HEAD /health",
             "POST /api/v1/auth/sign-in",
+            "POST /api/v1/analytics/page-views",
             "POST /api/v1/auth/two-factor/verify",
             "POST /api/v1/auth/two-factor/resend",
             "POST /api/v1/auth/refresh",
@@ -402,6 +417,7 @@ public static class AuthorizationMatrix
             "POST /api/v1/maintenance/run",
             "GET /api/v1/public/site",
             "GET /api/v1/public/open-status",
+            "GET /api/v1/public/privacy-contact",
             "GET /api/v1/public/product-lines",
             "GET /api/v1/public/home",
             "GET /api/v1/public/gallery",
@@ -412,12 +428,14 @@ public static class AuthorizationMatrix
             "HEAD /robots.txt",
             "GET /sitemap.xml",
             "HEAD /sitemap.xml",
+            "GET /.well-known/gpc.json",
+            "HEAD /.well-known/gpc.json",
             "* {*path:file}",
             "* /openapi/{**path}",
             "* /scalar/{**path}",
         }.Concat(TestingAnonymousKeys).ToFrozenSet(StringComparer.Ordinal);
 
-    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "POST /api/testing/site-content", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
+    private static string[] TestingAnonymousKeys => BuildFlavor.HasTestingFeatures ? ["GET /api/testing/emails", "POST /api/testing/staff", "POST /api/testing/expenses", "POST /api/testing/orders", "POST /api/testing/site-content", "POST /api/testing/analytics", "GET /api/testing/images/{id}", "POST /api/testing/images/fail-next"] : [];
 
     /// <summary>Returns the row with the given key.</summary>
     /// <param name="key">The endpoint key.</param>

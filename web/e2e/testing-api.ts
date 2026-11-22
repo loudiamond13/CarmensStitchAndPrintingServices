@@ -261,3 +261,16 @@ export async function seedDemoSiteContent(request: APIRequestContext): Promise<v
   const response = await request.post('/api/testing/site-content');
   expect(response.status(), 'POST /api/testing/site-content').toBe(204);
 }
+
+/** One page on one business day, up to 3 years back. `offsetDays` counts from the business today: 0 is today, -1 yesterday. */
+export interface AnalyticsSeedDay {
+  readonly offsetDays: number;
+  readonly pageKey: string;
+  readonly views: number;
+}
+
+/** Replaces the daily page counts on the given business days (POST /api/testing/analytics, D-57). Nothing else is written. */
+export async function seedAnalytics(request: APIRequestContext, days: readonly AnalyticsSeedDay[]): Promise<void> {
+  const response = await request.post('/api/testing/analytics', { data: { days } });
+  expect(response.status(), 'POST /api/testing/analytics').toBe(204);
+}

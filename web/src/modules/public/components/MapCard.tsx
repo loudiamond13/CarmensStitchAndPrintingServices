@@ -1,18 +1,21 @@
 // SPEC-DEVIATION: D-20 App. E.4's map is a drawing ("may be swapped for an embedded map", spec §7.4). Here the drawing stays
-// until the visitor taps Show Map; only then does the Google frame load, so no Google request is made before the tap. The
+// until the visitor taps Show Map once (saved in this browser, D-65); only then does the Google frame load. The
 // frame fills the same 16:10 box (no layout shift), and the label card moves under it so it never covers the map's own
-// controls. The choice lasts for this page view only. The frame has a title, loads lazily, sends a strict referrer and gets
-// no `allow` features; the CSP allows only the embed path (SecurityHeadersMiddleware).
-// Phase 12 hook: once consent exists and the visitor allowed maps, `loaded` starts true. Phase 11 always waits for the tap.
+// controls. The frame has a title, loads lazily, sends a strict referrer and gets no `allow` features; the CSP allows only
+// the embed path (SecurityHeadersMiddleware).
+// D-65 (amends D-55): the tap is saved in local storage (mapChoice.ts), so on later visits from that browser the frame is in
+// the first render with no Show Map. The saved setting can load the frame, but focus moves into it only after the
+// visitor's own tap in this view.
 // While the shop facts load the drawn map shows at once and the address is a skeleton line.
 import clsx from 'clsx';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Skeleton } from '@/components/feedback/Skeleton';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { PUBLIC_COPY } from '../copy';
+import { readMapsShown, saveMapsShown, subscribeMapsShown } from '../mapChoice';
 import type { PublicSite } from '../services/siteService';
 import { streetAndTown } from '../siteFacts';
 import {
@@ -45,13 +48,16 @@ export interface MapCardProps {
 }
 
 export function MapCard({ site }: MapCardProps) {
-  const [loaded, setLoaded] = useState(false);
+  const saved = useSyncExternalStore(subscribeMapsShown, readMapsShown, () => false);
+  // The tap in this view: a frame the visitor tapped stays even if the saved setting is cleared in another tab.
+  const [tapped, setTapped] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
+  // Focus moves into the frame only after the visitor's own tap, never when the saved setting loads it.
   useEffect(() => {
-    if (loaded) {
+    if (tapped) {
       frame.current?.focus();
     }
-  }, [loaded]);
+  }, [tapped]);
 
   const address = site === undefined ? '' : streetAndTown(site.address);
   const embed = site?.mapEmbedUrl?.startsWith(EMBED_PREFIX) === true ? site.mapEmbedUrl : null;
@@ -60,9 +66,10 @@ export function MapCard({ site }: MapCardProps) {
     return null;
   }
 
-  const offerMap = embed !== null && !loaded;
+  const showFrame = embed !== null && (tapped || saved);
+  const offerMap = embed !== null && !showFrame;
   const label = (
-    <div data-map-label className={clsx(mapLabelClasses, !loaded && mapLabelOverlayClasses)}>
+    <div data-map-label className={clsx(mapLabelClasses, !showFrame && mapLabelOverlayClasses)}>
       <span className={mapLabelTextClasses}>
         <strong className="block">{MAP.shopName}</strong>
         {site === undefined ? <Skeleton width={160} height={14} /> : <span className="text-ink-muted">{address}</span>}
@@ -75,7 +82,8 @@ export function MapCard({ site }: MapCardProps) {
               size="sm"
               icon="map-pin"
               onClick={() => {
-                setLoaded(true);
+                setTapped(true);
+                saveMapsShown();
               }}
             >
               {MAP.showMap}
@@ -96,7 +104,7 @@ export function MapCard({ site }: MapCardProps) {
   return (
     <div className={mapCardClasses}>
       <div data-map-box className={mapBoxClasses}>
-        {loaded && embed !== null ? (
+        {showFrame ? (
           <iframe
             ref={frame}
             src={embed}
@@ -142,7 +150,7 @@ export function MapCard({ site }: MapCardProps) {
         )}
       </div>
       {offerMap && <p className={smallMutedClasses}>{MAP.privacy}</p>}
-      {loaded && embed !== null && label}
+      {showFrame && label}
     </div>
   );
 }

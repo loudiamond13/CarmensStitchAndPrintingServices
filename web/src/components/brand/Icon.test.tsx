@@ -3,8 +3,10 @@ import {
   Archive,
   ArchiveRestore,
   Camera,
+  ChartColumn,
   ChevronUp,
   Copy,
+  Download,
   Eraser,
   Funnel,
   Globe,
@@ -102,6 +104,8 @@ const OWNER_ICON_NAMES = [
   'camera',
   'chevron-up',
   'globe',
+  'chart-column',
+  'download',
 ] as const;
 
 /** The one svg an Icon renders. */
@@ -236,6 +240,15 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
   it('draws chevron-up and globe with the lucide components of the same name (Phase 11, D-37)', () => {
     expect(ICONS['chevron-up']).toBe(ChevronUp);
     expect(ICONS.globe).toBe(Globe);
+  });
+
+  it('draws chart-column and download with the lucide components of the same name (Phase 12, D-32)', () => {
+    expect(ICONS['chart-column']).toBe(ChartColumn);
+    expect(ICONS.download).toBe(Download);
+  });
+
+  it('has no circle-x icon: page speed is gone (D-76)', () => {
+    expect(Object.keys(ICONS).includes('circle-x')).toBe(false);
   });
 
   it('renders the History icon as a named image', () => {

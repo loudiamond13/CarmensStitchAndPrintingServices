@@ -30,12 +30,17 @@ export interface PageHeadProps {
   actions?: ReactNode;
   /** Bottom padding 48px instead of 48px plus the cut angle. */
   flat?: boolean;
+  /** Shown first, above the breadcrumb (the DRAFT notice of a legal page). */
+  notice?: ReactNode;
+  /** Shown under the h1, before the lead (the version line of a legal page). */
+  meta?: ReactNode;
 }
 
-export function PageHead({ eyebrow, headline, crumb, lead, actions, flat = false }: PageHeadProps) {
+export function PageHead({ eyebrow, headline, crumb, lead, actions, flat = false, notice, meta }: PageHeadProps) {
   return (
     <section className={clsx(pageHeadClasses, flat ? pageHeadFlatBottomClasses : pageHeadBottomClasses)}>
       <div className={pageHeadWrapClasses}>
+        {notice}
         {crumb !== undefined && (
           <nav className={crumbsClasses} aria-label={PUBLIC_COPY.crumbs.label}>
             <UiLink to="/" className={crumbLinkClasses}>
@@ -51,6 +56,7 @@ export function PageHead({ eyebrow, headline, crumb, lead, actions, flat = false
           {`${headline.plain} `}
           <em className={h1EmClasses}>{headline.accent}</em>
         </h1>
+        {meta}
         {lead !== undefined && <p className={leadClasses}>{lead}</p>}
         {actions !== undefined && <div className={btnRowClasses}>{actions}</div>}
       </div>

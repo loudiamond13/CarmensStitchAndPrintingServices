@@ -145,6 +145,21 @@ describe('MobileNavDrawer (SPEC-GAP: mobile nav drawer)', () => {
     );
   });
 
+  // SPEC-DEVIATION: D-23 the drawer lists the Manager-only Visitor Stats after Site Content (plan 12-23).
+  it('lists Visitor Stats after Site Content for a Manager when the shell asks for the extra items', async () => {
+    renderHarness({ withAuditLog: true });
+    await userEvent.click(menuButton());
+
+    const names = within(drawer())
+      .getAllByRole('link')
+      .map((item) => item.textContent);
+    expect(names.indexOf('Visitor StatsManager')).toBe(names.indexOf('Site ContentManager') + 1);
+    expect(within(drawer()).getByRole('link', { name: /^Visitor Stats/ })).toHaveAttribute(
+      'href',
+      '/admin/visitor-stats',
+    );
+  });
+
   it('is the 248px left panel over the scrim at the overlay layer, rendered in place (never a portal)', () => {
     const { container } = renderHarness({ initialOpen: true });
     const root = drawer().parentElement;

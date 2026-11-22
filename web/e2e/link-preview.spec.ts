@@ -4,6 +4,8 @@
 // context with `javaScriptEnabled: false`; robots.txt, sitemap.xml and the admin header are read with a plain request. A last
 // test loads every page with JavaScript on, so the strict CSP and the guard see the JSON-LD and csps-boot blocks (no report).
 // Every test seeds the demo shop (share picture included) under the site content lock, because the head reads the shared content.
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
@@ -22,6 +24,17 @@ const PAGES: readonly PublicUrl[] = [
   { path: '/gallery', title: 'Our Work · Gallery · CSPS' },
   { path: '/contact', title: 'Contact Us and Get a Quote · CSPS' },
 ];
+
+/** The approved legal pages from the shared facts file (LEGAL-05, D-71), so the sitemap lists them after the public pages. */
+const LEGAL_PATHS: readonly string[] = (
+  JSON.parse(
+    readFileSync(fileURLToPath(new URL('../../tests/fixtures/legal-pages.json', import.meta.url)), 'utf8'),
+  ) as {
+    pages: { path: string; approved: boolean }[];
+  }
+).pages
+  .filter((page) => page.approved)
+  .map((page) => page.path);
 
 // An email address; a social handle in a link (tiktok.com/@name) is not one and is public.
 const EMAIL_LIKE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
@@ -161,7 +174,7 @@ test('@link-preview /admin answers with the X-Robots-Tag header and a robots met
   }
 });
 
-test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages with the configured origin', async ({
+test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four pages and the approved legal pages with the configured origin', async ({
   request,
   baseURL,
 }) => {
@@ -176,7 +189,7 @@ test('@link-preview robots.txt names the sitemap and sitemap.xml lists the four 
   const sitemap = await request.get('/sitemap.xml');
   expect(sitemap.status()).toBe(200);
   const locs = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-  expect(locs).toEqual(PAGES.map(({ path }) => `${origin}${path}`));
+  expect(locs).toEqual([...PAGES.map(({ path }) => path), ...LEGAL_PATHS].map((path) => `${origin}${path}`));
 });
 
 test('@link-preview the JSON-LD and csps-boot blocks of every page raise no CSP report with JavaScript on', async ({

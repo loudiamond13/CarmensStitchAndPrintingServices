@@ -61,7 +61,7 @@
     {
       "number": "12",
       "name": "Consent, Analytics & Legal",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "13",
@@ -91,8 +91,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 12 of 18 · 50% · executing"
+    "label": "Advance to the next step (verify)",
+    "reason": "Phase 10 of 19 · 53% · ready to verify"
   },
-  "updated_at": "2026-11-15T02:19:46.224Z"
+  "updated_at": "2026-11-21T19:08:53.275Z"
 }

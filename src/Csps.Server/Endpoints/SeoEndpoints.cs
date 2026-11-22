@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security;
 using System.Text;
 using Csps.Application.Ports;
+using Csps.Domain.Content;
 using Csps.Infrastructure.Email;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -12,7 +13,9 @@ namespace Csps.Server.Endpoints;
 /// <c>/robots.txt</c> and <c>/sitemap.xml</c> (PUB-04). Both are built from <c>App:PublicBaseUrl</c> and the page list in
 /// <see cref="PublicRouteTable"/>, never from the request's Host header (CWE-644). They are anonymous, left out of
 /// OpenAPI and have no rate limit, so a crawler is never refused (research P-10). Each sitemap address carries
-/// <c>lastmod</c>, the date of the newest content change; when the content cannot be read the dates are left out.
+/// <c>lastmod</c>, the date of the newest content change, and a legal page the later of that and its own text date; when the
+/// content cannot be read the dates are left out.
+/// <c>/.well-known/gpc.json</c> (D-39) is mapped the same way and states that the site honors the Global Privacy Control signal.
 /// </summary>
 public static partial class SeoEndpoints
 {
@@ -22,9 +25,15 @@ public static partial class SeoEndpoints
     /// <summary>The sitemap route.</summary>
     public const string SitemapPath = "/sitemap.xml";
 
+    /// <summary>The Global Privacy Control statement route (D-39).</summary>
+    public const string GpcPath = "/.well-known/gpc.json";
+
     private const string SitemapNamespace = "http://www.sitemaps.org/schemas/sitemap/0.9";
 
-    /// <summary>Maps GET and HEAD for <see cref="RobotsPath"/> and <see cref="SitemapPath"/>.</summary>
+    // The site tracks no one, so it honors the GPC signal by default (D-60, D-20, D-39). The date moves only when that promise changes.
+    private const string GpcStatement = "{\"gpc\":true,\"lastUpdate\":\"2026-11-15\"}";
+
+    /// <summary>Maps GET and HEAD for <see cref="RobotsPath"/>, <see cref="SitemapPath"/> and <see cref="GpcPath"/>.</summary>
     /// <param name="app">The web application.</param>
     /// <returns>The same application.</returns>
     public static WebApplication MapSeoEndpoints(this WebApplication app)
@@ -33,6 +42,7 @@ public static partial class SeoEndpoints
 
         Map(app, RobotsPath, "text/plain; charset=utf-8", (_, origin) => Task.FromResult(Robots(origin)));
         Map(app, SitemapPath, "application/xml; charset=utf-8", SitemapAsync);
+        Map(app, GpcPath, "application/json; charset=utf-8", (_, _) => Task.FromResult(GpcStatement));
         return app;
     }
 
@@ -57,16 +67,23 @@ public static partial class SeoEndpoints
 
     private static async Task<string> SitemapAsync(HttpContext context, string origin)
     {
+        var legalPages = context.RequestServices.GetRequiredService<ILegalPageCatalog>();
         var lastModified = await LastModifiedAsync(context).ConfigureAwait(false);
         var xml = new StringBuilder()
             .Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
             .Append("<urlset xmlns=\"").Append(SitemapNamespace).Append("\">\n");
         foreach (var pagePath in PublicRouteTable.PagePaths)
         {
-            xml.Append("  <url><loc>").Append(SecurityElement.Escape(origin + pagePath)).Append("</loc>");
-            if (lastModified is not null)
+            if (legalPages.IsDraft(pagePath))
             {
-                xml.Append("<lastmod>").Append(lastModified).Append("</lastmod>");
+                continue;
+            }
+
+            xml.Append("  <url><loc>").Append(SecurityElement.Escape(origin + pagePath)).Append("</loc>");
+            if (lastModified is { } contentDate)
+            {
+                var date = LegalPages.ByPath(pagePath) is { } legal && legal.LastUpdated > contentDate ? legal.LastUpdated : contentDate;
+                xml.Append("<lastmod>").Append(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)).Append("</lastmod>");
             }
 
             xml.Append("</url>\n");
@@ -76,13 +93,13 @@ public static partial class SeoEndpoints
     }
 
     // The date of the newest content change, or null when the content cannot be read: a sitemap without dates is still a sitemap.
-    private static async Task<string?> LastModifiedAsync(HttpContext context)
+    private static async Task<DateOnly?> LastModifiedAsync(HttpContext context)
     {
         try
         {
             var snapshot = await context.RequestServices.GetRequiredService<IPublicContentReader>()
                 .GetSiteAsync(context.RequestAborted).ConfigureAwait(false);
-            return snapshot.Json.LastChangedUtc.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return DateOnly.FromDateTime(snapshot.Json.LastChangedUtc.UtcDateTime);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

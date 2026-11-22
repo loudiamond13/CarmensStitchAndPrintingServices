@@ -1,6 +1,6 @@
 // Component Showcase E2E (D-22, WEB-06, A11Y-01; plan 02-34): /dev/components on the real host (the e2e bundle has the
 // dev-only routes) in all five projects, in Blush and in Espresso (switched with the shell's own toggle, D-13). Each
-// run checks one h1, the fifteen sections, no "Missing component" alert, a page-level axe pass over every case, and the
+// run checks one h1, every section, no "Missing component" alert, a page-level axe pass over every case, and the
 // guard (no console, page, CSP or failed-response findings). Then: nothing in the showcase widens the page at 320px
 // (the 4-chip FilterBar fixture wraps), the toast triggers raise a toast in each tone, a picked image previews under
 // the strict CSP (UI-CR-01: a `data:` URL, never a blocked `blob:` one), and an open Delete Order dialog is axe-clean
@@ -32,7 +32,12 @@ const SECTIONS = [
   'Order photos',
   'Dashboard and staff money',
   'Site content and public website',
+  'Visitor stats',
+  'Legal',
 ];
+
+/** WebKit and Firefox can take several seconds to show this page of about 210 cases (as in shell.spec.ts, plan 12-31). */
+const FIRST_PAINT = { timeout: 20_000 };
 
 /**
  * Opens the showcase and waits for its page head. About 190 cases: under a full parallel run these tests get the same
@@ -42,7 +47,7 @@ async function openShowcase(page: Page): Promise<void> {
   test.setTimeout(120_000);
   const response = await page.goto('/dev/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
 }
 
 const THEMES = [
@@ -229,7 +234,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   });
   const response = await page.goto('/admin/components');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
   await expect(page).toHaveTitle('Component Showcase · CSPS Admin');
   await expect(page.getByRole('main')).toHaveCount(1);
 
@@ -237,7 +242,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('main > div').first().getByText('Demo data', { exact: true })).toBeVisible();
   await expect(page.locator('main > div').nth(1)).toHaveText(DEMO_BANNER);
   await expect(page.locator('main > section').first()).toBeVisible();
-  await expect(page.locator('main > section > div > h2')).toHaveCount(16);
+  await expect(page.locator('main > section > div > h2')).toHaveCount(SECTIONS.length);
   await expect(page.getByText(/^Missing component/)).toHaveCount(0);
   // No sidebar item claims the page, and the sidebar has no link to it.
   await expect(page.locator('[data-ui="s-admin-side"] [aria-current="page"]')).toHaveCount(0);
@@ -260,7 +265,7 @@ for (const width of [320, 1920]) {
     await page.setViewportSize({ width, height: 900 });
 
     await page.goto('/admin/components');
-    await expect(page.locator('h1')).toHaveText('Component Showcase');
+    await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
     await expect(page.getByText(DEMO_BANNER)).toBeVisible();
 
     expect(await page.evaluate<boolean>('document.documentElement.scrollWidth <= window.innerWidth')).toBe(true);
@@ -302,7 +307,7 @@ test('@showcase the Staff and audit demos open and close for a Manager, show a s
     }
   });
   await page.goto('/admin/components');
-  await expect(page.locator('h1')).toHaveText('Component Showcase');
+  await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
   const staff = page.getByRole('region', { name: 'Staff and audit' });
   await expect(staff).toBeVisible();
   await expect(staff.locator('[data-case="staff-roster-rows"]')).toBeVisible();
@@ -376,7 +381,7 @@ for (const { name, theme } of THEMES) {
       await page.setViewportSize({ width, height });
       const response = await page.goto('/dev/components');
       expect(response?.status()).toBe(200);
-      await expect(page.locator('h1')).toHaveText('Component Showcase');
+      await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
       await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
       await expect(page.locator('[data-case="dashboard-d1-demo"]')).toHaveCount(0);
       // Whatever the page itself asks for while it loads is not the demos' doing: the count starts when they are asked for.
@@ -443,7 +448,7 @@ for (const { name, theme } of THEMES) {
       await page.setViewportSize({ width, height });
       const response = await page.goto('/dev/components');
       expect(response?.status()).toBe(200);
-      await expect(page.locator('h1')).toHaveText('Component Showcase');
+      await expect(page.locator('h1')).toHaveText('Component Showcase', FIRST_PAINT);
       await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
       await expect(page.locator('[data-case="site-content-photo-slot-empty"]')).toHaveCount(0);
       // Whatever the page itself asks for while it loads is not the demos' doing: the count starts when they are asked for.

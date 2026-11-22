@@ -16,15 +16,26 @@ public static class RateLimitingRegistration
     /// <summary>The machine code a limiter rejection carries.</summary>
     public const string RateLimitedCode = "rate-limited";
 
+    /// <summary>The endpoint name the site-wide page view ceiling keys on. The page view action takes its name from it.</summary>
+    public const string PageViewEndpointName = "RecordPageView";
+
     internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
+    internal const string SiteBusyDetail = "The site is busy. Please try again in a minute.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
+    private const string SiteWidePartitionKey = "analytics-site";
+    private const string NoSiteWideLimitKey = "no-site-wide-limit";
     private const int SegmentsPerWindow = 6;
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy and the <c>public-read</c> policy, plus the slot limiter behind the app-wide cap of two uploads at a time (<see cref="UploadSlotsMiddleware"/>). The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting
-    /// record proves the proxy topology (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the
+    /// <c>analytics-collect</c> policy.
+    /// It also adds the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51). That limit runs after
+    /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74). A ceiling refusal answers that the site is busy.
+    /// The slot limiter behind the app-wide cap of two uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>).
+    /// The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting record proves the proxy topology
+    /// (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The host configuration.</param>
@@ -42,10 +53,16 @@ public static class RateLimitingRegistration
         configuration.GetSection(ImageUploadRateLimit.SectionName).Bind(images);
         var publicRead = PublicReadRateLimit.Default();
         configuration.GetSection(PublicReadRateLimit.SectionName).Bind(publicRead);
+        var collect = AnalyticsCollectRateLimit.Default();
+        configuration.GetSection(AnalyticsCollectRateLimit.SectionName).Bind(collect);
+        var ceiling = AnalyticsCeilingRateLimit.Default();
+        configuration.GetSection(AnalyticsCeilingRateLimit.SectionName).Bind(ceiling);
         var problems = settings.Validate()
-            .Concat(MaintenanceRateLimit.Validate(maintenance))
-            .Concat(ImageUploadRateLimit.Validate(images))
-            .Concat(PublicReadRateLimit.Validate(publicRead))
+            .Concat(RateLimitRule.Problems(ceiling, AnalyticsCeilingRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(collect, AnalyticsCollectRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(maintenance, MaintenanceRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(images, ImageUploadRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(publicRead, PublicReadRateLimit.SectionName))
             .ToList();
         if (problems.Count > 0)
         {
@@ -63,6 +80,7 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.Maintenance] = maintenance.Window,
             [RateLimitPolicies.ImageUpload] = images.Window,
             [RateLimitPolicies.PublicRead] = publicRead.Window,
+            [RateLimitPolicies.AnalyticsCollect] = collect.Window,
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
@@ -70,6 +88,9 @@ public static class RateLimitingRegistration
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => WriteRejectionAsync(context, windows, cancellationToken);
+            options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+                CreatePageViewAddressLimiter(collect),
+                CreateSiteWideLimiter(ceiling));
             AddPolicy(options, RateLimitPolicies.SignIn, settings.SignIn);
             AddPolicy(options, RateLimitPolicies.Verify, settings.Verify);
             AddPolicy(options, RateLimitPolicies.Resend, settings.Resend);
@@ -79,6 +100,7 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.Maintenance, maintenance);
             AddPolicy(options, RateLimitPolicies.ImageUpload, images);
             AddPolicy(options, RateLimitPolicies.PublicRead, publicRead);
+            AddPolicy(options, RateLimitPolicies.AnalyticsCollect, collect);
         });
         return services;
     }
@@ -117,17 +139,42 @@ public static class RateLimitingRegistration
         return $"{new IPAddress(bytes)}/64";
     }
 
+    // The page view route's per-address limit, repeated inside the global chain so it is taken before the site-wide
+    // ceiling: a call refused here never reaches the ceiling. Every other route gets no global limit.
+    // The analytics-collect policy on the route repeats this window as a fallback; a ceiling refusal still uses one address permit.
+    private static PartitionedRateLimiter<HttpContext> CreatePageViewAddressLimiter(RateLimitRule rule) =>
+        PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            IsPageView(context)
+                ? RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(context.Connection.RemoteIpAddress), _ => WindowOptions(rule))
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
+
+    // One shared window for the page view route, whatever the address; every other route has no site-wide limit.
+    private static SiteWideCeilingLimiter CreateSiteWideLimiter(RateLimitRule rule) =>
+        new(PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            IsPageView(context)
+                ? RateLimitPartition.GetSlidingWindowLimiter(SiteWidePartitionKey, _ => WindowOptions(rule))
+                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey)));
+
+    private static bool IsPageView(HttpContext context) =>
+        string.Equals(
+            context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName,
+            PageViewEndpointName,
+            StringComparison.Ordinal);
+
+    private static SlidingWindowRateLimiterOptions WindowOptions(RateLimitRule rule) =>
+        new()
+        {
+            PermitLimit = rule.PermitLimit,
+            Window = rule.Window,
+            SegmentsPerWindow = SegmentsPerWindow,
+            QueueLimit = 0,
+            AutoReplenishment = true,
+        };
+
     private static void AddPolicy(RateLimiterOptions options, string name, RateLimitRule rule) =>
         options.AddPolicy(name, context => RateLimitPartition.GetSlidingWindowLimiter(
             PartitionKey(context.Connection.RemoteIpAddress),
-            _ => new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = rule.PermitLimit,
-                Window = rule.Window,
-                SegmentsPerWindow = SegmentsPerWindow,
-                QueueLimit = 0,
-                AutoReplenishment = true,
-            }));
+            _ => WindowOptions(rule)));
 
     private static async ValueTask WriteRejectionAsync(
         OnRejectedContext context, Dictionary<string, TimeSpan> windows, CancellationToken cancellationToken)
@@ -144,7 +191,12 @@ public static class RateLimitingRegistration
             http.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
         }
 
-        var detail = policy == RateLimitPolicies.ImageUpload ? UploadsBusyDetail : AttemptsDetail;
+        var detail = policy switch
+        {
+            RateLimitPolicies.ImageUpload => UploadsBusyDetail,
+            _ when SiteWideCeilingLimiter.Refused(http) => SiteBusyDetail,
+            _ => AttemptsDetail,
+        };
         var problem = CspsProblemDetails.Build(http, StatusCodes.Status429TooManyRequests, detail, code: RateLimitedCode);
         await TypedResults.Problem(problem).ExecuteAsync(http).ConfigureAwait(false);
     }

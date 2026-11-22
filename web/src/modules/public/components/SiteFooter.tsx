@@ -10,14 +10,18 @@
 // server's business-calendar year.
 // SPEC-DEVIATION: D-25 no email row: the shop email is never shown on a public page.
 // SPEC-DEVIATION: D-33 (OQ-4) each social link's spoken name is "FB, CSPS on Facebook" and so on; nothing visible changes.
+// SPEC-DEVIATION: FOOTER-LEGAL App. E.1 and E.3 footers have no legal links; both variants gain a Legal row of the legal
+// page links (LEGAL-05, D-54). The row never waits for the shop facts.
 // SPEC-DEVIATION: D-41 R2-17 (owner, 2026-10-13) the column titles Shop, Visit and Contact are h2 instead of App. E.1's
 // h4, so the page's headings go h1 → h2 (Lighthouse heading order). Preflight resets heading size, weight and margin,
 // and the look comes from the classes, so nothing visible changes.
 import { Suspense } from 'react';
+import { useLocation } from 'react-router';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { Logo } from '@/components/brand/Logo';
 import { tw } from '@/ui/tw';
+import { withoutTrailingSlash } from '@/utils/urlPath';
 import { PUBLIC_COPY } from '../copy';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import { addressLine, mainPhone, telHref } from '../siteFacts';
@@ -41,6 +45,10 @@ const columnListClasses = tw('flex flex-col gap-3 text-14 leading-5');
 const rowClasses = tw('flex items-start gap-2');
 const rowLinkClasses = tw('no-underline hover:text-accent-ink');
 const staffLinkClasses = tw('inline-flex items-center gap-[6px] text-ink-subtle no-underline hover:text-ink');
+/** The Legal row's items: Small 14/20, 44px tall, underlined only on hover (UI-SPEC FT). */
+const legalLinkClasses = tw(
+  'inline-flex min-h-11 items-center text-14 leading-5 text-ink-subtle no-underline hover:text-ink hover:underline',
+);
 /** The footer shell (App. C `.s-foot`). On phones the bottom padding is 96px, or the Contact bar's height plus the safe area when that is taller, so the bar never covers the last row. */
 const footerShellClasses = tw(
   'border-t border-line bg-bg pt-16 pb-8 pg-phone:pb-[max(var(--space-24),calc(var(--spacing-contact-bar)+env(safe-area-inset-bottom)))]',
@@ -117,6 +125,24 @@ function StaffLogin() {
   );
 }
 
+/** The Legal row (UI-SPEC FT). */
+function LegalRow({ className }: { className: string }) {
+  const path = withoutTrailingSlash(useLocation().pathname);
+  return (
+    <nav aria-label={FOOTER.legal.label} className={className}>
+      <ul className="flex flex-wrap gap-x-4 gap-y-2">
+        {FOOTER.legal.links.map((link) => (
+          <li key={link.to}>
+            <UiLink to={link.to} className={legalLinkClasses} aria-current={path === link.to ? 'page' : undefined}>
+              {link.text}
+            </UiLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 export interface SiteFooterProps {
   /** The full four columns (Home, Products) or one row (Gallery, Contact, 404). */
   variant?: 'full' | 'base';
@@ -134,6 +160,7 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
             {site !== undefined && <span>{FOOTER.baseCopyright(Number(site.year), site.businessName)}</span>}
             <StaffLogin />
           </div>
+          <LegalRow className="mt-2" />
         </div>
       </footer>
     );
@@ -181,9 +208,12 @@ export function SiteFooter({ variant = 'full' }: SiteFooterProps) {
           {showVisit && <VisitColumn site={site} />}
           {showContact && <ContactColumn site={site} />}
         </div>
-        <div className="mt-12 flex flex-wrap justify-between gap-3 border-t-2 border-dashed border-line pt-6 text-12 leading-4 text-ink-subtle">
-          {site !== undefined && <span>{FOOTER.copyright(Number(site.year), site.businessName)}</span>}
-          <StaffLogin />
+        <div className="mt-12 border-t-2 border-dashed border-line pt-6">
+          <LegalRow className="mb-2" />
+          <div className="flex flex-wrap justify-between gap-3 text-12 leading-4 text-ink-subtle">
+            {site !== undefined && <span>{FOOTER.copyright(Number(site.year), site.businessName)}</span>}
+            <StaffLogin />
+          </div>
         </div>
       </div>
     </footer>

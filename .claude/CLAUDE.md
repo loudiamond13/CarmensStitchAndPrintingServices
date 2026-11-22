@@ -2,11 +2,11 @@
 
 ## Project
 
-*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-10-20T06:02:41-05:00*
+*Created: 2026-10-06T23:52:01-05:00 · Updated: 2026-11-20T19:56:00-06:00*
 
 **CSPS — Carmen's Stitch & Printing Services** replaces the production system of a Philippine shop that makes custom full-sublimation jerseys and does tailoring.
 
-- **Public site:** home, products, gallery, contact/quote, legal pages, cookie consent. Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
+- **Public site:** home, products, gallery, contact/quote, legal pages (no cookie banner). Visitors are mostly teams, leagues and riding clubs arriving on a phone from Facebook.
 - **Admin portal:** staff with the roles `Admin` and `Manager` run orders (items, payments, discounts, order expenses, images), company expenses, users, site content, visitor metrics and their own profiles.
 - All production data is migrated in without loss. The API is client-agnostic, so a future Android app can use the same backend.
 
@@ -72,7 +72,7 @@ Full detail: `.planning/PROJECT.md` · `CSPS-PRD.md` (behavior, security, a11y, 
 - HIBP: hand-rolled k-anonymity client (no package).
 
 **Frontend** (`web/`, Node 24, exact versions):
-- react/react-dom 19.3, react-router 8 (import from `react-router`; `RouterProvider` from `react-router/dom`), @tanstack/react-query 5, react-hook-form 7 + zod 4 + @hookform/resolvers, clsx, @fontsource fonts, web-vitals (only after consent).
+- react/react-dom 19.3, react-router 8 (import from `react-router`; `RouterProvider` from `react-router/dom`), @tanstack/react-query 5, react-hook-form 7 + zod 4 + @hookform/resolvers, clsx, @fontsource fonts.
 - Vite 8 + @vitejs/plugin-react 6 + React Compiler via `@rolldown/plugin-babel` (@babel/core 7.29.x).
 - Tailwind 4.3 via `@tailwindcss/vite`. vite-plugin-pwa with `injectRegister: null`.
 - TypeScript alias pair: `typescript` → `@typescript/typescript6` (API for tooling), `@typescript/native` → `typescript@7` (fast `tsc --noEmit`).

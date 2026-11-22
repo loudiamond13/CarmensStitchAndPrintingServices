@@ -2,8 +2,9 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
+import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
-import { server } from './msw';
+import { pageViewHandler, server } from './msw';
 import {
   demoGallery,
   demoHome,
@@ -13,6 +14,7 @@ import {
   homeHandler,
   openStatusAt0900,
   openStatusHandler,
+  privacyContactHandler,
   productLinesHandler,
   resetPublicData,
   siteHandler,
@@ -67,7 +69,17 @@ if (typeof window !== 'undefined') {
       productLinesHandler(demoLines),
       homeHandler(demoHome),
       galleryHandler(demoGallery),
+      privacyContactHandler(),
+      pageViewHandler(),
     );
+  });
+  // Every test starts with no saved Show Map tap (D-65).
+  beforeEach(() => {
+    try {
+      window.localStorage.removeItem(MAPS_KEY);
+    } catch {
+      // A test that replaced storage with a throwing one restores it itself.
+    }
   });
   afterEach(() => {
     server.resetHandlers();

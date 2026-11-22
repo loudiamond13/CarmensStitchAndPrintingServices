@@ -260,3 +260,116 @@ describe('SiteFooter, base (UI-SPEC Footer base; Gallery, Contact, 404)', () => 
     await expectNoAxeViolations(container);
   });
 });
+
+const LEGAL_ITEMS = ['Privacy Policy', 'Terms of Use', 'Accessibility Statement'];
+
+function drawAt(variant: 'full' | 'base', path = '/') {
+  putBootBlock(demoSite);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <SiteFooter variant={variant} />
+    </MemoryRouter>,
+  );
+}
+
+function legalNav(): HTMLElement {
+  return screen.getByRole('navigation', { name: 'Legal' });
+}
+
+describe.each(['full', 'base'] as const)('SiteFooter Legal row, %s footer (LEGAL-05, UI-SPEC FT)', (variant) => {
+  it('has only the legal links: the three legal pages, in that order, as links to the legal paths, and no button', () => {
+    drawAt(variant);
+    const items = within(legalNav()).getAllByRole('listitem');
+
+    expect(items.map((item) => item.textContent)).toEqual(LEGAL_ITEMS);
+    expect(
+      within(legalNav())
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/privacy', '/terms', '/accessibility']);
+    expect(within(legalNav()).queryAllByRole('button')).toEqual([]);
+  });
+
+  it.each([
+    ['/privacy', 'Privacy Policy'],
+    ['/terms', 'Terms of Use'],
+    ['/accessibility', 'Accessibility Statement'],
+  ])('marks only the link of %s as the current page', (path, name) => {
+    drawAt(variant, path);
+    const current = within(legalNav())
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+      .map((link) => link.textContent);
+
+    expect(current).toEqual([name]);
+  });
+
+  it('marks the link of a legal page opened with a trailing slash', () => {
+    drawAt(variant, '/privacy/');
+    const current = within(legalNav())
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+      .map((link) => link.textContent);
+
+    expect(current).toEqual(['Privacy Policy']);
+  });
+
+  it('marks no link on another page', () => {
+    drawAt(variant, '/products');
+
+    expect(legalNav().querySelector('[aria-current]')).toBeNull();
+  });
+
+  it('gives each item a 44px height, Small 14px text and 16px by 8px gaps that wrap, so 320px never scrolls sideways', () => {
+    drawAt(variant);
+    const list = within(legalNav()).getByRole('list');
+
+    expect(list.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'flex-wrap', 'gap-x-4', 'gap-y-2']));
+    for (const control of within(legalNav()).getAllByRole('link')) {
+      expect(control.className.split(' ')).toEqual(
+        expect.arrayContaining(['inline-flex', 'min-h-11', 'items-center', 'text-14', 'text-ink-subtle']),
+      );
+    }
+  });
+
+  it('renders at once and stays when the shop facts cannot be read', async () => {
+    server.use(siteFailureHandler(404));
+    render(
+      <MemoryRouter>
+        <SiteFooter variant={variant} />
+      </MemoryRouter>,
+    );
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(3);
+
+    await waitFor(() => {
+      expect(screen.queryByText(/©/)).not.toBeInTheDocument();
+    });
+    expect(within(legalNav()).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = drawAt(variant, '/privacy');
+
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('SiteFooter Legal row placement (UI-SPEC FT)', () => {
+  it('sits after the dashed rule and above the copyright line in the full footer', () => {
+    drawAt('full');
+    const rule = legalNav().parentElement;
+    const copyright = screen.getByText('© 2026 Sample Shop. All rights reserved.');
+
+    expect(rule?.className.split(' ')).toEqual(expect.arrayContaining(['border-t-2', 'border-dashed']));
+    expect(legalNav().compareDocumentPosition(copyright)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(legalNav().className.split(' ')).toContain('mb-2');
+  });
+
+  it('sits under the one-row base, 8px below it', () => {
+    drawAt('base');
+    const copyright = screen.getByText('© 2026 Sample Shop');
+
+    expect(copyright.compareDocumentPosition(legalNav())).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(legalNav().className.split(' ')).toContain('mt-2');
+  });
+});

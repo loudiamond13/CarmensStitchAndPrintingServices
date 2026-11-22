@@ -345,7 +345,8 @@ test('@auth-overflow the session-cap and S7 toasts wrap inside a 320px window', 
 
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/dev/components');
-  await expect(page.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeVisible();
+  // The showcase is a heavy page: WebKit shows its h1 about 7 s after the first request (D-42 moved the load event earlier).
+  await expect(page.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeVisible({ timeout: 20_000 });
 
   const triggers = [
     'Show session ending toast',

@@ -1,3 +1,4 @@
+using Csps.Domain.Analytics;
 using Csps.Domain.Auditing;
 using Csps.Domain.Content;
 using Csps.Domain.Expenses;
@@ -101,6 +102,30 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The database lock rows: 67 standing locks and short-lived idempotency claims (D-50).</summary>
     public DbSet<DatabaseLock> DatabaseLocks => Set<DatabaseLock>();
+
+    /// <summary>The cookie decisions kept as proof of consent: one row per decision, never edited, kept 13 months (ANL-07, D-05).</summary>
+    public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
+
+    /// <summary>The anonymous page-view counts: one row per business day and page key, with no visitor information (ANL-06).</summary>
+    public DbSet<DailyPageCount> DailyPageCounts => Set<DailyPageCount>();
+
+    /// <summary>The rolled-up visit counts per business day and source, kept after the raw visits age out (ANL-09).</summary>
+    public DbSet<DailyReferrerCount> DailyReferrerCounts => Set<DailyReferrerCount>();
+
+    /// <summary>The rolled-up visit counts per business day and device class or browser (ANL-09).</summary>
+    public DbSet<DailyDeviceCount> DailyDeviceCounts => Set<DailyDeviceCount>();
+
+    /// <summary>The visits of visitors who allowed stats: hashed visitor id, source, device, browser, OS and a salted address hash (ANL-05).</summary>
+    public DbSet<AnalyticsVisit> AnalyticsVisits => Set<AnalyticsVisit>();
+
+    /// <summary>The page views of those visits (ANL-05).</summary>
+    public DbSet<AnalyticsPageView> AnalyticsPageViews => Set<AnalyticsPageView>();
+
+    /// <summary>The Core Web Vitals samples of those visits (ANL-05, D-26).</summary>
+    public DbSet<AnalyticsVitalSample> AnalyticsVitalSamples => Set<AnalyticsVitalSample>();
+
+    /// <summary>The random salt of each business day, deleted after two days (ANL-05, D-07).</summary>
+    public DbSet<AnalyticsSalt> AnalyticsSalts => Set<AnalyticsSalt>();
 
     /// <summary>The Data Protection key ring, written only by the framework; each key is certificate-encrypted XML (SEC-04).</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

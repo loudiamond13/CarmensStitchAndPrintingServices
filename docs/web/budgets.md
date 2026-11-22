@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-13T00:24:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-19T09:00:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -25,13 +25,13 @@ A route's initial JS is everything the browser must download before that route c
 2. the chunk of every route module the route renders on first load,
 3. every chunk those chunks import statically, followed all the way down.
 
-Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted.
+Each chunk is counted once, even when several of them import it. Chunks loaded later through a dynamic `import()` are not counted. The three legal rows also list `src/modules/public/legalLoaders.ts`, the chunk their routes fetch before the page (plan 12-32).
 
 | Route | Route modules |
 |---|---|
 | Public (`/`) | `src/modules/public/pages/HoldingPage.tsx` (the D-17 holding page; `PublicLayout` returns to this row with Phase 11) |
-| Admin, signed in (`/admin`) | `src/core/routes/QueryRoot.tsx`, `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
-| Admin, signed out (`/admin/login`) | `src/core/routes/QueryRoot.tsx`, `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed in (`/admin`) | `src/core/routes/QueryRoot.tsx`, `src/modules/admin/routes.tsx`, `src/layouts/AdminLayout.tsx`, `src/lib/url-state/UrlStateLayout.tsx`, `src/modules/admin/pages/SessionsPage.tsx`, `src/modules/admin/guard.ts` |
+| Admin, signed out (`/admin/login`) | `src/core/routes/QueryRoot.tsx`, `src/modules/admin/routes.tsx`, `src/layouts/AuthLayout.tsx`, `src/modules/admin/pages/SignInPage.tsx`, `src/modules/admin/guard.ts` |
 
 The admin number is the larger of the two admin rows. Both ship in every build, so admin JS is measured in the production build too. The dev-only `AdminPreviewPage` is never part of it.
 
@@ -68,6 +68,191 @@ Figures from plan 11-08 (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for ever
 | Not found | 138.22 KB | 137.95 KB |
 
 The Gallery page is the largest because it also loads nuqs. The data sections of later plans must fit in the room that is left (about 12 KB on Home and 7 KB on Gallery), or load lazily.
+
+## Legal pages (Phase 12, plan 12-05)
+
+The three legal pages are public routes inside `PublicLayout`: `/privacy`, `/terms` and `/accessibility`. Each is its own lazy chunk and its own row in the budget report (`privacy`, `terms`, `accessibility`). The Cookie Policy page was removed in Phase 12.1 (D-72): `/cookies` is the normal page not found. The figures below are from plan 12-05 and are kept as a record; the current rows are in the build report. Figures from `npm run build` (gzip -9, 1 KB = 1000 B; the limit is 150.00 KB for every page):
+
+| Page | Size | Result |
+|---|---|---|
+| Privacy Policy (`/privacy`) | 144.98 KB | ok |
+| Terms of Use (`/terms`) | 144.97 KB | ok |
+| Accessibility Statement (`/accessibility`) | 144.98 KB | ok |
+
+These pages hold only the page head for now. The article text of plans 12-07, 12-11, 12-12 and 12-19 must fit in the 5.0 KB that is left on each row. The loader chunk (`legalLoaders.ts`, about 0.55 KB gzip) that the legal routes also fetch is counted in these four rows since plan 12-32.
+
+**Entry chunk cost.** Every lazy route adds its chunk name and import to the entry chunk's route table, and every page downloads that table. Four separate legal imports in `router.tsx` grew it by about 0.24 KB (Home 149.78 to 150.02 KB, Contact 149.82 to 150.05 KB, both over the limit). The four routes now share one import of `legalLoaders.ts`, which holds the four page imports. That costs about 0.10 KB (Home 149.88 KB, Contact 149.92 KB), and each page is still its own lazy chunk. In the production build Home and Contact had about 0.1 KB left. `npm run build:budget` (the admin-included build that CI runs) was over: Home 150.09 KB and Contact 150.13 KB, where the same build before this plan gave 149.98 KB and 149.99 KB. The recovery, the figures and the room that is left now are in "Entry recovery (Phase 12, plan 12-31, D-42)" below.
+
+## Entry recovery (Phase 12, plan 12-31, D-42)
+
+After plan 12-05 the entry chunk was too big: `npm run build:budget` failed (Home 150.09 KB, Contact 150.13 KB). The owner ruled that the limit stays at 150 KB and the entry gets smaller (D-42).
+
+**What moved.** The router no longer imports the admin route table (`src/modules/admin/routes.tsx`) or the dev-only table (`src/modules/admin/devRoutes.tsx`). Both load through React Router's `patchRoutesOnNavigation` on the first navigation under `/admin` or `/dev`, and patch into the one lazy `QueryRoot` route. The tables and the long list of chunk file names they carried (the `__vite__mapDeps` preload list) left the entry. The production build has a literal `false` for `__DEV_ROUTES__`, so it holds no `/dev` table and no `devRoutes` import. A table that fails to load (a stale tab after a deploy) shows the admin error screen with Reload Page.
+
+**What now fails the build.** No admin module may sit in a public initial chunk, `routes.tsx` included. The old one-file exception is gone, so a later static import of the admin table cannot undo this. The limits did not change (`publicJs` is still 150_000).
+
+Figures, gzip -9, 1 KB = 1000 B. Before is the plan base (after plan 12-05), After is this plan. Both are from the numbers files.
+
+`npm run build` (production):
+
+| Measure | Before | After |
+|---|---|---|
+| Home | 149.88 KB | 147.47 KB |
+| Products | 146.55 KB | 144.16 KB |
+| Gallery | 147.92 KB | 145.51 KB |
+| Contact | 149.92 KB | 147.48 KB |
+| Privacy | 144.98 KB | 142.54 KB |
+| Terms | 144.97 KB | 142.53 KB |
+| Accessibility | 144.98 KB | 142.54 KB |
+| Not found | 142.63 KB | 140.18 KB |
+| Admin JS | 219.44 KB | 221.07 KB |
+| CSS | 20.13 KB | 20.13 KB |
+
+`npm run build:budget` (admin routes included):
+
+| Measure | Before | After |
+|---|---|---|
+| Home | 150.09 KB (over) | 147.50 KB |
+| Products | 146.76 KB | 144.19 KB |
+| Gallery | 148.13 KB | 145.54 KB |
+| Contact | 150.13 KB (over) | 147.51 KB |
+| Privacy | 145.19 KB | 142.57 KB |
+| Terms | 145.18 KB | 142.56 KB |
+| Accessibility | 145.19 KB | 142.57 KB |
+| Not found | 142.83 KB | 140.21 KB |
+| Admin JS | 221.57 KB | 223.05 KB |
+| CSS | 20.13 KB | 20.13 KB |
+
+Every public row drops by 2.4 to 2.6 KB. Admin JS goes up by about 1.5 to 1.6 KB because the route table is now its own chunk, which every `/admin` visit loads first, and the budget counts it (`src/modules/admin/routes.tsx` is in the admin rows above). Admin JS is still well under 250 KB.
+
+**Room left.** The tightest row is Contact: 147.48 KB in production and 147.51 KB in the budget build, so 2.52 and 2.49 KB under the 150 KB limit (1.52 and 1.49 KB under 149 KB). Plans 12-09 (the consent bar loader) and 12-13 (the footer legal row) add to the entry and must fit in that room, together, or load lazily. After plans 12-09 and 12-11 that room was gone, and plan 12-32 made new room: see "Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)" below.
+
+## Cookie bar (removed in Phase 12.1)
+
+The cookie bar, its four lazy chunks (`ConsentBar`, `consentRules`, `consentSave`, `consentService`) and the consent store were deleted in Phase 12.1 (D-54, D-59, plans 12.1-05 and 12.1-06). The public first download no longer loads any consent code. Plan 12.1-06 measured the public rows before and after the deletion and found no change (0.01 to 0.02 KB of hash noise), because the consent chunks were already lazy.
+
+## Entry chunk merge and headroom (Phase 12, plan 12-32, D-42)
+
+After wave 3 `npm run build:budget` failed again (Privacy 150.04 KB). Plan 12-09 (the consent store split into four small modules) added about 1.4 KB to every public route, and plan 12-11 (the Privacy Policy text) about 2 KB to `/privacy`. The owner ruled that the limit stays at 150 KB (D-42). Plan 12-32 made room in two honest ways, and changed no page content.
+
+**What changed.**
+
+1. One `$initial` group in `web/vite.config.ts` (`build.rolldownOptions.output.codeSplitting`). Every module the entry imports statically now ships in the entry chunk, instead of in 8 small shared chunks that the entry imported anyway. It applies to the production, e2e and budget builds, which have `index.html` as their only entry. It is off in the parity build (and in development): there the tag would cover both entries, and `parity.html`'s modules would merge into the visitor entry. `build-config.node.test.ts` pins both.
+2. The legal rows (privacy, terms, accessibility; the cookies row was removed in Phase 12.1, D-72) now count `src/modules/public/legalLoaders.ts` (`LEGAL_LOADERS` in `budget.ts`). The legal routes always downloaded it before their page. A build without that chunk fails with "has no chunk", so the figure cannot quietly drop it again.
+
+**Why it is honest.** Each route loads the same modules as before, in the same order, in fewer files. The entry already imported them at start-up, and Rolldown keeps the order inside a chunk. Nothing moved out of the count and nothing loads later. The saving is packaging only: one gzip stream instead of nine, and fewer import and export lines. Home goes from 31 files to 24, and `index.html` lists 24 `modulepreload` links instead of 37. Item 2 goes the other way: it raises the legal figures to what a visitor really downloads first.
+
+Figures, gzip -9, 1 KB = 1000 B, from the numbers files. Before is the plan base (the gate as it measured it). "Before, loader counted" adds `legalLoaders.ts` to the four legal rows (the loader was 621 B in the production build and 624 B in the budget build at the base). After is this plan.
+
+`npm run build` (production):
+
+| Measure | Before | Before, loader counted | After | Files before to after |
+|---|---|---|---|---|
+| Home | 149.14 KB | 149.14 KB | 145.55 KB | 31 to 24 |
+| Products | 145.82 KB | 145.82 KB | 142.25 KB | 30 to 23 |
+| Gallery | 147.13 KB | 147.13 KB | 143.60 KB | 29 to 22 |
+| Contact | 149.09 KB | 149.09 KB | 145.62 KB | 32 to 25 |
+| Privacy | 149.99 KB | 150.61 KB (over) | 147.09 KB | 30 to 24 |
+| Terms | 149.10 KB | 149.72 KB | 146.20 KB | 30 to 24 |
+| Accessibility | 148.66 KB | 149.28 KB | 145.76 KB | 30 to 24 |
+| Not found | 141.79 KB | 141.79 KB | 138.32 KB | 27 to 20 |
+| Admin JS | 221.10 KB | 221.10 KB | 217.47 KB | |
+| CSS | 20.39 KB | 20.39 KB | 20.39 KB | |
+
+`npm run build:budget` (admin routes included, the build CI runs):
+
+| Measure | Before | Before, loader counted | After | Files before to after |
+|---|---|---|---|---|
+| Home | 149.19 KB | 149.19 KB | 145.57 KB | 31 to 24 |
+| Products | 145.88 KB | 145.88 KB | 142.28 KB | 30 to 23 |
+| Gallery | 147.18 KB | 147.18 KB | 143.62 KB | 29 to 22 |
+| Contact | 149.15 KB | 149.15 KB | 145.64 KB | 32 to 25 |
+| Privacy | 150.04 KB (over) | 150.67 KB (over) | 147.11 KB | 30 to 24 |
+| Terms | 149.15 KB | 149.78 KB | 146.22 KB | 30 to 24 |
+| Accessibility | 148.71 KB | 149.33 KB | 145.78 KB | 30 to 24 |
+| Not found | 141.84 KB | 141.84 KB | 138.34 KB | 27 to 20 |
+| Admin JS | 223.12 KB | 223.12 KB | 219.44 KB | |
+| CSS | 20.39 KB | 20.39 KB | 20.39 KB | |
+
+The "loader counted" columns are the base figures plus the loader chunk size measured at the base; the base builds themselves did not list it. For the legal rows the file count before is 30 without the loader; with it the base loaded 31 files, so those rows go from 31 to 24.
+
+**Headroom.** The larger of the two builds' figures (the budget build), per public row. The target is 148.50 KB, the room the later wave 4 plans were planned against; the hard limit is 150 KB.
+
+| Page | Size | Room to 150 KB | Room to 148.50 KB |
+|---|---|---|---|
+| Home | 145.57 KB | 4.43 KB | 2.93 KB |
+| Products | 142.28 KB | 7.72 KB | 6.22 KB |
+| Gallery | 143.62 KB | 6.38 KB | 4.88 KB |
+| Contact | 145.64 KB | 4.36 KB | 2.86 KB |
+| Privacy | **147.11 KB** | **2.89 KB** | **1.39 KB** |
+| Terms | 146.22 KB | 3.78 KB | 2.28 KB |
+| Accessibility | 145.78 KB | 4.22 KB | 2.72 KB |
+| Not found | 138.34 KB | 11.66 KB | 10.16 KB |
+
+The tightest row is Privacy. Plans 12-13 (the Cookie Settings window and the footer legal row) and 12-15 (the page view beacon) both add to the public first download and must fit in this room together, or load lazily.
+
+**Reserve options.** None is used. Each needs the owner's yes before any plan uses it.
+
+| Option | What | Figure | Measured | Cost |
+|---|---|---|---|---|
+| R1 | One chunk for the public layout's shared chain (the 15 small chunks every public page loads through `PublicLayout`) | every public row a further 4.06 KB lower | Measured, on top of the entry merge, before the loader was counted | Admin JS 4.63 KB higher (admin visitors also download the public footer, header and copy); needs a hand-kept module list |
+| R2 | Smaller legal dependencies: `format.ts` is pulled whole for one date line in `legalCopy.ts`, and `ProductStates.tsx` for `ProductsError` in `LegalFacts.tsx` | about 1.0 to 1.5 KB on the four legal rows only | Estimated | Two small modules; touches legal page code |
+| R3 | A public icon registry, so the icon chunk (about 80 icons, many admin-only) stops loading with the entry on every page | about 3 to 4 KB on every public row | Estimated | Changes the `Icon` API (C-10), so it is an owner call |
+
+**The limit to watch.** The entry is now one file: 366.74 KB raw in the production build and 366.88 KB in the budget build (117.7 KB gzip). Vite warns above 500 KB raw, and that warning would break the zero-warnings rule. There are about 133 KB raw left before it.
+
+## Final figures after Phase 12.1 (2026-11-19)
+
+The speed reader is gone: the `web-vitals` package is uninstalled and its lazy chunk and the `useSpeedReport` hook were deleted (D-53, D-59, plan 12.1-01). No page speed is collected, so no budget row covers it. The Cookie Policy page is gone too (D-72), so there are three legal rows, and the `/cookies` row is no longer in the budget report.
+
+Figures from `npm run build:budget` (the build CI runs), gzip -9, 1 KB = 1000 B, limit 150.00 KB per public page. The public rows are from plan 12.1-13 (the last plan that changed them); Privacy, Admin JS and CSS are from the wave 7 gate, after plans 12.1-14 and 12.1-15. Every row is under its limit and no limit was changed.
+
+| Measure | Size | Limit | Room |
+|---|---|---|---|
+| Home | 144.94 KB | 150 KB | 5.06 KB |
+| Products | 141.65 KB | 150 KB | 8.35 KB |
+| Gallery | 142.99 KB | 150 KB | 7.01 KB |
+| Contact | 145.22 KB | 150 KB | 4.78 KB |
+| Privacy | 147.17 KB | 150 KB | 2.83 KB |
+| Terms | 145.52 KB | 150 KB | 4.48 KB |
+| Accessibility | 145.07 KB | 150 KB | 4.93 KB |
+| Not found | 137.71 KB | 150 KB | 12.29 KB |
+| Admin JS | 222.03 KB | 250 KB | 27.97 KB |
+| CSS | 20.32 KB | 35 KB | 14.68 KB |
+
+The tightest row is Privacy, which carries the cookies and saved settings section (plan 12.1-10). The earlier sections of this file keep their figures as a record; their "Cookies" rows were removed with the page.
+
+## Lighthouse first visit with the consent bar (Phase 12, plan 12-24)
+
+*Phase 12.1 note: the cookie bar was removed (D-54), so a first visit no longer shows a bar and the "Bar" columns below are a record only. The gate itself is unchanged.*
+
+Lighthouse starts every page with an empty browser, so it always scores the honest first visit: the consent bar is showing. The question was whether the bar costs score, and whether its text becomes the LCP element on a phone. It does neither in a way that matters: the bar text was never the LCP element, and the bar adds 0 to about 160 ms of simulated LCP, inside the 200 to 400 ms run-to-run noise on this machine.
+
+**The gate, three runs** (`npm --prefix web run lighthouse`, 2026-11-17, production build, mobile profile, simulated slow 4G, the Development host on `CSPS_Dev`). Performance score, then LCP in ms (report-only by D-29):
+
+| Page | Run 1 | Run 2 | Run 3 | LCP element (every run) |
+|---|---|---|---|---|
+| `/` | **0.92**, 2658 | 0.95, 2589 | 0.95, 2644 | the hero jersey's name, an SVG `text` in Barlow Condensed |
+| `/products` | 0.95, 2353 | 0.97, 2270 | 0.96, 2373 | the lead paragraph under the h1 |
+| `/gallery` | **0.91**, 3124 | **0.94**, 2715 | **0.93**, 2937 | the first gallery photo (`img`), loaded from Cloudinary |
+| `/contact` | **0.93**, 2569 | 0.96, 2286 | 0.95, 2508 | the lead paragraph under the h1 |
+
+Accessibility, best practices and SEO were 1 on every page in every run. TBT stayed under 200 ms (the highest was 199 ms on `/` in run 1) and CLS under 0.05 (`/products` 0.041, `/contact` 0.043, as in Phase 11). Run 1 started right after another executor's test coverage run ended, which is the likely reason it is the slowest. **No run was fully green: `/gallery` missed the 0.95 performance score in all three.**
+
+**Why `/gallery` misses.** On `CSPS_Dev` its LCP element is a real gallery photo fetched from `res.cloudinary.com` over the internet (about 0.5 s waiting for the request to start and 0.3 to 0.7 s to load it). With the seeded test data (`CSPS_E2E`, below) the Gallery's LCP element is its h1 and the page scores 0.96 to 0.97. The bar is not the cause.
+
+**The bar on or off, same build and host** (a scratch script, not in the repo: Lighthouse's own API with the same mobile defaults, a fresh browser profile per run, the host on `CSPS_E2E`, two rounds). "Bar" is a first visit; "no bar" starts with a saved Reject All cookie. Performance score, LCP in ms:
+
+| Page | Bar, round 1 | Bar, round 2 | No bar, round 1 | No bar, round 2 |
+|---|---|---|---|---|
+| `/` | 0.95, 2480 | 0.95, 2463 | 0.96, 2334 | 0.95, 2550 |
+| `/products` | 0.96, 2371 | 0.96, 2300 | 0.96, 2297 | 0.96, 2303 |
+| `/gallery` | 0.96, 2284 | 0.96, 2281 | 0.97, 2285 | 0.96, 2326 |
+| `/contact` | 0.95, 2409 | 0.95, 2436 | 0.96, 2280 | 0.96, 2250 |
+
+With the bar every page reached 0.95 or more in both rounds. The largest gap is Contact, about 160 ms of LCP and 0.01 of score: the bar, its save path and the rules load as three small chunks (about 3 KB) while the page is still waiting for its fonts. The LCP element was the same with and without the bar on every page, and the bar's text was never it, at the Lighthouse phone width (412 px) where the bar is tallest. It is `position: fixed` and drawn after the first paint, so it also adds no layout shift (`/` CLS 0.004 with it).
+
+**What this leaves open** (for the owner, recorded in the plan 12-24 summary): the gate is not reliably green on the performance score, as plan 11-36 already found, and `/gallery` on the development database now misses on every run because of its real photos. `CSPS_Dev` is also one migration behind (`AddDailyAnalyticsCounts`, plan 12-18), so every page view the gate's host receives answers 500 there; this does not change the scores (the beacon leaves after the page has loaded) but it fills the host log. No limit was changed.
 
 ## Fonts and compression (Phase 11)
 
@@ -137,7 +322,7 @@ What a build is comes from its **Vite mode only** (`MODES` in `web/vite.config.t
 - **Exactly one CSS file.** All app styles come from the one Tailwind entry (`src/ui/app.css`, decision D-33). A second CSS file means a stylesheet was imported somewhere else, so the build stops and names both files.
 - **No dev code in production** (decision D-20, CWE-489). The production build fails when any chunk ships code from the parity entry (`src/dev/parity-main`), `web/visual/`, the dev preview page (`src/modules/admin/pages/AdminPreviewPage`) or its copy (`src/modules/admin/previewCopy`), the dev-only public layout check page (`src/modules/public/pages/PublicLayoutCheckPage`), or when it has an entry other than `index.html`. The rest of `src/dev/` is the showcase's, under the next rule.
 - **The showcase ships only as its own lazy chunks** (decisions D-30..D-33, D-41 Q3, plan 05-35). See the section below. Since Phase 4 (plan 04-25) the guarded admin app ships in production, so `src/layouts/AdminLayout` and the rest of `src/modules/admin/` are allowed. These rules follow the mode, never a flag.
-- **No TanStack Query and no admin code in the public initial JS** (PERF-02, quick task 261016). Every chunk the public route loads first must be free of `@tanstack/`, `nuqs`, `react-hook-form`, `zod`, `src/lib/query/`, `src/lib/url-state/`, `src/lib/forms/`, `QueryRoot`, the admin and auth layouts and `src/modules/admin/` (the route table `routes.tsx` is the one exception). The query client lives in the lazy `QueryRoot` route, so it loads with the admin chunks. The build stops and names the chunk and the module.
+- **No TanStack Query and no admin code in the public initial JS** (PERF-02, quick task 261016). Every chunk the public route loads first must be free of `@tanstack/`, `nuqs`, `react-hook-form`, `zod`, `src/lib/query/`, `src/lib/url-state/`, `src/lib/forms/`, `QueryRoot`, the admin and auth layouts and `src/modules/admin/` (no admin module may be in the public initial JS, the route table `routes.tsx` included since plan 12-31, D-42: the router loads it on the first navigation under `/admin`). The query client lives in the lazy `QueryRoot` route, so it loads with the admin chunks. The build stops and names the chunk and the module.
 - **Only the parity build has a second entry.** The budget and e2e builds fail on any entry other than `index.html`; the parity build allows `parity.html` and nothing else. Modules that the build reduced to nothing (for example the dev preview page behind the literal-false `__DEV_ROUTES__`) do not count, because no code of theirs ships.
 - **No parity reference output.** No build may emit a file from a `.reference-dist` or `.reference-src` folder, and after writing, the production web root (`wwwroot`) must hold neither folder (plan 02-13).
 

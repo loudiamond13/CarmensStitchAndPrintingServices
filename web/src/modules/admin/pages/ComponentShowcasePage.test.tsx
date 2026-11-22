@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, MemoryRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { describe, expect, it } from 'vitest';
-import { devRoutes } from '@/modules/admin/routes';
+import { devRoutes } from '@/modules/admin/devRoutes';
 import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
@@ -33,6 +33,8 @@ const SECTION_TITLES = [
   'Order photos',
   'Dashboard and staff money',
   'Site content and public website',
+  'Visitor stats',
+  'Legal',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -180,6 +182,8 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Expenses and settings')).toContainElement(caseFrame('settings-category-rows'));
     expect(section('Orders')).toContainElement(caseFrame('orders-totals-states'));
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
+    expect(section('Visitor stats')).toContainElement(caseFrame('visitor-trend-30-days'));
+    expect(section('Legal')).toContainElement(caseFrame('legal-notice'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
@@ -190,11 +194,11 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 71 icons in a grid with their names', () => {
+  it('shows all 73 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(71);
+    expect(names).toHaveLength(73);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();
@@ -263,6 +267,14 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('has no Cookie Settings demo and no cookie bar scenario', () => {
+    renderShowcase();
+
+    expect(screen.queryByRole('button', { name: /^Cookie Settings/ })).toBeNull();
+    expect(document.querySelector('[data-case^="cookie-settings"]') === null).toBe(true);
+    expect(document.querySelector('[data-case="consent-bar"]') === null).toBe(true);
   });
 
   it('deletes nothing: typing the order number enables Delete Order, which closes the dialog with the success toast', async () => {
