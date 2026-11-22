@@ -102,6 +102,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/gallery", "/api/v1/public/gallery", Anonymous: 200, Admin: 200, Manager: 200),
+        // The public quote form (INQ-01): anyone may send it. The matrix sends an Idempotency-Key and no body, so every caller meets the 400 field errors.
+        new("POST", "/api/v1/public/quote-requests", "/api/v1/public/quote-requests", Anonymous: 400, Admin: 400, Manager: 400),
         // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
         new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
         new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
@@ -421,6 +423,7 @@ public static class AuthorizationMatrix
             "GET /api/v1/public/product-lines",
             "GET /api/v1/public/home",
             "GET /api/v1/public/gallery",
+            "POST /api/v1/public/quote-requests",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

@@ -1300,6 +1300,92 @@
         ],
         "type": "object"
       },
+      "CreateQuoteRequestRequest": {
+        "description": "The \"Get a Quote\" form a visitor sends (INQ-01). Any other member in the body, such as a forged `createdById`,\n`createdAtUtc`, `status` or `orderId`, is ignored: who made the request, when, its status and its order link come\nfrom the server, never from the visitor (SEC-08, CWE-915).",
+        "properties": {
+          "contactNumber": {
+            "description": "A Philippine mobile number.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "customerName": {
+            "description": "The visitor's name.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "description": "The email address.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "message": {
+            "description": "What the visitor wants made.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productChoice": {
+            "description": "`line`, `custom` or `not-sure`; empty when nothing was chosen.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productLineKey": {
+            "description": "The key of the chosen product line, when the choice is `line`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "description": "The estimated quantity: `1-9`, `10-20`, `21-50`, `51-100` or `100+`.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or organization.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "productChoice",
+          "productLineKey",
+          "quantity",
+          "message"
+        ],
+        "type": "object"
+      },
+      "CreateQuoteRequestResponse": {
+        "description": "The answer to a saved quote request. It names the request so the next steps (photos) can refer to it, and nothing more.",
+        "properties": {
+          "id": {
+            "description": "The id of the new request.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "CreateUserRequest": {
         "description": "The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the\nbody, such as a forged `createdById`, is ignored; who created the account comes from the token (SEC-08).",
         "properties": {
@@ -18836,6 +18922,88 @@
         ]
       }
     },
+    "/api/v1/public/quote-requests": {
+      "post": {
+        "operationId": "CreateQuoteRequest",
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateQuoteRequestRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateQuoteRequestRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateQuoteRequestRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateQuoteRequestResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is\nsaved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body\nis ignored. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves nothing more.",
+        "tags": [
+          "PublicQuoteRequests"
+        ]
+      }
+    },
     "/api/v1/public/site": {
       "get": {
         "operationId": "GetPublicSite",
@@ -21927,6 +22095,9 @@
     },
     {
       "name": "Profile"
+    },
+    {
+      "name": "PublicQuoteRequests"
     },
     {
       "name": "PublicSite"
