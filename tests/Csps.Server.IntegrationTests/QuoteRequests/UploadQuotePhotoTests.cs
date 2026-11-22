@@ -18,6 +18,7 @@ namespace Csps.Server.IntegrationTests.QuoteRequests;
 public sealed class UploadQuotePhotoTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
     private const string NotFoundCode = "quote-requests.photo-not-found";
+    private const string ExpiredKeyCase = "an expired key";
 
     [Fact]
     public async Task ADeclaredPhotoIsStoredInItsSlot()
@@ -96,7 +97,7 @@ public sealed class UploadQuotePhotoTests(CspsDatabase database) : IClassFixture
         clock.Advance(TimeSpan.FromHours(2) - TimeSpan.FromSeconds(1));
         (await StatusAsync(client, id, "1", key, photo)).ShouldBe(HttpStatusCode.OK, "one second before the end the key still works");
         clock.Advance(TimeSpan.FromSeconds(1));
-        misses.Add(("an expired key", await QuoteRequestFixtures.PostPhotoAsync(client, id, "2", key, photo)));
+        misses.Add((ExpiredKeyCase, await QuoteRequestFixtures.PostPhotoAsync(client, id, "2", key, photo)));
 
         var bodies = new List<string>();
         foreach (var (name, response) in misses)

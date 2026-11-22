@@ -1,3 +1,4 @@
+using Csps.Application.Images;
 using Csps.Domain.Common;
 using Csps.Domain.QuoteRequests;
 
@@ -29,4 +30,25 @@ public static class QuoteRequestErrors
 
     /// <summary>Gets the one answer for every photo upload that is not allowed: a 404.</summary>
     public static Error PhotoNotFound { get; } = Error.NotFound(PhotoNotFoundCode, PhotoNotFoundMessage);
+
+    /// <summary>Builds the 422 for a file that is not a photo we can take (wrong type by its first bytes, or metadata that cannot be removed safely).</summary>
+    /// <param name="fileName">The name the browser sent; cleaned for the message.</param>
+    /// <returns>The error.</returns>
+    public static Error PhotoNotAPhoto(string? fileName) => PhotoRefused(QuoteRequestRules.PhotoTypeFormat, fileName);
+
+    /// <summary>Builds the 422 for a photo over the pixel or side limit.</summary>
+    /// <param name="fileName">The name the browser sent; cleaned for the message.</param>
+    /// <returns>The error.</returns>
+    public static Error PhotoTooBig(string? fileName) => PhotoRefused(QuoteRequestRules.PhotoTooBigFormat, fileName);
+
+    /// <summary>Gets the plain-English text of the 413 for a file over 10 MB.</summary>
+    /// <param name="fileName">The name the browser sent; cleaned for the message.</param>
+    /// <returns>The message.</returns>
+    public static string PhotoTooLargeMessage(string? fileName) =>
+        Fill(QuoteRequestRules.PhotoTooLargeFormat, fileName);
+
+    private static Error PhotoRefused(string format, string? fileName) =>
+        Error.BusinessRule(QuoteRequestRules.PhotoRefusedCode, Fill(format, fileName));
+
+    private static string Fill(string format, string? fileName) => format.Replace("{0}", ImageErrors.CleanName(fileName), StringComparison.Ordinal);
 }

@@ -117,6 +117,18 @@ public static class QuoteRequestRules
     /// <summary>The message for a photo file name over the limit.</summary>
     public const string PhotoNameTooLong = "Keep each photo file name to 255 characters or fewer.";
 
+    /// <summary>The machine code of a photo the server refuses by its content (UI-SPEC Validation).</summary>
+    public const string PhotoRefusedCode = "quote-requests.photo-refused";
+
+    /// <summary>The message for a file that is not a photo we can take; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTypeFormat = "{0} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger.";
+
+    /// <summary>The message for a file over 10 MB; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTooLargeFormat = "{0} is over 10 MB. Send a smaller photo, or send it on Messenger.";
+
+    /// <summary>The message for a photo over the pixel or side limit; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTooBigFormat = "{0} is too big. Photos can be at most 25 megapixels.";
+
     /// <summary>The message for a missing or malformed upload key.</summary>
     public const string UploadKeyInvalid = "Photos could not be attached. Try sending them again.";
 

@@ -19138,6 +19138,16 @@
             },
             "description": "Payload Too Large"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
           "429": {
             "content": {
               "application/json": {

@@ -64,7 +64,7 @@ public sealed class PublicQuoteRequestsController(CreateQuoteRequestHandler crea
     /// <param name="file">The photo.</param>
     /// <param name="uploadKey">The upload key, in the <c>X-Upload-Key</c> header.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with no body when the photo is stored, 400 when there is no file or it is not a photo we can use, 404 for every miss of the id, key, expiry, status or place, 413 when the file is over 10 MB, 429 when the caller must slow down, or 503 when photo storage is not set up or did not take the file.</returns>
+    /// <returns>200 with no body when the photo is stored, 400 when there is no file, 404 for every miss of the id, key, expiry, status or place, 413 when the file is over 10 MB, 422 when the file is not a photo we can take or has more than 25 megapixels, 429 when the caller must slow down, or 503 when photo storage is not set up or did not take the file.</returns>
     [HttpPost("{id:guid}/photos/{slot:int}")]
     [EndpointName("UploadQuotePhoto")]
     [EnableRateLimiting(RateLimitPolicies.ImageUpload)]
@@ -75,6 +75,7 @@ public sealed class PublicQuoteRequestsController(CreateQuoteRequestHandler crea
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IResult> UploadPhoto(
@@ -84,6 +85,12 @@ public sealed class PublicQuoteRequestsController(CreateQuoteRequestHandler crea
         [FromHeader(Name = UploadKeyHeader)] string? uploadKey,
         CancellationToken cancellationToken)
     {
+        // The body limit leaves room for the form, so a file one byte over 10 MB still reaches here: refuse it before it is copied.
+        if (file is { Length: > ImageUploadLimits.MaxFileBytes })
+        {
+            return TypedResults.Problem(CspsProblemDetails.Build(HttpContext, StatusCodes.Status413PayloadTooLarge, QuoteRequestErrors.PhotoTooLargeMessage(file.FileName)));
+        }
+
         // The form limits above keep the whole body in memory, so this copy is bounded and never touches the disk.
         using var buffer = new MemoryStream((int)Math.Min(file?.Length ?? 0, ImageUploadLimits.BodyBytes));
         if (file is not null)

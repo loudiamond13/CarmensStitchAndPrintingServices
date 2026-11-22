@@ -62,14 +62,14 @@ public sealed class UploadQuotePhotoHandler(
         var inspected = ImageInspection.Check(request.Bytes, request.FileName, settings);
         if (inspected.IsFailure)
         {
-            return Result.Failure(inspected.Error);
+            return Result.Failure(Refusal(inspected.Error, request.FileName));
         }
 
         var facts = inspected.Value;
         var cleaned = ImageMetadataStripper.Strip(facts.Kind, request.Bytes.Span, request.FileName);
         if (cleaned.IsFailure)
         {
-            return Result.Failure(cleaned.Error);
+            return Result.Failure(Refusal(cleaned.Error, request.FileName));
         }
 
         var clean = cleaned.Value;
@@ -107,6 +107,14 @@ public sealed class UploadQuotePhotoHandler(
 
         return Result.Success();
     }
+
+    // A wrong type and a too big photo use the quote form's words (a 422); the byte limit keeps the image error, as the 10 MB case is a 413 before this runs.
+    private static Error Refusal(Error error, string? fileName) => error.Code switch
+    {
+        ImageErrors.TypeCode => QuoteRequestErrors.PhotoNotAPhoto(fileName),
+        ImageErrors.TooBigCode => QuoteRequestErrors.PhotoTooBig(fileName),
+        _ => error,
+    };
 
     // Every part is checked and one answer is given, so nothing tells which part was wrong. The key hashes are compared in fixed time.
     private static bool IsAllowed(QuotePhotoTarget? target, int slot, string? uploadKey, DateTimeOffset now)
