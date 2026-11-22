@@ -6,6 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { LegalBlock, LegalInline, LegalText } from '../modules/public/legalContent';
+import { PRIVACY_TEXT } from '../modules/public/legalPrivacy';
 
 /** Shared files that are not text modules. */
 const SHARED = new Set(['legalPages.ts', 'legalCopy.ts', 'legalContent.ts', 'legalLoaders.ts']);
@@ -185,6 +186,87 @@ describe('legal text modules (LEGAL-05, D-10)', () => {
     const { LEGAL_PAGES } = await import('../modules/public/legalPages');
     const { ACCESSIBILITY_TEXT } = await import('../modules/public/legalAccessibility');
     expect(ACCESSIBILITY_TEXT.meta).toBe(LEGAL_PAGES.accessibility);
+  });
+});
+
+const inlineText = (parts: readonly LegalInline[]) =>
+  parts.map((part) => (typeof part === 'string' ? part : part.text)).join('');
+
+/** Every string in a block, flattened, so a text check does not depend on how the block is split into parts. */
+function blockText(block: LegalBlock): string[] {
+  switch (block.kind) {
+    case 'p':
+      return [inlineText(block.parts)];
+    case 'ul':
+      return block.items.map(inlineText);
+    case 'dl':
+      return block.items.flatMap((item) => [item.term, inlineText(item.parts), ...(item.more ?? []).map(inlineText)]);
+    case 'h3':
+      return [block.text];
+    case 'facts':
+      return [];
+  }
+}
+
+describe('the Privacy Policy covers quote requests (D-28, D-22, D-04, D-34, D-27)', () => {
+  const section = (id: string) => {
+    const found = PRIVACY_TEXT.sections.find((candidate) => candidate.id === id);
+    if (found === undefined) {
+      throw new Error(`The Privacy Policy has no "${id}" section.`);
+    }
+    return found;
+  };
+  const lines = (id: string) => section(id).blocks.flatMap(blockText);
+  const all = PRIVACY_TEXT.sections.flatMap((candidate) => [candidate.heading, ...candidate.blocks.flatMap(blockText)]);
+
+  it('keeps the three quote request retention rows word for word (UI-SPEC L2)', () => {
+    const rows = section('how-long-we-keep-it').blocks.flatMap((block) =>
+      block.kind === 'dl' ? block.items.map((item) => [item.term, inlineText(item.parts)]) : [],
+    );
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        ["Quote requests that didn't become an order, and their photos", 'Deleted 6 months after we receive them.'],
+        ['Quote requests that became an order, and their photos', 'Kept as long as the order.'],
+        ['Photos sent with a request we mark as spam', 'Deleted within a day.'],
+      ]),
+    );
+  });
+
+  it('words every cleanup row for the daily cleanup and never says "monthly cleanup" (D-34)', () => {
+    expect(all.filter((line) => /monthly cleanup/i.test(line))).toEqual([]);
+    expect(lines('how-long-we-keep-it')).toEqual(
+      expect.arrayContaining([
+        'Deleted about 3 years after the day they count.',
+        'Deleted about 8 months after it is recorded.',
+      ]),
+    );
+  });
+
+  it('names every quote form field and the photos in "What we collect"', () => {
+    const line = lines('what-we-collect').find((text) => /quote request/i.test(text));
+    expect(line).toBeDefined();
+    for (const field of ['name', 'team', 'mobile number', 'email', 'product', 'quantity', 'message', 'photos']) {
+      expect(line).toContain(field);
+    }
+  });
+
+  it('says a quote request is used only to reply and prepare a quote in "Why we use it"', () => {
+    expect(lines('why-we-use-it').join(' ')).toMatch(/Quote requests.*only to reply.*prepare.*quote/i);
+  });
+
+  it('says Cloudinary stores the quote request photos in "Who else handles it"', () => {
+    const cloudinary = lines('who-else-handles-it').filter((text) => text.includes('Cloudinary'));
+    expect(cloudinary).toHaveLength(1);
+    expect(cloudinary[0]).toMatch(/quote request/i);
+  });
+
+  it('promises no more than the site does: no "never share" line and no email to the visitor (D-27, D-10)', () => {
+    expect(all.filter((line) => /never share|we do not share|confirmation email/i.test(line))).toEqual([]);
+  });
+
+  it('no longer exports the held quote request lines', async () => {
+    const loaded: Record<string, unknown> = await import('../modules/public/legalPrivacy');
+    expect('PRIVACY_QUOTE_REQUEST_LINES' in loaded).toBe(false);
   });
 });
 
