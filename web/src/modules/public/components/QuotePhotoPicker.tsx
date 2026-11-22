@@ -1,9 +1,276 @@
-// RED stub (plan 13-02): replaced by the real picker in the next commit.
+// SPEC-GAP: quote photo picker (UI-SPEC Q2; plan 13-02; INQ-02, D-01, D-02, D-05, D-06). A visitor picks up to 5 photos, sees each
+// one and can remove any. The files are handed on exactly as picked: never shrunk, redrawn or converted. The preview is only for
+// the screen, drawn one file at a time as a `data:` URL (the strict CSP has no `blob:`).
+//
+// SPEC-DEVIATION: PHOTO-LIST a small public picker, not ImageUploader: one plain row per photo, with no cover, no reorder, no
+// description and no upload queue.
+// SPEC-DEVIATION: UI-WR-11 each input is emptied after a pick, so a browser fires a change for the same file again.
+// SPEC-DEVIATION: jsx-a11y no-static-element-interactions the drop zone's drag handlers are native listeners attached through a
+// callback ref (React 19 ref cleanup), the same events and the same DOM.
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { Button } from '@/components/actions/Button';
+import { Icon } from '@/components/brand/Icon';
+import { Skeleton } from '@/components/feedback/Skeleton';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import {
+  dropClasses,
+  dropHintClasses,
+  dropTitleClasses,
+  linkButtonClasses,
+  touchAddClasses,
+  touchButtonClasses,
+  touchHintClasses,
+  touchRowClasses,
+} from '@/components/media/media.recipe';
+import { Note } from '@/components/states/Note';
+import { PUBLIC_COPY } from '@/modules/public/copy';
+import { QUOTE_PHOTO_RULES, type QuotePhotoRules } from '@/modules/public/quotePhotos';
+import { cleanFileName, fileSizeText, previewImage, sizeText } from '@/utils/images';
+import {
+  photoCountClasses,
+  photoInfoClasses,
+  photoLabelClasses,
+  photoLabelRowClasses,
+  photoNameClasses,
+  photoNoPreviewClasses,
+  photoOptionalClasses,
+  photoPickerClasses,
+  photoRowClasses,
+  photoRowsClasses,
+  photoSizeClasses,
+  photoThumbClasses,
+  photoThumbImageClasses,
+} from './quoteForm.recipe';
+
+const COPY = PUBLIC_COPY.contact.photos;
+
 export interface QuotePhotoPickerProps {
+  /** The photos picked so far, as the visitor picked them. */
   photos: readonly File[];
   onChange: (photos: File[]) => void;
+  rules?: QuotePhotoRules;
+  /** The form is sending: every control keeps focus but ignores a press. */
+  disabled?: boolean;
 }
 
-export function QuotePhotoPicker(_props: QuotePhotoPickerProps) {
-  return null;
+/** Where focus goes once the list has changed: a row's Remove, or the add control. */
+type FocusTarget = File | 'add';
+
+export function QuotePhotoPicker({
+  photos,
+  onChange,
+  rules = QUOTE_PHOTO_RULES,
+  disabled = false,
+}: QuotePhotoPickerProps) {
+  const labelId = useId();
+  const [over, setOver] = useState(false);
+  // A missing entry is a preview still being drawn; null is a photo the browser cannot draw.
+  const [previews, setPreviews] = useState<ReadonlyMap<File, string | null>>(new Map());
+  const [focusTick, setFocusTick] = useState(0);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const browseRef = useRef<HTMLButtonElement>(null);
+  const chooseRef = useRef<HTMLButtonElement>(null);
+  const removeRefs = useRef(new Map<File, HTMLButtonElement>());
+  const focusTarget = useRef<FocusTarget | null>(null);
+  const drawing = useRef<File | null>(null);
+  const atLimit = photos.length >= rules.maxPhotos;
+
+  // One preview at a time, and never for a file over the size limit.
+  useEffect(() => {
+    if (drawing.current !== null) return;
+    const next = photos.find((file) => !previews.has(file));
+    if (next === undefined) return;
+    drawing.current = next;
+    const drawn = next.size > rules.maxBytes ? Promise.resolve(null) : previewImage(next);
+    void drawn
+      .catch(() => null)
+      .then((url) => {
+        drawing.current = null;
+        setPreviews((current) => new Map(current).set(next, url));
+      });
+  }, [photos, previews, rules.maxBytes]);
+
+  // Focus moves after the new list has been drawn.
+  useEffect(() => {
+    const target = focusTarget.current;
+    if (focusTick === 0 || target === null) return;
+    focusTarget.current = null;
+    if (target === 'add') {
+      const shown = [chooseRef.current, browseRef.current].find(
+        (control) => (control?.getClientRects().length ?? 0) > 0,
+      );
+      (shown ?? browseRef.current)?.focus();
+      return;
+    }
+    removeRefs.current.get(target)?.focus();
+  }, [focusTick]);
+
+  const addFiles = (files: File[]): void => {
+    if (disabled || files.length === 0) return;
+    onChange([...photos, ...files]);
+  };
+
+  const pick = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    addFiles(files);
+  };
+
+  const remove = (index: number): void => {
+    if (disabled) return;
+    const next = photos.filter((_, position) => position !== index);
+    const neighbour = photos[index + 1] ?? photos[index - 1];
+    setPreviews((current) => {
+      const kept = new Map<File, string | null>();
+      for (const file of next) {
+        const url = current.get(file);
+        if (url !== undefined) kept.set(file, url);
+      }
+      return kept;
+    });
+    focusTarget.current = neighbour ?? 'add';
+    setFocusTick((tick) => tick + 1);
+    onChange(next);
+  };
+
+  const dropZoneRef = (zone: HTMLDivElement | null) => {
+    if (zone === null) return;
+    const onDragOver = (event: DragEvent) => {
+      event.preventDefault();
+      setOver(true);
+    };
+    const onDragLeave = () => {
+      setOver(false);
+    };
+    const onDrop = (event: DragEvent) => {
+      event.preventDefault();
+      setOver(false);
+      addFiles(Array.from(event.dataTransfer?.files ?? []));
+    };
+    zone.addEventListener('dragover', onDragOver);
+    zone.addEventListener('dragleave', onDragLeave);
+    zone.addEventListener('drop', onDrop);
+    return () => {
+      zone.removeEventListener('dragover', onDragOver);
+      zone.removeEventListener('dragleave', onDragLeave);
+      zone.removeEventListener('drop', onDrop);
+    };
+  };
+
+  const hint = COPY.hint(sizeText(rules.maxBytes), rules.maxPhotos);
+
+  return (
+    <div role="group" aria-labelledby={labelId} className={photoPickerClasses}>
+      <p id={labelId} className={photoLabelRowClasses}>
+        <span className={photoLabelClasses}>{COPY.label}</span>
+        <span className={photoOptionalClasses}>{COPY.optional}</span>
+      </p>
+      {atLimit ? (
+        <Note icon="info">{COPY.limit(rules.maxPhotos)}</Note>
+      ) : (
+        <>
+          <div ref={dropZoneRef} className={dropClasses} data-over={over}>
+            <Icon name="cloud-upload" size={28} />
+            <p className={dropTitleClasses}>
+              {COPY.dropTitle}
+              <button
+                ref={browseRef}
+                type="button"
+                className={linkButtonClasses}
+                aria-disabled={disabled || undefined}
+                onClick={() => {
+                  if (!disabled) galleryRef.current?.click();
+                }}
+              >
+                {COPY.browse}
+              </button>
+            </p>
+            <p className={dropHintClasses}>{hint}</p>
+          </div>
+          <div className={touchAddClasses}>
+            <div className={touchRowClasses}>
+              <Button
+                variant="secondary"
+                icon="camera"
+                className={touchButtonClasses}
+                aria-disabled={disabled}
+                onClick={() => {
+                  cameraRef.current?.click();
+                }}
+              >
+                {COPY.takePhoto}
+              </Button>
+              <Button
+                ref={chooseRef}
+                variant="secondary"
+                icon="image"
+                className={touchButtonClasses}
+                aria-disabled={disabled}
+                onClick={() => {
+                  galleryRef.current?.click();
+                }}
+              >
+                {COPY.choosePhotos}
+              </Button>
+            </div>
+            <p className={touchHintClasses}>{hint}</p>
+          </div>
+          <input
+            ref={galleryRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            multiple
+            hidden
+            onChange={pick}
+          />
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
+        </>
+      )}
+      {photos.length > 0 && (
+        <>
+          <ul className={photoRowsClasses} aria-label={COPY.listName}>
+            {photos.map((file, index) => {
+              const name = cleanFileName(file.name);
+              const preview = previews.get(file);
+              return (
+                <li key={`${String(index)}-${file.name}`} className={photoRowClasses}>
+                  <div className={photoThumbClasses}>
+                    {preview === undefined ? (
+                      <Skeleton width={64} height={64} radius={0} />
+                    ) : preview === null ? (
+                      <span className={photoNoPreviewClasses}>
+                        <Icon name="image" size={24} />
+                        <span className={srOnlyClasses}>{COPY.noPreview}</span>
+                      </span>
+                    ) : (
+                      <img src={preview} alt="" className={photoThumbImageClasses} />
+                    )}
+                  </div>
+                  <div className={photoInfoClasses}>
+                    <span className={photoNameClasses}>{name}</span>
+                    <span className={photoSizeClasses}>{fileSizeText(file.size)}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    icon="x"
+                    aria-label={COPY.remove(name)}
+                    aria-disabled={disabled}
+                    ref={(button) => {
+                      if (button === null) removeRefs.current.delete(file);
+                      else removeRefs.current.set(file, button);
+                    }}
+                    onClick={() => {
+                      remove(index);
+                    }}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+          <p className={photoCountClasses}>{COPY.count(photos.length, rules.maxPhotos)}</p>
+        </>
+      )}
+    </div>
+  );
 }

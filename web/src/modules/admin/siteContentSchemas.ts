@@ -16,6 +16,7 @@ import type { Testimonial, TestimonialRequest } from '@/modules/admin/services/t
 import { isCalendarDate } from '@/lib/url-state/parsers';
 import { centavosToMoneyText } from '@/utils/format';
 import { formatTime, type WeekDayHours } from '@/utils/hours';
+import { PHONE_INPUT_MAX, phoneE164 } from '@/utils/phone';
 import { SITE_CONTENT_COPY } from './siteContentCopy';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
@@ -40,8 +41,6 @@ export const TIKTOK_URL_MAX = 300;
 export const CONTACT_EMAIL_MAX = 254;
 export const MAX_PHONES = 4;
 export const PHONE_LABEL_MAX = 20;
-/** The longest text a person may type for a number, counted as typed (PhilippinePhone.MaxInputLength). */
-export const PHONE_INPUT_MAX = 32;
 
 const MESSENGER_PREFIX = 'https://m.me/';
 const MESSENGER_NAME_MAX = 100;
@@ -177,44 +176,8 @@ export function reduceEmbedCode(value: string): string {
   return source.startsWith(MAP_EMBED_PREFIX) ? source : value;
 }
 
-/** The number as `+63` and digits, or null when it is not a Philippine mobile or landline number (PhilippinePhone.TryParse). */
-export function phoneE164(text: string): string | null {
-  if (text.length > PHONE_INPUT_MAX) {
-    return null;
-  }
-  let digits = '';
-  let international = false;
-  for (const character of text) {
-    if (/\s/u.test(character) || character === '-' || character === '.' || character === '(' || character === ')') {
-      continue;
-    }
-    if (character === '+' && digits.length === 0 && !international) {
-      international = true;
-      continue;
-    }
-    if (character < '0' || character > '9') {
-      return null;
-    }
-    digits += character;
-  }
-  let national: string;
-  if (international) {
-    if (!digits.startsWith('63')) {
-      return null;
-    }
-    national = `0${digits.slice(2)}`;
-  } else {
-    if (!digits.startsWith('0')) {
-      return null;
-    }
-    national = digits;
-  }
-  // Mobile: 11 digits starting 09. Landline: 10 digits starting 0 and then 1 to 8.
-  const second = national[1] ?? '';
-  const shaped =
-    (national.length === 11 && second === '9') || (national.length === 10 && second >= '1' && second <= '8');
-  return shaped ? `+63${national.slice(1)}` : null;
-}
+// The phone rule lives in @/utils/phone, so the public form never imports an admin module. Admin imports stay.
+export { PHONE_INPUT_MAX, phoneE164 };
 
 /** A required text: empty, then too long, then a bracket placeholder, each with its own message. */
 function requiredText(requiredMessage: string, max: number, tooLongMessage: string) {

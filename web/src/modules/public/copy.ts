@@ -253,6 +253,22 @@ export const PUBLIC_COPY = {
       newTab: ' (opens in a new tab)',
     },
     bar: { messenger: 'Messenger', call: 'Call us' },
+    // The reference photo picker of the quote form (UI-SPEC Q2; D-01, D-02, D-06).
+    photos: {
+      label: 'Reference photos',
+      optional: '(optional)',
+      dropTitle: 'Drop your logo, sketch or photo, or ',
+      browse: 'browse',
+      takePhoto: 'Take Photo',
+      choosePhotos: 'Choose Photos',
+      hint: (limit: string, max: number) =>
+        `JPG, PNG, WebP or HEIC photos, up to ${limit} each, up to ${String(max)}. Have a PDF or AI file? Send it to us on Messenger.`,
+      listName: 'Photos to send',
+      remove: (fileName: string) => `Remove ${fileName}`,
+      count: (count: number, max: number) => `${String(count)} of ${String(max)} photos`,
+      noPreview: 'No preview',
+      limit: (max: number) => `That's ${String(max)} photos, the most one request can take. Remove one to add another.`,
+    },
   },
   footer: {
     columns: { shop: 'Shop', visit: 'Visit', contact: 'Contact' },

@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import type { ImageRulesResponse } from '@/modules/admin/services/orderPhotosService';
+import { cleanFileName, sizeText } from '@/utils/images';
 
 // The strict CSP has no 'unsafe-eval': every schema runs in its plain (non-generated) mode (see profileSchemas.ts).
 z.config({ jitless: true });
@@ -32,34 +33,10 @@ export function toImageRules(response: ImageRulesResponse): ImageRules {
 
 export type PickRefusal = 'type' | 'size' | 'pixels' | 'unreadable';
 
-const FILE_NAME_LIMIT = 80;
-const BYTES_PER_KB = 1024;
-const BYTES_PER_MB = 1_048_576;
 const PIXELS_PER_MEGAPIXEL = 1_000_000;
 
-function isControl(character: string): boolean {
-  const code = character.charCodeAt(0);
-  return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
-}
-
-/** The name as the server cleans it for a message: no folders, no control characters, at most 80 characters. */
-export function cleanFileName(name: string): string {
-  const cut = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
-  const leaf = cut >= 0 ? name.slice(cut + 1) : name;
-  const cleaned = Array.from(leaf)
-    .filter((character) => !isControl(character))
-    .join('')
-    .trim();
-  const limited = cleaned.length > FILE_NAME_LIMIT ? cleaned.slice(0, FILE_NAME_LIMIT) : cleaned;
-  return limited === '' ? 'This file' : limited;
-}
-
-/** The size limit in whole MB, or KB or bytes for a small configured limit, as the server writes it. */
-export function sizeText(bytes: number): string {
-  if (bytes >= BYTES_PER_MB) return `${String(Math.floor(bytes / BYTES_PER_MB))} MB`;
-  if (bytes >= BYTES_PER_KB) return `${String(Math.floor(bytes / BYTES_PER_KB))} KB`;
-  return `${String(bytes)} bytes`;
-}
+// The file name and size helpers live in @/utils/images, so public code never imports an admin module. Admin imports stay.
+export { cleanFileName, sizeText };
 
 /** The message for a refused file, in the server's own words (IMG-02). */
 export function pickFailureMessage(reason: PickRefusal, fileName: string, rules: ImageRules): string {
