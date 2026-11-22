@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T20:50:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T21:30:00-06:00*
 
 ## Overview
 
@@ -1417,7 +1417,58 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans**: TBD
+**Plans:** 26 plans
+
+Plans:
+**Wave 1**
+- [ ] 13-01-PLAN.md: a visitor's quote text is saved as a New request through the public API, every field checked (wave 1)
+- [ ] 13-02-PLAN.md: the public photo picker with previews and refusals; image and phone helpers move out of admin (wave 1)
+- [ ] 13-03-PLAN.md: the maintenance run becomes daily (D-34); the Cloudinary usage check keeps a monthly pace (wave 1)
+- [ ] 13-04-PLAN.md: Privacy Policy 1.1 draft covers quote requests and the daily cleanup (D-28) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 13-05-PLAN.md: photos are stored privately one per call; a failed photo never loses the request (D-03) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 13-06-PLAN.md: form ticket, honeypot, per-address, site-wide and per-sender limits, no CAPTCHA (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 13-07-PLAN.md: the Manager's Quote alerts address in Business info (D-07) (wave 4)
+- [ ] 13-08-PLAN.md: 6-month purge of unconverted requests, quotes folder in the storage sweep (wave 4)
+- [ ] 13-09-PLAN.md: the Contact page form (lazy piece with its own budget, D-35) with the privacy notice (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 13-10-PLAN.md: one staff alert email per request, at most 20 an hour (D-08, D-09) (wave 5)
+- [ ] 13-11-PLAN.md: staff list, search and New count reads (wave 5)
+- [ ] 13-12-PLAN.md: photos sent with the form; rate limit, failure and missing-photo states (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 13-13-PLAN.md: the Manager's Send Test Email (D-11) (wave 6)
+- [ ] 13-14-PLAN.md: Get a Quote links preselect the product (D-24) (wave 6)
+- [ ] 13-15-PLAN.md: the Quote Requests inbox with status pills and search in the URL (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 13-16-PLAN.md: request detail, free status moves with history, Spam removes photos (wave 7)
+- [ ] 13-17-PLAN.md: nav item with the New count, fifth phone tab, dashboard strip (D-19, D-30) (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 13-18-PLAN.md: add-only notes and the Manager's permanent delete (D-16, D-17) (wave 8)
+- [ ] 13-19-PLAN.md: the request page with photos, history and the status menu (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 13-20-PLAN.md: order prefill, conversion link, one request one order, permanent order delete takes the request (wave 9)
+- [ ] 13-21-PLAN.md: notes and Delete Request on the request page (wave 9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 13-22-PLAN.md: Turn into Order prefills the New Order form; the order links back (wave 10)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 13-23-PLAN.md: showcase and dev page states for the owner's UI review (wave 11)
+- [ ] 13-24-PLAN.md: [BLOCKING] schema applied; a11y, CSP, layout and privacy sweep; full suites (wave 11)
+- [ ] 13-25-PLAN.md: owner approves the Privacy Policy 1.1 wording (checkpoint, not autonomous) (wave 11)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 13-26-PLAN.md: owner's live checks after the deploy: Quote alerts test email and the first Gallery photo (checkpoint, not autonomous) (wave 12)
 **UI hint**: yes
 
 ### Phase 14: Hardening & Release Readiness
