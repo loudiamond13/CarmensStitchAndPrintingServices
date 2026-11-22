@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:40:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:52:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -143,6 +143,7 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **PDF and AI attachments** for quote requests (and ORD-V2-01 for orders): v2, with CWE-434 research if ever pulled in.
 - **A confirmation email to the visitor** (D-10): not planned.
 - **One request making several orders** (D-23): not planned.
+- **Edge DDoS and bot-flood protection** (for example the Cloudflare free plan in front of the site): parked by the owner on 2026-11-21 as backlog Phase 999.8 in `ROADMAP.md`. Not in Phase 13; no CAPTCHA or Turnstile here.
 
 </deferred>
 

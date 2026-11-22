@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T13:10:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-21T20:50:00-06:00*
 
 ## Overview
 
@@ -1682,6 +1682,16 @@ Plans:
 ### Phase 999.7: Owner items parked during Phase 11 execution (BACKLOG)
 
 **Goal:** Settle the owner decisions and manual checks parked while the owner was away during the Phase 11 run (2026-11-11 onward). Each item is in `.planning/phases/999.7-owner-items-parked-during-phase-11-execution/DECISIONS.md`.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.8: Edge protection against DDoS and bot floods (BACKLOG)
+
+**Goal:** Decide whether to put a free edge service (for example the Cloudflare free plan) in front of the public site, so traffic floods and known bots are stopped before they reach the SmarterASP.NET host. The app's own checks (rate limits, honeypot, minimum time, per-sender limit) cannot stop a real DDoS. Parked by the owner on 2026-11-21 during Phase 13 planning.
+**Points to settle:** the domain's DNS would move, which touches the live site and the email records (SPF/DKIM/DMARC must be merged, never replaced, and the live site never disturbed); visitor traffic would pass through the provider, so the Privacy Policy needs a line; the real visitor address must still reach the app (forwarded headers) or the per-address limits break; free plan only. Turnstile (an invisible check) is a separate choice and conflicts with the "no CAPTCHA" rule (WCAG 3.3.8) unless the owner rules otherwise.
 **Requirements:** TBD
 **Plans:** 0 plans
 
