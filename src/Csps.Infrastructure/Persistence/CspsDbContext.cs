@@ -6,6 +6,7 @@ using Csps.Domain.Identity;
 using Csps.Domain.Money;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
+using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Email;
 using Csps.Infrastructure.Idempotency;
 using Csps.Infrastructure.Identity;
@@ -87,6 +88,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
 
     /// <summary>The orders; soft-deleted orders are hidden by the named <c>SoftDelete</c> query filter (ORD-03, D-26). Items and status history are reached through the order.</summary>
     public DbSet<Order> Orders => Set<Order>();
+
+    /// <summary>The quote requests visitors send from the Contact page (INQ-01).</summary>
+    public DbSet<QuoteRequest> QuoteRequests => Set<QuoteRequest>();
 
     /// <summary>The last order number given out in each business year (ORD-14, D-23).</summary>
     public DbSet<OrderNumberCounter> OrderNumberCounters => Set<OrderNumberCounter>();

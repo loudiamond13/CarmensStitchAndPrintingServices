@@ -2154,6 +2154,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/quote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
+         *     saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
+         *     is ignored. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves nothing more.
+         */
+        post: operations["CreateQuoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/site": {
         parameters: {
             query?: never;
@@ -3356,6 +3377,37 @@ export interface components {
             status: null | string;
             /** @description The team or club name. */
             teamName: null | string;
+        };
+        /**
+         * @description The "Get a Quote" form a visitor sends (INQ-01). Any other member in the body, such as a forged `createdById`,
+         *     `createdAtUtc`, `status` or `orderId`, is ignored: who made the request, when, its status and its order link come
+         *     from the server, never from the visitor (SEC-08, CWE-915).
+         */
+        CreateQuoteRequestRequest: {
+            /** @description A Philippine mobile number. */
+            contactNumber: null | string;
+            /** @description The visitor's name. */
+            customerName: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description What the visitor wants made. */
+            message: null | string;
+            /** @description `line`, `custom` or `not-sure`; empty when nothing was chosen. */
+            productChoice: null | string;
+            /** @description The key of the chosen product line, when the choice is `line`. */
+            productLineKey: null | string;
+            /** @description The estimated quantity: `1-9`, `10-20`, `21-50`, `51-100` or `100+`. */
+            quantity: null | string;
+            /** @description The team or organization. */
+            teamName: null | string;
+        };
+        /** @description The answer to a saved quote request. It names the request so the next steps (photos) can refer to it, and nothing more. */
+        CreateQuoteRequestResponse: {
+            /**
+             * Format: uuid
+             * @description The id of the new request.
+             */
+            id: string;
         };
         /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
@@ -13490,6 +13542,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateQuoteRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateQuoteRequestRequest"];
+                "application/json": null | components["schemas"]["CreateQuoteRequestRequest"];
+                "text/json": null | components["schemas"]["CreateQuoteRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateQuoteRequestResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Too Many Requests */
