@@ -1,7 +1,7 @@
 ---
 phase: 12-consent-analytics-legal
 created: 2026-11-21T13:05:00-06:00
-updated: 2026-11-21T16:40:00-06:00
+updated: 2026-11-21T18:44:00-06:00
 verified: 2026-11-21T22:40:00Z
 status: passed
 score: 5/5 must-haves verified
@@ -110,7 +110,7 @@ re_verification:
   previous_status: passed
   previous_score: 5/5
   previous_verified: 2026-11-21T19:05:00Z
-  reason: "Commit 8cf3ab2a (quick task 261121-hxs, D-138) changed AnalyticsController.cs and RateLimitingRegistration.cs and added PageViewCeilingRouteTests.cs after the first report, so its fingerprint went stale."
+  reason: "Commit 8b62d8dc (quick task 261121-hxs, D-138) changed AnalyticsController.cs and RateLimitingRegistration.cs and added PageViewCeilingRouteTests.cs after the first report, so its fingerprint went stale."
   gaps_closed: []
   gaps_remaining: []
   regressions: []
@@ -125,7 +125,7 @@ decision_coverage:
 **Phase Goal (as amended):** The original goal (fair cookie choice, clear my data, consented analytics, legal pages marked DRAFT) is amended by Phase 12.1 (D-53 to D-73, owner, 2026-11-18). Phase 12 and 12.1 ship together (D-62). The current meaning, from REQUIREMENTS.md (ANL-01 to ANL-09, LEGAL-01 to LEGAL-05) and the Phase 12.1 roadmap section: the public site keeps only an anonymous daily page tally, sets no optional cookies and shows no cookie banner; a Manager sees Visitor Stats with a `Date,Page,Page views` CSV; old analytics rows are cleaned up monthly; visitors can read three versioned legal pages (Privacy Policy with the Cookie Policy folded in, Terms of Use, Accessibility Statement), all linked in the footer.
 **Verified:** 2026-11-21 (re-run, 22:40Z)
 **Status:** passed
-**Re-verification:** Yes. The first report (passed, 5 of 5, 2026-11-21T19:05Z) went stale after commit 8cf3ab2a (D-138). Every previous truth was re-checked for regressions, and the changed files were read in full.
+**Re-verification:** Yes. The first report (passed, 5 of 5, 2026-11-21T19:05Z) went stale after commit 8b62d8dc (D-138). Every previous truth was re-checked for regressions, and the changed files were read in full.
 
 ## Summary
 
@@ -137,7 +137,7 @@ Superseded criteria are marked "superseded by D-xx". They are not gaps.
 
 ## What changed since the first report
 
-Only one code commit landed after the first report: 8cf3ab2a (quick task 261121-hxs, owner ruling D-138). Everything else since then is documents (security, Nyquist and UI audit notes, STATE). I confirmed this with `git diff --stat 8cf3ab2a^ HEAD -- src web/src tests .github`, which lists exactly three files.
+Only one code commit landed after the first report: 8b62d8dc (quick task 261121-hxs, owner ruling D-138). Everything else since then is documents (security, Nyquist and UI audit notes, STATE). I confirmed this with `git diff --stat 8b62d8dc^ HEAD -- src web/src tests .github`, which lists exactly three files.
 
 | File | Change | What I checked |
 |------|--------|----------------|

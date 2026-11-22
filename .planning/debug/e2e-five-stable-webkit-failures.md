@@ -2,7 +2,7 @@
 status: awaiting_human_verify
 trigger: "5 stable e2e failures from the 12.1 final gate (2026-11-19, full suite on branch gsd/phase-12-consent-analytics-legal): (1) iPhone @dialog-fit \"a click on the dark area above the sheet closes it\", (2) iPhone @dialog-fit \"a right press on the dark area above the sheet keeps it open\", (3) iPhone and (4) WebKit @shell full bleed admin at 390x844 (/admin/sessions is 1187 px tall in an 845 px window: \"a short page needs no scroll\"), (5) iPhone @site-content-business at 320 px. Question: did Phase 12/12.1 cause them? Start by running the same tests at commit f579e158 (before 12.1) and on the current branch head. Context: STATE.md line ~1110 \"12.1 final gate\". PR #28 is open and watched; fixes go on this branch."
 created: 2026-11-21T17:15:00-06:00
-updated: 2026-11-21T20:45:00-06:00
+updated: 2026-11-21T18:44:00-06:00
 ---
 
 # Debug: five stable iPhone and WebKit e2e failures
@@ -46,7 +46,7 @@ updated: 2026-11-21T20:45:00-06:00
 ## Evidence
 
 - timestamp: 2026-11-21T17:40:00-06:00
-  checked: the 14 tests matching the five names, `--project iphone --project webkit`, at branch head a00d39da with the default 4 workers (`npm run e2e`, DB reseeded, bundle rebuilt).
+  checked: the 14 tests matching the five names, `--project iphone --project webkit`, at branch head f9cdd18a with the default 4 workers (`npm run e2e`, DB reseeded, bundle rebuilt).
   found: WebKit `@shell full bleed admin at 390x844` FAILED (1187 vs 845). iPhone `@dialog-fit` right press FAILED ("h1 Component Showcase not found" in 5 s, but the failure page snapshot shows the h1 present, so the page was only slow). iPhone `@site-content-business` 320 px HUNG the full 8 min waiting for `aside nav[aria-label="Admin"]` Site Content link (the snapshot shows the phone layout with "Open navigation" visible). iPhone `@dialog-fit` click PASSED. iPhone `@shell` PASSED.
   implication: the five are not five identical stable failures. At least two (iPhone click, iPhone shell) pass at head in this run.
 - timestamp: 2026-11-21T17:55:00-06:00
@@ -54,7 +54,7 @@ updated: 2026-11-21T20:45:00-06:00
   found: WebKit `@shell full bleed admin at 390x844` FAILED with the same text (1187 vs 845). iPhone `@dialog-fit` right press FAILED with the same text (h1 not found within 5 s). iPhone `@dialog-fit` click, iPhone `@shell` and iPhone `@site-content-business` 320 px all PASSED.
   implication: the WebKit shell failure and the iPhone right-press failure already exist at f579e158, so Phase 12.1 did not cause them.
 - timestamp: 2026-11-21T18:10:00-06:00
-  checked: the identical command (`--project iphone --project webkit --workers=1 --timeout=90000 --grep ...`, reseeded DB) at branch head a00d39da.
+  checked: the identical command (`--project iphone --project webkit --workers=1 --timeout=90000 --grep ...`, reseeded DB) at branch head f9cdd18a.
   found: the same result as f579e158: WebKit `@shell` FAILED (1187 vs 845), iPhone right press FAILED (h1 not found in 5 s); iPhone click, iPhone `@shell`, iPhone `@site-content-business` and both WebKit `@site-content-business` PASSED. Output kept in the scratchpad (head-run2.txt, old-run1.txt).
   implication: head and f579e158 behave the same for these tests. Phase 12.1 did not change them.
 - timestamp: 2026-11-21T18:20:00-06:00
@@ -103,7 +103,7 @@ updated: 2026-11-21T20:45:00-06:00
 ## Resolution
 
 root_cause: "Three timing races in the e2e test code, shown by slow engines and a busy machine. Not caused by Phase 12 or 12.1 (same results at 1717d7e2 and f579e158). (1) `signInAs` treated the sign-in layout's empty main as the admin shell, so `openSiteContent`'s non-waiting `menu.isVisible()` chose the wrong navigation on a phone and hung for 8 minutes (iPhone @site-content-business 320 px). (2) `@shell full bleed admin` read the page height while the Signed-in devices list was still a loading skeleton (about 1190 px), before the list loaded (WebKit; iPhone under load). (3) `openDeleteOrder` waited the default 5 s for the showcase h1, which takes about 4 s on a quiet machine and 6 to 10 s under load in WebKit-based engines (iPhone @dialog-fit click and right press)."
-fix: "e2e test code only. `web/e2e/auth.ts`: `signInAs` also waits for the admin top bar (searchbox named Search). `web/e2e/shell.spec.ts`: the full bleed test waits for the 'Signed-in devices loaded.' status and makes the list answer 1.5 s late so every engine proves the wait. `web/e2e/deleteOrderDialog.ts` and `web/e2e/motion.spec.ts`: the showcase h1 wait is 30 s. `web/e2e/keyboard.spec.ts`: 20 s. New test in `web/e2e/auth.spec.ts` (@auth signing in returns only once the admin shell is on screen, even on a slow phone). `docs/web/e2e.md`: the @auth row. Commit c33984a9 on gsd/phase-12-consent-analytics-legal, not pushed."
+fix: "e2e test code only. `web/e2e/auth.ts`: `signInAs` also waits for the admin top bar (searchbox named Search). `web/e2e/shell.spec.ts`: the full bleed test waits for the 'Signed-in devices loaded.' status and makes the list answer 1.5 s late so every engine proves the wait. `web/e2e/deleteOrderDialog.ts` and `web/e2e/motion.spec.ts`: the showcase h1 wait is 30 s. `web/e2e/keyboard.spec.ts`: 20 s. New test in `web/e2e/auth.spec.ts` (@auth signing in returns only once the admin shell is on screen, even on a slow phone). `docs/web/e2e.md`: the @auth row. Commit 7efb2535 on gsd/phase-12-consent-analytics-legal, not pushed."
 verification:
   oracle_type: derived (the page's own loaded status, the top bar's presence and the h1 are the contract; the tests are not "no crash" checks)
   target_test: { result: pass, detail: "the original five at head, official path, 4 workers, repeated twice: 24 passed, 4 skipped (device-only on WebKit), 0 failed" }
