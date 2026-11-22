@@ -1,5 +1,5 @@
 // SPEC-GAP: LEGAL-01, D-01 to D-06, D-11, D-12, D-36. The Privacy Policy at /privacy: who runs the site (from the site settings) and the
-// retention list, character for character from the owner's rulings.
+// retention list, character for character from the owner's rulings (the quote request rows are a draft, D-28).
 import { render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -26,8 +26,11 @@ async function sectionOf(name: string): Promise<HTMLElement> {
 
 const RETENTION: readonly (readonly [string, string])[] = [
   ['Orders, payments, discounts and expenses', 'Kept for good. They are our bookkeeping and tax records.'],
-  ['Daily page counts', 'Kept for about 3 years; removed at the next monthly cleanup.'],
-  ['Staff account activity log', 'Kept for about 8 months; removed at the next monthly cleanup.'],
+  ["Quote requests that didn't become an order, and their photos", 'Deleted 6 months after we receive them.'],
+  ['Quote requests that became an order, and their photos', 'Kept as long as the order.'],
+  ['Photos sent with a request we mark as spam', 'Deleted within a day.'],
+  ['Daily page counts', 'Deleted about 3 years after the day they count.'],
+  ['Staff account activity log', 'Deleted about 8 months after it is recorded.'],
 ];
 
 describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => {
@@ -44,7 +47,7 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => 
     expect(scope.getByText(/Data Privacy Act of 2012/)).toBeInTheDocument();
   });
 
-  it('lists the four retention lines exactly as the owner ruled them', async () => {
+  it('lists the six retention lines in order, the quote request rows being the draft of D-28', async () => {
     await renderPrivacy();
     const section = await sectionOf('How long we keep it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
@@ -57,7 +60,7 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => 
     await renderPrivacy();
     const section = await sectionOf('How long we keep it');
     expect(section).toHaveTextContent('Daily page counts');
-    expect(section).toHaveTextContent('Kept for about 3 years; removed at the next monthly cleanup.');
+    expect(section).toHaveTextContent('Deleted about 3 years after the day they count.');
     expect(section).not.toHaveTextContent(/visitor stats/i);
     expect(section).not.toHaveTextContent(/cookie choice/i);
   });
@@ -98,22 +101,22 @@ describe('PrivacyPolicyPage sections (LEGAL-01, D-15, D-40)', { timeout: 20_000 
   it('says what is collected for each purpose, with the daily page count as the page and the day only', async () => {
     await renderPrivacy();
     const section = await sectionOf('What we collect');
-    expect(within(section).getAllByRole('listitem')).toHaveLength(4);
+    expect(within(section).getAllByRole('listitem')).toHaveLength(5);
     expect(section).toHaveTextContent(/page and the day/i);
     expect(section).toHaveTextContent(/staff account/i);
     expect(section).not.toHaveTextContent(/only if you allow/i);
   });
 
-  it('says nothing about quote requests until the form is back (D-82)', async () => {
+  it('covers quote requests now that the form is back (D-28)', async () => {
     await renderPrivacy();
-    expect(screen.getByRole('main')).not.toHaveTextContent(/quote/i);
+    expect(screen.getByRole('main')).toHaveTextContent(/quote request/i);
   });
 
   it('gives each purpose its basis in plain words', async () => {
     await renderPrivacy();
     const section = await sectionOf('Why we use it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);
-    expect(terms).toEqual(['Orders and payments', 'Page counts', 'The map', 'Staff accounts']);
+    expect(terms).toEqual(['Orders and payments', 'Quote requests', 'Page counts', 'The map', 'Staff accounts']);
     expect(section).toHaveTextContent(/contract with you/);
     expect(section).toHaveTextContent(/the law says we must/);
     expect(section).toHaveTextContent(/legitimate interest in keeping/);
