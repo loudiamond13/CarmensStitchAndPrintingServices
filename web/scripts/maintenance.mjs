@@ -1,5 +1,5 @@
 // @ts-check
-// `node web/scripts/maintenance.mjs` (JOB-01, D-21, D-22, D-36): the monthly maintenance call that maintenance.yml runs.
+// `node web/scripts/maintenance.mjs` (JOB-01, D-21, D-22, D-36): the daily maintenance call that maintenance.yml runs.
 // It posts to the site with the secret key, repeats while the answer says there is more, writes the counts to the run
 // summary and exits 1 when anything failed, so the GitHub run turns red and GitHub emails the owner. The repository and
 // its run logs are public, so only cleaned labels, numbers and fixed sentences are printed: never the key, the raw answer

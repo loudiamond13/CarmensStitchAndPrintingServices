@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-12T23:56:00-06:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-22T16:10:00-06:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -55,7 +55,7 @@ Two free GitHub checks run besides the gate (owner approval 2026-10-16, recorded
 
 ## What the CI database is
 
-Stage 5 starts a SQL Server container on the runner, reachable only from that runner (`127.0.0.1`). Its administrator password is made up fresh in every run, hidden from the logs, and thrown away with the runner. CI never connects to the hosted database and holds no production secret. The only workflows that hold a secret are Deploy and the monthly Maintenance run (see [Maintenance](#maintenance-maintenanceyml)).
+Stage 5 starts a SQL Server container on the runner, reachable only from that runner (`127.0.0.1`). Its administrator password is made up fresh in every run, hidden from the logs, and thrown away with the runner. CI never connects to the hosted database and holds no production secret. The only workflows that hold a secret are Deploy and the daily Maintenance run (see [Maintenance](#maintenance-maintenanceyml)).
 
 ## How to read a failed run
 
@@ -129,7 +129,7 @@ A workflow is one file under `.github/workflows`. A job is one box on a run page
 | `codeql.yml` | CodeQL | Pull requests to `main`, every push to `main`, Sundays 19:23 UTC | `analyze (csharp)`, `analyze (javascript-typescript)` | Both |
 | `hygiene.yml` | Hygiene | Pull requests to `main`, every push to `main` | `secret scan`, `commit messages`, `actionlint`, `zizmor`, `dependency review` | All five |
 | `deploy.yml` | Deploy | Only when the owner presses Run workflow on `main` | `deploy` | No |
-| `maintenance.yml` | Maintenance | The 1st of each month at 19:17 UTC (03:17 on the 2nd in Manila), and the Run workflow button | `monthly maintenance` | No |
+| `maintenance.yml` | Maintenance | Every day at 19:17 UTC (03:17 in Manila), and the Run workflow button | `daily maintenance` | No |
 | `dependabot.yml` | None: this is not a workflow. It is the settings file of GitHub's update bot | Once a month | None. The bot opens pull requests, and those face the same checks as any other | No |
 
 The required checks are listed in [the rules](branch-rules.md#the-rules-github-enforces-on-main).
@@ -339,16 +339,16 @@ More in the runbook: [Secrets and variables](deploy.md#secrets-and-variables), [
 
 Maintenance calls the site's maintenance endpoint once a month, and whenever the owner presses **Run workflow** ("Run now"). The hosting plan has no scheduler, so GitHub is the scheduler (JOB-01, 01 D-10, D-21). The runbook is [maintenance.md](maintenance.md): this section only describes the file.
 
-- **Runs when:** the cron `17 19 1 * *` fires (19:17 UTC on the 1st, which is 03:17 on the 2nd in Manila), or someone presses **Run workflow**. There is no other trigger. GitHub runs schedules only from `main`, may delay them, and switches them off after 60 days without repository activity ([the runbook](maintenance.md#things-to-know-about-github-schedules) says how to turn them back on).
+- **Runs when:** the cron `17 19 * * *` fires (19:17 UTC every day, which is 03:17 in Manila), or someone presses **Run workflow**. There is no other trigger. GitHub runs schedules only from `main`, may delay them, and switches them off after 60 days without repository activity ([the runbook](maintenance.md#things-to-know-about-github-schedules) says how to turn them back on).
 - **Permissions:** none at the top and none on the job. The run only calls the site.
-- **Branch guard:** the job has `if: github.ref == 'refs/heads/main'`. Pressing **Run workflow** on another branch shows a skipped job, so an accidental run from a branch never reads `MAINTENANCE_KEY`. It is not a hard wall: `MAINTENANCE_KEY` is a repository secret, so someone with write access could push a branch whose copy of this file drops the guard and run it. Limiting the key to `main` needs a GitHub environment (an owner decision). The monthly schedule always runs on `main`.
+- **Branch guard:** the job has `if: github.ref == 'refs/heads/main'`. Pressing **Run workflow** on another branch shows a skipped job, so an accidental run from a branch never reads `MAINTENANCE_KEY`. It is not a hard wall: `MAINTENANCE_KEY` is a repository secret, so someone with write access could push a branch whose copy of this file drops the guard and run it. Limiting the key to `main` needs a GitHub environment (an owner decision). The daily schedule always runs on `main`.
 - **Concurrency:** `maintenance`. Two runs never overlap, and a running one is never cancelled.
 - **Runner and time limit:** `ubuntu-24.04`, 20 minutes.
-- **Environment:** none, on purpose. A production environment with a required reviewer would hold every monthly run for approval.
+- **Environment:** none, on purpose. A production environment with a required reviewer would hold every daily run for approval.
 - **Secrets:** the one repository secret `MAINTENANCE_KEY`, plus the variable `SITE_ORIGIN` that Deploy also uses. Both reach the script only through environment variables.
 - **Required on `main`:** no. A red run blocks no pull request. It emails the owner (D-22).
 
-#### `monthly maintenance`
+#### `daily maintenance`
 
 | Step | What it does and checks | If it fails |
 |---|---|---|

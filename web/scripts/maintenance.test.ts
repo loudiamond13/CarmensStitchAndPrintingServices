@@ -1,5 +1,5 @@
 // @vitest-environment node
-// Pins the monthly maintenance call (JOB-01, D-21, D-22, D-36). Every case drives maintenance.mjs through a fake fetch,
+// Pins the daily maintenance call (JOB-01, D-21, D-22, D-36). Every case drives maintenance.mjs through a fake fetch,
 // a fake clock and a fake summary file, so no request leaves the machine. The key and the raw answer must never appear in
 // any logged or summarised text, because the repository and its run logs are public.
 import { describe, expect, it } from 'vitest';
