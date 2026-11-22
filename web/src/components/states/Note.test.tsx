@@ -35,6 +35,24 @@ describe('Note', () => {
     expect(container.querySelector('svg')).toHaveClass(className);
   });
 
+  it('draws the triangle-alert icon in the warning colour with the text in ink', () => {
+    const { container } = render(<Note icon="triangle-alert">Two photos did not upload.</Note>);
+
+    const icon = container.querySelector('svg');
+    expect(icon).toHaveClass('lucide-triangle-alert');
+    expect(icon).toHaveClass('text-warning');
+    expect(icon).toHaveAttribute('width', '18');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Two photos did not upload.')).toHaveClass('text-ink');
+  });
+
+  it('keeps the muted look for the other icons', () => {
+    const { container } = render(<Note icon="info">Plain</Note>);
+
+    expect(container.querySelector('svg')).not.toHaveClass('text-warning');
+    expect(screen.getByText('Plain')).not.toHaveClass('text-ink');
+  });
+
   it('has no role without live, and is a status with live', () => {
     const { rerender } = render(<Note icon="info">Plain</Note>);
     expect(screen.queryByRole('status')).toBeNull();
@@ -53,6 +71,12 @@ describe('Note', () => {
         You&apos;ve signed out.
       </Note>,
     );
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no axe violations with the warning icon', async () => {
+    const { container } = render(<Note icon="triangle-alert">Send them on Messenger.</Note>);
 
     await expectNoAxeViolations(container);
   });
