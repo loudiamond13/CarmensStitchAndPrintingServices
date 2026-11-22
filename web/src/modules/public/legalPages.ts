@@ -25,9 +25,9 @@ export const LEGAL_PAGES: Readonly<Record<LegalPageKey, LegalPageMeta>> = {
   privacy: {
     key: 'privacy',
     path: '/privacy',
-    version: '1.0',
-    lastUpdated: '2026-11-21',
-    approved: true,
+    version: '1.1',
+    lastUpdated: '2026-11-22',
+    approved: false,
     title: 'Privacy Policy · CSPS',
     crumb: 'Privacy Policy',
     eyebrow: 'Your privacy',
