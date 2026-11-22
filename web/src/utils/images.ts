@@ -171,6 +171,20 @@ function previewOf(parts: BrowserImageParts, bitmap: DecodedBitmap): string | nu
   }
 }
 
+// RED stubs (plan 13-02): replaced by the real helpers in the next commit.
+export function cleanFileName(_name: string): string {
+  return '';
+}
+export function sizeText(_bytes: number): string {
+  return '';
+}
+export function fileSizeText(_bytes: number): string {
+  return '';
+}
+export function previewImage(_file: Blob, _parts: BrowserImageParts = defaultBrowserImageParts): Promise<string | null> {
+  return Promise.resolve(null);
+}
+
 /**
  * Checks, rights, redraws and previews one picked file before any request (IMG-05, D-18; OR-3 mirror of the server's
  * type, size and pixel rules). Every photo the browser can decode is redrawn. The pixel and side limits apply to the
