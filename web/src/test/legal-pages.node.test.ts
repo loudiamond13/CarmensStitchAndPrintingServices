@@ -37,6 +37,20 @@ describe('the web legal page facts and the shared file (LEGAL-05, D-10)', () => 
     }).toEqual(page);
   });
 
+  it('keeps the Privacy Policy a draft at version 1.1 (D-28, Phase 12 D-14) and the other two approved at 1.0', () => {
+    const facts = (key: LegalPageKey) => {
+      const meta = LEGAL_PAGES[key];
+      return { version: meta.version, lastUpdated: meta.lastUpdated, approved: meta.approved };
+    };
+    expect(facts('privacy')).toEqual({ version: '1.1', lastUpdated: '2026-11-22', approved: false });
+    expect(facts('terms').version).toBe('1.0');
+    expect(facts('terms').approved).toBe(true);
+    expect(facts('accessibility').version).toBe('1.0');
+    expect(facts('accessibility').approved).toBe(true);
+    const privacy = shared.find((page) => page.key === 'privacy');
+    expect(privacy).toMatchObject({ version: '1.1', lastUpdated: '2026-11-22', approved: false });
+  });
+
   it('gives every page a version of digits.digits and a real YYYY-MM-DD date', () => {
     for (const meta of Object.values(LEGAL_PAGES)) {
       expect(meta.version).toMatch(/^\d+\.\d+$/);

@@ -14,7 +14,7 @@ public sealed class SeoEndpointTests
 
     // The one literal sitemap for the default factory: a change to the legal page facts must show up as an edit here.
     private static readonly string[] DefaultSitemapLocs =
-        [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/privacy", $"{Origin}/terms", $"{Origin}/accessibility"];
+        [$"{Origin}/", $"{Origin}/products", $"{Origin}/gallery", $"{Origin}/contact", $"{Origin}/terms", $"{Origin}/accessibility"];
 
     [Fact]
     public async Task RobotsAllowsTheSiteDisallowsAdminAndApiAndNamesTheSitemap()
@@ -116,7 +116,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            ["2026-11-01", "2026-11-01", "2026-11-01", "2026-11-01", "2026-11-21", "2026-11-18", "2026-11-18"]);
+            ["2026-11-01", "2026-11-01", "2026-11-01", "2026-11-01", "2026-11-18", "2026-11-18"]);
     }
 
     [Fact]
