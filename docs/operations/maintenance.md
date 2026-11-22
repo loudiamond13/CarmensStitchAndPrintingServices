@@ -1,9 +1,9 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T22:55:00-05:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-22T16:10:00-06:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
-Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
+Actions workflow `.github/workflows/maintenance.yml` makes the call every day (D-34). That workflow also has a manual "Run now" button. Nobody else uses it, and
 it is not part of the public API description.
 
 The call is protected by a secret key. This page says where the key lives and how to change it. It never shows a key,
@@ -18,7 +18,7 @@ One run does every job once, in this order. The number is the job's place in the
 | 10 | Purge of expired records | One count per purge rule (see the table below) |
 | 20 | Stray file sweep | How many stray files it queued for removal |
 | 30 | Photo removals | How many photos it removed from storage, how many are still failing, and how many need attention |
-| 40 | Usage report | Storage and credit use against the free plan |
+| 40 | Usage report | Storage and credit use against the free plan. It reports on the first run of each business month and adds no line on the other days (see "The usage check" below) |
 
 Later plans add their jobs to this table. Jobs with a lower number run first.
 
@@ -46,7 +46,7 @@ Each run has a time budget of 90 seconds. A job that runs out of time stops clea
 ## What the photo jobs do
 
 Deleting a photo, or deleting an order for good, never calls Cloudinary while staff wait. It adds a row to a removal queue
-in the database. Two jobs in the monthly run look after the files (JOB-02). Both only touch this site's own orders folder
+in the database. Two jobs in the daily run look after the files (JOB-02). Both only touch this site's own orders folder
 (for example `csps/orders/` on the live site, with the trailing slash, so `csps` never matches another environment's
 folder).
 
@@ -82,13 +82,13 @@ time. The purge job never touches this row.
 
 Nothing is lost when a line is red. The rows stay queued, and no file is removed until Cloudinary answers.
 
-## The monthly schedule and Run now
+## The daily schedule and Run now
 
-The workflow is called **Maintenance** (job `monthly maintenance`). It has two triggers and no others.
+The workflow is called **Maintenance** (job `daily maintenance`). It has two triggers and no others.
 
 | Trigger | When | Notes |
 |---|---|---|
-| Schedule | Cron `17 19 1 * *`: 19:17 UTC on the 1st of each month, which is 03:17 on the 2nd in Manila | The minute is off the top of the hour, when GitHub is busiest |
+| Schedule | Cron `17 19 * * *`: 19:17 UTC every day, which is 03:17 the next day in Manila | The minute is off the top of the hour, when GitHub is busiest |
 | Run now | Whenever the owner presses it | Actions tab, **Maintenance**, **Run workflow**, or `gh workflow run maintenance.yml --ref main` |
 
 Run now works only from `main`: the job is skipped on any other branch, so an accidental run from a branch never gets the maintenance key. Someone with write access could still remove the guard on their own branch, because the key is a repository secret. Pressing Run now twice does not run two calls together. The second waits for the first (the workflow's `maintenance` queue), and a running call is never cancelled.
@@ -100,7 +100,7 @@ Both are set once by the owner, in the GitHub repository under Settings, Secrets
 1. The repository **secret** `MAINTENANCE_KEY`. It holds the same value as the host's `Maintenance__Key` (see "The key" below). Paste it from the password manager. Never type it into a chat, a commit or an issue.
 2. The repository **variable** `SITE_ORIGIN`. The Deploy workflow already uses it. It must be the live site's `https` address with no path, for example `https://example.test`. The script refuses anything else before it sends the key.
 
-The workflow uses a repository secret, not the `production` environment. An environment with a required reviewer would hold every monthly run until someone approved it.
+The workflow uses a repository secret, not the `production` environment. An environment with a required reviewer would hold every daily run until someone approved it.
 
 ### What the workflow does
 
@@ -113,9 +113,13 @@ The workflow uses a repository secret, not the `production` environment. An envi
 
 ### Things to know about GitHub schedules
 
-- GitHub runs a schedule only from the default branch (`main`). The first monthly run happens only after this workflow is merged to `main`. Until then use Run now from `main`.
-- A scheduled run can be delayed. GitHub says the start can slip by minutes in busy hours, and sometimes a run is skipped. If the 2nd of the month passes with no run, press Run now.
-- In a public repository GitHub switches scheduled workflows off after 60 days with no repository activity (no commits, pull requests or issues). A month is shorter than that, but a quiet repository can still hit it. GitHub usually sends an email when it happens, but do not rely on that. To turn it back on: Actions tab, pick **Maintenance**, press **Enable workflow**, then press Run now to catch up. Once a quarter, look at the Actions tab and check that last month's run is there.
+- GitHub runs a schedule only from the default branch (`main`). The first daily run happens only after this workflow is merged to `main`. Until then use Run now from `main`.
+- A scheduled run can be delayed. GitHub says the start can slip by minutes in busy hours, and sometimes a run is skipped. If a few days pass with no run, press Run now.
+- In a public repository GitHub switches scheduled workflows off after 60 days with no repository activity (no commits, pull requests or issues). A daily schedule does not count as repository activity, so a quiet repository can still hit it. GitHub usually sends an email when it happens, but do not rely on that. To turn it back on: Actions tab, pick **Maintenance**, press **Enable workflow**, then press Run now to catch up. Once a month, look at the Actions tab and check that last week's runs are there.
+
+### The usage check
+
+The run is daily, but the Cloudinary usage check keeps a monthly pace (D-34). It reports on the first run of each business month (Manila time) and adds no line on the other days. A nearly full plan therefore turns at most one run red per month. The job keeps the month it last checked in the `MaintenanceCursors` table under the name `cloudinary-usage-month`. It moves that month only after a successful read, so a failed read is tried again on the next daily run. Every other job runs on every daily run, and each is safe to repeat.
 
 ### What a red run means
 

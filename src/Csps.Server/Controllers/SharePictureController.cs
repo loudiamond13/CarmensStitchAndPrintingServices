@@ -66,7 +66,7 @@ public sealed class SharePictureController(UploadSharePictureHandler upload, Rem
 
     /// <summary>
     /// Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
-    /// carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+    /// carry the small card. The file is queued for removal in the same save and leaves the storage on the next daily cleanup run;
     /// nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>

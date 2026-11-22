@@ -76,7 +76,7 @@ public sealed class ProductLinePhotosController(UploadProductLinePhotoHandler up
 
     /// <summary>
     /// Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal
-    /// in the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The
+    /// in the same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The
     /// change is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.
     /// </summary>
     /// <param name="lineId">The product line id.</param>

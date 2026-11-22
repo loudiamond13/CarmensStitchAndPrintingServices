@@ -141,7 +141,7 @@ public sealed class OrderImagesController(UploadOrderImageHandler upload, MoveOr
     /// and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
     /// cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 <c>orders.image-not-found</c>. A
     /// Completed or Cancelled order answers 422 <c>orders.locked</c> and changes nothing. The photo's file is queued for removal in the
-    /// same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+    /// same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The delete is
     /// recorded in the audit log.
     /// </summary>
     /// <param name="orderId">The order id.</param>

@@ -1,12 +1,12 @@
-# JOB-01, D-21, 01 D-10: the monthly maintenance run, and the "Run now" button. GitHub Actions is the scheduler because the
+# JOB-01, D-21, D-34, 01 D-10: the daily maintenance run, and the "Run now" button. GitHub Actions is the scheduler because the
 # host has none. GitHub runs schedules only from the default branch, may delay them, and pauses them after 60 days without
 # repository activity (docs/operations/maintenance.md).
 name: Maintenance
 
 on:
   schedule:
-    # 19:17 UTC on the 1st, which is 03:17 on the 2nd in Manila. Off the top of the hour, when GitHub is busiest.
-    - cron: "17 19 1 * *"
+    # 19:17 UTC every day, which is 03:17 in Manila. Off the top of the hour, when GitHub is busiest.
+    - cron: "17 19 * * *"
   workflow_dispatch:
 
 # The token starts with no rights and the one job asks for none: the run only calls the site.
@@ -19,12 +19,12 @@ concurrency:
 
 jobs:
   run:
-    name: monthly maintenance
+    name: daily maintenance
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions: {}
     # Run workflow from another branch would run that branch's copy of the script with MAINTENANCE_KEY, so only main runs.
-    # The monthly schedule always runs on main.
+    # The daily schedule always runs on main.
     if: github.ref == 'refs/heads/main'
     # No environment: a production environment with a required reviewer would hold every cron run for approval.
     steps:

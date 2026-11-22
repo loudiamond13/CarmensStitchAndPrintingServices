@@ -3,7 +3,7 @@ using Csps.Application.Ports;
 namespace Csps.Application.Maintenance;
 
 /// <summary>
-/// Reconciles the photo storage with the database once a month (JOB-02, D-23): it lists this environment's own orders folder and then its
+/// Reconciles the photo storage with the database on every run (JOB-02, D-23, D-34): it lists this environment's own orders folder and then its
 /// own content folder (the photos of the public pages, RESEARCH P-9), and
 /// queues every file that no photo row and no removal row knows and that is older than 2 days, up to <see cref="MaxStraysPerRun"/> files
 /// per run for both folders together; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folders
