@@ -55,6 +55,12 @@ export const bannerStartClasses = tw(
 /** The note's text: a long email or name in it wraps anywhere inside the note (no sideways scroll at 320px). */
 export const noteTextClasses = tw('wrap-anywhere');
 
+/** The warning note's icon is `--warning`. */
+export const noteWarningIconClasses = tw('text-warning');
+
+/** The warning note's text is `--ink`, and wraps anywhere like the plain note's. */
+export const noteWarningTextClasses = tw('wrap-anywhere text-ink');
+
 /** App. C `.s-note`: flex, gap 8px, padding 12px, radius 8, `--surface-2`, 13px/18px in `--ink-muted`. */
 export const noteClasses = tw(
   'flex items-start gap-2 rounded-sm bg-surface-2 p-3 text-[13px] leading-[18px] text-ink-muted',

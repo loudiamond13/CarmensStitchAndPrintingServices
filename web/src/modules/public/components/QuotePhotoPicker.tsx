@@ -7,7 +7,7 @@
 // SPEC-DEVIATION: UI-WR-11 each input is emptied after a pick, so a browser fires a change for the same file again.
 // SPEC-DEVIATION: jsx-a11y no-static-element-interactions the drop zone's drag handlers are native listeners attached through a
 // callback ref (React 19 ref cleanup), the same events and the same DOM.
-import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useId, useImperativeHandle, useRef, useState, type ChangeEvent, type Ref } from 'react';
 import { Button } from '@/components/actions/Button';
 import { Icon } from '@/components/brand/Icon';
 import { Skeleton } from '@/components/feedback/Skeleton';
@@ -17,6 +17,11 @@ import {
   dropHintClasses,
   dropTitleClasses,
   linkButtonClasses,
+  pickErrorBodyClasses,
+  pickErrorClasses,
+  pickErrorIconClasses,
+  pickErrorListClasses,
+  pickErrorReasonClasses,
   touchAddClasses,
   touchButtonClasses,
   touchHintClasses,
@@ -24,7 +29,7 @@ import {
 } from '@/components/media/media.recipe';
 import { Note } from '@/components/states/Note';
 import { PUBLIC_COPY } from '@/modules/public/copy';
-import { QUOTE_PHOTO_RULES, type QuotePhotoRules } from '@/modules/public/quotePhotos';
+import { checkQuotePhotos, QUOTE_PHOTO_RULES, type QuotePhotoRules } from '@/modules/public/quotePhotos';
 import { cleanFileName, fileSizeText, previewImage, sizeText } from '@/utils/images';
 import {
   photoCountClasses,
@@ -51,19 +56,36 @@ export interface QuotePhotoPickerProps {
   rules?: QuotePhotoRules;
   /** The form is sending: every control keeps focus but ignores a press. */
   disabled?: boolean;
+  handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
+}
+
+export interface QuotePhotoPickerHandle {
+  /** The form calls this on submit: the pick-error box goes away. */
+  clearErrors: () => void;
 }
 
 /** Where focus goes once the list has changed: a row's Remove, or the add control. */
 type FocusTarget = File | 'add';
+
+/** The last pick's refusals: one line per refused file, then the count line. */
+interface PickErrors {
+  refusals: readonly string[];
+  countLine: string | null;
+}
+
+const NO_ERRORS: PickErrors = { refusals: [], countLine: null };
 
 export function QuotePhotoPicker({
   photos,
   onChange,
   rules = QUOTE_PHOTO_RULES,
   disabled = false,
+  handleRef,
 }: QuotePhotoPickerProps) {
   const labelId = useId();
   const [over, setOver] = useState(false);
+  const [errors, setErrors] = useState<PickErrors>(NO_ERRORS);
+  const latest = useRef(photos);
   // A missing entry is a preview still being drawn; null is a photo the browser cannot draw.
   const [previews, setPreviews] = useState<ReadonlyMap<File, string | null>>(new Map());
   const [focusTick, setFocusTick] = useState(0);
@@ -106,15 +128,31 @@ export function QuotePhotoPicker({
     removeRefs.current.get(target)?.focus();
   }, [focusTick]);
 
-  const addFiles = (files: File[]): void => {
+  useImperativeHandle(handleRef, () => ({
+    clearErrors: () => {
+      setErrors(NO_ERRORS);
+    },
+  }));
+
+  // The list a pick that is still being checked must add to, even if a Remove ran meanwhile.
+  useEffect(() => {
+    latest.current = photos;
+  }, [photos]);
+
+  const addFiles = async (files: File[]): Promise<void> => {
     if (disabled || files.length === 0) return;
-    onChange([...photos, ...files]);
+    setErrors(NO_ERRORS);
+    const result = await checkQuotePhotos(files, latest.current.length, rules);
+    setErrors({ refusals: result.refusals, countLine: result.countLine });
+    if (result.accepted.length > 0) {
+      onChange([...latest.current, ...result.accepted].slice(0, rules.maxPhotos));
+    }
   };
 
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
-    addFiles(files);
+    void addFiles(files);
   };
 
   const remove = (index: number): void => {
@@ -146,7 +184,7 @@ export function QuotePhotoPicker({
     const onDrop = (event: DragEvent) => {
       event.preventDefault();
       setOver(false);
-      addFiles(Array.from(event.dataTransfer?.files ?? []));
+      void addFiles(Array.from(event.dataTransfer?.files ?? []));
     };
     zone.addEventListener('dragover', onDragOver);
     zone.addEventListener('dragleave', onDragLeave);
@@ -166,6 +204,26 @@ export function QuotePhotoPicker({
         <span className={photoLabelClasses}>{COPY.label}</span>
         <span className={photoOptionalClasses}>{COPY.optional}</span>
       </p>
+      {(errors.refusals.length > 0 || errors.countLine !== null) && (
+        <div className={pickErrorClasses} role="alert">
+          <span className={pickErrorIconClasses}>
+            <Icon name="triangle-alert" size={16} />
+          </span>
+          <div className={pickErrorBodyClasses}>
+            {errors.refusals.length > 0 && (
+              <ul className={pickErrorListClasses}>
+                {errors.refusals.map((line, index) => (
+                  // The same name can be refused twice, so a line has no id of its own.
+                  <li key={`${String(index)}-${line}`} className={pickErrorReasonClasses}>
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {errors.countLine !== null && <p className={pickErrorReasonClasses}>{errors.countLine}</p>}
+          </div>
+        </div>
+      )}
       {atLimit ? (
         <Note icon="info">{COPY.limit(rules.maxPhotos)}</Note>
       ) : (

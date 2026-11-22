@@ -268,6 +268,18 @@ export const PUBLIC_COPY = {
       count: (count: number, max: number) => `${String(count)} of ${String(max)} photos`,
       noPreview: 'No preview',
       limit: (max: number) => `That's ${String(max)} photos, the most one request can take. Remove one to add another.`,
+      // The server's own words for a refused file (D-01, D-02, D-06).
+      refused: {
+        type: (fileName: string) =>
+          `${fileName} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger.`,
+        size: (fileName: string, limit: string) =>
+          `${fileName} is over ${limit}. Send a smaller photo, or send it on Messenger.`,
+        unreadable: (fileName: string) => `${fileName} couldn't be read. Try another photo.`,
+      },
+      leftOut: (max: number, count: number) =>
+        count === 1
+          ? `You can send up to ${String(max)} photos. 1 of the photos you picked wasn't added.`
+          : `You can send up to ${String(max)} photos. ${String(count)} of the photos you picked weren't added.`,
     },
   },
   footer: {
