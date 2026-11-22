@@ -105,6 +105,13 @@ public sealed class CreateQuoteRequestRequestValidatorTests
     public void ALineChoiceWithNoKeyIsRefused(string? key) =>
         One(Valid() with { ProductChoice = "line", ProductLineKey = key }, "productLineKey", "Choose a product from the list.");
 
+    [Fact]
+    public void ALineKeyLongerThanAnyLineKeyIsRefused()
+    {
+        Fields(Valid() with { ProductLineKey = new string('k', 40) }).ShouldBeEmpty();
+        One(Valid() with { ProductLineKey = new string('k', 41) }, "productLineKey", "Choose a product from the list.");
+    }
+
     [Theory]
     [InlineData("banana")]
     [InlineData("LINE")]

@@ -116,12 +116,59 @@ public static class QuoteRequestRules
             return Reject<QuoteRequestInput>(CustomerNameField, CustomerNameRequired);
         }
 
+        if (customerName.Length > CustomerNameMaxLength)
+        {
+            return Reject<QuoteRequestInput>(CustomerNameField, CustomerNameTooLong);
+        }
+
+        var teamName = Clean(input.TeamName);
+        if (teamName is { Length: > TeamNameMaxLength })
+        {
+            return Reject<QuoteRequestInput>(TeamNameField, TeamNameTooLong);
+        }
+
         if (!TryParseMobile(input.ContactNumber.Trim(), out var phone))
         {
             return Reject<QuoteRequestInput>(ContactNumberField, ContactNumberInvalid);
         }
 
-        return Result.Success(input with { CustomerName = customerName, ContactNumber = phone.E164 });
+        var email = Clean(input.Email);
+        if (email is { Length: > EmailMaxLength })
+        {
+            return Reject<QuoteRequestInput>(EmailField, EmailTooLong);
+        }
+
+        if (email is not null && !OrderRules.IsValidEmail(email))
+        {
+            return Reject<QuoteRequestInput>(EmailField, EmailInvalid);
+        }
+
+        var product = CheckProduct(input);
+        if (product.IsFailure)
+        {
+            return Result.Failure<QuoteRequestInput>(product.Error);
+        }
+
+        if (input.QuantityRange is { } range && !Enum.IsDefined(range))
+        {
+            return Reject<QuoteRequestInput>(QuantityField, QuantityInvalid);
+        }
+
+        var message = Clean(input.Message);
+        if (message is { Length: > MessageMaxLength })
+        {
+            return Reject<QuoteRequestInput>(MessageField, MessageTooLong);
+        }
+
+        return Result.Success(input with
+        {
+            CustomerName = customerName,
+            TeamName = teamName,
+            ContactNumber = phone.E164,
+            Email = email,
+            ProductTitle = product.Value,
+            Message = message,
+        });
     }
 
     /// <summary>Builds a validation error for one field.</summary>
@@ -131,4 +178,32 @@ public static class QuoteRequestRules
     /// <returns>A failed result.</returns>
     public static Result<T> Reject<T>(string field, string message) =>
         Result.Failure<T>(Error.Validation(InvalidCode, InvalidMessage, new Dictionary<string, string[]> { [field] = [message] }));
+
+    // A line choice needs a line and its title; any other choice, or none, carries neither. Returns the cleaned title.
+    private static Result<string?> CheckProduct(QuoteRequestInput input)
+    {
+        var title = Clean(input.ProductTitle);
+        if (input.ProductChoice is { } choice && !Enum.IsDefined(choice))
+        {
+            return Reject<string?>(ProductChoiceField, ProductInvalid);
+        }
+
+        if (input.ProductChoice == QuoteProductChoice.Line)
+        {
+            return input.ProductLineId is null || title is null || title.Length > ProductTitleMaxLength
+                ? Reject<string?>(ProductLineKeyField, ProductInvalid)
+                : Result.Success<string?>(title);
+        }
+
+        return input.ProductLineId is not null || title is not null
+            ? Reject<string?>(ProductChoiceField, ProductInvalid)
+            : Result.Success<string?>(null);
+    }
+
+    // Trims, and turns empty text into null.
+    private static string? Clean(string? text)
+    {
+        var trimmed = text?.Trim();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
+    }
 }

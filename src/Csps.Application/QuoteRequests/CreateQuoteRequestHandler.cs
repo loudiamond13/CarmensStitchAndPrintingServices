@@ -7,9 +7,11 @@ using FluentValidation;
 namespace Csps.Application.QuoteRequests;
 
 /// <summary>
-/// Use case: an anonymous visitor sends the "Get a Quote" form (INQ-01). The form is checked against the field rules, then the
-/// request is built by the domain at status New and saved in one transaction. A visitor has no account, so the request has no
-/// creator, and its time comes from the clock (SEC-08). Nothing in the answer reveals more than the new id.
+/// Use case: an anonymous visitor sends the "Get a Quote" form (INQ-01). The form is checked against the field rules, then a chosen
+/// product line key is looked up among the shown lines (D-24): an unknown or hidden line is a 400 on <c>productLineKey</c>. The
+/// request is built by the domain at status New, with the line's title kept as a snapshot, and saved in one transaction. A visitor
+/// has no account, so the request has no creator, and its time comes from the clock (SEC-08). Nothing in the answer reveals more
+/// than the new id.
 /// </summary>
 /// <param name="store">The quote request store.</param>
 /// <param name="calendar">The business clock.</param>
@@ -35,8 +37,21 @@ public sealed class CreateQuoteRequestHandler(
             return Result.Failure<CreateQuoteRequestResponse>(ValidationResults.ToError(validation, QuoteRequestErrors.ValidationCode, QuoteRequestErrors.ValidationMessage));
         }
 
+        // The validator has passed, so a present choice or quantity parses.
+        _ = QuoteProductChoiceNames.TryParse(request.ProductChoice, out var choice);
+        var hasChoice = !string.IsNullOrWhiteSpace(request.ProductChoice);
+        QuoteProductLine? line = null;
+        if (hasChoice && choice == QuoteProductChoice.Line)
+        {
+            line = await store.FindShownLineAsync(request.ProductLineKey!.Trim(), cancellationToken).ConfigureAwait(false);
+            if (line is null)
+            {
+                return QuoteRequestRules.Reject<CreateQuoteRequestResponse>(QuoteRequestRules.ProductLineKeyField, QuoteRequestRules.ProductInvalid);
+            }
+        }
+
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
-        var received = QuoteRequest.Receive(Guid.CreateVersion7(clock.UtcNow), ToInput(request), clock.UtcNow);
+        var received = QuoteRequest.Receive(Guid.CreateVersion7(clock.UtcNow), ToInput(request, hasChoice ? choice : null, line), clock.UtcNow);
         if (received.IsFailure)
         {
             return Result.Failure<CreateQuoteRequestResponse>(received.Error);
@@ -54,7 +69,15 @@ public sealed class CreateQuoteRequestHandler(
         return Result.Success(new CreateQuoteRequestResponse(saved.Id));
     }
 
-    // The validator has passed, so the name and the number are present.
-    private static QuoteRequestInput ToInput(CreateQuoteRequestRequest request) =>
-        new(request.CustomerName!, null, request.ContactNumber!, null);
+    private static QuoteRequestInput ToInput(CreateQuoteRequestRequest request, QuoteProductChoice? choice, QuoteProductLine? line) =>
+        new(
+            request.CustomerName!,
+            request.TeamName,
+            request.ContactNumber!,
+            request.Email,
+            choice,
+            line?.Id,
+            line?.Title,
+            QuoteQuantityRangeNames.TryParse(request.Quantity, out var range) ? range : null,
+            request.Message);
 }

@@ -1,6 +1,7 @@
 using Csps.Application.Ports;
 using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace Csps.Infrastructure.QuoteRequests;
 
@@ -11,5 +12,15 @@ internal sealed class QuoteRequestStore(CspsDbContext context) : IQuoteRequestSt
     {
         ArgumentNullException.ThrowIfNull(request);
         context.QuoteRequests.Add(request);
+    }
+
+    public Task<QuoteProductLine?> FindShownLineAsync(string key, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return context.ProductLines
+            .AsNoTracking()
+            .Where(line => line.IsActive && line.Key == key)
+            .Select(line => new QuoteProductLine(line.Id, line.Title))
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }
