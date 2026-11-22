@@ -17,3 +17,18 @@ export const QUOTE_PHOTO_RULES: QuotePhotoRules = {
   maxBytes: 10_485_760,
   types: ['jpeg', 'png', 'webp', 'heic'],
 };
+
+export interface QuotePhotoCheck {
+  accepted: File[];
+  refusals: string[];
+  countLine: string | null;
+}
+
+// RED stub (plan 13-02): replaced by the real check in the next commit.
+export function checkQuotePhotos(
+  _picked: readonly File[],
+  _existingCount: number,
+  _rules: QuotePhotoRules = QUOTE_PHOTO_RULES,
+): Promise<QuotePhotoCheck> {
+  return Promise.resolve({ accepted: [], refusals: [], countLine: null });
+}
