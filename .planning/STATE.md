@@ -15,7 +15,7 @@ progress:
   completed_plans: 390
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-21T18:44:00-06:00"
+updated: "2026-11-21T20:40:00-06:00"
 ---
 
 # Project State
@@ -1051,7 +1051,7 @@ Phase 12 execution backlog (away mode, parked 2026-11-16; nothing here was auto-
 - [ ] **12-18 retention choices (low priority):** (1) a visit written after its Manila day was rolled up is never counted (recommended: accept); (2) a day with no visits writes no rows, so the stats read (12-21) must treat a missing day as zero; (3) "Visits" counts visit rows, not unique visitors. The migration is `20261117155405_AddDailyAnalyticsCounts` (EF timestamp, not the plan's name).
 - [ ] **12-16 CLS on iPhone (FYI):** Safari reports no layout-shift score, so iPhone visitors send loading speed and tap response only.
 - [ ] **12-17 narrow-screen dialog:** the 320 px Clear confirmation is checked only by class names in jsdom; plan 12-24 must check it in Playwright.
-- [ ] **Wave 5 load flakes (recorded):** `ParallelCallersEachGetTheirOwnStatus` 500 twice more in the 12-17 worktree (same row as above); `AdminLayout`, `GalleryPage`, `PublicLayout`, `ProductsPage` and an admin routes test failed under load and passed alone. None failed in the gate.
+- [ ] **Wave 5 load flakes (recorded):** `ParallelCallersEachGetTheirOwnStatus` 500 twice more in the 12-17 worktree (same row as above); `AdminLayout`, `GalleryPage`, `PublicLayout`, `ProductsPage` and an admin routes test failed under load and passed alone. None failed in the gate until PR #28's CI run on c87fca51 (2026-11-21): `ParallelCallersEachGetTheirOwnStatus` answered 500 on `POST /api/testing/site-content` (Anonymous) in the full .NET run. It passed alone 26 of 26 on LocalDB the same evening; the cause is not found (the CI log has no exception and the 500 body carries only a trace id). Re-run in CI, not loosened.
 - [ ] **Commit trailers (FYI):** 12-16 and 12-19 executors signed most commits `Claude Sonnet 5.5` (the model that ran them); not rewritten.
 - [x] **Wave 6 post-merge gate (2026-11-17; plans 12-20, 12-21, no merge conflicts):** build 0 warnings, format clean; Domain 2276, Architecture 290, Application 3259, Infrastructure 1303, Server 3057 passed, 0 failed; openapi types match; web `verify` failed once on Prettier class order in `contact.recipe.ts`, fixed (31638203), then exit 0 (11240 tests, branches 90.45%); `build:budget` exit 0.
 - [ ] **Budget room after wave 6:** Privacy 149.39 KB, Cookies 149.29, Contact 149.20 (0.80 KB left), Terms 148.50, Accessibility 148.06, Home 147.66; admin 220.33 KB; CSS 20.42 KB. Later public-page plans must measure against these, not raise the limit (D-42).
