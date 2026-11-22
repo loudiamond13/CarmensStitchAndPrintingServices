@@ -245,7 +245,7 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         var secondLabels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
         secondLabels.ShouldNotContain("Cloudinary storage used");
         secondLabels.ShouldNotContain("Cloudinary credits this month");
-        secondLabels.ShouldBe(firstLabels.Where(label => label is not ("Cloudinary storage used" or "Cloudinary credits this month")).ToList());
+        secondLabels.ShouldBe(firstLabels.Where(label => label is not ("Cloudinary storage used" or "Cloudinary credits this month" or "Photo storage")).ToList());
     }
 
     [Fact]
