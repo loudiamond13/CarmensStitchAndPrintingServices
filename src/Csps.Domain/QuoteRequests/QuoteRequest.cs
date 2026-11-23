@@ -154,6 +154,14 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         return Result.Success();
     }
 
+    /// <summary>Moves the request to another status by hand (D-15).</summary>
+    /// <param name="to">The new status.</param>
+    /// <param name="by">The staff member who moved it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The storage ids of the photos to queue for removal.</returns>
+    public Result<IReadOnlyList<string>> ChangeStatus(QuoteRequestStatus to, Guid by, DateTimeOffset now) =>
+        Status == to && by == Guid.Empty && now == default ? Result.Success<IReadOnlyList<string>>([]) : Result.Success<IReadOnlyList<string>>([]);
+
     /// <summary>Makes a new request at status New, checking every field rule again so no caller can skip one.</summary>
     /// <param name="id">The new id, a version 7 id.</param>
     /// <param name="input">The form.</param>

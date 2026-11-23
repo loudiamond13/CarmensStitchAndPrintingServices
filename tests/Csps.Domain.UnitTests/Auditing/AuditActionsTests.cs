@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(133);
+        AuditActions.All.Count.ShouldBe(134);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -40,6 +40,17 @@ public sealed class AuditActionsTests
         AuditActions.All.ShouldContain("quote-alerts.test-sent");
         AuditActions.SelfService.ShouldNotContain("quote-alerts.test-sent");
         AuditEntry.Create(Now, null, "quote-alerts.test-sent", null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe("quote-alerts.test-sent");
+    }
+
+    [Fact]
+    public void TheQuoteRequestStatusChangedCodeIsInTheCatalogAndAcceptedByAuditEntry()
+    {
+        var field = typeof(AuditActions).GetField("QuoteRequestStatusChanged").ShouldNotBeNull();
+
+        ((string)field.GetRawConstantValue()!).ShouldBe("quote-request.status-changed");
+        AuditActions.All.ShouldContain("quote-request.status-changed");
+        AuditActions.SelfService.ShouldNotContain("quote-request.status-changed");
+        AuditEntry.Create(Now, null, "quote-request.status-changed", null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe("quote-request.status-changed");
     }
 
     [Fact]
@@ -343,7 +354,7 @@ public sealed class AuditActionsTests
     {
         PhaseSeven.Length.ShouldBe(43);
         AuditActions.All.Skip(49).Take(PhaseSeven.Length).ShouldBe(PhaseSeven.Select(entry => entry.Code));
-        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed", "shop-closure.added", "shop-closure.changed", "shop-closure.deleted", "product-line.added", "product-line.changed", "product-line.moved", "product-line.hidden", "product-line.shown", "product-line.deleted", "product-type.line-linked", "product-line.photo-changed", "testimonial.added", "testimonial.changed", "testimonial.moved", "testimonial.hidden", "testimonial.shown", "testimonial.deleted", "order.public-consent-recorded", "order.public-consent-removed", "order.shown-on-website", "order.taken-off-website", "order.public-details-changed", "gallery-photo.added", "gallery-photo.changed", "gallery-photo.hidden", "gallery-photo.shown", "gallery-photo.deleted", "gallery-item.moved", "site-settings.share-picture-changed", "quote-alerts.test-sent"]);
+        AuditActions.All.Skip(49 + PhaseSeven.Length).ShouldBe([AuditActions.OrderImageAdded, AuditActions.OrderImageMoved, AuditActions.OrderImageCoverChanged, AuditActions.OrderImageDescriptionChanged, "order-image.deleted", "money-transfer.added", "money-transfer.deleted", "money-transfer.permanently-deleted", "money-transfer.handed-over", "site-settings.changed", "opening-hours.changed", "shop-closure.added", "shop-closure.changed", "shop-closure.deleted", "product-line.added", "product-line.changed", "product-line.moved", "product-line.hidden", "product-line.shown", "product-line.deleted", "product-type.line-linked", "product-line.photo-changed", "testimonial.added", "testimonial.changed", "testimonial.moved", "testimonial.hidden", "testimonial.shown", "testimonial.deleted", "order.public-consent-recorded", "order.public-consent-removed", "order.shown-on-website", "order.taken-off-website", "order.public-details-changed", "gallery-photo.added", "gallery-photo.changed", "gallery-photo.hidden", "gallery-photo.shown", "gallery-photo.deleted", "gallery-item.moved", "site-settings.share-picture-changed", "quote-alerts.test-sent", "quote-request.status-changed"]);
     }
 
     [Theory]

@@ -5,6 +5,12 @@ namespace Csps.Application.Ports;
 /// <summary>The tracked store of quote requests: new requests are added and saved by <see cref="IUnitOfWork"/>.</summary>
 public interface IQuoteRequestStore
 {
+    /// <summary>Finds a request to change, tracked with its photo places, for the unit of work to save.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The request, or null when there is no such request.</returns>
+    Task<QuoteRequest?> FindAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Adds a new request to the unit of work. Nothing is saved here.</summary>
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);

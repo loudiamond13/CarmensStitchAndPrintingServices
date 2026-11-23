@@ -330,6 +330,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/quote-requests/new-count", "/api/v1/quote-requests/new-count", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading one quote request (INQ-05, D-13): both roles. A fresh random id is no request, so both meet 404 quote-requests.not-found.
         new("GET", "/api/v1/quote-requests/{id:guid}", "/api/v1/quote-requests/6e2b9d40-5c17-4a83-9f61-0d4c8a7e3b25", Anonymous: 401, Admin: 404, Manager: 404),
+        // Changing a quote request's status (D-13, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 quote-requests.validation before the request is looked up.
+        new("POST", "/api/v1/quote-requests/{id:guid}/status", "/api/v1/quote-requests/2d8f6a13-9b47-4c05-a1e8-7c3b5d0e4f96/status", Anonymous: 401, Admin: 400, Manager: 400),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
         new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.

@@ -25,6 +25,9 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
     {
     }
 
+    public Task<QuoteRequest?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<QuoteRequest?>(null);
+
     public void Add(QuoteRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

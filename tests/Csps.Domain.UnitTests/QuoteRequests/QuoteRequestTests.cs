@@ -1,12 +1,126 @@
+using Csps.Domain.Common;
 using Csps.Domain.QuoteRequests;
 
 namespace Csps.Domain.UnitTests.QuoteRequests;
 
-/// <summary>INQ-01, SEC-08, Pitfall 7: the quote request aggregate, its field rules and its stored numbers.</summary>
+/// <summary>INQ-01, INQ-05, SEC-08, D-15, Pitfall 7: the quote request aggregate, its field rules, its status moves and its stored numbers.</summary>
 public sealed class QuoteRequestTests
 {
     private static readonly Guid LineId = Guid.Parse("01a17fce-7800-7f5d-bc6c-5d14ceeca0c6");
+    private static readonly Guid StaffId = Guid.Parse("0b6f3c2e-91d4-4a57-8e20-6d1f4c9a7b35");
     private static readonly DateTimeOffset Now = new(2026, 11, 22, 10, 30, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Later = Now.AddHours(3);
+
+    private static readonly QuoteRequestStatus[] HandSet =
+        [QuoteRequestStatus.New, QuoteRequestStatus.Contacted, QuoteRequestStatus.Quoted, QuoteRequestStatus.Closed, QuoteRequestStatus.Spam];
+
+    public static TheoryData<QuoteRequestStatus, QuoteRequestStatus> FreeMoves()
+    {
+        var moves = new TheoryData<QuoteRequestStatus, QuoteRequestStatus>();
+        foreach (var from in HandSet)
+        {
+            foreach (var to in HandSet.Where(to => to != from))
+            {
+                moves.Add(from, to);
+            }
+        }
+
+        return moves;
+    }
+
+    public static TheoryData<QuoteRequestStatus> HandSetStatuses() => [.. HandSet];
+
+    [Theory]
+    [MemberData(nameof(FreeMoves))]
+    public void EveryMoveAmongTheFiveHandSetStatusesIsAllowedAndRecorded(QuoteRequestStatus from, QuoteRequestStatus to)
+    {
+        var request = At(from);
+        var version = request.EditVersion;
+        var rowsBefore = request.StatusChanges.Count;
+
+        var result = request.ChangeStatus(to, StaffId, Later);
+
+        result.IsSuccess.ShouldBeTrue();
+        request.Status.ShouldBe(to);
+        request.StatusChangedAtUtc.ShouldBe(Later);
+        request.EditVersion.ShouldNotBe(version);
+        request.StatusChanges.Count.ShouldBe(rowsBefore + 1);
+        var row = request.StatusChanges[^1];
+        row.Id.ShouldNotBe(Guid.Empty);
+        row.QuoteRequestId.ShouldBe(request.Id);
+        row.FromStatus.ShouldBe(from);
+        row.ToStatus.ShouldBe(to);
+        row.ChangedById.ShouldBe(StaffId);
+        row.ChangedAtUtc.ShouldBe(Later);
+        row.OrderId.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(QuoteRequestStatus.New, "This request is already New.")]
+    [InlineData(QuoteRequestStatus.Contacted, "This request is already Contacted.")]
+    [InlineData(QuoteRequestStatus.Quoted, "This request is already Quoted.")]
+    [InlineData(QuoteRequestStatus.Closed, "This request is already Closed.")]
+    [InlineData(QuoteRequestStatus.Spam, "This request is already Spam.")]
+    public void AMoveToTheSameStatusIsRefusedAndChangesNothing(QuoteRequestStatus status, string message)
+    {
+        var request = At(status);
+        var version = request.EditVersion;
+        var rows = request.StatusChanges.Count;
+        var changedAt = request.StatusChangedAtUtc;
+
+        var result = request.ChangeStatus(status, StaffId, Later);
+
+        StatusRefused(result, "quote-requests.validation", message);
+        request.Status.ShouldBe(status);
+        request.StatusChangedAtUtc.ShouldBe(changedAt);
+        request.EditVersion.ShouldBe(version);
+        request.StatusChanges.Count.ShouldBe(rows);
+    }
+
+    [Theory]
+    [InlineData(QuoteRequestStatus.Converted)]
+    [InlineData((QuoteRequestStatus)0)]
+    [InlineData((QuoteRequestStatus)7)]
+    public void ConvertedOrAnUnknownStatusIsNeverSetByHand(QuoteRequestStatus target)
+    {
+        var request = At(QuoteRequestStatus.Contacted);
+        var rows = request.StatusChanges.Count;
+
+        var result = request.ChangeStatus(target, StaffId, Later);
+
+        StatusRefused(result, "quote-requests.validation", "Choose a status.");
+        request.Status.ShouldBe(QuoteRequestStatus.Contacted);
+        request.StatusChanges.Count.ShouldBe(rows);
+    }
+
+    [Theory]
+    [MemberData(nameof(HandSetStatuses))]
+    [InlineData(QuoteRequestStatus.Converted)]
+    public void AConvertedRequestCannotChangeStatusByHand(QuoteRequestStatus target)
+    {
+        var request = Received();
+        typeof(QuoteRequest).GetProperty(nameof(QuoteRequest.Status))!.SetValue(request, QuoteRequestStatus.Converted);
+        var version = request.EditVersion;
+
+        var result = request.ChangeStatus(target, StaffId, Later);
+
+        StatusRefused(result, "quote-requests.converted-locked", "A request that became an order can't change status.");
+        result.Error.Message.ShouldBe("A request that became an order can't change status.");
+        request.Status.ShouldBe(QuoteRequestStatus.Converted);
+        request.EditVersion.ShouldBe(version);
+        request.StatusChanges.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AMoveOutsideSpamRemovesNoPhotoAndReturnsNoIds()
+    {
+        var request = Received();
+
+        var result = request.ChangeStatus(QuoteRequestStatus.Contacted, StaffId, Later);
+
+        result.Value.ShouldBeEmpty();
+        request.PhotosRemovedAtUtc.ShouldBeNull();
+    }
 
     [Fact]
     public void StoredNumbersAreFixed()
@@ -267,6 +381,29 @@ public sealed class QuoteRequestTests
         "Basketball Jerseys",
         QuoteQuantityRange.TenToTwenty,
         "Need 15 jerseys by Dec 12.");
+
+    private static QuoteRequest Received() => QuoteRequest.Receive(LineId, Full(), Now).Value;
+
+    // A received request moved to the status by hand first, unless it is New.
+    private static QuoteRequest At(QuoteRequestStatus status)
+    {
+        var request = Received();
+        if (status != QuoteRequestStatus.New)
+        {
+            request.ChangeStatus(status, StaffId, Now.AddMinutes(5)).IsSuccess.ShouldBeTrue();
+        }
+
+        return request;
+    }
+
+    private static void StatusRefused<T>(Result<T> result, string code, string message)
+    {
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Code.ShouldBe(code);
+        var fields = result.Error.FieldErrors.ShouldNotBeNull();
+        fields.Keys.ShouldBe(["status"]);
+        fields["status"].ShouldBe([message]);
+    }
 
     private static void Refused(QuoteRequestInput input, string field, string message)
     {
