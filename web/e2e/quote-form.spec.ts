@@ -40,7 +40,9 @@ test('@quote a visitor sends a text-only inquiry and sees Inquiry sent', async (
   await expect(page.getByRole('textbox', { name: /Your name/ })).toHaveValue('');
 });
 
-test('@quote a visitor sends an inquiry with a photo and the server stores it', async ({ page }) => {
+test('@quote a visitor sends an inquiry with a photo: the create and the upload answer 200 and no photo is named missing', async ({
+  page,
+}) => {
   await page.goto('/contact');
 
   const form = page.getByRole('form', { name: 'Inquiry form' });
