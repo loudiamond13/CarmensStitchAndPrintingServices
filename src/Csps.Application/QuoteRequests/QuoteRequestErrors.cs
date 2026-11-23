@@ -25,6 +25,21 @@ public static class QuoteRequestErrors
     /// <summary>The plain-English text of that 404; it never says which part was wrong (CWE-639, CWE-203).</summary>
     public const string PhotoNotFoundMessage = "This photo could not be added to the request.";
 
+    /// <summary>The code of a send whose form ticket is missing, changed, unreadable or too old (Pitfall 4): the browser gets a new ticket and sends once more.</summary>
+    public const string TicketExpiredCode = "quote-requests.ticket-expired";
+
+    /// <summary>The plain-English text of that 400.</summary>
+    public const string TicketExpiredMessage = "The form timed out. Please send it again.";
+
+    /// <summary>The field the ticket error is listed on.</summary>
+    public const string TicketField = "ticket";
+
+    /// <summary>Gets the answer for a send with no good form ticket: a 400, never a silent success, so a real lead is not lost.</summary>
+    public static Error TicketExpired { get; } = Error.Validation(
+        TicketExpiredCode,
+        TicketExpiredMessage,
+        new Dictionary<string, string[]> { [TicketField] = [TicketExpiredMessage] });
+
     /// <summary>Gets the answer for a request that does not exist: a 404.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
 

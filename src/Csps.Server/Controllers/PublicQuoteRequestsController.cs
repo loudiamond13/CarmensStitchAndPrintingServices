@@ -16,20 +16,44 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="create">The create-a-request handler.</param>
 /// <param name="uploadPhoto">The upload-a-photo handler.</param>
+/// <param name="getTicket">The form ticket handler.</param>
 [ApiController]
 [Route("api/v1/public/quote-requests")]
 [AllowAnonymous]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class PublicQuoteRequestsController(CreateQuoteRequestHandler create, UploadQuotePhotoHandler uploadPhoto) : ControllerBase
+public sealed class PublicQuoteRequestsController(
+    CreateQuoteRequestHandler create,
+    UploadQuotePhotoHandler uploadPhoto,
+    GetQuoteFormTicketHandler getTicket) : ControllerBase
 {
     /// <summary>The header that carries the visitor's upload key.</summary>
     public const string UploadKeyHeader = "X-Upload-Key";
 
     /// <summary>
+    /// Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
+    /// issued, so the server can tell how fast the form was sent; the create call must carry it in <c>ticket</c>. The answer also
+    /// lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form asks for a new
+    /// one when the create call answers 400 with the code <c>quote-requests.ticket-expired</c>. Never cached.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the ticket and the photo rules, or 429 when the address asks too often.</returns>
+    [HttpGet("ticket")]
+    [EndpointName("GetQuoteFormTicket")]
+    [EnableRateLimiting(RateLimitPolicies.PublicRead)]
+    [ProducesResponseType<QuoteFormTicketResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> GetTicket(CancellationToken cancellationToken)
+    {
+        var result = await getTicket.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
+    }
+
+    /// <summary>
     /// Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
     /// saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
-    /// is ignored. A visitor who will send photos names up to 5 files in <c>photos</c> and sends an <c>uploadKey</c> the browser made
+    /// is ignored. The body must carry the <c>ticket</c> from the ticket call; without a good one the answer is a 400 with the code
+    /// <c>quote-requests.ticket-expired</c> and nothing is saved. The member <c>subjectLine</c> is reserved and must be left empty. A visitor who will send photos names up to 5 files in <c>photos</c> and sends an <c>uploadKey</c> the browser made
     /// (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one <c>photoSlots</c> entry per
     /// file and never echoes the key. A retry with the same <c>Idempotency-Key</c> and body answers with the stored 200 and saves
     /// nothing more.

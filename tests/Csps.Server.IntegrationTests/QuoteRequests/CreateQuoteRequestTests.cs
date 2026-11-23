@@ -64,9 +64,10 @@ public sealed class CreateQuoteRequestTests(CspsDatabase database) : IClassFixtu
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
         var key = Guid.NewGuid();
+        var body = QuoteRequestFixtures.MinimalBody();
 
-        using var first = await QuoteRequestFixtures.PostAsync(client, QuoteRequestFixtures.MinimalBody(), key);
-        using var second = await QuoteRequestFixtures.PostAsync(client, QuoteRequestFixtures.MinimalBody(), key);
+        using var first = await QuoteRequestFixtures.PostAsync(client, body, key);
+        using var second = await QuoteRequestFixtures.PostAsync(client, body, key);
 
         first.StatusCode.ShouldBe(HttpStatusCode.OK);
         second.StatusCode.ShouldBe(HttpStatusCode.OK);

@@ -18,20 +18,45 @@ namespace Csps.Application.QuoteRequests;
 /// <param name="unitOfWork">The unit of work.</param>
 /// <param name="validator">The form rules.</param>
 /// <param name="settings">The quote form limits.</param>
+/// <param name="tickets">The form ticket reader.</param>
+/// <param name="botLog">The log of caught sends.</param>
 public sealed class CreateQuoteRequestHandler(
     IQuoteRequestStore store,
     IBusinessCalendar calendar,
     IUnitOfWork unitOfWork,
     IValidator<CreateQuoteRequestRequest> validator,
-    QuoteRequestSettings settings)
+    QuoteRequestSettings settings,
+    IQuoteFormTickets tickets,
+    IQuoteBotCatchLog botLog)
 {
-    /// <summary>Saves the request.</summary>
+    /// <summary>
+    /// Saves the request. The form ticket and the hidden field are judged first (INQ-03): no good ticket is a 400 so a real visitor
+    /// sends again; a filled hidden field or a ticket younger than the minimum time gets the answer of a saved request and nothing is
+    /// saved (D-25).
+    /// </summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new id, or a 400 listing every field that failed.</returns>
+    /// <returns>The new id, or a 400 listing every field that failed or naming the ticket.</returns>
     public async Task<Result<CreateQuoteRequestResponse>> HandleAsync(CreateQuoteRequestRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        var ticket = tickets.Read(request.Ticket, clock.UtcNow);
+        if (!ticket.IsValid)
+        {
+            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.TicketExpired);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SubjectLine))
+        {
+            return Caught(QuoteBotCatchReasons.Honeypot, request, clock.UtcNow);
+        }
+
+        if (ticket.Age < TimeSpan.FromSeconds(settings.MinimumSeconds))
+        {
+            return Caught(QuoteBotCatchReasons.TooFast, request, clock.UtcNow);
+        }
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
@@ -52,7 +77,6 @@ public sealed class CreateQuoteRequestHandler(
             }
         }
 
-        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         var received = QuoteRequest.Receive(Guid.CreateVersion7(clock.UtcNow), ToInput(request, hasChoice ? choice : null, line), clock.UtcNow);
         if (received.IsFailure)
         {
@@ -80,6 +104,17 @@ public sealed class CreateQuoteRequestHandler(
             },
             cancellationToken).ConfigureAwait(false);
         return Result.Success(new CreateQuoteRequestResponse(saved.Id, [.. saved.Photos.Select(static photo => new QuotePhotoSlotResponse(photo.Slot, photo.FileName))]));
+    }
+
+    // The answer of a saved request with a made-up id, so a bot learns nothing. Nothing is stored; one log line holds the reason code only.
+    private Result<CreateQuoteRequestResponse> Caught(string reason, CreateQuoteRequestRequest request, DateTimeOffset now)
+    {
+        botLog.Caught(reason);
+        var slots = (request.Photos ?? [])
+            .Take(QuoteRequestRules.MaxPhotos)
+            .Select(static (name, slot) => new QuotePhotoSlotResponse(slot, QuoteRequestRules.CleanPhotoName(name ?? string.Empty, slot)))
+            .ToList();
+        return Result.Success(new CreateQuoteRequestResponse(Guid.CreateVersion7(now), slots));
     }
 
     private static QuoteRequestInput ToInput(CreateQuoteRequestRequest request, QuoteProductChoice? choice, QuoteProductLine? line) =>

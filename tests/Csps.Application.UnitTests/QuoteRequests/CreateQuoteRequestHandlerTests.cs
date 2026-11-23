@@ -38,7 +38,7 @@ public sealed class CreateQuoteRequestHandlerTests
     {
         var harness = new Harness();
 
-        var result = await harness.Handler.HandleAsync(CreateQuoteRequestRequest.Empty, TestContext.Current.CancellationToken);
+        var result = await harness.Handler.HandleAsync(CreateQuoteRequestRequest.Empty with { Ticket = "ticket" }, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
         result.Error.Code.ShouldBe("quote-requests.validation");
@@ -151,8 +151,86 @@ public sealed class CreateQuoteRequestHandlerTests
         harness.Unit.Saves.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task ASendWithNoGoodTicketIsA400AndNothingIsJudgedOrSaved()
+    {
+        var harness = new Harness { TicketReading = QuoteTicketReading.Expired };
+
+        var result = await harness.Handler.HandleAsync(Request() with { SubjectLine = "text" }, TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(QuoteRequestErrors.TicketExpired);
+        result.Error.Code.ShouldBe("quote-requests.ticket-expired");
+        result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["ticket"]);
+        harness.Caught.ShouldBeEmpty("an expired ticket is not a caught bot");
+        harness.Added.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData("hello")]
+    [InlineData(" x ")]
+    public async Task AFilledHoneypotAnswersLikeASavedRequestAndSavesNothing(string honeypot)
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            Request() with { SubjectLine = honeypot, Photos = ["a/b/logo.png", "", null!, "c.jpg", "d.jpg", "e.jpg", "f.jpg", "g.jpg"] },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Id.ShouldNotBe(Guid.Empty);
+        result.Value.PhotoSlots.Select(slot => (slot.Slot, slot.FileName)).ShouldBe([(0, "logo.png"), (1, "Photo 2"), (2, "Photo 3"), (3, "c.jpg"), (4, "d.jpg")]);
+        harness.Caught.ShouldBe(["honeypot"]);
+        harness.Added.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+        _ = harness.Store.DidNotReceive().FindShownLineAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task AWhitespaceHoneypotIsNotAFill()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request() with { SubjectLine = "   " }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Caught.ShouldBeEmpty();
+        harness.Added.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task ATicketOneTickYoungerThanTheMinimumIsCaughtAndExactlyTheMinimumIsSaved()
+    {
+        var young = new Harness { TicketReading = QuoteTicketReading.Valid(TimeSpan.FromSeconds(3) - TimeSpan.FromTicks(1)) };
+        var exact = new Harness { TicketReading = QuoteTicketReading.Valid(TimeSpan.FromSeconds(3)) };
+
+        var caught = await young.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+        var saved = await exact.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        caught.IsSuccess.ShouldBeTrue();
+        young.Caught.ShouldBe(["too-fast"]);
+        young.Added.ShouldBeEmpty();
+        young.Unit.Saves.ShouldBe(0);
+        saved.IsSuccess.ShouldBeTrue();
+        exact.Caught.ShouldBeEmpty();
+        exact.Added.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task AZeroMinimumNeverCatchesATicketThatIsNotYetOneSecondOld()
+    {
+        var harness = new Harness(minimumSeconds: 0) { TicketReading = QuoteTicketReading.Valid(TimeSpan.FromTicks(-5)) };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Caught.ShouldBeEmpty("a clock that moved back is read as age zero");
+        harness.Added.ShouldHaveSingleItem();
+    }
+
     private static CreateQuoteRequestRequest Request() =>
-        CreateQuoteRequestRequest.Empty with { CustomerName = "Juan Dela Cruz", ContactNumber = "0917 123 4567" };
+        CreateQuoteRequestRequest.Empty with { CustomerName = "Juan Dela Cruz", ContactNumber = "0917 123 4567", Ticket = "ticket" };
 
     private static IValidator<CreateQuoteRequestRequest> PassingValidator()
     {
@@ -163,12 +241,27 @@ public sealed class CreateQuoteRequestHandlerTests
 
     private sealed class Harness
     {
-        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null)
+        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3)
         {
             Store = Substitute.For<IQuoteRequestStore>();
             Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call => Added.Add(call.Arg<QuoteRequest>()));
-            Handler = new CreateQuoteRequestHandler(Store, new FixedCalendar(), Unit, validator ?? new CreateQuoteRequestRequestValidator(), new QuoteRequestSettings());
+            var tickets = Substitute.For<IQuoteFormTickets>();
+            tickets.Read(Arg.Any<string?>(), Arg.Any<DateTimeOffset>()).Returns(_ => TicketReading);
+            var botLog = Substitute.For<IQuoteBotCatchLog>();
+            botLog.When(log => log.Caught(Arg.Any<string>())).Do(call => Caught.Add(call.Arg<string>()));
+            Handler = new CreateQuoteRequestHandler(
+                Store,
+                new FixedCalendar(),
+                Unit,
+                validator ?? new CreateQuoteRequestRequestValidator(),
+                new QuoteRequestSettings { MinimumSeconds = minimumSeconds },
+                tickets,
+                botLog);
         }
+
+        public QuoteTicketReading TicketReading { get; set; } = QuoteTicketReading.Valid(TimeSpan.FromSeconds(10));
+
+        public List<string> Caught { get; } = [];
 
         public IQuoteRequestStore Store { get; }
 

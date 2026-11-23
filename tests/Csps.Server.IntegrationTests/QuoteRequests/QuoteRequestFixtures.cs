@@ -22,7 +22,10 @@ internal static class QuoteRequestFixtures
         ["contactNumber"] = "0917 123 4567",
     };
 
-    /// <summary>Posts a quote request without a sign-in.</summary>
+    /// <summary>
+    /// Posts a quote request without a sign-in. A body made of members gets a form ticket first, the way the browser does, unless it
+    /// already has a <c>ticket</c> member (even a null one).
+    /// </summary>
     /// <param name="client">The client.</param>
     /// <param name="body">The body; none when null.</param>
     /// <param name="idempotencyKey">The key; a fresh one when null.</param>
@@ -30,6 +33,11 @@ internal static class QuoteRequestFixtures
     public static async Task<HttpResponseMessage> PostAsync(HttpClient client, object? body, Guid? idempotencyKey = null)
     {
         ArgumentNullException.ThrowIfNull(client);
+        if (body is Dictionary<string, object?> members && !members.ContainsKey("ticket"))
+        {
+            members["ticket"] = await GetTicketAsync(client);
+        }
+
         using var request = ApiRequests.Create(HttpMethod.Post, Route);
         request.Headers.Add(AuthClient.IdempotencyKeyHeader, (idempotencyKey ?? Guid.NewGuid()).ToString("D"));
         if (body is not null)

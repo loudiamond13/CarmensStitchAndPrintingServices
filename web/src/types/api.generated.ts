@@ -2166,12 +2166,35 @@ export interface paths {
         /**
          * Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
          *     saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
-         *     is ignored. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
+         *     is ignored. The body must carry the `ticket` from the ticket call; without a good one the answer is a 400 with the code
+         *     `quote-requests.ticket-expired` and nothing is saved. The member `subjectLine` is reserved and must be left empty. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
          *     (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one `photoSlots` entry per
          *     file and never echoes the key. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves
          *     nothing more.
          */
         post: operations["CreateQuoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/quote-requests/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
+         *     issued, so the server can tell how fast the form was sent; the create call must carry it in `ticket`. The answer also
+         *     lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form asks for a new
+         *     one when the create call answers 400 with the code `quote-requests.ticket-expired`. Never cached.
+         */
+        get: operations["GetQuoteFormTicket"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3428,8 +3451,12 @@ export interface components {
             productLineKey: null | string;
             /** @description The estimated quantity: `1-9`, `10-20`, `21-50`, `51-100` or `100+`. */
             quantity: null | string;
+            /** @description A hidden field no visitor sees. When it holds text the send looks like a success and nothing is saved (D-25). */
+            subjectLine?: null | string;
             /** @description The team or organization. */
             teamName: null | string;
+            /** @description The signed ticket from `GET /api/v1/public/quote-requests/ticket`; the send is a 400 without a good one (INQ-03). */
+            ticket?: null | string;
             /** @description A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos. */
             uploadKey?: null | string;
         };
@@ -5493,6 +5520,31 @@ export interface components {
             stars: number | string;
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
+        };
+        /** @description The answer to a form ticket request: the ticket and the photo rules the form checks before sending (OR-3). */
+        QuoteFormTicketResponse: {
+            /** @description The limits the form applies to photos. */
+            photoRules: components["schemas"]["QuotePhotoRulesResponse"];
+            /** @description The signed ticket the create call must carry. */
+            ticket: string;
+        };
+        /** @description The photo limits the browser checks before it sends a file. */
+        QuotePhotoRulesResponse: {
+            /**
+             * Format: int32
+             * @description The largest file in bytes.
+             */
+            maxBytes: number | string;
+            /**
+             * Format: int32
+             * @description The most photos one request may have.
+             */
+            maxPhotos: number | string;
+            /**
+             * Format: int64
+             * @description The most pixels (width times height) a photo may have.
+             */
+            maxPixels: number | string;
         };
         /** @description One declared photo place. */
         QuotePhotoSlotResponse: {
@@ -13634,6 +13686,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteFormTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteFormTicketResponse"];
                 };
             };
             /** @description Too Many Requests */

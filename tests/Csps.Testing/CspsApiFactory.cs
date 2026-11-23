@@ -152,6 +152,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The site-wide page view ceiling too; RealLimitsFactory restores the real 600 a minute.
         builder.UseSetting("RateLimits:AnalyticsCeiling:PermitLimit", "100000");
 
+        // The quote form's minimum time to submit is off, so a test sends right after it gets its ticket; the bot guard tests set it again.
+        builder.UseSetting("QuoteRequests:MinimumSeconds", "0");
+
         ConfigureSettings(builder);
     }
 

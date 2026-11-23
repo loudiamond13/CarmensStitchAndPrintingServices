@@ -12,13 +12,40 @@ public sealed class QuoteRequestSettings
     /// <summary>The longest upload key lifetime.</summary>
     public static readonly TimeSpan MaxUploadKeyLifetime = TimeSpan.FromHours(24);
 
+    /// <summary>The longest minimum time to submit, in seconds.</summary>
+    public const int MaxMinimumSeconds = 60;
+
+    /// <summary>The shortest form ticket lifetime.</summary>
+    public static readonly TimeSpan MinTicketLifetime = TimeSpan.FromHours(1);
+
+    /// <summary>The longest form ticket lifetime.</summary>
+    public static readonly TimeSpan MaxTicketLifetime = TimeSpan.FromHours(72);
+
     /// <summary>Gets or sets how long a visitor's upload key works after the request is saved; from 5 minutes to 24 hours.</summary>
     public TimeSpan UploadKeyLifetime { get; set; } = TimeSpan.FromHours(2);
 
+    /// <summary>Gets or sets the fewest seconds between the form ticket and the send; a faster send is caught as a bot. From 0 to 60 (D-25).</summary>
+    public int MinimumSeconds { get; set; } = 3;
+
+    /// <summary>Gets or sets how long a form ticket stays good; from 1 to 72 hours. An older ticket is a 400 so a real visitor can send again.</summary>
+    public TimeSpan TicketLifetime { get; set; } = TimeSpan.FromHours(24);
+
     /// <summary>Tells whether the values are usable.</summary>
     /// <returns>Null when they are, otherwise a plain message naming the first bad value.</returns>
-    public string? Validate() =>
-        UploadKeyLifetime < MinUploadKeyLifetime || UploadKeyLifetime > MaxUploadKeyLifetime
-            ? $"{SectionName}:UploadKeyLifetime must be from 5 minutes to 24 hours."
+    public string? Validate()
+    {
+        if (UploadKeyLifetime < MinUploadKeyLifetime || UploadKeyLifetime > MaxUploadKeyLifetime)
+        {
+            return $"{SectionName}:UploadKeyLifetime must be from 5 minutes to 24 hours.";
+        }
+
+        if (MinimumSeconds is < 0 or > MaxMinimumSeconds)
+        {
+            return $"{SectionName}:MinimumSeconds must be from 0 to {MaxMinimumSeconds}.";
+        }
+
+        return TicketLifetime < MinTicketLifetime || TicketLifetime > MaxTicketLifetime
+            ? $"{SectionName}:TicketLifetime must be from 1 to 72 hours."
             : null;
+    }
 }
