@@ -25,14 +25,15 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
     private static string Version => Convert.ToBase64String(StoredVersion);
 
     [Fact]
-    public async Task AMoveRecordsOneHistoryRowAndOneAuditEntryInOneSaveAndAnswersTheSavedRequest()
+    public async Task AMoveRecordsOneHistoryRowAndOneAuditEntryInOneSaveAndAnswersOnlyTheNewStatusAndVersion()
     {
         var harness = new Harness();
+        harness.NextVersion = [0, 0, 0, 0, 0, 0, 7, 210];
 
         var result = await harness.Handler.HandleAsync(harness.Request.Id, new ChangeQuoteRequestStatusRequest(" Contacted ", Version), Token);
 
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Status.ShouldBe("contacted");
+        result.Value.ShouldBe(new QuoteRequestStatusChangedResponse(harness.Request.Id, "contacted", Now, "AAAAAAAAB9I="));
         harness.Request.Status.ShouldBe(QuoteRequestStatus.Contacted);
         harness.Request.StatusChangedAtUtc.ShouldBe(Now);
         var row = harness.Request.StatusChanges.ShouldHaveSingleItem();
@@ -148,7 +149,7 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
         var result = await harness.Handler.HandleAsync(harness.Request.Id, new ChangeQuoteRequestStatusRequest("quoted", Version), Token);
 
         result.Error.Code.ShouldBe("quote-requests.conflict");
-        await harness.Reader.DidNotReceive().GetDetailAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        harness.Unit.Commits.ShouldBe(0);
     }
 
     [Fact]
@@ -203,15 +204,19 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
                 Request.DeclarePhotos(photoNames, new byte[QuoteRequestRules.UploadKeyHashLength], Received.AddHours(2)).IsSuccess.ShouldBeTrue();
             }
 
-            typeof(QuoteRequest).GetProperty(nameof(QuoteRequest.RowVersion), BindingFlags.Public | BindingFlags.Instance)!.SetValue(Request, StoredVersion.ToArray());
+            SetVersion(StoredVersion.ToArray());
             Store.FindAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<QuoteRequest?>(Request));
-            Reader.GetDetailAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<QuoteRequestDetailView?>(View(Request)));
+            Unit = new FakeUnitOfWork(() =>
+            {
+                if (NextVersion is { } next)
+                {
+                    SetVersion(next);
+                }
+            });
             var context = Substitute.For<IRequestContext>();
             context.UserId.Returns(noCaller ? null : CallerId);
             Handler = new ChangeQuoteRequestStatusHandler(
                 Store,
-                Reader,
-                Substitute.For<IImageDelivery>(),
                 Deletions,
                 new FixedCalendar(),
                 Audit,
@@ -228,36 +233,19 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
 
         public IQuoteRequestStore Store { get; } = Substitute.For<IQuoteRequestStore>();
 
-        public IQuoteRequestReader Reader { get; } = Substitute.For<IQuoteRequestReader>();
-
         public IImageDeletionQueue Deletions { get; } = Substitute.For<IImageDeletionQueue>();
 
         public RecordingAudit Audit { get; } = new();
 
-        public FakeUnitOfWork Unit { get; } = new();
+        public FakeUnitOfWork Unit { get; }
+
+        /// <summary>The row version a good save gives the request, as the database does; unchanged when null.</summary>
+        public byte[]? NextVersion { get; set; }
 
         public ChangeQuoteRequestStatusHandler Handler { get; }
 
-        // The read after the save shows the aggregate as it is now.
-        private static QuoteRequestDetailView View(QuoteRequest request) => new(
-            request.Id,
-            request.CreatedAtUtc,
-            request.CustomerName,
-            request.TeamName,
-            request.ContactNumberE164,
-            request.Email,
-            request.ProductChoice,
-            request.ProductTitle,
-            request.QuantityRange,
-            request.Message,
-            request.Status,
-            request.StatusChangedAtUtc,
-            [.. request.Photos.Select(photo => new QuoteRequestPhotoRow(photo.Slot, photo.FileName, photo.PublicId, photo.Width, photo.Height))],
-            request.PhotosRemovedAtUtc,
-            [],
-            null,
-            null,
-            request.RowVersion);
+        private void SetVersion(byte[] version) =>
+            typeof(QuoteRequest).GetProperty(nameof(QuoteRequest.RowVersion), BindingFlags.Public | BindingFlags.Instance)!.SetValue(Request, version);
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

@@ -97,15 +97,17 @@ public sealed class QuoteRequestsController(
     /// history with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New
     /// count for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the
     /// daily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is
-    /// ignored. A retry with the same <c>Idempotency-Key</c> and body answers with the stored answer.
+    /// ignored. A retry with the same <c>Idempotency-Key</c> and body answers with the stored answer. The answer holds only the id, the
+    /// new status, when it changed and the new row version, so no visitor details are stored with it; read the request again for the
+    /// history.
     /// </summary>
     /// <param name="id">The request id.</param>
     /// <param name="body">The new status and the version; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the whole request, 400 on the status or version, 401 without a valid token, 404 when there is no such request, or 409 when the version is out of date.</returns>
+    /// <returns>200 with the new status and version, 400 on the status or version, 401 without a valid token, 404 when there is no such request, or 409 when the version is out of date.</returns>
     [HttpPost("{id:guid}/status")]
     [EndpointName("ChangeQuoteRequestStatus")]
-    [ProducesResponseType<QuoteRequestDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<QuoteRequestStatusChangedResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -116,6 +118,6 @@ public sealed class QuoteRequestsController(
         CancellationToken cancellationToken)
     {
         var result = await changeStatus.HandleAsync(id, body ?? ChangeQuoteRequestStatusRequest.Empty, cancellationToken).ConfigureAwait(false);
-        return result.ToHttpResult(HttpContext, static request => TypedResults.Ok(request));
+        return result.ToHttpResult(HttpContext, static changed => TypedResults.Ok(changed));
     }
 }

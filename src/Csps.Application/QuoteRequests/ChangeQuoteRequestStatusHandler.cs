@@ -3,6 +3,7 @@ using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
+using Csps.Domain.QuoteRequests;
 using FluentValidation;
 
 namespace Csps.Application.QuoteRequests;
@@ -12,12 +13,10 @@ namespace Csps.Application.QuoteRequests;
 /// transaction the request is found (404), the version the page was opened with is compared (409), and the domain decides the move
 /// (400 for the same status or a Converted request). A move adds a history row and one <c>quote-request.status-changed</c> entry in the
 /// same save. Who moved it and when come from the token and the clock (SEC-08). Leaving New takes the request off the shared New
-/// count at once (D-14).
+/// count at once (D-14). The answer is slim (no visitor details), because the idempotency gate stores it.
 /// </summary>
 public sealed class ChangeQuoteRequestStatusHandler(
     IQuoteRequestStore store,
-    IQuoteRequestReader reader,
-    IImageDelivery imageDelivery,
     IImageDeletionQueue deletions,
     IBusinessCalendar calendar,
     IAuditTrail audit,
@@ -30,22 +29,22 @@ public sealed class ChangeQuoteRequestStatusHandler(
     /// <param name="request">The new status and the version.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
     /// <returns>
-    /// The request as saved, a 400 on the status or version, a 401 when the token names no usable account, a 404 when there is no such
-    /// request, or a 409 when the version is out of date.
+    /// The new status, when it changed and the new row version; a 400 on the status or version, a 401 when the token names no usable
+    /// account, a 404 when there is no such request, or a 409 when the version is out of date.
     /// </returns>
-    public async Task<Result<QuoteRequestDetailResponse>> HandleAsync(Guid id, ChangeQuoteRequestStatusRequest request, CancellationToken cancellationToken)
+    public async Task<Result<QuoteRequestStatusChangedResponse>> HandleAsync(Guid id, ChangeQuoteRequestStatusRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         if (requestContext.UserId is not { } callerId)
         {
-            return Result.Failure<QuoteRequestDetailResponse>(AuthErrors.SessionEnded);
+            return Result.Failure<QuoteRequestStatusChangedResponse>(AuthErrors.SessionEnded);
         }
 
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
-            return Result.Failure<QuoteRequestDetailResponse>(
+            return Result.Failure<QuoteRequestStatusChangedResponse>(
                 ValidationResults.ToError(validation, QuoteRequestErrors.ValidationCode, QuoteRequestErrors.ValidationMessage));
         }
 
@@ -54,25 +53,25 @@ public sealed class ChangeQuoteRequestStatusHandler(
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var outcome = await unitOfWork.InTransactionAsync(
+            return await unitOfWork.InTransactionAsync(
                 async token =>
                 {
                     var quote = await store.FindAsync(id, token).ConfigureAwait(false);
                     if (quote is null)
                     {
-                        return Result.Failure<bool>(QuoteRequestErrors.NotFound);
+                        return Result.Failure<QuoteRequestStatusChangedResponse>(QuoteRequestErrors.NotFound);
                     }
 
                     if (!quote.RowVersion.AsSpan().SequenceEqual(version))
                     {
-                        return Result.Failure<bool>(QuoteRequestErrors.Conflict);
+                        return Result.Failure<QuoteRequestStatusChangedResponse>(QuoteRequestErrors.Conflict);
                     }
 
                     var from = quote.Status;
                     var moved = quote.ChangeStatus(target, callerId, clock.UtcNow);
                     if (moved.IsFailure)
                     {
-                        return Result.Failure<bool>(moved.Error);
+                        return Result.Failure<QuoteRequestStatusChangedResponse>(moved.Error);
                     }
 
                     // Files are only queued here; the daily removal job deletes them (D-04, D-34).
@@ -87,19 +86,19 @@ public sealed class ChangeQuoteRequestStatusHandler(
                         AuditKey.Of(quote.Id),
                         QuoteRequestAuditDetail.StatusChanged(from, target));
                     await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                    return Result.Success(true);
+
+                    // The save reads back the new row version.
+                    return Result.Success(new QuoteRequestStatusChangedResponse(
+                        quote.Id,
+                        QuoteRequestStatusNames.ToKey(quote.Status),
+                        quote.StatusChangedAtUtc,
+                        RowVersions.ToText(quote.RowVersion)));
                 },
                 cancellationToken).ConfigureAwait(false);
-            if (outcome.IsFailure)
-            {
-                return Result.Failure<QuoteRequestDetailResponse>(outcome.Error);
-            }
         }
         catch (ConcurrencyConflictException)
         {
-            return Result.Failure<QuoteRequestDetailResponse>(QuoteRequestErrors.Conflict);
+            return Result.Failure<QuoteRequestStatusChangedResponse>(QuoteRequestErrors.Conflict);
         }
-
-        return await GetQuoteRequestHandler.ReadAsync(reader, imageDelivery, id, cancellationToken).ConfigureAwait(false);
     }
 }

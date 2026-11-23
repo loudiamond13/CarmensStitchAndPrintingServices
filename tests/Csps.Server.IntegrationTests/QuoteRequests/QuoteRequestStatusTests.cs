@@ -38,15 +38,22 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         });
         var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
 
+        // The answer is slim: the page reads the request again for the history.
+        body.EnumerateObject().Select(member => member.Name).ShouldBe(["id", "status", "statusChangedAtUtc", "version"]);
+        body.GetProperty("id").GetGuid().ShouldBe(id);
         body.GetProperty("status").GetString().ShouldBe("contacted");
-        body.GetProperty("version").GetString().ShouldNotBe(version);
-        var history = body.GetProperty("history").EnumerateArray().ToList();
+        var newVersion = body.GetProperty("version").GetString();
+        newVersion.ShouldNotBe(version);
+        var detail = await rig.ReadAsync(id);
+        detail.GetProperty("version").GetString().ShouldBe(newVersion);
+        body.GetProperty("statusChangedAtUtc").GetDateTimeOffset().ShouldBe(detail.GetProperty("statusChangedAtUtc").GetDateTimeOffset());
+        var history = detail.GetProperty("history").EnumerateArray().ToList();
         history.Count.ShouldBe(2);
         history[0].GetProperty("from").GetString().ShouldBe("new");
         history[0].GetProperty("to").GetString().ShouldBe("contacted");
         history[0].GetProperty("changedBy").GetProperty("id").GetGuid().ShouldBe(rig.Admin.UserId);
         history[1].GetProperty("to").GetString().ShouldBe("new");
-        body.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(rig.Admin.UserId);
+        detail.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(rig.Admin.UserId);
         (await NewCountAsync(rig)).ShouldBe(before - 1);
 
         var token = TestContext.Current.CancellationToken;
@@ -74,7 +81,38 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
 
         body.GetProperty("status").GetString().ShouldBe("new");
-        body.GetProperty("history")[0].GetProperty("changedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+        (await rig.ReadAsync(id)).GetProperty("history")[0].GetProperty("changedBy").GetProperty("id").GetGuid().ShouldBe(manager.UserId);
+    }
+
+    [Fact]
+    public async Task TheStoredRetryAnswerHoldsNoVisitorDetailsOrPhotoAddresses()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed(
+            "Juan Dela Cruz",
+            QuoteRequestStatus.New,
+            Received,
+            Team: "Brgy. San Roque Ballers",
+            Email: "juan@example.test",
+            Message: "Twelve jerseys, numbers 1 to 12.",
+            PhotoNames: ["front.jpg"],
+            StoredSlots: [0]));
+        var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
+
+        using var response = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "contacted", version });
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // The idempotency gate keeps the 200 answer for 24 hours, where the purge and the delete cannot reach it.
+        var token = TestContext.Current.CancellationToken;
+        await using var context = database.CreateContext();
+        var stored = await context.IdempotencyRecords.AsNoTracking()
+            .Where(record => record.ResponseBody != null && record.ResponseBody.Contains(id.ToString("D")))
+            .Select(record => record.ResponseBody!)
+            .SingleAsync(token);
+        foreach (var personal in new[] { "Juan Dela Cruz", "San Roque", "juan@example.test", "0917", "Twelve jerseys", "front.jpg", "fullSize", "thumb" })
+        {
+            stored.ShouldNotContain(personal, Case.Insensitive);
+        }
     }
 
     [Fact]
@@ -150,10 +188,11 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
 
         body.GetProperty("status").GetString().ShouldBe("spam");
-        body.GetProperty("photos").GetArrayLength().ShouldBe(0);
-        body.GetProperty("missingPhotos").GetArrayLength().ShouldBe(0);
-        body.GetProperty("photoCount").GetInt32().ShouldBe(0);
-        var removedAt = body.GetProperty("photosRemovedAtUtc").GetDateTimeOffset();
+        var spamDetail = await rig.ReadAsync(id);
+        spamDetail.GetProperty("photos").GetArrayLength().ShouldBe(0);
+        spamDetail.GetProperty("missingPhotos").GetArrayLength().ShouldBe(0);
+        spamDetail.GetProperty("photoCount").GetInt32().ShouldBe(0);
+        var removedAt = spamDetail.GetProperty("photosRemovedAtUtc").GetDateTimeOffset();
         var token = TestContext.Current.CancellationToken;
         await using (var context = database.CreateContext())
         {
@@ -172,8 +211,9 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         using var back = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "new", version = spamVersion });
         var after = await QuoteRequestStaffRig.BodyAsync(back, HttpStatusCode.OK);
         after.GetProperty("status").GetString().ShouldBe("new");
-        after.GetProperty("photos").GetArrayLength().ShouldBe(0);
-        after.GetProperty("photosRemovedAtUtc").GetDateTimeOffset().ShouldBe(removedAt);
+        var backDetail = await rig.ReadAsync(id);
+        backDetail.GetProperty("photos").GetArrayLength().ShouldBe(0);
+        backDetail.GetProperty("photosRemovedAtUtc").GetDateTimeOffset().ShouldBe(removedAt);
         using var openList = await rig.GetAsync(rig.Admin.AccessToken, QuoteRequestStaffRig.Route);
         (await QuoteRequestStaffRig.BodyAsync(openList, HttpStatusCode.OK)).GetProperty("items")[0].GetProperty("photosRemoved").GetBoolean().ShouldBeTrue();
     }
@@ -186,9 +226,9 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
 
         using var response = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "spam", version });
-        var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
+        (await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK)).GetProperty("status").GetString().ShouldBe("spam");
 
-        body.GetProperty("photosRemovedAtUtc").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        (await rig.ReadAsync(id)).GetProperty("photosRemovedAtUtc").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
         await using var context = database.CreateContext();
         (await context.Set<ImageDeletion>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
     }

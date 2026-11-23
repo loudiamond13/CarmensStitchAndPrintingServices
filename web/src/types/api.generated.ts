@@ -2328,7 +2328,9 @@ export interface paths {
          *     history with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New
          *     count for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the
          *     daily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is
-         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored answer.
+         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the id, the
+         *     new status, when it changed and the new row version, so no visitor details are stored with it; read the request again for the
+         *     history.
          */
         post: operations["ChangeQuoteRequestStatus"];
         delete?: never;
@@ -5880,6 +5882,26 @@ export interface components {
             from: null | string;
             /** @description The status the request entered. */
             to: string;
+        };
+        /**
+         * @description The answer to a status change (D-15). It holds no visitor details or photo addresses, because the idempotency gate keeps it for 24
+         *     hours where the purge and the delete cannot reach it. The page reads the request again for the history.
+         */
+        QuoteRequestStatusChangedResponse: {
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /** @description The new status key. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status changed.
+             */
+            statusChangedAtUtc: string;
+            /** @description The new row version to send with the next change. */
+            version: string;
         };
         /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
@@ -14334,7 +14356,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                    "application/json": components["schemas"]["QuoteRequestStatusChangedResponse"];
                 };
             };
             /** @description Bad Request */

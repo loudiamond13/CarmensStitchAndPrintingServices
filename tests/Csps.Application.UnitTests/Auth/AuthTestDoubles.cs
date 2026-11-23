@@ -58,7 +58,8 @@ internal sealed class RecordingAudit : IAuditTrail
 }
 
 /// <summary>Runs the work at once and counts commits, like a real unit of work without a database.</summary>
-internal sealed class FakeUnitOfWork : IUnitOfWork
+/// <param name="onSave">Runs after each good save, like the values the database sets (a new row version).</param>
+internal sealed class FakeUnitOfWork(Action? onSave = null) : IUnitOfWork
 {
     private int _failuresLeft;
     private Exception? _saveFailure;
@@ -98,6 +99,7 @@ internal sealed class FakeUnitOfWork : IUnitOfWork
             throw new ConcurrencyConflictException(new InvalidOperationException("Another request changed the row."));
         }
 
+        onSave?.Invoke();
         return Task.FromResult(1);
     }
 

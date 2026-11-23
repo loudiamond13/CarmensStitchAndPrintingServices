@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T13:25:00-06:00
+updated: 2026-11-23T14:30:00-06:00
 ---
 
 # The quote requests API
@@ -214,7 +214,7 @@ Every staff call needs a signed-in Admin or Manager. An anonymous caller gets `4
 | `GET /quote-requests` | `200` a page of requests with the pill counts; `400 quote-requests.list-invalid` with field errors; `401` |
 | `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
 | `GET /quote-requests/{id}` | `200` the request in full; `401`; `404 quote-requests.not-found` |
-| `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the request as saved; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
+| `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the new status and version; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 
 ### The list query
 
@@ -341,7 +341,15 @@ Rows come newest received first. Two requests received at the same time come by 
   `status=new>quoted`, in the same save. The audit entry never names the visitor.
 - Who moved it and when come from the token and the clock. `updatedById`, `updatedAtUtc` or any other member in the body is ignored.
 - Leaving New takes the request off the New count for every staff member at once (D-14).
-- The answer is the request as saved, the same shape as `GET /quote-requests/{id}`.
+- The answer holds only what the page needs after a move:
+
+  ```json
+  { "id": "...", "status": "quoted", "statusChangedAtUtc": "2026-11-21T08:05:00+00:00", "version": "AAAAAAAAB9I=" }
+  ```
+
+  It has no visitor details and no photo addresses, because the idempotency gate keeps the answer for 24 hours, where the 6-month
+  purge and the Manager delete cannot reach it. Read the request again with `GET /quote-requests/{id}` for the history, the photos
+  and who changed it.
 
 ### Spam removes the photos (D-04)
 

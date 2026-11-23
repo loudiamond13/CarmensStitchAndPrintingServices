@@ -7087,6 +7087,36 @@
         ],
         "type": "object"
       },
+      "QuoteRequestStatusChangedResponse": {
+        "description": "The answer to a status change (D-15). It holds no visitor details or photo addresses, because the idempotency gate keeps it for 24\nhours where the purge and the delete cannot reach it. The page reads the request again for the history.",
+        "properties": {
+          "id": {
+            "description": "The request id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "description": "The new status key.",
+            "type": "string"
+          },
+          "statusChangedAtUtc": {
+            "description": "When the status changed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "The new row version to send with the next change.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "statusChangedAtUtc",
+          "version"
+        ],
+        "type": "object"
+      },
       "RankedItemDto": {
         "description": "One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share.",
         "properties": {
@@ -20088,7 +20118,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuoteRequestDetailResponse"
+                  "$ref": "#/components/schemas/QuoteRequestStatusChangedResponse"
                 }
               }
             },
@@ -20135,7 +20165,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Moves a quote request to another status, for both roles. The body is `{ \"status\": \"...\", \"version\": \"...\" }` with one of new,\ncontacted, quoted, closed or spam, and the row version the page was opened with. Moves among those five are free in any\ndirection. Converted is set only by turning the request into an order: it is refused as a target (400\n`quote-requests.validation`), and a Converted request cannot change status by hand (400\n`quote-requests.converted-locked`). A move to the status the request already has is a 400. Every move is recorded in the\nhistory with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New\ncount for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the\ndaily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored answer.",
+        "summary": "Moves a quote request to another status, for both roles. The body is `{ \"status\": \"...\", \"version\": \"...\" }` with one of new,\ncontacted, quoted, closed or spam, and the row version the page was opened with. Moves among those five are free in any\ndirection. Converted is set only by turning the request into an order: it is refused as a target (400\n`quote-requests.validation`), and a Converted request cannot change status by hand (400\n`quote-requests.converted-locked`). A move to the status the request already has is a 400. Every move is recorded in the\nhistory with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New\ncount for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the\ndaily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the id, the\nnew status, when it changed and the new row version, so no visitor details are stored with it; read the request again for the\nhistory.",
         "tags": [
           "QuoteRequests"
         ]
