@@ -253,6 +253,33 @@ export const PUBLIC_COPY = {
       newTab: ' (opens in a new tab)',
     },
     bar: { messenger: 'Messenger', call: 'Call us' },
+    // The Get a Quote form (UI-SPEC Q1 and Q3; D-31 words). The error words are the server's own (QuoteRequestRules, OR-3).
+    form: {
+      title: 'Inquiry form',
+      caption: 'Fields marked * are required.',
+      name: { label: 'Your name', placeholder: 'Juan Dela Cruz' },
+      number: {
+        label: 'Contact number',
+        placeholder: '0917 123 4567',
+        hint: "We'll text or call about your mockup.",
+      },
+      submit: 'Send Inquiry',
+      sending: 'Sending',
+      success: {
+        title: 'Inquiry sent',
+        message: "Thanks! We'll message you with a mockup and quote, usually the same day.",
+        another: 'Send Another',
+        toastTitle: 'Inquiry sent',
+        toastMessage: "We'll message you soon.",
+      },
+      sendFailed:
+        "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",
+      errors: {
+        nameRequired: 'Enter your name.',
+        nameTooLong: 'Keep your name to 100 characters or fewer.',
+        numberInvalid: 'Enter a mobile number, like 0917 123 4567.',
+      },
+    },
     // The reference photo picker of the quote form (UI-SPEC Q2; D-01, D-02, D-06).
     photos: {
       label: 'Reference photos',

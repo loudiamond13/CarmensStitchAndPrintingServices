@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
 import { pageViewHandler, server } from './msw';
+import { quoteTicketHandler } from './quoteFixtures';
 import {
   demoGallery,
   demoHome,
@@ -71,6 +72,7 @@ if (typeof window !== 'undefined') {
       galleryHandler(demoGallery),
       privacyContactHandler(),
       pageViewHandler(),
+      quoteTicketHandler(),
     );
   });
   // Every test starts with no saved Show Map tap (D-65).

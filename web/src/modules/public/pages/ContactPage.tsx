@@ -8,10 +8,12 @@ import { ErrorState } from '@/components/states/ErrorState';
 import { LoadingRegion } from '@/components/states/LoadingRegion';
 import { ContactNowCard } from '../components/ContactNowCard';
 import { LazyHoursCard } from '../components/lazyHours';
+import { LazyQuoteForm } from '../components/lazyQuoteForm';
 import { MapCard } from '../components/MapCard';
 import { PageHead } from '../components/PageHead';
 import { PhoneListCard } from '../components/PhoneListCard';
 import { SkeletonLines } from '../components/SkeletonLines';
+import { quoteFormPlaceholderClasses } from '../components/quoteForm.recipe';
 import {
   contactGridClasses,
   contactSectionClasses,
@@ -43,7 +45,18 @@ export function ContactPage() {
             things="our contact details"
             className={contactGridClasses}
           >
-            <ContactNowCard site={site} />
+            <div className={sideClasses}>
+              <Suspense
+                fallback={
+                  <div className={quoteFormPlaceholderClasses} aria-hidden="true">
+                    <SkeletonLines lines={3} />
+                  </div>
+                }
+              >
+                <LazyQuoteForm />
+              </Suspense>
+              <ContactNowCard site={site} />
+            </div>
             <aside className={sideClasses}>
               <Suspense
                 fallback={

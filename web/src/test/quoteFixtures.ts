@@ -21,6 +21,16 @@ export interface QuoteAnswers {
   ticketStatus?: number;
 }
 
+/** The default answer of every test: the form ticket read (the Contact page reads it). A test that checks the ticket or the create calls answerQuote. */
+export function quoteTicketHandler() {
+  return http.get('*/api/v1/public/quote-requests/ticket', () =>
+    HttpResponse.json({
+      ticket: 'ticket-default',
+      photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+    }),
+  );
+}
+
 /** Answers the ticket and the create; returns what the form sent. Numbered tickets: `ticket-1`, `ticket-2`, ... */
 export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
   const probe: QuoteProbe = { tickets: [], creates: [] };

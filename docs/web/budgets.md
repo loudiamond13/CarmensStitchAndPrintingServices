@@ -1,18 +1,19 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-19T09:00:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-22T21:40:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
 The code: `web/scripts/budget.ts` (the pure rules, tested with made-up chunk graphs in `budget.test.ts`) and `web/scripts/vite-budget-plugin.ts` (reads the real build output, wired in `web/vite.config.ts`).
 
-## The three limits
+## The four limits
 
 | Measure | Limit (gzip -9) | Measured in |
 |---|---|---|
 | Public initial JS | **150 KB** | every build |
 | Admin initial JS | **250 KB** | builds with the dev-only routes (`npm run build:budget`, the e2e build and the parity build) |
 | CSS, all files together | **35 KB** | every build |
+| Quote form piece | **45 KB** | every build (Phase 13, plan 13-09, D-35); see "The quote form piece" below |
 
 - Sizes are **gzip level 9**, the way the server compresses files, and **1 KB = 1000 bytes**.
 - A value exactly at its limit passes: 150,000 bytes of public JS passes and 150,001 bytes fails.
@@ -221,6 +222,24 @@ Figures from `npm run build:budget` (the build CI runs), gzip -9, 1 KB = 1000 B,
 | CSS | 20.32 KB | 35 KB | 14.68 KB |
 
 The tightest row is Privacy, which carries the cookies and saved settings section (plan 12.1-10). The earlier sections of this file keep their figures as a record; their "Cookies" rows were removed with the page.
+
+## The quote form piece (Phase 13, plan 13-09, D-35)
+
+The Get a Quote form on `/contact` uses react-hook-form, zod and the resolver, which no public page carries (they are forbidden in every public page's initial JS, see "Rules that fail the build"). So the form is its own lazy piece: `ContactPage` renders `LazyQuoteForm` (`components/lazyQuoteForm.ts`, `lazy(() => import('./QuoteForm'))`) inside a `Suspense` with a placeholder card of the form's height, and the browser fetches the piece right after the page shows. The Contact row still counts only what the page loads first, so it stays at or under 150 KB and no limit was raised.
+
+The piece has **its own row, "Quote form", at 45 KB** (`BUDGETS.quoteFormJs` and `QUOTE_FORM_CHUNK` in `budget.ts`, tests in `budget.test.ts`). It is the form chunk plus every chunk it imports statically, each counted once, **minus the chunks the Contact route already loads** (the entry, the layout and the shared React chunk), so it is only what the form adds. A build with no chunk for `src/modules/public/components/QuoteForm.tsx` fails, as a route module without a chunk does.
+
+Two things to know when the form grows:
+
+- **A shared chunk counts whole.** zod's classic API and the admin forms share one chunk with zod's core; the form pulls that chunk in full even though it uses a few checks. The form therefore uses `zod/mini` (the same package, named imports, no new package): the classic-only part stays in the admin chunks and the form loads only the core (about 14.7 KB gzip) instead of the whole classic bundle (about 23.7 KB). With the classic API the first, two-field version of the form measured 49.36 KB; with `zod/mini` it measured 40.61 KB.
+- **react-hook-form is about 14 KB gzip** of the row and cannot be split.
+
+Figures from `npm run build:budget` (gzip -9, 1 KB = 1000 B):
+
+| Measure | Plan 13-09, task 1 (two fields) | Limit |
+|---|---|---|
+| Contact | 146.60 KB | 150 KB |
+| Quote form | 40.61 KB | 45 KB |
 
 ## Lighthouse first visit with the consent bar (Phase 12, plan 12-24)
 

@@ -27,7 +27,7 @@ async function fillRequired(name = 'Juan Dela Cruz', number = '0917 123 4567') {
 const SEND = { name: 'Send Inquiry' } as const;
 
 describe('QuoteForm head and fields (Q1)', () => {
-  it('is a form named by its title "Inquiry form" with the caption and the two required fields', async () => {
+  it('is a form named by its title "Inquiry form" with the caption and the two required fields', () => {
     answerQuote();
     renderForm();
 
@@ -86,7 +86,7 @@ describe('QuoteForm send (INQ-01)', () => {
 
   it('shows the pending label "Sending" while the request runs', async () => {
     answerQuote();
-    renderForm();
+    renderForm({ minimumWaitMs: 800 });
     await fillRequired();
 
     await userEvent.click(screen.getByRole('button', SEND));
@@ -97,15 +97,15 @@ describe('QuoteForm send (INQ-01)', () => {
 
   it('does not send until the minimum time after the ticket has passed (the docs: a client must never cause a too-fast send)', async () => {
     const probe = answerQuote();
+    const openedAt = Date.now();
     renderForm({ minimumWaitMs: 600 });
     await fillRequired();
-    const startedAt = Date.now();
 
     await userEvent.click(screen.getByRole('button', SEND));
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
 
     expect(probe.creates).toHaveLength(1);
-    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(300);
+    expect(Date.now() - openedAt).toBeGreaterThanOrEqual(550);
   });
 
   it('sends nothing and focuses Your name when a required field is empty', async () => {

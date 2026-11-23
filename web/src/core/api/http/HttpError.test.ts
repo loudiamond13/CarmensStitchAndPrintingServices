@@ -123,9 +123,9 @@ describe('parseProblemDetails', () => {
   });
 
   it('reads the replacementTicket extension of an expired quote ticket (D-38) and drops one that is not text', () => {
-    expect(parseProblemDetails({ code: 'quote-requests.ticket-expired', replacementTicket: 'ticket-2' })?.replacementTicket).toBe(
-      'ticket-2',
-    );
+    expect(
+      parseProblemDetails({ code: 'quote-requests.ticket-expired', replacementTicket: 'ticket-2' })?.replacementTicket,
+    ).toBe('ticket-2');
     expect(parseProblemDetails({ replacementTicket: 7 })?.replacementTicket).toBeUndefined();
     expect(parseProblemDetails({ title: 'Not found' })?.replacementTicket).toBeUndefined();
   });

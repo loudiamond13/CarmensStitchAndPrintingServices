@@ -112,7 +112,7 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     instance: stringOrUndefined(value.instance),
     traceId: stringOrUndefined(value.traceId),
     code: stringOrUndefined(value.code),
-    replacementTicket: undefined,
+    replacementTicket: stringOrUndefined(value.replacementTicket),
     errors: parseFieldErrors(value.errors),
   });
 }

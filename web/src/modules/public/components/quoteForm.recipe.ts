@@ -41,3 +41,20 @@ export const photoSizeClasses = tw('text-14 leading-5 text-ink-muted');
 
 /** "{2} of 5 photos": Small, muted. */
 export const photoCountClasses = tw('m-0 text-14 leading-5 text-ink-muted');
+
+/** `.s-formgrid`: two columns with 16px between and 20px rows; one column at 767px and below. */
+export const quoteFormGridClasses = tw('grid grid-cols-2 gap-x-4 gap-y-5 pg-phone:grid-cols-1');
+
+/** The footer row: the privacy notice and Send Inquiry, wrapping on a narrow screen. */
+export const quoteFormFooterClasses = tw('flex flex-wrap items-center justify-between gap-4');
+
+/** The status lines under the footer row: one shows at a time. */
+export const quoteFormStatusClasses = tw('flex flex-col gap-3');
+
+/** The send-failed box text: Small, ink. */
+export const quoteFormStatusTextClasses = tw('m-0 text-14 leading-5 text-ink');
+
+/** The card shown while the form piece loads: the form card's look and its height, so nothing shifts when the form appears (D-35). */
+export const quoteFormPlaceholderClasses = tw(
+  'flex min-h-[330px] flex-col gap-6 rounded-lg border border-line bg-surface p-8 pg-phone:min-h-[320px] pg-phone:rounded-md pg-phone:p-5',
+);

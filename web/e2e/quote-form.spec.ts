@@ -26,7 +26,9 @@ test('@quote a visitor sends a text-only inquiry and sees Inquiry sent', async (
   const title = page.getByRole('heading', { level: 2, name: 'Inquiry sent' });
   await expect(title).toBeVisible();
   await expect(title).toBeFocused();
-  await expect(page.getByText("Thanks! We'll message you with a mockup and quote, usually the same day.")).toBeVisible();
+  await expect(
+    page.getByText("Thanks! We'll message you with a mockup and quote, usually the same day."),
+  ).toBeVisible();
   await expect(page.getByText("We'll message you soon.")).toBeVisible();
 
   await page.getByRole('button', { name: 'Send Another' }).click();
