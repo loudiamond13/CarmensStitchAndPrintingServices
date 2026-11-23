@@ -7,7 +7,8 @@ namespace Csps.Infrastructure.Images;
 
 /// <summary>
 /// Reads which stored photo files the database knows (JOB-02, D-23). The photo query lifts the named SoftDelete filter, so a photo of a
-/// soft-deleted order still counts: the order can be restored and a Cloudinary removal cannot be undone.
+/// soft-deleted order still counts: the order can be restored and a Cloudinary removal cannot be undone. A stored QuoteRequestPhotos id counts
+/// too, so the sweep never queues a live quote photo (INQ-07).
 /// </summary>
 /// <param name="context">The database context.</param>
 internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
