@@ -5815,6 +5815,8 @@ export interface components {
             postalCode: null | string;
             /** @description Province. */
             province: null | string;
+            /** @description The staff inbox that gets an email for each quote request, for staff use only; null when not set. */
+            quoteAlertsEmail: null | string;
             sharePicture: null | components["schemas"]["SharePictureDto"];
             /** @description Street and barangay. */
             street: null | string;
@@ -6235,6 +6237,8 @@ export interface components {
             postalCode: null | string;
             /** @description Province; required, at most 60 characters. */
             province: null | string;
+            /** @description The staff inbox that gets an email for each quote request; at most 254 characters. Empty or missing clears it. */
+            quoteAlertsEmail: null | string;
             /** @description Street and barangay; required, at most 120 characters. */
             street: null | string;
             /** @description The tagline; required, at most 160 characters. */

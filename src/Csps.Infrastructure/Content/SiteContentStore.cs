@@ -81,6 +81,7 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
             settingsRow.InstagramUrl,
             settingsRow.TikTokUrl,
             settingsRow.ContactEmail,
+            settingsRow.QuoteAlertsEmail,
             phones,
             settingsRow.TimeZoneId,
             settingsRow.CurrencyCode,
@@ -92,6 +93,15 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
                 ? new SharePictureView(shareId, settingsRow.SharePictureWidth.GetValueOrDefault(), settingsRow.SharePictureHeight.GetValueOrDefault())
                 : null);
     }
+
+    public async Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) =>
+        await context.SiteSettings
+            .AsNoTracking()
+            .Where(settings => settings.Id == SiteSettings.SingletonId)
+            .Select(settings => settings.QuoteAlertsEmail)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false)
+        ?? throw new InvalidOperationException(MissingRowMessage);
 
     public async Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken)
     {

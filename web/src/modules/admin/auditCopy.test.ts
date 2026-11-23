@@ -413,6 +413,7 @@ describe('describeAuditDetail for the Phase 11 site content events (AUDIT-01, AU
       'About text changed. Shop email changed. Phone numbers changed. Tagline changed',
     ],
     ['site-settings.changed', 'fields=businessName;businessName=carmen@example.ph>Carmen', 'Business name changed'],
+    ['site-settings.changed', 'fields=quoteAlertsEmail', 'Quote alerts email changed'],
     ['site-settings.changed', 'fields=shoe-size', 'Other detail changed'],
     ['site-settings.share-picture-changed', 'change=added', 'Picture added'],
     ['site-settings.share-picture-changed', 'change=replaced', 'Picture replaced'],

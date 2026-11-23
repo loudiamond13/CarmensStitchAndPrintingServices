@@ -72,6 +72,19 @@ public sealed class UpdateSiteSettingsRequestValidator : AbstractValidator<Updat
         RuleFor(request => request.ContactEmail)
             .Must(static email => IsNotSet(email) || SiteLinks.IsContactEmail(email!.Trim())).WithMessage(SiteLinks.ContactEmailInvalidMessage);
 
+        RuleFor(request => request.QuoteAlertsEmail).Custom(static (email, context) =>
+        {
+            var text = email?.Trim() ?? string.Empty;
+            if (text.Length > SiteSettings.QuoteAlertsEmailMaxLength)
+            {
+                context.AddFailure(SiteSettings.QuoteAlertsEmailTooLongMessage);
+            }
+            else if (text.Length > 0 && !SiteLinks.IsContactEmail(text))
+            {
+                context.AddFailure(SiteLinks.ContactEmailInvalidMessage);
+            }
+        });
+
         RuleFor(request => request).Custom(static (request, context) => CheckPhones(request.Phones, context));
     }
 

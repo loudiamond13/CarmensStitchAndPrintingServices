@@ -620,6 +620,7 @@ const SITE_SETTINGS_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
   ['instagramUrl', shown('Instagram link', 'instagramUrl')],
   ['tiktokUrl', shown('TikTok link', 'tiktokUrl')],
   ['contactEmail', named('Shop email')],
+  ['quoteAlertsEmail', named('Quote alerts email')],
   ['phones', named('Phone numbers')],
 ]);
 

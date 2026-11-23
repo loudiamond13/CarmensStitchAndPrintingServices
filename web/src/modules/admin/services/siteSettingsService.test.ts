@@ -26,6 +26,7 @@ const settings: SiteSettings = {
   instagramUrl: null,
   tiktokUrl: null,
   contactEmail: 'hello@example.ph',
+  quoteAlertsEmail: 'quotes@example.ph',
   phones: [{ number: '0917 123 4567', label: 'Globe', isMain: true }],
   timeZoneId: 'Asia/Manila',
   currencyCode: 'PHP',
@@ -127,6 +128,7 @@ const saveRequest: UpdateSiteSettingsRequest = {
   instagramUrl: null,
   tiktokUrl: null,
   contactEmail: null,
+  quoteAlertsEmail: null,
   phones: [{ number: '0917 123 4567', label: null, isMain: true }],
 };
 

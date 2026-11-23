@@ -104,6 +104,7 @@ public sealed class TestingSiteContentSeeder(CspsDbContext context, TimeProvider
         "https://www.instagram.com/cspsdemo",
         "https://www.tiktok.com/@cspsdemo",
         "demo-shop@csps.test",
+        null,
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
     /// <summary>Gets a value indicating whether the reset may run on the connected database (<see cref="TestingDatabaseGuard"/>).</summary>

@@ -119,6 +119,29 @@ public sealed class PublicSiteEndpointTests(CspsDatabase database) : IClassFixtu
         StringValues(body).ShouldNotContain(value => value.Contains('[', StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("/api/v1/public/site")]
+    [InlineData("/api/v1/public/privacy-contact")]
+    [InlineData("/")]
+    [InlineData("/contact")]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/api/v1/public/home")]
+    public async Task TheQuoteAlertsEmailIsInNoPublicAnswerAndNoPageHead(string route)
+    {
+        const string AlertsEmail = "quote-alerts-private@example.test";
+        await PublicContentSeeding.SaveAsync(database, PublicContentSeeding.Demo() with { QuoteAlertsEmail = AlertsEmail });
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(route, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        body.ShouldNotContain(AlertsEmail, Case.Insensitive);
+        body.ShouldNotContain("quote-alerts-private", Case.Insensitive);
+    }
+
     [Fact]
     public async Task AFreshlyMigratedDatabaseShowsTheApprovedTaglineAndNothingElse()
     {
