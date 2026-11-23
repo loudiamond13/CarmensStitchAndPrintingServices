@@ -13,6 +13,8 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
     // New, Contacted and Quoted; listed by name so the group never depends on the enum order.
     private static readonly QuoteRequestStatus[] OpenStatuses = [QuoteRequestStatus.New, QuoteRequestStatus.Contacted, QuoteRequestStatus.Quoted];
 
+    private const int DetailReadAttempts = 3;
+
     public async Task<QuoteRequestListPage> ListAsync(QuoteRequestListQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -54,9 +56,42 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
     public Task<int> CountNewAsync(CancellationToken cancellationToken) =>
         context.QuoteRequests.AsNoTracking().CountAsync(request => request.Status == QuoteRequestStatus.New, cancellationToken);
 
+    // The request and its lists are separate statements, so a status change can land between them. Every move bumps the request's row
+    // version, so the version is read again after the lists; when it moved, the request is read again so the status, the photos, the
+    // history and the version come from one save. After the last attempt the latest read is returned, as the order reader does.
+    public async Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        QuoteRequestDetailView? view = null;
+        for (var attempt = 1; attempt <= DetailReadAttempts; attempt++)
+        {
+            view = await ReadDetailOnceAsync(id, cancellationToken).ConfigureAwait(false);
+            if (view is null)
+            {
+                return null;
+            }
+
+            var current = await context.QuoteRequests.AsNoTracking()
+                .Where(request => request.Id == id)
+                .Select(request => request.RowVersion)
+                .SingleOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (current is null)
+            {
+                return null;
+            }
+
+            if (current.AsSpan().SequenceEqual(view.RowVersion))
+            {
+                return view;
+            }
+        }
+
+        return view;
+    }
+
     // Three commands: the request with its last changer, the photo places, and the history with each mover's current name, so a rename
     // shows at once and a removed person keeps their name.
-    public async Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    private async Task<QuoteRequestDetailView?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
     {
         var header = await (
             from request in context.QuoteRequests.AsNoTracking()

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T14:30:00-06:00
+updated: 2026-11-23T14:39:00-06:00
 ---
 
 # The quote requests API
@@ -322,6 +322,9 @@ Rows come newest received first. Two requests received at the same time come by 
   the staff keeps their name, with `formerStaff: true`.
 - `lastChangedBy` and `lastChangedAt` are `null` until someone changes the request.
 - `version` is the row version to send with a status change.
+- The request, its photos and its history are read in separate commands. The row version is checked again at the end, and when a
+  status change landed in between, the request is read again, so the status, the photos, the history and `version` always come from
+  one save.
 
 ## Changing the status (D-14, D-15)
 
