@@ -49,6 +49,10 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.HasMany(request => request.Photos).WithOne().HasForeignKey(photo => photo.QuoteRequestId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(request => request.Photos).UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        // The status history leaves with its request, including through the 6-month purge.
+        builder.HasMany(request => request.StatusChanges).WithOne().HasForeignKey(change => change.QuoteRequestId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(request => request.StatusChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // NO ACTION on the staff links, so removing a user never rewrites history (SEC-08). A visitor has no user, so CreatedById stays null.
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.CreatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.UpdatedById).OnDelete(DeleteBehavior.NoAction);

@@ -2517,6 +2517,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<DateTimeOffset?>("PhotosRemovedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<byte?>("ProductChoice")
                         .HasColumnType("tinyint");
 
@@ -2640,6 +2643,48 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("QuoteRequestPhotos", null, t =>
                         {
                             t.HasCheckConstraint("CK_QuoteRequestPhotos_Slot", "[Slot] BETWEEN 0 AND 4");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ChangedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("FromStatus")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("ToStatus")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedById")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_ChangedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_OrderId");
+
+                    b.HasIndex("QuoteRequestId", "ChangedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_QuoteRequestId_ChangedAtUtc");
+
+                    b.ToTable("QuoteRequestStatusChanges", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_QuoteRequestStatusChanges_FromStatus", "[FromStatus] BETWEEN 1 AND 6");
+
+                            t.HasCheckConstraint("CK_QuoteRequestStatusChanges_ToStatus", "[ToStatus] BETWEEN 1 AND 6");
                         });
                 });
 
@@ -3909,6 +3954,25 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestStatusChange", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -3998,6 +4062,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
                 {
                     b.Navigation("Photos");
+
+                    b.Navigation("StatusChanges");
                 });
 #pragma warning restore 612, 618
         }

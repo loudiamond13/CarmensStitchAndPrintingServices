@@ -1,4 +1,5 @@
 using Csps.Application.Ports;
+using Csps.Application.Users;
 using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
@@ -36,7 +37,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                 request.QuantityRange,
                 request.Photos.Count,
                 request.Photos.Count(photo => photo.PublicId != null),
-                false, // Nothing removes photos until the Spam move (plan 13-16) adds the column this reads.
+                request.PhotosRemovedAtUtc != null,
                 request.Status))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -52,6 +53,88 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
 
     public Task<int> CountNewAsync(CancellationToken cancellationToken) =>
         context.QuoteRequests.AsNoTracking().CountAsync(request => request.Status == QuoteRequestStatus.New, cancellationToken);
+
+    // Three commands: the request with its last changer, the photo places, and the history with each mover's current name, so a rename
+    // shows at once and a removed person keeps their name.
+    public async Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var header = await (
+            from request in context.QuoteRequests.AsNoTracking()
+            where request.Id == id
+            join changerUser in context.Users on request.UpdatedById equals (Guid?)changerUser.Id into changers
+            from changer in changers.DefaultIfEmpty()
+            select new
+            {
+                Request = request,
+                ChangerId = (Guid?)changer.Id,
+                ChangerFirst = (string?)changer.FirstName,
+                ChangerLast = (string?)changer.LastName,
+                ChangerFormer = changer.DeletedAtUtc != null,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (header is null)
+        {
+            return null;
+        }
+
+        var photos = await context.QuoteRequestPhotos.AsNoTracking()
+            .Where(photo => photo.QuoteRequestId == id)
+            .OrderBy(photo => photo.Slot)
+            .Select(photo => new QuoteRequestPhotoRow(photo.Slot, photo.FileName, photo.PublicId, photo.Width, photo.Height))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var moves = await (
+            from change in context.QuoteRequestStatusChanges.AsNoTracking()
+            where change.QuoteRequestId == id
+            join actorUser in context.Users on change.ChangedById equals (Guid?)actorUser.Id into actors
+            from actor in actors.DefaultIfEmpty()
+            orderby change.ChangedAtUtc descending, change.Id descending
+            select new
+            {
+                change.FromStatus,
+                change.ToStatus,
+                change.ChangedAtUtc,
+                ActorId = (Guid?)actor.Id,
+                ActorFirst = (string?)actor.FirstName,
+                ActorLast = (string?)actor.LastName,
+                ActorFormer = actor.DeletedAtUtc != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var row = header.Request;
+        return new QuoteRequestDetailView(
+            row.Id,
+            row.CreatedAtUtc,
+            row.CustomerName,
+            row.TeamName,
+            row.ContactNumberE164,
+            row.Email,
+            row.ProductChoice,
+            row.ProductTitle,
+            row.QuantityRange,
+            row.Message,
+            row.Status,
+            row.StatusChangedAtUtc,
+            photos,
+            row.PhotosRemovedAtUtc,
+            [
+                .. moves.Select(move => new QuoteRequestHistoryRow(
+                    move.FromStatus,
+                    move.ToStatus,
+                    move.ActorId is { } actorId && move.ActorFirst is not null
+                        ? new ActorRef(actorId, $"{move.ActorFirst} {move.ActorLast}", move.ActorFormer)
+                        : null,
+                    move.ChangedAtUtc)),
+            ],
+            header.ChangerId is { } changerId && header.ChangerFirst is not null
+                ? new ActorRef(changerId, $"{header.ChangerFirst} {header.ChangerLast}", header.ChangerFormer)
+                : null,
+            row.UpdatedAtUtc,
+            row.RowVersion);
+    }
 
     private static QuoteRequestCounts ToCounts(Dictionary<QuoteRequestStatus, int> byStatus)
     {

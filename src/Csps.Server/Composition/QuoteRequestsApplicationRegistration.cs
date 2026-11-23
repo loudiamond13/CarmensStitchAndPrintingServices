@@ -20,6 +20,9 @@ public static class QuoteRequestsApplicationRegistration
         services.AddSingleton<IValidator<ListQuoteRequestsRequest>, ListQuoteRequestsRequestValidator>();
         services.AddScoped<ListQuoteRequestsHandler>();
         services.AddScoped<GetNewQuoteCountHandler>();
+        services.AddScoped<GetQuoteRequestHandler>();
+        services.AddSingleton<IValidator<ChangeQuoteRequestStatusRequest>, ChangeQuoteRequestStatusRequestValidator>();
+        services.AddScoped<ChangeQuoteRequestStatusHandler>();
         return services;
     }
 }

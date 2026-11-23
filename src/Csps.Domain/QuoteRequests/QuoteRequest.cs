@@ -10,6 +10,7 @@ namespace Csps.Domain.QuoteRequests;
 public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 {
     private readonly List<QuoteRequestPhoto> _photos = [];
+    private readonly List<QuoteRequestStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Receive.
     private QuoteRequest(
@@ -101,8 +102,14 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
     /// <summary>Gets when the upload key stops working, in UTC; null when no photo was declared.</summary>
     public DateTimeOffset? UploadKeyExpiresAtUtc { get; private set; }
 
+    /// <summary>Gets when the photos were removed because the request was marked Spam (D-04); null while they are kept.</summary>
+    public DateTimeOffset? PhotosRemovedAtUtc { get; private set; }
+
     /// <summary>Gets the photo places the visitor declared, in slot order.</summary>
     public IReadOnlyList<QuoteRequestPhoto> Photos => _photos;
+
+    /// <summary>Gets the status moves staff made, oldest first.</summary>
+    public IReadOnlyList<QuoteRequestStatusChange> StatusChanges => _statusChanges;
 
     /// <summary>
     /// Declares the photos the visitor is about to send, one empty place per file name in the order given, and keeps the hash and the
@@ -145,6 +152,61 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         UploadKeyHash = [.. uploadKeyHash];
         UploadKeyExpiresAtUtc = expiresAtUtc;
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Moves the request to another status by hand (D-15). Moves among New, Contacted, Quoted, Closed and Spam are free in any direction.
+    /// Converted is set only by turning the request into an order, and a Converted request keeps its status. Each move adds a history
+    /// row with who and when and gives the request a new edit version, so the save stamps who last changed it. Entering Spam removes
+    /// every photo place and returns the stored files for the caller to queue (D-04).
+    /// </summary>
+    /// <param name="to">The new status.</param>
+    /// <param name="by">The staff member who moved it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The storage ids of the photos to queue for removal, or a 400 on <c>status</c>; nothing changes on a failure.</returns>
+    public Result<IReadOnlyList<string>> ChangeStatus(QuoteRequestStatus to, Guid by, DateTimeOffset now)
+    {
+        if (Status == QuoteRequestStatus.Converted)
+        {
+            return Result.Failure<IReadOnlyList<string>>(Error.Validation(
+                QuoteRequestRules.ConvertedLockedCode,
+                QuoteRequestRules.ConvertedLockedMessage,
+                new Dictionary<string, string[]> { [QuoteRequestRules.StatusField] = [QuoteRequestRules.ConvertedLockedMessage] }));
+        }
+
+        if (to == QuoteRequestStatus.Converted || !Enum.IsDefined(to))
+        {
+            return QuoteRequestRules.Reject<IReadOnlyList<string>>(QuoteRequestRules.StatusField, QuoteRequestRules.StatusInvalid);
+        }
+
+        if (to == Status)
+        {
+            var key = QuoteRequestStatusNames.ToKey(to);
+            var name = string.Concat(char.ToUpperInvariant(key[0]).ToString(), key[1..]);
+            return QuoteRequestRules.Reject<IReadOnlyList<string>>(
+                QuoteRequestRules.StatusField,
+                QuoteRequestRules.StatusAlreadyFormat.Replace("{0}", name, StringComparison.Ordinal));
+        }
+
+        _statusChanges.Add(new QuoteRequestStatusChange(Guid.CreateVersion7(now), Id, Status, to, by, now));
+        Status = to;
+        StatusChangedAtUtc = now;
+        EditVersion = Guid.CreateVersion7(now);
+        return Result.Success<IReadOnlyList<string>>(to == QuoteRequestStatus.Spam ? RemovePhotos(now) : []);
+    }
+
+    // Spam drops every photo place for good (D-04); the caller queues the stored files. Leaving Spam never brings them back.
+    private List<string> RemovePhotos(DateTimeOffset now)
+    {
+        if (_photos.Count == 0)
+        {
+            return [];
+        }
+
+        List<string> stored = [.. _photos.Select(static photo => photo.PublicId).OfType<string>()];
+        _photos.Clear();
+        PhotosRemovedAtUtc = now;
+        return stored;
     }
 
     /// <summary>Makes a new request at status New, checking every field rule again so no caller can skip one.</summary>

@@ -174,6 +174,34 @@ public sealed class QuoteRequestRetentionJobTests(CspsDatabase database) : IClas
         return await job.RunAsync(budget ?? new MaintenanceBudget(clock), TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task APurgedRequestTakesItsStatusHistoryWithIt()
+    {
+        await database.ResetAsync();
+        var staff = await OrderSeeding.AddStaffAsync(database, "Mina", Now);
+        var purged = await AddRequestAsync(Cut.AddTicks(-1), QuoteRequestStatus.New, 0);
+        var kept = await AddRequestAsync(Cut, QuoteRequestStatus.New, 0);
+        await MoveAsync(purged, staff);
+        await MoveAsync(kept, staff);
+
+        var report = await RunAsync(new FakeTimeProvider(Now));
+
+        Line(report, RemovedLabel).Value.ShouldBe(1);
+        await using var context = database.CreateContext();
+        (await context.QuoteRequestStatusChanges.CountAsync(change => change.QuoteRequestId == purged, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.QuoteRequestStatusChanges.CountAsync(change => change.QuoteRequestId == kept, TestContext.Current.CancellationToken)).ShouldBe(2);
+    }
+
+    // Two staff moves, so the request has history rows; the received time stays as seeded.
+    private async Task MoveAsync(Guid id, Guid staff)
+    {
+        await using var context = database.CreateContext();
+        var request = await context.QuoteRequests.SingleAsync(row => row.Id == id, TestContext.Current.CancellationToken);
+        request.ChangeStatus(QuoteRequestStatus.Contacted, staff, Now.AddDays(-1)).IsSuccess.ShouldBeTrue();
+        request.ChangeStatus(QuoteRequestStatus.Closed, staff, Now.AddDays(-1).AddMinutes(1)).IsSuccess.ShouldBeTrue();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     // Saves a request with its declared photo places, then sets the received time, the status and the stored files straight in the
     // table: the stamp on save would otherwise write the real clock.
     private async Task<Guid> AddRequestAsync(DateTimeOffset receivedAt, QuoteRequestStatus status, int declared, params (int Slot, string PublicId)[] stored)
