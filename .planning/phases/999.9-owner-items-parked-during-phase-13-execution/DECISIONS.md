@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T16:11:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T16:15:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -208,6 +208,16 @@ Order calls keep their full answers the same way. They were left alone because n
 5. **What the delete audit entry records.** A: the status and the photo count. B: also the note and history counts, or nothing at all.
 6. **Delete check order.** A: a converted request is refused before the version check, as the plan orders. B: the version check first.
 7. **Wording to confirm:** "Write a note first.", "Keep the note to 1,000 characters or fewer.", "A request that became an order can't be deleted.", and the audit labels "Quote request note added" and "Quote request deleted".
+
+## P13-BL-20 · Choices made in the staff quote request page (plan 13-19)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A.
+
+1. **Cover mark on quote photos.** A: no "Cover" on photo 1. B: show it as on order photos.
+2. **Missing-photo sentence with one photo.** A: the UI-SPEC words exactly ("...send them on Messenger"). B: "send it" when only one photo is missing.
+3. **Where the status badge sits.** A: under the heading beside the received line, as the spec says. B: beside the name, as on the order page.
+4. **Change Status while a move runs.** A: the button reads "Saving", as on the order page. B: it keeps "Change Status" with only the spinner.
+5. **Try Again while a read runs again.** A: the button stays and keeps focus but shows no spinner. B: give the shared error state a busy look.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 

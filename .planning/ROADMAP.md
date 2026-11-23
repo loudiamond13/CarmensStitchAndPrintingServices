@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 17/26 plans executed
+**Plans:** 19/26 plans executed
 
 Plans:
 **Wave 1**
@@ -1452,8 +1452,8 @@ Plans:
 - [x] 13-17-PLAN.md: nav item with the New count, fifth phone tab, dashboard strip (D-19, D-30) (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 13-18-PLAN.md: add-only notes and the Manager's permanent delete (D-16, D-17) (wave 8)
-- [ ] 13-19-PLAN.md: the request page with photos, history and the status menu (wave 8)
+- [x] 13-18-PLAN.md: add-only notes and the Manager's permanent delete (D-16, D-17) (wave 8)
+- [x] 13-19-PLAN.md: the request page with photos, history and the status menu (wave 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 13-20-PLAN.md: order prefill, conversion link, one request one order, permanent order delete takes the request (wave 9)
@@ -1671,7 +1671,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 17/26 | In Progress | - |
+| 13. Quote Inquiries | 19/26 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |

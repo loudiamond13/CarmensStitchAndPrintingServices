@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T15:02:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T16:15:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -24,6 +24,8 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, plan 13-17 | `QuoteForm.test.tsx` "shows the pending label Sending..." (second time, recurring under load) | failed in the full web suite | alone: 1 of 1, whole file 50 of 50 |
 | 2026-11-23, wave 7 gate | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (second time, after 13-11) | failed in the full .NET suite | the class alone: 590 passed |
 | 2026-11-23, wave 7 gate | `TrialImportTests.TwoBusyOutcomesAreReportedAsBusy` (LegacyFitCheck) | LocalDB connection error (SNI) in the full .NET suite | the class alone: 7 passed |
+| 2026-11-23, plan 13-18 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (third time) | failed once in a GREEN run | alone 1 of 1; class 593 of 593 |
+| 2026-11-23, plan 13-19 | `routes.test.tsx` (2 cases), `OrderFormPage.test.tsx` (10 cases), `ExpensesPage.test.tsx`, `UsersPage.test.tsx`, `QuoteFormPhotos.test.tsx` (Sending) | 5 s and 15 s timeouts in the full web suite while 13-18 ran .NET builds and tests | alone: routes 87 of 87, OrderFormPage 84 of 84, the other three 204 of 204 |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
