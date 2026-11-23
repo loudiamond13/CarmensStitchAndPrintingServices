@@ -107,3 +107,33 @@ test('@quote at 320px the five tabs share the bar, nothing scrolls sideways and 
   expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
   await expectNoAxeViolations(page);
 });
+
+test('@quote the dashboard strip shows the new count under the money strip and opens the inbox', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  await signInAs(page, request, admin);
+  await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
+
+  const count = await openWithCount(page, '/admin');
+  const strip = page.getByRole('region', { name: 'New quote requests' });
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText(count.toLocaleString('en-PH'));
+  // It sits directly under the money strip.
+  const after = await page
+    .getByRole('region', { name: 'Your money on hand' })
+    .evaluate(
+      (money: { nextElementSibling: { getAttribute(name: string): string | null } | null }) =>
+        money.nextElementSibling?.getAttribute('aria-labelledby') ?? null,
+    );
+  expect(after).toBe(await strip.getAttribute('aria-labelledby'));
+  await expectNoAxeViolations(page);
+
+  await strip.getByRole('link', { name: 'Open Quote Requests' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Quote Requests' })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/quote-requests$/);
+});

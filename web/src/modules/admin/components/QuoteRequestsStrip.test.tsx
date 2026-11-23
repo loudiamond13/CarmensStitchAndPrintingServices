@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
@@ -155,14 +155,11 @@ describe('QuoteRequestsStrip fed by the shared count query', () => {
   }
 
   it('shows the server count, and Try Again after a failure reads again', async () => {
-    let reads = 0;
+    let failing = true;
     server.use(
-      http.get('*/api/v1/quote-requests/new-count', () => {
-        reads += 1;
-        return reads <= 3
-          ? HttpResponse.json({ title: 'x', status: 500 }, { status: 500 })
-          : HttpResponse.json({ count: 7 });
-      }),
+      http.get('*/api/v1/quote-requests/new-count', () =>
+        failing ? HttpResponse.json({ title: 'x', status: 500 }, { status: 500 }) : HttpResponse.json({ count: 7 }),
+      ),
     );
     render(
       <QueryClientProvider client={queryClient}>
@@ -172,11 +169,11 @@ describe('QuoteRequestsStrip fed by the shared count query', () => {
       </QueryClientProvider>,
     );
 
-    await userEvent.click(await screen.findByRole('button', { name: COPY.retry }, { timeout: 5000 }));
+    const retry = await screen.findByRole('button', { name: COPY.retry }, { timeout: 5000 });
+    failing = false;
+    await userEvent.click(retry);
 
-    await waitFor(() => {
-      expect(within(strip()).getByText('7')).toBeInTheDocument();
-    });
+    expect(await within(strip()).findByText('7')).toBeInTheDocument();
     expect(within(strip()).queryByRole('alert')).toBeNull();
   }, 10_000);
 });
