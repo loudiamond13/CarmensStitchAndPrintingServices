@@ -114,6 +114,19 @@ export const quoteFormSchema = object({
 export type QuoteFormValues = output<typeof quoteFormSchema>;
 
 /** A blank form. */
+/** The visible fields in page order: the first one with an error takes focus. */
+export const QUOTE_FIELD_ORDER = [
+  'customerName',
+  'teamName',
+  'contactNumber',
+  'email',
+  'product',
+  'quantity',
+  'message',
+] as const satisfies readonly (keyof QuoteFormValues)[];
+
+export type QuoteField = (typeof QUOTE_FIELD_ORDER)[number];
+
 export const EMPTY_QUOTE_FORM: QuoteFormValues = {
   customerName: '',
   teamName: '',

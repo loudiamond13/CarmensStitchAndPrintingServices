@@ -85,3 +85,11 @@ export const quoteFormAlertIconClasses = tw('flex h-5 shrink-0 items-center text
 
 /** The text of the send-failed box. */
 export const quoteFormAlertBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-2');
+
+/** The rate-limit box (Q3): a light amber ground with a 1px amber border. */
+export const quoteFormWarningClasses = tw(
+  'flex items-start gap-3 rounded-md border border-warning bg-warning-soft p-4',
+);
+
+/** The icon of the rate-limit box, in amber, level with the first line. */
+export const quoteFormWarningIconClasses = tw('flex h-5 shrink-0 items-center text-warning');

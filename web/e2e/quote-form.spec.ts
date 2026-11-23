@@ -64,6 +64,42 @@ test('@quote a visitor sends an inquiry with a photo and the server stores it', 
   await expect(page.getByText(/didn't upload/)).toHaveCount(0);
 });
 
+// The shared host runs with the quote limits lifted and cannot lower them for one test, so the create answers 429 from the page's
+// network layer, in the server's own words.
+test('@quote the rate limit keeps what the visitor typed', async ({ page, guard }) => {
+  guard.expectStatus('/api/v1/public/quote-requests', 429);
+  await page.route('**/api/v1/public/quote-requests', (route) =>
+    route.request().method() === 'POST'
+      ? route.fulfill({
+          status: 429,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({
+            title: 'Too many attempts from this address. Please wait and try again.',
+            status: 429,
+            code: 'rate-limited',
+          }),
+        })
+      : route.fallback(),
+  );
+  await page.goto('/contact');
+
+  const form = page.getByRole('form', { name: 'Inquiry form' });
+  await form.getByRole('textbox', { name: /Your name/ }).fill('Juan Dela Cruz');
+  const number = freshMobile();
+  await form.getByRole('textbox', { name: /Contact number/ }).fill(number);
+  const send = form.getByRole('button', { name: 'Send Inquiry' });
+  await send.click();
+
+  const alert = form.getByRole('alert');
+  await expect(alert).toContainText(
+    "You've sent a few requests in a short time. Wait a few minutes and try again, or message us on Messenger.",
+  );
+  await expect(form.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
+  await expect(form.getByRole('textbox', { name: /Contact number/ })).toHaveValue(number);
+  await expect(send).toBeFocused();
+  await expectNoAxeViolations(page);
+});
+
 test('@quote at 320px the form comes first, the fields stack in one column and nothing scrolls sideways', async ({
   page,
 }) => {

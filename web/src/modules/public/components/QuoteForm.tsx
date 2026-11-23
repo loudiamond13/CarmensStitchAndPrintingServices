@@ -1,11 +1,10 @@
 // The Get a Quote form of the Contact page (UI-SPEC Q1 and Q3). It checks every field with the server's rules before sending,
 // waits the server's minimum time after it gets a ticket, and keeps what the visitor typed when a send fails.
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
-import { Icon } from '@/components/brand/Icon';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { Field } from '@/components/forms/Field';
 import { Select, type SelectOption } from '@/components/forms/Select';
@@ -16,9 +15,6 @@ import { useSubmission } from '@/lib/forms/useSubmission';
 import { cardHeadClasses, cardTitleClasses, formCardClasses, smallMutedClasses } from './contact.recipe';
 import { inlineLinkClasses } from './legal.recipe';
 import {
-  quoteFormAlertBodyClasses,
-  quoteFormAlertClasses,
-  quoteFormAlertIconClasses,
   quoteFormFooterClasses,
   quoteFormGridClasses,
   quoteFormMessageClasses,
@@ -34,13 +30,16 @@ import { useQuoteTicket } from '../hooks/useQuoteTicket';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import {
   EMPTY_QUOTE_FORM,
+  QUOTE_FIELD_ORDER,
   QUOTE_QUANTITIES,
   quoteFormSchema,
   toCreateQuoteRequest,
+  type QuoteField,
   type QuoteFormValues,
 } from '../quoteSchemas';
 import { quoteService, type CreateQuoteBody } from '../services/quoteService';
 import { loadQuotePhotoKit, type QuotePhotoKit } from './lazyQuotePhotoKit';
+import { loadQuoteSendAnswers, type QuoteSendAnswers } from './lazyQuoteSendAnswers';
 import { QuoteSentResult } from './QuoteFormResult';
 import type { QuotePhotoPickerHandle } from './QuotePhotoPicker';
 import { QuotePhotoSlot } from './QuotePhotoSlot';
@@ -48,9 +47,6 @@ import { QuotePhotoSlot } from './QuotePhotoSlot';
 const COPY = PUBLIC_COPY.contact.form;
 
 const TICKET_EXPIRED_CODE = 'quote-requests.ticket-expired';
-
-/** The fields in page order: the first one with an error takes focus. */
-const FIELD_ORDER = ['customerName', 'teamName', 'contactNumber', 'email', 'product', 'quantity', 'message'] as const;
 
 /** The one resend an expired ticket starts: the replacement ticket and its own key, kept so a retry repeats it and never sends twice. */
 interface Resend {
@@ -91,6 +87,8 @@ export function QuoteForm() {
   const pickerRef = useRef<QuotePhotoPickerHandle>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const focusNameNext = useRef(false);
+  // The server-answer piece: loaded on Send, or 'failed' when it could not load (the plain send-failed box shows then).
+  const [answers, setAnswers] = useState<QuoteSendAnswers | 'failed' | null>(null);
   const [sent, setSent] = useState<QuoteSent | null>(null);
   const toast = useToast();
   const tickets = useQuoteTicket();
@@ -106,14 +104,14 @@ export function QuoteForm() {
     { value: 'custom', label: COPY.product.custom },
     { value: 'not-sure', label: COPY.product.notSure },
   ];
-  const { control, handleSubmit, reset } = useForm<QuoteFormValues>({
+  const { control, handleSubmit, reset, setError } = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteFormSchema),
     mode: 'onBlur',
     shouldFocusError: false,
     defaultValues: EMPTY_QUOTE_FORM,
   });
 
-  const focusField = (name: (typeof FIELD_ORDER)[number]): void => {
+  const focusField = (name: QuoteField): void => {
     const element = formRef.current?.elements.namedItem(name);
     if (element instanceof HTMLElement) {
       element.focus();
@@ -192,6 +190,18 @@ export function QuoteForm() {
     }
   }, [sent]);
 
+  const { pending, error: sendError } = submission;
+
+  // Starts loading the server-answer piece as a send starts, so a refusal shows at once.
+  const loadAnswers = (): void => {
+    if (answers !== null && answers !== 'failed') {
+      return;
+    }
+    loadQuoteSendAnswers().then(setAnswers, () => {
+      setAnswers('failed');
+    });
+  };
+
   const sendAnother = (): void => {
     reset(EMPTY_QUOTE_FORM);
     setPhotos([]);
@@ -205,10 +215,35 @@ export function QuoteForm() {
   };
 
   const onInvalid = (errors: FieldErrors<QuoteFormValues>): void => {
-    const first = FIELD_ORDER.find((name) => errors[name] !== undefined);
+    const first = QUOTE_FIELD_ORDER.find((name) => errors[name] !== undefined);
     if (first !== undefined) {
       focusField(first);
     }
+  };
+
+  // The box under the form after a send that did not go through (UI-SPEC Q3), from the server-answer piece. When that piece could
+  // not load, the visitor is offline: the send-failed words show as a plain line.
+  const sendStatus = (): ReactNode => {
+    if (sendError === undefined || answers === null) {
+      return null;
+    }
+    if (answers === 'failed') {
+      return (
+        <p role="alert" className={quoteFormStatusTextClasses}>
+          {COPY.sendFailed}
+        </p>
+      );
+    }
+    return (
+      <answers.SendStatus
+        error={sendError}
+        messengerUrl={messengerUrl}
+        setFieldError={(field, message) => {
+          setError(field, { type: 'server', message });
+        }}
+        focusField={focusField}
+      />
+    );
   };
 
   if (sent !== null) {
@@ -228,7 +263,6 @@ export function QuoteForm() {
     );
   }
 
-  const { pending } = submission;
   return (
     <form
       ref={formRef}
@@ -238,6 +272,7 @@ export function QuoteForm() {
       onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
         void handleSubmit(async (values) => {
           pickerRef.current?.clearErrors();
+          loadAnswers();
           await submission.submit({ values, photos });
         }, onInvalid)(event);
       }}
@@ -433,16 +468,7 @@ export function QuoteForm() {
             {COPY.sendingPhotos}
           </p>
         )}
-        {submission.error !== undefined && (
-          <div className={quoteFormAlertClasses} role="alert">
-            <span className={quoteFormAlertIconClasses}>
-              <Icon name="triangle-alert" size={18} />
-            </span>
-            <div className={quoteFormAlertBodyClasses}>
-              <p className={quoteFormStatusTextClasses}>{COPY.sendFailed}</p>
-            </div>
-          </div>
-        )}
+        {sendStatus()}
       </div>
     </form>
   );

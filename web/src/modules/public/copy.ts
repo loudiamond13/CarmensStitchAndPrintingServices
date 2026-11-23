@@ -313,6 +313,11 @@ export const PUBLIC_COPY = {
       },
       sendFailed:
         "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",
+      // A timeout or a dropped connection after sending: the same key makes the next press safe.
+      maybeSent: "We're not sure your inquiry went through. Press Send Inquiry again. You won't send it twice.",
+      // Any 429: the per-connection limit (D-26) and the per-sender limit (D-37) read the same.
+      rateLimited:
+        "You've sent a few requests in a short time. Wait a few minutes and try again, or message us on Messenger.",
       errors: {
         nameRequired: 'Enter your name.',
         nameTooLong: 'Keep your name to 100 characters or fewer.',
