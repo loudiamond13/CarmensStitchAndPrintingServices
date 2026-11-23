@@ -23,6 +23,8 @@ export interface QuoteAnswers {
   ticketStatus?: number;
   /** The minimum seconds the ticket answer and the expired-ticket 400 carry (D-41). Default: 0, so tests never wait. */
   minimumSeconds?: number;
+  /** The code and field errors of a failed create that is not an expired ticket. */
+  problem?: { code?: string; errors?: Record<string, string[]> };
 }
 
 /** The default answer of every test: the form ticket read (the Contact page reads it). A test that checks the ticket or the create calls answerQuote. */
@@ -55,12 +57,14 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
     }),
     http.post('*/api/v1/public/quote-requests', async ({ request }) => {
       const status = statuses[Math.min(probe.creates.length, statuses.length - 1)] ?? 200;
-      probe.creates.push({
-        body: (await request.json()) as CreateQuoteBody,
-        key: request.headers.get('Idempotency-Key'),
-      });
+      const body = (await request.json()) as CreateQuoteBody;
+      probe.creates.push({ body, key: request.headers.get('Idempotency-Key') });
       if (status === 200) {
-        return HttpResponse.json({ id: QUOTE_ID, photoSlots: [] });
+        // One place per declared file name, in the order sent (INQ-02).
+        return HttpResponse.json({
+          id: QUOTE_ID,
+          photoSlots: (body.photos ?? []).map((fileName, slot) => ({ slot, fileName })),
+        });
       }
       if (status === 400 && answers.expiredWithoutReplacement === true) {
         return HttpResponse.json(
@@ -87,7 +91,7 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
         );
       }
       return HttpResponse.json(
-        { title: 'Something went wrong.', status },
+        { title: 'Something went wrong.', status, ...answers.problem },
         { status, headers: { 'Content-Type': 'application/problem+json' } },
       );
     }),

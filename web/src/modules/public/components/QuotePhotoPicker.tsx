@@ -57,6 +57,8 @@ export interface QuotePhotoPickerProps {
   /** The form is sending: every control keeps focus but ignores a press. */
   disabled?: boolean;
   handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
+  /** Files the visitor chose before this picker was loaded: they are checked and added when it shows. */
+  firstPick?: readonly File[] | undefined;
 }
 
 export interface QuotePhotoPickerHandle {
@@ -81,6 +83,7 @@ export function QuotePhotoPicker({
   rules = QUOTE_PHOTO_RULES,
   disabled = false,
   handleRef,
+  firstPick,
 }: QuotePhotoPickerProps) {
   const labelId = useId();
   const [over, setOver] = useState(false);
@@ -96,6 +99,9 @@ export function QuotePhotoPicker({
   const removeRefs = useRef(new Map<File, HTMLButtonElement>());
   const focusTarget = useRef<FocusTarget | null>(null);
   const drawing = useRef<File | null>(null);
+  // Picks run one after the other, so each one counts the photos the one before it added (review W1 IN-05).
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const firstPickDone = useRef(false);
   const atLimit = photos.length >= rules.maxPhotos;
 
   // One preview at a time, and never for a file over the size limit.
@@ -109,7 +115,10 @@ export function QuotePhotoPicker({
       .catch(() => null)
       .then((url) => {
         drawing.current = null;
-        setPreviews((current) => new Map(current).set(next, url));
+        // A photo removed while it was being drawn keeps no preview.
+        if (latest.current.includes(next)) {
+          setPreviews((current) => new Map(current).set(next, url));
+        }
       });
   }, [photos, previews, rules.maxBytes]);
 
@@ -139,15 +148,39 @@ export function QuotePhotoPicker({
     latest.current = photos;
   }, [photos]);
 
-  const addFiles = async (files: File[]): Promise<void> => {
-    if (disabled || files.length === 0) return;
+  const sameFile = (a: File, b: File): boolean =>
+    a === b || (a.name === b.name && a.size === b.size && a.lastModified === b.lastModified);
+
+  const addNow = async (files: File[]): Promise<void> => {
     setErrors(NO_ERRORS);
-    const result = await checkQuotePhotos(files, latest.current.length, rules);
+    // The same photo picked again is the same photo: it is added once, without a notice.
+    const fresh: File[] = [];
+    for (const file of files) {
+      if (![...latest.current, ...fresh].some((known) => sameFile(known, file))) fresh.push(file);
+    }
+    if (fresh.length === 0) return;
+    const result = await checkQuotePhotos(fresh, latest.current.length, rules);
     setErrors({ refusals: result.refusals, countLine: result.countLine });
     if (result.accepted.length > 0) {
-      onChange([...latest.current, ...result.accepted].slice(0, rules.maxPhotos));
+      const merged = [...latest.current, ...result.accepted].slice(0, rules.maxPhotos);
+      latest.current = merged;
+      onChange(merged);
     }
   };
+
+  const addFiles = (files: File[]): Promise<void> => {
+    if (disabled || files.length === 0) return Promise.resolve();
+    queue.current = queue.current.then(() => addNow(files));
+    return queue.current;
+  };
+
+  // The files chosen before this picker loaded are added once, as a normal pick.
+  useEffect(() => {
+    if (firstPickDone.current || firstPick === undefined || firstPick.length === 0) return;
+    firstPickDone.current = true;
+    void addFiles([...firstPick]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the first render with files
+  }, []);
 
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -169,6 +202,7 @@ export function QuotePhotoPicker({
     });
     focusTarget.current = neighbour ?? 'add';
     setFocusTick((tick) => tick + 1);
+    latest.current = next;
     onChange(next);
   };
 

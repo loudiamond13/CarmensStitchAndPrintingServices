@@ -296,15 +296,28 @@ export const PUBLIC_COPY = {
       },
       submit: 'Send Inquiry',
       sending: 'Sending',
+      sendingPhotos: 'Sending your photos. This can take a minute on mobile data.',
       success: {
         title: 'Inquiry sent',
         message: "Thanks! We'll message you with a mockup and quote, usually the same day.",
         another: 'Send Another',
         toastTitle: 'Inquiry sent',
         toastMessage: "We'll message you soon.",
+        // Some photos did not upload (D-03): the names are joined by ", ".
+        photosMissing: (count: number, names: string) =>
+          count === 1
+            ? `We got your request, but 1 of your photos didn't upload: ${names}. Please send it to us on Messenger.`
+            : `We got your request, but ${String(count)} of your photos didn't upload: ${names}. Please send them to us on Messenger.`,
+        photosAllMissing: "We got your request, but your photos didn't upload. Please send them to us on Messenger.",
+        messenger: 'Message Us on Messenger',
       },
       sendFailed:
         "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",
+      // A timeout or a dropped connection after sending: the same key makes the next press safe.
+      maybeSent: "We're not sure your inquiry went through. Press Send Inquiry again. You won't send it twice.",
+      // Any 429: the per-connection limit (D-26) and the per-sender limit (D-37) read the same.
+      rateLimited:
+        "You've sent a few requests in a short time. Wait a few minutes and try again, or message us on Messenger.",
       errors: {
         nameRequired: 'Enter your name.',
         nameTooLong: 'Keep your name to 100 characters or fewer.',
@@ -338,6 +351,8 @@ export const PUBLIC_COPY = {
           `${fileName} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger.`,
         size: (fileName: string, limit: string) =>
           `${fileName} is over ${limit}. Send a smaller photo, or send it on Messenger.`,
+        pixels: (fileName: string, megapixels: number) =>
+          `${fileName} is too big. Photos can be at most ${String(megapixels)} megapixels.`,
         unreadable: (fileName: string) => `${fileName} couldn't be read. Try another photo.`,
       },
       leftOut: (max: number, count: number) =>

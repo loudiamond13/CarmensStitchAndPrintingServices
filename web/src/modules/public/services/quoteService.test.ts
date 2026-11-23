@@ -1,5 +1,5 @@
 // The quote request service (INQ-01, INQ-03): the form ticket read and the create over the shared client.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { isHttpError } from '@/core/api/errors';
 import { createFakeFetch } from '@/test/fakeFetch';
@@ -79,5 +79,76 @@ describe('quoteService.create', () => {
 
     expect(isHttpError(error) && error.code).toBe('quote-requests.ticket-expired');
     expect(isHttpError(error) && error.problem?.replacementTicket).toBe('ticket-2');
+  });
+});
+
+describe('quoteService.uploadPhoto (INQ-02)', () => {
+  const ID = '7b1d6c58-3c7e-4a0e-9f0b-2f3c5a1b9d10';
+  const BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('POSTs the file as the `file` part to its slot with the Idempotency-Key and the X-Upload-Key', async () => {
+    const fake = createFakeFetch([{ status: 200 }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+    const file = new File([BYTES], 'IMG_0001.png', { type: 'image/png' });
+
+    await expect(
+      createQuoteService(client).uploadPhoto(ID, 1, file, 'logo.png', 'upload-key-1', 'idem-photo-1'),
+    ).resolves.toBeUndefined();
+
+    expect(fake.calls).toHaveLength(1);
+    const [call] = fake.calls;
+    expect(call?.method).toBe('POST');
+    expect(call?.url).toBe(`/api/v1/public/quote-requests/${ID}/photos/1`);
+    expect(call?.headers.get('Idempotency-Key')).toBe('idem-photo-1');
+    expect(call?.headers.get('X-Upload-Key')).toBe('upload-key-1');
+    const part = (call?.body as FormData).get('file');
+    expect(part).toBeInstanceOf(File);
+    expect((part as File).name).toBe('logo.png');
+    expect(new Uint8Array(await (part as File).arrayBuffer())).toEqual(BYTES);
+  });
+
+  it('waits up to 120 seconds for a slow connection, not the usual 30', async () => {
+    vi.useFakeTimers();
+    const fake = createFakeFetch([{ hang: true }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+    const settled = vi.fn();
+    const upload = createQuoteService(client)
+      .uploadPhoto(ID, 0, new File([BYTES], 'a.png'), 'a.png', 'k', 'i')
+      .catch((error: unknown) => {
+        settled(error);
+      });
+
+    await vi.advanceTimersByTimeAsync(100_000);
+    expect(settled).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(21_000);
+    await upload;
+
+    expect(settled).toHaveBeenCalledOnce();
+    expect(isHttpError(settled.mock.calls[0]?.[0]) && settled.mock.calls[0][0].kind).toBe('timeout');
+  });
+
+  it('rejects with the answer of a refused photo', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 422,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'logo.png is too big.', status: 422, code: 'quote-requests.photo-refused' },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    const error = await createQuoteService(client)
+      .uploadPhoto(ID, 0, new File([BYTES], 'a.png'), 'a.png', 'k', 'i')
+      .then(
+        () => undefined,
+        (failure: unknown) => failure,
+      );
+
+    expect(isHttpError(error) && error.status).toBe(422);
+    expect(isHttpError(error) && error.code).toBe('quote-requests.photo-refused');
   });
 });

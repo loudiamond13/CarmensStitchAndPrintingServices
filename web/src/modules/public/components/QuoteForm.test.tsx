@@ -11,7 +11,7 @@ import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { HttpError } from '@/core/api/errors';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { demoLines } from '@/test/publicFixtures';
+import { demoLines, siteFailureHandler } from '@/test/publicFixtures';
 import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
 import { quoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
@@ -31,6 +31,10 @@ async function fillRequired(name = 'Juan Dela Cruz', number = '0917 123 4567') {
 }
 
 const SEND = { name: 'Send Inquiry' } as const;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('QuoteForm head and fields (Q1)', () => {
   it('is a form named by its title "Inquiry form" with the caption and the two required fields', () => {
@@ -165,8 +169,7 @@ describe('QuoteForm minimum wait (D-41: the server says how long)', () => {
     fireEvent.click(screen.getByRole('button', SEND));
   }
 
-  const tickets = (create: ReturnType<typeof stubService>['create']) =>
-    create.mock.calls.map(([body]) => body.ticket);
+  const tickets = (create: ReturnType<typeof stubService>['create']) => create.mock.calls.map(([body]) => body.ticket);
 
   it('waits the minimum seconds the ticket answer carried, not a fixed 3', async () => {
     const { create } = stubService({ minimumSeconds: 7 });
@@ -337,6 +340,195 @@ describe('QuoteForm expired ticket (Pitfall 4, D-38)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send your inquiry.");
     expect(probe.creates).toHaveLength(2);
     expect(screen.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
+  });
+});
+
+const RATE_LIMITED =
+  "You've sent a few requests in a short time. Wait a few minutes and try again, or message us on Messenger.";
+const NOT_SURE = "We're not sure your inquiry went through. Press Send Inquiry again. You won't send it twice.";
+const SEND_FAILED =
+  "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.";
+
+describe('QuoteForm rate limited (Q3, D-26, D-37)', () => {
+  it('shows the warning box with the Messenger button, keeps every value and leaves focus on Send Inquiry', async () => {
+    answerQuote({ createStatuses: [429], problem: { code: 'rate-limited' } });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(RATE_LIMITED);
+    expect(alert).not.toHaveTextContent("Couldn't send");
+    expect(within(alert).getByRole('link', { name: 'Message Us on Messenger' })).toHaveAttribute(
+      'href',
+      'https://m.me/cspsdemo',
+    );
+    expect(screen.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
+    expect(screen.getByRole('textbox', { name: /Contact number/ })).toHaveValue('0917 123 4567');
+    expect(screen.getByRole('button', SEND)).toHaveFocus();
+  });
+
+  it('shows the same box for the per-sender limit, which answers 429 too', async () => {
+    answerQuote({ createStatuses: [429], problem: { code: 'rate-limited', errors: {} } });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(RATE_LIMITED);
+  });
+
+  it('leaves the Messenger button out when the shop facts failed to load', async () => {
+    server.use(siteFailureHandler());
+    answerQuote({ createStatuses: [429] });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(RATE_LIMITED);
+    expect(within(alert).queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations with the box showing', async () => {
+    answerQuote({ createStatuses: [429] });
+    const { container } = renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('alert');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('QuoteForm when the send may have arrived (Q3 maybe sent)', () => {
+  it('says it is not sure after a timeout, and the next press reuses the same Idempotency-Key', async () => {
+    const probe = answerQuote();
+    const create = vi.spyOn(quoteService, 'create').mockRejectedValueOnce(new HttpError({ kind: 'timeout' }));
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(NOT_SURE);
+    expect(alert).not.toHaveTextContent("Couldn't send");
+    expect(screen.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(probe.creates).toHaveLength(1);
+    expect(probe.creates[0]?.key).toBe(create.mock.calls[0]?.[1]);
+  });
+
+  it('says it is not sure when the connection dropped while online', async () => {
+    answerQuote();
+    vi.spyOn(quoteService, 'create').mockRejectedValueOnce(new HttpError({ kind: 'network' }));
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(NOT_SURE);
+  });
+
+  it('says it could not send when the phone is offline', async () => {
+    answerQuote();
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.spyOn(quoteService, 'create').mockRejectedValueOnce(new HttpError({ kind: 'network' }));
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(SEND_FAILED);
+  });
+
+  it('has no axe violations with the box showing', async () => {
+    answerQuote();
+    vi.spyOn(quoteService, 'create').mockRejectedValueOnce(new HttpError({ kind: 'timeout' }));
+    const { container } = renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('alert');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('QuoteForm field errors from the server (Q3)', () => {
+  it('puts each message on its own field, in any casing, and focuses the first', async () => {
+    answerQuote({
+      createStatuses: [400],
+      problem: {
+        errors: {
+          ContactNumber: ['Enter a mobile number we can message.'],
+          email: ['Enter an email we can reply to.'],
+        },
+      },
+    });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    const number = screen.getByRole('textbox', { name: /Contact number/ });
+    await waitFor(() => {
+      expect(number).toHaveFocus();
+    });
+    expect(number).toHaveAttribute('aria-invalid', 'true');
+    expect(number).toHaveAccessibleDescription(expect.stringContaining('Enter a mobile number we can message.'));
+    expect(screen.getByRole('textbox', { name: /Email/ })).toHaveAccessibleDescription(
+      expect.stringContaining('Enter an email we can reply to.'),
+    );
+    expect(number).toHaveValue('0917 123 4567');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('puts a product error on the product field', async () => {
+    answerQuote({
+      createStatuses: [400],
+      problem: { errors: { productLineKey: ['Choose a product from the list.'] } },
+    });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    const product = screen.getByRole('combobox', { name: /Product type/ });
+    await waitFor(() => {
+      expect(product).toHaveFocus();
+    });
+    expect(product).toHaveAccessibleDescription(expect.stringContaining('Choose a product from the list.'));
+  });
+
+  it('shows the send-failed box when no message matches a field', async () => {
+    answerQuote({ createStatuses: [400], problem: { errors: { somethingElse: ['A message for no field.'] } } });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(SEND_FAILED);
+  });
+});
+
+describe('QuoteForm double press (T-13-37)', () => {
+  it('sends once when Send Inquiry is pressed twice', async () => {
+    const probe = answerQuote({ minimumSeconds: 1 });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.dblClick(screen.getByRole('button', SEND));
+
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    expect(probe.creates).toHaveLength(1);
   });
 });
 

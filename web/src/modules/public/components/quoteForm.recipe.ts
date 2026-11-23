@@ -72,3 +72,24 @@ export const quoteFormNoticeClasses = tw('m-0 max-w-[340px] text-14 leading-5 te
 
 /** Send Inquiry takes the full width under the notice at 420px and below. */
 export const quoteFormSendClasses = tw('pg-xs:w-full');
+
+/** The photo area spans both columns (one at 767px and below). */
+export const quotePhotoSlotClasses = tw('col-span-2 pg-phone:col-span-1');
+
+// The send status boxes carry their own classes, so the form's piece does not load the picker's whole media.recipe (budget, D-43).
+/** The send-failed box: a light red ground with the icon and the text side by side. */
+export const quoteFormAlertClasses = tw('flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-2');
+
+/** The icon of the send-failed box, level with the first line. */
+export const quoteFormAlertIconClasses = tw('flex h-5 shrink-0 items-center text-danger');
+
+/** The text of the send-failed box. */
+export const quoteFormAlertBodyClasses = tw('flex min-w-0 flex-1 flex-col gap-2');
+
+/** The rate-limit box (Q3): a light amber ground with a 1px amber border. */
+export const quoteFormWarningClasses = tw(
+  'flex items-start gap-3 rounded-md border border-warning bg-warning-soft p-4',
+);
+
+/** The icon of the rate-limit box, in amber, level with the first line. */
+export const quoteFormWarningIconClasses = tw('flex h-5 shrink-0 items-center text-warning');
