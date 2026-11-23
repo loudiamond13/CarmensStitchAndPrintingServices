@@ -15,6 +15,8 @@ namespace Csps.Application.QuoteRequests;
 /// <param name="Message">What the visitor wants made.</param>
 /// <param name="Photos">The file names of up to 5 photos the visitor will send next, one call each; none when null or empty.</param>
 /// <param name="UploadKey">A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos.</param>
+/// <param name="Ticket">The signed ticket from <c>GET /api/v1/public/quote-requests/ticket</c>; the send is a 400 without a good one (INQ-03).</param>
+/// <param name="SubjectLine">A hidden field no visitor sees. When it holds text the send looks like a success and nothing is saved (D-25).</param>
 public sealed record CreateQuoteRequestRequest(
     string? CustomerName,
     string? TeamName,
@@ -25,7 +27,9 @@ public sealed record CreateQuoteRequestRequest(
     string? Quantity,
     string? Message,
     IReadOnlyList<string>? Photos = null,
-    string? UploadKey = null)
+    string? UploadKey = null,
+    string? Ticket = null,
+    string? SubjectLine = null)
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateQuoteRequestRequest Empty { get; } = new(null, null, null, null, null, null, null, null);

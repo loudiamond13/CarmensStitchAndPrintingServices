@@ -30,6 +30,9 @@ public static class RateLimitPolicies
     /// <summary>Anonymous reads of <c>/api/v1/public/*</c> (SEC-03, P-10): a generous per-address window. The shell, robots.txt and sitemap.xml have no limit.</summary>
     public const string PublicRead = "public-read";
 
+    /// <summary>The anonymous quote create (INQ-03, D-26): a per-address window so one address cannot flood the inbox.</summary>
+    public const string QuoteCreate = "quote-create";
+
     /// <summary>The anonymous page view beacon (ANL-06, T-12-28): a per-address window so the counts cannot be inflated by one address.</summary>
     public const string AnalyticsCollect = "analytics-collect";
 }
@@ -54,6 +57,28 @@ public static class AnalyticsCeilingRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
+}
+
+/// <summary>The per-address limit on sending the quote form, read from <c>RateLimits:QuoteCreate</c>: 5 an hour by default (D-26).</summary>
+public static class QuoteCreateRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteCreate";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 5, Window = TimeSpan.FromHours(1) };
+}
+
+/// <summary>The one site-wide limit on sending the quote form, read from <c>RateLimits:QuoteCeiling</c>: 60 an hour by default.</summary>
+public static class QuoteCeilingRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteCeiling";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 60, Window = TimeSpan.FromHours(1) };
 }
 
 /// <summary>The per-address limit on the public reads, read from <c>RateLimits:PublicRead</c>: 600 reads per minute by default.</summary>

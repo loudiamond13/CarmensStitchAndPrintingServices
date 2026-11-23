@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-22T18:05:00-06:00
+updated: 2026-11-22T19:36:00-06:00
 ---
 
 # The quote requests API
@@ -8,7 +8,7 @@ updated: 2026-11-22T18:05:00-06:00
 This is the contract behind the "Get a Quote" form on the Contact page (INQ-01, INQ-02). Everything here is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). This page covers what exists today: the anonymous create and
-the photo upload. The staff inbox and the alert email come in later plans of Phase 13 and will be added here.
+the form ticket, the photo upload and the bot guards. The staff inbox and the alert email come in later plans of Phase 13 and will be added here.
 
 ## In plain words
 
@@ -28,7 +28,8 @@ the photo upload. The staff inbox and the alert email come in later plans of Pha
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `POST /public/quote-requests` | Anyone | the form below, with an `Idempotency-Key` | `200` `{ "id": "...", "photoSlots": [...] }`; `400 quote-requests.validation` with field errors; `429` |
+| `GET /public/quote-requests/ticket` | Anyone | none | `200` `{ "ticket": "...", "photoRules": { "maxPhotos": 5, "maxBytes": 10485760, "maxPixels": 25000000 } }`, never cached; `429` |
+| `POST /public/quote-requests` | Anyone | the form below, with an `Idempotency-Key` and the `ticket` | `200` `{ "id": "...", "photoSlots": [...] }`; `400 quote-requests.validation` with field errors; `400 quote-requests.ticket-expired`; `429 rate-limited` |
 | `POST /public/quote-requests/{id}/photos/{slot}` | Anyone with the request's upload key | one multipart form with the file in the `file` part; headers `Idempotency-Key` and `X-Upload-Key` | `200` with no body; `400`; `404 quote-requests.photo-not-found`; `413`; `422 quote-requests.photo-refused`; `429`; `503` |
 
 ## The form
@@ -45,6 +46,8 @@ the photo upload. The staff inbox and the alert email come in later plans of Pha
 | `message` | optional, up to 2,000 | "Keep your message to 2,000 characters or fewer." |
 | `photos` | optional: the file names of up to 5 photos the visitor will send next, each up to 255 characters | "You can send up to 5 photos." / "Keep each photo file name to 255 characters or fewer." |
 | `uploadKey` | required when `photos` is not empty: 32 random bytes made by the browser, written as base64url text (43 characters, no padding) | "Photos could not be attached. Try sending them again." |
+| `ticket` | required: the ticket from the ticket call | `400 quote-requests.ticket-expired`: "The form timed out. Please send it again." |
+| `subjectLine` | a hidden field no visitor sees; it must stay empty | none (see "Bot guards") |
 
 Notes:
 
@@ -98,9 +101,69 @@ The text is always saved first. When a photo fails for any reason, the request s
 see as a missing photo. The visitor's next photo still works. A file that may have reached storage (a timeout, or a place that was
 filled first) is queued for removal as `UploadUndone`, and the maintenance job removes it later.
 
+## Bot guards (INQ-03)
+
+There is no CAPTCHA, puzzle or challenge a visitor must solve (WCAG 3.3.8). Four quiet guards protect the inbox and the alert email.
+Every number is a setting, checked when the server starts. A bad value stops the start and the message names the setting, never
+the value.
+
+### The form ticket and the minimum time
+
+The form asks for a ticket when it opens: `GET /public/quote-requests/ticket`. The ticket is made with Data Protection (purpose
+`Csps.QuoteTicket.v1`), so the server signs and encrypts it and the browser cannot make or change one. It holds the time it was
+issued. The answer also lists the photo rules the form checks before it sends a file (OR-3); they come from the server's own limits.
+
+The create call must carry the ticket in `ticket`.
+
+| Case | Answer |
+|---|---|
+| A good ticket at least `QuoteRequests:MinimumSeconds` old (3 by default, 0 to 60) | the request is handled normally. A ticket exactly that old is accepted. |
+| A ticket younger than that | `200` in the normal shape with a made-up id and the declared photo places. Nothing is saved. |
+| A missing, changed, unreadable or too old ticket (`QuoteRequests:TicketLifetime`, 24 hours by default, 1 to 72 hours) | `400 quote-requests.ticket-expired`, with the message on the `ticket` field. Nothing is saved. |
+
+A real visitor who left the form open overnight gets the `400`, never a silent success (Pitfall 4). The form then fetches a new ticket and
+sends once more. The resend needs a new `Idempotency-Key`, because the body has changed.
+
+### The honeypot
+
+`subjectLine` is a hidden field. When it holds text the answer is `200` in the normal shape with a made-up id and nothing is saved.
+Browsers and password managers do not fill a field with this name. A field with only spaces counts as empty.
+
+### What a caught send logs
+
+A caught send (a filled `subjectLine`, or a ticket under the minimum time) writes one log line with a reason code and nothing else:
+`honeypot` or `too-fast`. No address, name, number, email or text is logged (CWE-532). The owner can watch the count to see if
+catches spike. An expired ticket is not a catch and writes nothing.
+
+### Limits per address and for the whole site (D-26)
+
+| Setting | Default | Window | What it limits |
+|---|---|---|---|
+| `RateLimits:QuoteCreate` | 5 | 1 hour | creates from one address (an IPv6 address counts as its /64) |
+| `RateLimits:QuoteCeiling` | 60 | 1 hour | creates from every address together |
+
+Both sections have `PermitLimit` (at least 1) and `Window` (at least 6 seconds). The per-address window is taken first, so a refused create
+never uses a ceiling permit. The answer is `429` with the code `rate-limited` and a `Retry-After` in whole seconds, rounded up, at least 1. The
+per-address answer says "Too many attempts from this address. Please wait and try again." and the ceiling says "The site is busy. Please
+try again in a minute." The ticket and photo routes keep their own limits. These two windows run before the body is read, so a replay with the
+same `Idempotency-Key` still uses one permit in them; it is not saved again and not counted against the sender limit.
+
+### Limit per sender (D-37)
+
+One mobile number, or one email (compared without regard to case), can send `QuoteRequests:PerSenderPerDay` requests in 24 hours
+(3 by default, 1 to 50). The count is by the stored E.164 number, so `0917 123 4567` and `+63 917 123 4567` are the same sender. A fourth
+request answers the same `429 rate-limited` with a `Retry-After` for when enough earlier requests have left the 24 hours, and saves
+nothing. Until the limit, requests with the same phone or email stay separate rows: nothing is merged. A request counts for exactly
+24 hours (a request received 24 hours ago no longer counts).
+
+The count and the insert run under the standing `quote-requests` lock row in one transaction, so two sends at once from one sender
+never make a fourth row. A caught bot saves nothing, so it never counts. A replay with the same `Idempotency-Key` returns the stored
+answer and is not counted again.
+
 ## Answers of the create call
 
 - `200` with `{ "id": "...", "photoSlots": [...] }`. The id names the new request. Nothing else about it is sent back.
 - `400 quote-requests.validation` with an `errors` object: one array of messages for each field that failed, with the field names
-  above. An empty or unreadable body lists the two required fields.
-- `429` when one address sends too many. The limits arrive with the bot guards of a later plan.
+  above. An empty or unreadable body lists the two required fields (after the ticket is checked).
+- `400 quote-requests.ticket-expired` when there is no good ticket.
+- `429 rate-limited` when one address sends too many, the whole site is busy, or one sender has sent too many.

@@ -3035,6 +3035,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Name = "quote-requests"
+                        },
+                        new
+                        {
                             Name = "account-token:00"
                         },
                         new

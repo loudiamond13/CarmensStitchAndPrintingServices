@@ -9,6 +9,22 @@ public interface IQuoteRequestStore
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);
 
+    /// <summary>
+    /// Takes the standing <c>quote-requests</c> lock for the current transaction, so the per-sender count and the insert of a request
+    /// cannot run at the same time as another send (D-37). Call it first inside <see cref="IUnitOfWork.InTransactionAsync{T}"/>.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>A task that completes when the lock is held.</returns>
+    Task LockAsync(CancellationToken cancellationToken);
+
+    /// <summary>Lists the requests a sender saved after a time. A sender is the same mobile number, or the same email ignoring case when one is given.</summary>
+    /// <param name="contactNumberE164">The mobile number as E.164.</param>
+    /// <param name="email">The email, or null when none was given; no request matches on a missing email.</param>
+    /// <param name="since">Only requests received after this time count.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The times the sender's requests were received, oldest first.</returns>
+    Task<QuoteSenderRecent> CountRecentFromSenderAsync(string contactNumberE164, string? email, DateTimeOffset since, CancellationToken cancellationToken);
+
     /// <summary>Finds a product line by its key, only while the line is shown on the public site (D-24).</summary>
     /// <param name="key">The line key, trimmed.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
