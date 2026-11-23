@@ -205,6 +205,12 @@ export const HOST_ENV = Object.freeze({
   RateLimits__AnalyticsCollect__PermitLimit: NO_THROTTLE,
   // The one site-wide page view ceiling (600 a minute in production, D-51) is lifted too: all review pages share one address.
   RateLimits__AnalyticsCeiling__PermitLimit: NO_THROTTLE,
+  // The quote form limits (5 an hour per address, 60 an hour site-wide, 3 a day per sender in production, D-26, D-37) are lifted
+  // like the E2E host's, and the minimum time after the ticket is 1 second, as in playwright.config.ts.
+  RateLimits__QuoteCreate__PermitLimit: NO_THROTTLE,
+  RateLimits__QuoteCeiling__PermitLimit: NO_THROTTLE,
+  QuoteRequests__PerSenderPerDay: '50',
+  QuoteRequests__MinimumSeconds: '1',
 });
 // The Development host also loads the build-time static web assets manifest, whose wwwroot files would win over
 // --webroot; a manifest path that never exists turns that loader off for this host only (playwright.config.ts).

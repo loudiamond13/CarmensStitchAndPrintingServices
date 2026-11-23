@@ -22,7 +22,7 @@ public sealed partial class ShellPageTests
     [InlineData("/", "CSPS · Custom Team Jerseys and Tailoring", "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.", "/")]
     [InlineData("/products", "Products and Prices · CSPS", "See our product lines, starting prices and everything you can customize, from fabric to names and numbers.", "/products")]
     [InlineData("/gallery", "Our Work · Gallery · CSPS", "Photos of real team orders from leagues, schools, riding clubs and offices.", "/gallery")]
-    [InlineData("/contact", "Contact Us and Get a Quote · CSPS", "Message us on Messenger or call the shop. See our hours, address and map.", "/contact")]
+    [InlineData("/contact", "Contact Us and Get a Quote · CSPS", "Ask for a quote, message us on Messenger or call the shop. See our hours, address and map.", "/contact")]
     public async Task PublicPageGetsItsOwnHead(string path, string title, string description, string canonicalPath)
     {
         await using var factory = Factory();

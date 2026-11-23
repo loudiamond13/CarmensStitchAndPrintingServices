@@ -11,9 +11,6 @@ export const contactGridClasses = tw(
   'mx-auto grid max-w-(--container-max) grid-cols-[1.35fr_.9fr] items-start gap-8 px-6 pg-phone:px-4 pg-lt-lg:grid-cols-[minmax(0,1fr)]',
 );
 
-/** The `.s-wrap` column that holds the settings error. */
-export const contactWrapClasses = tw('mx-auto max-w-(--container-max) px-6 pg-phone:px-4');
-
 /** `.s-formcard`: padding 32, radius 18; 20 and 12 on phones. */
 export const formCardClasses = tw(
   'flex flex-col gap-6 rounded-lg border border-line bg-surface p-8 pg-phone:rounded-md pg-phone:p-5',
@@ -33,18 +30,6 @@ export const labelClasses = tw('text-14 leading-5 font-semibold text-ink');
 
 /** The two big buttons, 16px apart. */
 export const bigButtonsClasses = tw('flex flex-col gap-4');
-
-/** The "What to send" block: the label over its list. */
-export const sendBlockClasses = tw('flex flex-col gap-3');
-
-/** The three "What to send" rows. */
-export const sendListClasses = tw('flex flex-col gap-2');
-
-/** One "What to send" row: an 18px accent icon and Small text. */
-export const sendRowClasses = tw('flex items-start gap-2 text-14 leading-5');
-
-/** The accent icon of a "What to send" row. */
-export const sendIconClasses = tw('mt-px flex-none text-accent-ink');
 
 /** `.s-side`: the aside, 16px between the cards. */
 export const sideClasses = tw('flex min-w-0 flex-col gap-4');

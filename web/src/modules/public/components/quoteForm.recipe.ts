@@ -1,6 +1,6 @@
-// The looks of the quote form's reference photo picker (UI-SPEC Q2) as complete Tailwind tokens (D-33). The drop zone, the touch
-// buttons and the pick-error box come from media.recipe; only the picked-photo rows are new. Every string is a class list that
-// the class gate compiles.
+// The looks of the quote form (UI-SPEC Q1, Q2 and Q3) as complete Tailwind tokens (D-33): the grid, the footer row, the status lines and
+// the placeholder card, then the reference photo picker's rows. The drop zone, the touch buttons and the pick-error box come from
+// media.recipe. Every string is a class list that the class gate compiles.
 import { tw } from '@/ui/tw';
 
 /** The picker: the label row, the pick errors, the add area, the list and the count line, 8px apart. */
@@ -41,3 +41,34 @@ export const photoSizeClasses = tw('text-14 leading-5 text-ink-muted');
 
 /** "{2} of 5 photos": Small, muted. */
 export const photoCountClasses = tw('m-0 text-14 leading-5 text-ink-muted');
+
+/** `.s-formgrid`: two columns with 16px between and 20px rows; one column at 767px and below. */
+export const quoteFormGridClasses = tw('grid grid-cols-2 gap-x-4 gap-y-5 pg-phone:grid-cols-1');
+
+/** The footer row: the privacy notice and Send Inquiry, wrapping on a narrow screen. */
+export const quoteFormFooterClasses = tw('flex flex-wrap items-center justify-between gap-4');
+
+/** The status lines under the footer row: one shows at a time. */
+export const quoteFormStatusClasses = tw('flex flex-col gap-3');
+
+/** The send-failed box text: Small, ink. */
+export const quoteFormStatusTextClasses = tw('m-0 text-14 leading-5 text-ink');
+
+/**
+ * The card shown while the form piece loads: the form card's look and its height, so nothing shifts when the form appears (D-35).
+ * Measured with the text form: 696px at 1440px wide, and 1036px at 320px wide (one column; a wider phone is a little shorter, so 1000px).
+ */
+export const quoteFormPlaceholderClasses = tw(
+  'flex min-h-[696px] flex-col gap-6 rounded-lg border border-line bg-surface p-8 pg-phone:min-h-[1000px] pg-phone:rounded-md pg-phone:p-5',
+);
+
+/** The Message box spans both columns (one at 767px and below) and grows with the text up to 12 lines, then scrolls inside. */
+export const quoteFormMessageClasses = tw(
+  'col-span-2 pg-phone:col-span-1 [&_textarea]:field-sizing-content [&_textarea]:max-h-78',
+);
+
+/** The privacy notice (D-27): Small, muted, at most 340px wide. */
+export const quoteFormNoticeClasses = tw('m-0 max-w-[340px] text-14 leading-5 text-ink-muted');
+
+/** Send Inquiry takes the full width under the notice at 420px and below. */
+export const quoteFormSendClasses = tw('pg-xs:w-full');

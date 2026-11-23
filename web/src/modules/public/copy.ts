@@ -46,7 +46,7 @@ export const PUBLIC_COPY = {
     products:
       'See our product lines, starting prices and everything you can customize, from fabric to names and numbers.',
     gallery: 'Photos of real team orders from leagues, schools, riding clubs and offices.',
-    contact: 'Message us on Messenger or call the shop. See our hours, address and map.',
+    contact: 'Ask for a quote, message us on Messenger or call the shop. See our hours, address and map.',
     notFound: "This page couldn't be found.",
   },
   crumbs: { label: 'Breadcrumb', home: 'Home', products: 'Products', gallery: 'Gallery', contact: 'Contact' },
@@ -222,20 +222,13 @@ export const PUBLIC_COPY = {
   contact: {
     eyebrow: 'Get a quote',
     headline: { plain: "Let's build", accent: 'your kit.' },
-    // SPEC-GAP (D-18): the lead until the inquiry form returns in Phase 13.
-    lead: "Tell us about your team and what you need. Message us on Messenger or call the shop, and we'll reply with a mockup and price, usually the same day.",
+    // App. E.4's lead; its long dash is a comma (OR-4).
+    lead: 'Tell us about your team and what you need. We reply with a mockup and price, usually the same day. Faster? Message us on Messenger.',
+    // The two big buttons of the aside.
     now: {
-      title: 'Message us',
-      intro: 'The fastest way to get a mockup and a price.',
       messenger: 'Message us on Messenger',
       messengerNote: 'Fastest reply · send photos of your design',
       call: (phone: string) => `Call ${phone}`,
-      whatToSend: 'What to send',
-      sendItems: [
-        'Your team or group name',
-        'What you need and about how many pieces',
-        'Your design, logo or a rough idea. A phone photo is fine.',
-      ],
     },
     phones: {
       title: 'Call or text',
@@ -253,6 +246,72 @@ export const PUBLIC_COPY = {
       newTab: ' (opens in a new tab)',
     },
     bar: { messenger: 'Messenger', call: 'Call us' },
+    // The Get a Quote form (UI-SPEC Q1 and Q3; D-31 words). The error words are the server's own (QuoteRequestRules, OR-3).
+    form: {
+      title: 'Inquiry form',
+      caption: 'Fields marked * are required.',
+      name: { label: 'Your name', placeholder: 'Juan Dela Cruz' },
+      number: {
+        label: 'Contact number',
+        placeholder: '0917 123 4567',
+        hint: "We'll text or call about your mockup.",
+      },
+      team: { label: 'Team / organization', placeholder: 'Brgy. San Roque Ballers' },
+      email: { label: 'Email', placeholder: 'you@gmail.com' },
+      product: {
+        label: 'Product type',
+        placeholder: 'Choose a product',
+        // The two fixed choices that follow the product lines (D-24).
+        custom: 'Custom design',
+        notSure: 'Not sure yet',
+      },
+      quantity: {
+        label: 'Quantity (estimate)',
+        placeholder: 'How many pieces?',
+        options: [
+          { value: '1-9', label: '1-9 pcs' },
+          { value: '10-20', label: '10-20 pcs' },
+          { value: '21-50', label: '21-50 pcs' },
+          { value: '51-100', label: '51-100 pcs' },
+          { value: '100+', label: '100+ pcs' },
+        ],
+      },
+      message: {
+        label: 'Message',
+        placeholder: 'Colors, sport, deadline, sizes, anything you have in mind…',
+      },
+      // The honeypot (INQ-03, D-25): hidden from sight and from assistive technology.
+      honeypot: 'Leave this field empty',
+      // The accurate privacy notice (INQ-08, D-27); "Privacy Policy" is the link to /privacy.
+      notice: {
+        before:
+          "We use your details only to reply to this request and prepare your quote. We keep requests that don't become orders for 6 months. See our ",
+        link: 'Privacy Policy',
+        after: '.',
+      },
+      submit: 'Send Inquiry',
+      sending: 'Sending',
+      success: {
+        title: 'Inquiry sent',
+        message: "Thanks! We'll message you with a mockup and quote, usually the same day.",
+        another: 'Send Another',
+        toastTitle: 'Inquiry sent',
+        toastMessage: "We'll message you soon.",
+      },
+      sendFailed:
+        "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",
+      errors: {
+        nameRequired: 'Enter your name.',
+        nameTooLong: 'Keep your name to 100 characters or fewer.',
+        teamTooLong: 'Keep the team name to 100 characters or fewer.',
+        numberInvalid: 'Enter a mobile number, like 0917 123 4567.',
+        emailInvalid: 'Enter a valid email, like name@gmail.com',
+        emailTooLong: 'Keep the email to 254 characters or fewer.',
+        productInvalid: 'Choose a product from the list.',
+        quantityInvalid: 'Choose a quantity from the list.',
+        messageTooLong: 'Keep your message to 2,000 characters or fewer.',
+      },
+    },
     // The reference photo picker of the quote form (UI-SPEC Q2; D-01, D-02, D-06).
     photos: {
       label: 'Reference photos',

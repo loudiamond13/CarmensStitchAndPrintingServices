@@ -24,6 +24,8 @@ export interface ProblemDetails {
   readonly traceId: string | undefined;
   /** The stable machine code of a 4xx, such as `auth.resend-cap`. */
   readonly code: string | undefined;
+  /** The ready replacement ticket of an expired quote form ticket (D-38). */
+  readonly replacementTicket?: string | undefined;
   readonly errors: FieldErrors;
 }
 
@@ -110,6 +112,7 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     instance: stringOrUndefined(value.instance),
     traceId: stringOrUndefined(value.traceId),
     code: stringOrUndefined(value.code),
+    replacementTicket: stringOrUndefined(value.replacementTicket),
     errors: parseFieldErrors(value.errors),
   });
 }

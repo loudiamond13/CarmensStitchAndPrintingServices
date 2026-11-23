@@ -1,4 +1,4 @@
-// The big contact button (UI-SPEC C1 ContactNowCard; App. E.4 `a.s-bigbtn`): an icon tile, a caps line, an optional note
+// The big contact button (UI-SPEC C1 and Q1; App. E.4 `a.s-bigbtn`): an icon tile, a caps line, an optional note
 // and an arrow, as one link. `primary` is the orange Messenger button and `outline` the white Call button. A Messenger or
 // `tel:` link opens in the same tab (PUB-06).
 import clsx from 'clsx';

@@ -47,7 +47,7 @@ export interface BudgetOptions {
 /** The HTML entry of the parity page; only the parity build may have it (WEB-02, D-33). */
 export const PARITY_ENTRY = 'parity.html';
 
-export type BudgetName = 'publicJs' | 'adminJs' | 'css';
+export type BudgetName = 'publicJs' | 'adminJs' | 'css' | 'quoteFormJs';
 
 export interface BudgetMeasurement {
   readonly name: BudgetName;
@@ -77,7 +77,10 @@ export interface BudgetReport {
 }
 
 /** The PERF-01 limits in gzip bytes (1 KB = 1000 B). Never raise one to make a build pass (docs/web/budgets.md). */
-export const BUDGETS = Object.freeze({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
+export const BUDGETS = Object.freeze({ publicJs: 150_000, adminJs: 250_000, css: 35_000, quoteFormJs: 45_000 });
+
+/** The module whose own lazy chunk is the quote form piece (D-35). */
+export const QUOTE_FORM_CHUNK = 'src/modules/public/components/QuoteForm.tsx';
 
 /**
  * Public initial JS in the admin-included topology (the dev-route builds) above this adds a note, not an error: the
@@ -222,7 +225,12 @@ export const PUBLIC_FORBIDDEN_MODULE_PREFIXES: readonly string[] = Object.freeze
 /** Output folders of the parity reference (web/.reference-dist, web/visual/.reference-src); never inside a build (02-13). */
 export const REFERENCE_FOLDERS: readonly string[] = Object.freeze(['.reference-dist', '.reference-src']);
 
-const LABELS: Readonly<Record<BudgetName, string>> = { publicJs: 'public JS', adminJs: 'admin JS', css: 'CSS' };
+const LABELS: Readonly<Record<BudgetName, string>> = {
+  publicJs: 'public JS',
+  adminJs: 'admin JS',
+  css: 'CSS',
+  quoteFormJs: 'Quote form',
+};
 
 /** Bytes as kilobytes with 1 KB = 1000 B, two decimals. */
 export function formatKb(bytes: number): string {
@@ -291,6 +299,35 @@ function measureRoute(
   } catch (error: unknown) {
     errors.push(`${LABELS[name]}: ${error instanceof Error ? error.message : String(error)}`);
     return { name, label, bytes: null, limit: BUDGETS[name], files: [] };
+  }
+}
+
+/**
+ * The quote form piece (D-35): the chunk that holds QUOTE_FORM_CHUNK with every chunk it imports statically, each counted once,
+ * minus the chunks the Contact route already loads (the form is loaded after the page, so only what it adds counts here).
+ * Fails closed when no chunk holds the form.
+ */
+function measureQuoteForm(graph: BudgetGraph, contactFiles: readonly string[], errors: string[]): BudgetMeasurement {
+  const name = 'quoteFormJs';
+  const label = LABELS[name];
+  const limit = BUDGETS[name];
+  const formChunk =
+    graph.chunks.find((c) => c.facadeModuleId === QUOTE_FORM_CHUNK) ??
+    graph.chunks.find((c) => c.moduleIds.includes(QUOTE_FORM_CHUNK));
+  if (formChunk === undefined) {
+    errors.push(`${label}: the route module ${QUOTE_FORM_CHUNK} has no chunk, so the quote form cannot be measured.`);
+    return { name, label, bytes: null, limit, files: [] };
+  }
+  try {
+    const { files } = routeInitialSize(graph.chunks, [formChunk.fileName]);
+    const already = new Set(contactFiles);
+    const own = files.filter((file) => !already.has(file));
+    const byName = new Map(graph.chunks.map((c) => [c.fileName, c]));
+    const bytes = own.reduce((sum, file) => sum + (byName.get(file)?.gzipSize ?? 0), 0);
+    return { name, label, bytes, limit, files: own };
+  } catch (error: unknown) {
+    errors.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
+    return { name, label, bytes: null, limit, files: [] };
   }
 }
 
@@ -452,7 +489,11 @@ export function evaluateBudgets(graph: BudgetGraph, options: BudgetOptions): Bud
     route,
   }));
   errors.push(...new Set(publicErrors));
-  const measurements: BudgetMeasurement[] = [...publicMeasurements, admin];
+  const contactFiles = publicMeasurements.find((m) => m.route === 'contact')?.files ?? [];
+  const quoteErrors: string[] = [];
+  const quoteForm = measureQuoteForm(graph, contactFiles, quoteErrors);
+  errors.push(...quoteErrors);
+  const measurements: BudgetMeasurement[] = [...publicMeasurements, admin, quoteForm];
 
   const cssAssets = graph.assets.filter((a) => a.fileName.endsWith('.css'));
   if (cssAssets.length !== 1) {
