@@ -20,7 +20,6 @@ import UrlStateLayout from '@/lib/url-state/UrlStateLayout';
 import { DEV_USER } from '@/modules/admin/sections';
 import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
-
 /**
  * The dev previews these layout tests render in the shell: the placeholder-user /admin entry that plan 10-07 took out of
  * devRoutes (the real dashboard replaced it) and the /admin/orders one that plan 08-06 took out. The layout tests still need
@@ -1155,5 +1154,71 @@ describe('AdminLayout topbar search (ORD-02, D-53)', () => {
 
     expect(router.state.location.pathname).toBe('/admin');
     expect(router.state.location.search).toBe('');
+  });
+});
+
+// SPEC-DEVIATION: D-19 the shell shows Quote Requests with the server's New count (D-14, INQ-05; UI-SPEC R4).
+describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
+  afterEach(() => {
+    clearSession();
+  });
+
+  /** The admin tree as production has it, at `path`: the layout loader gives the session user. */
+  async function renderSignedIn(path = '/admin') {
+    acceptSession(sessionResponse());
+    const router = createMemoryRouter(adminTree({ layout: { loader: () => getSessionUser() } }), {
+      initialEntries: [path],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
+    return router;
+  }
+
+  /** Counts the New count reads, answering each with `count`. */
+  function countReads(count: number | { readonly failWith: number }): { reads: number } {
+    const probe = { reads: 0 };
+    server.use(
+      http.get('*/api/v1/quote-requests/new-count', () => {
+        probe.reads += 1;
+        return typeof count === 'number'
+          ? HttpResponse.json({ count })
+          : HttpResponse.json({ title: 'x', status: count.failWith }, { status: count.failWith });
+      }),
+    );
+    return probe;
+  }
+
+  it('shows Quote Requests right after Orders in the sidebar, with the New count in its name', async () => {
+    countReads(3);
+    await renderSignedIn();
+
+    const names = within(sidebarNav())
+      .getAllByRole('link')
+      .map((item) => item.textContent);
+    expect(names.slice(0, 3)).toEqual(['Dashboard', 'Orders', expect.stringMatching(/^Quote Requests/)]);
+    expect(await within(sidebarNav()).findByRole('link', { name: 'Quote Requests, 3 new' })).toHaveAttribute(
+      'href',
+      '/admin/quote-requests',
+    );
+  });
+
+  it('shows no chip and no shell error when the count read fails', async () => {
+    const probe = countReads({ failWith: 500 });
+    await renderSignedIn();
+
+    await waitFor(() => {
+      expect(probe.reads).toBeGreaterThan(0);
+    });
+    expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('reads no count on the dev routes, where no one is signed in', async () => {
+    const probe = countReads(3);
+    await renderAt('/admin');
+
+    expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(probe.reads).toBe(0);
   });
 });

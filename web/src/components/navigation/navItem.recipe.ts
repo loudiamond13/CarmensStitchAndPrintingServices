@@ -47,3 +47,7 @@ export const navLabelHiddenClasses = tw('hidden');
 
 /** `.s-admin-side .csp-nav-label { display: none }` on the tablet rail: the label stays the item's accessible name. */
 export const navLabelRailClasses = tw('pg-tablet:in-data-[ui=s-admin-side]:hidden');
+
+// RED stubs.
+export const navCountClasses = '';
+export const navCountDotClasses = { expanded: '', collapsed: '' } as const;

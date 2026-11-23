@@ -3,6 +3,7 @@ import {
   AUDIT_NAV_ITEM,
   CONTENT_NAV_ITEM,
   MONEY_NAV_ITEM,
+  QUOTE_REQUESTS_NAV_ITEM,
   SETTINGS_NAV_ITEM,
   VISITOR_STATS_NAV_ITEM,
 } from '@/components/navigation';
@@ -70,6 +71,15 @@ describe('adminNavItemForPath', () => {
     const id = '0b0f6c1e-0000-4000-8000-000000000001';
     expect(adminNavItemForPath(`/admin/money/staff/${id}`)).toBe(MONEY_NAV_ITEM);
     expect(adminNavItemForPath(`/admin/money/staff/${id}/`)?.id).toBe('money');
+  });
+
+  it('finds the Quote Requests item for the inbox and every request page under it (D-19)', () => {
+    const id = '0b0f6c1e-0000-4000-8000-000000000001';
+    expect(adminNavItemForPath('/admin/quote-requests')).toBe(QUOTE_REQUESTS_NAV_ITEM);
+    expect(adminNavItemForPath('/admin/quote-requests/')?.id).toBe('quotes');
+    expect(adminNavItemForPath(`/admin/quote-requests/${id}`)).toBe(QUOTE_REQUESTS_NAV_ITEM);
+    expect(adminNavItemForPath('/admin/quote-requests/abc')?.id).toBe('quotes');
+    expect(adminNavItemForPath('/admin/quote-requestsx')).toBeUndefined();
   });
 
   it('does not take the bare staff path or another path under money for My Money', () => {

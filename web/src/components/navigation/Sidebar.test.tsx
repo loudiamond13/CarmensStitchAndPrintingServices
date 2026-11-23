@@ -13,6 +13,7 @@ import {
   AUDIT_NAV_ITEM,
   CONTENT_NAV_ITEM,
   MONEY_NAV_ITEM,
+  QUOTE_REQUESTS_NAV_ITEM,
   SETTINGS_NAV_ITEM,
   Sidebar,
   VISITOR_STATS_NAV_ITEM,
@@ -25,7 +26,14 @@ import {
   sidebarUserClasses,
   sidebarWidthClasses,
 } from './navigation.recipe';
-import { navButtonClasses, navIconClasses, navItemClasses, navLabelHiddenClasses } from './navItem.recipe';
+import {
+  navButtonClasses,
+  navCountClasses,
+  navCountDotClasses,
+  navIconClasses,
+  navItemClasses,
+  navLabelHiddenClasses,
+} from './navItem.recipe';
 
 // The converted App. D.3 Sidebar (plan 02-26, CSPS-UI-SPEC.md §6.6, UI-SPEC "Owner rulings"): App. D.3's markup and
 // props with the D-03 second cue (aria-current + weight 700), the D-27 Logout button and the D-31 D-BL-02 hidden
@@ -535,6 +543,166 @@ describe('Sidebar My Money item (D-39, D-40)', () => {
 
   it('has no axe violations with the item', async () => {
     const { container } = render(inRouter(<Sidebar role={ADMIN} user={CARMEN} active="money" withMoney />));
+    await expectNoAxeViolations(container);
+  });
+});
+
+// SPEC-DEVIATION: D-19 Quote Requests follows Orders for both roles, with the New count chip (D-14, INQ-05; UI-SPEC R4).
+describe('Sidebar Quote Requests item and New count (D-14, D-19)', () => {
+  /** The chip or the dot of an item, found by its look. */
+  function part(item: HTMLElement, classes: string): HTMLElement | undefined {
+    return [...item.querySelectorAll<HTMLElement>('span')].find((element) => hasClasses(element, classes));
+  }
+
+  it('defines the Quote Requests item beside ADMIN_NAV, for both roles, with the inbox icon', () => {
+    expect(ADMIN_NAV.map((item) => item.id)).not.toContain('quotes');
+    expect(QUOTE_REQUESTS_NAV_ITEM).toEqual({
+      id: 'quotes',
+      label: 'Quote Requests',
+      icon: 'inbox',
+      to: '/admin/quote-requests',
+    });
+  });
+
+  it.each<[string, Role, string[]]>([
+    ['an Admin', ADMIN, ['Dashboard', 'Orders', 'Quote Requests', 'Company Expenses', 'My Profile']],
+    ['a Manager', MANAGER, ['Dashboard', 'Orders', 'Quote Requests', 'Company Expenses', 'UsersManager', 'My Profile']],
+  ])('shows %s Quote Requests right after Orders, with the inbox icon', (_who, role, labels) => {
+    render(inRouter(<Sidebar role={role} withQuoteRequests />));
+
+    expect(navLinks().map((item) => item.textContent)).toEqual(labels);
+    expect(link('Quote Requests').getAttribute('href')).toBe('/admin/quote-requests');
+    expect(link('Quote Requests').querySelector('svg.lucide-inbox')).not.toBeNull();
+    expect(link('Quote Requests').querySelector('svg')?.getAttribute('width')).toBe('20');
+  });
+
+  it('keeps the full order with every added item', () => {
+    render(inRouter(<Sidebar role={MANAGER} withAuditLog withMoney withQuoteRequests />));
+
+    expect(navLinks().map((item) => item.textContent)).toEqual([
+      'Dashboard',
+      'Orders',
+      'Quote Requests',
+      'Company Expenses',
+      'My Money',
+      'UsersManager',
+      'Audit LogManager',
+      'SettingsManager',
+      'Site ContentManager',
+      'Visitor StatsManager',
+      'My Profile',
+    ]);
+  });
+
+  it('leaves the sidebar as it was without the prop (the parity scenarios stay equal)', () => {
+    render(inRouter(<Sidebar role={MANAGER} counts={{ quotes: 3 }} />));
+
+    expect(screen.queryByRole('link', { name: /^Quote Requests/ })).toBeNull();
+    expect(navLinks()).toHaveLength(5);
+  });
+
+  it('shows the New count chip and names the item "Quote Requests, 3 new"', () => {
+    render(inRouter(<Sidebar role={ADMIN} withQuoteRequests counts={{ quotes: 3 }} />));
+    const quotes = link('Quote Requests');
+
+    expect(quotes).toHaveAccessibleName('Quote Requests, 3 new');
+    const chip = part(quotes, navCountClasses);
+    expect(chip?.textContent).toBe('3');
+    expect(chip?.getAttribute('aria-hidden')).toBe('true');
+    expect(tokens(navCountClasses)).toEqual(
+      expect.arrayContaining([
+        'h-5',
+        'min-w-[22px]',
+        'rounded-xs',
+        'px-1.5',
+        'text-[12px]',
+        'leading-5',
+        'tabular-nums',
+        'font-semibold',
+        'bg-accent',
+        'text-on-accent',
+      ]),
+    );
+  });
+
+  it('caps the chip at "99+" above 99', () => {
+    render(inRouter(<Sidebar role={ADMIN} withQuoteRequests counts={{ quotes: 120 }} />));
+    const quotes = link('Quote Requests');
+
+    expect(part(quotes, navCountClasses)?.textContent).toBe('99+');
+    expect(quotes).toHaveAccessibleName('Quote Requests, 99+ new');
+  });
+
+  it.each<[string, { quotes?: number } | undefined]>([
+    ['a count of 0', { quotes: 0 }],
+    ['no count yet', undefined],
+    ['a count for another section only', {}],
+  ])('shows no chip, no dot and no hidden text for %s', (_case, counts) => {
+    render(inRouter(<Sidebar role={ADMIN} withQuoteRequests counts={counts} />));
+    const quotes = link('Quote Requests');
+
+    expect(quotes).toHaveAccessibleName('Quote Requests');
+    expect(quotes.textContent).toBe('Quote Requests');
+    expect(part(quotes, navCountClasses)).toBeUndefined();
+    expect(part(quotes, navCountDotClasses.collapsed)).toBeUndefined();
+    expect(part(quotes, navCountDotClasses.expanded)).toBeUndefined();
+  });
+
+  it('marks Quote Requests current for active "quotes"', () => {
+    const active: AdminSection = 'quotes';
+    render(inRouter(<Sidebar role={ADMIN} active={active} withQuoteRequests counts={{ quotes: 2 }} />));
+    const quotes = link('Quote Requests');
+
+    expect(quotes.getAttribute('aria-current')).toBe('page');
+    expect(navLinks().filter((item) => item.getAttribute('aria-current') === 'page')).toEqual([quotes]);
+    expect(part(quotes, navCountClasses)?.textContent).toBe('2');
+  });
+
+  it('on the tablet rail hides the chip and shows the dot, and the name keeps the count', () => {
+    render(inRouter(<Sidebar role={ADMIN} withQuoteRequests counts={{ quotes: 3 }} />));
+    const quotes = link('Quote Requests');
+    const RAIL = 'pg-tablet:in-data-[ui=s-admin-side]:';
+
+    expect(tokens(navCountClasses)).toContain(`${RAIL}hidden`);
+    const dot = part(quotes, navCountDotClasses.expanded);
+    expect(dot).toBeDefined();
+    expect(tokens(navCountDotClasses.expanded)).toEqual(expect.arrayContaining(['hidden', `${RAIL}block`]));
+    expect(dot?.getAttribute('aria-hidden')).toBe('true');
+    expect(quotes).toHaveAccessibleName('Quote Requests, 3 new');
+  });
+
+  it('on the collapsed sidebar shows a 10px accent dot with a 2px nav-ground ring instead of the chip', () => {
+    render(inRouter(<Sidebar role={ADMIN} withQuoteRequests counts={{ quotes: 3 }} defaultCollapsed />));
+    const quotes = link('Quote Requests');
+
+    expect(part(quotes, navCountClasses)).toBeUndefined();
+    const dot = part(quotes, navCountDotClasses.collapsed);
+    expect(dot?.textContent).toBe('');
+    expect(tokens(navCountDotClasses.collapsed)).toEqual(
+      expect.arrayContaining(['absolute', 'size-2.5', 'rounded-pill', 'bg-accent', 'ring-2', 'ring-nav-bg']),
+    );
+    expect(tokens(navCountDotClasses.collapsed)).not.toContain('hidden');
+    expect(quotes.getAttribute('title')).toBe('Quote Requests');
+    expect(quotes).toHaveAccessibleName('Quote Requests, 3 new');
+  });
+
+  it.each<[string, { quotes: number }, boolean]>([
+    ['with a count', { quotes: 3 }, false],
+    ['with no count', { quotes: 0 }, false],
+    ['collapsed with a count', { quotes: 3 }, true],
+  ])('has no axe violations %s', async (_case, counts, collapsed) => {
+    const { container } = render(
+      inRouter(
+        <Sidebar
+          role={MANAGER}
+          user={CARMEN}
+          active="quotes"
+          withQuoteRequests
+          counts={counts}
+          defaultCollapsed={collapsed}
+        />,
+      ),
+    );
     await expectNoAxeViolations(container);
   });
 });

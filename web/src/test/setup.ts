@@ -6,6 +6,7 @@ import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
 import { pageViewHandler, server } from './msw';
 import { quoteTicketHandler } from './quoteFixtures';
+import { newQuoteCountHandler } from './quoteRequestFixtures';
 import {
   demoGallery,
   demoHome,
@@ -58,7 +59,8 @@ installConsoleGuard();
 // network (MSW 3 renamed the onUnhandledRequest option to onUnhandledFrame). Registered before the cleanup below, so
 // handlers reset after the unmount. Node-env tests skip it.
 // Every public page reads the shop facts, so each test starts with the demo shop answering that route and the open status
-// (Contact reads it); a test that needs another answer calls server.use and with no public data left from the test before.
+// (Contact reads it), and a signed-in admin shell reads a New quote count of 0; a test that needs another answer calls server.use
+// and with no public data left from the test before.
 if (typeof window !== 'undefined') {
   beforeAll(() => {
     server.listen({ onUnhandledFrame: 'error' });
@@ -73,6 +75,7 @@ if (typeof window !== 'undefined') {
       privacyContactHandler(),
       pageViewHandler(),
       quoteTicketHandler(),
+      newQuoteCountHandler(),
     );
   });
   // Every test starts with no saved Show Map tap (D-65).

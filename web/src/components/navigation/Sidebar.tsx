@@ -125,6 +125,9 @@ export const VISITOR_STATS_NAV_ITEM: AdminNavItem = {
   manager: true,
 };
 
+// RED stub.
+export const QUOTE_REQUESTS_NAV_ITEM = {} as AdminNavItem;
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null

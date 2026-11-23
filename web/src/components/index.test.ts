@@ -139,6 +139,16 @@ describe('@/components barrel (WEB-06, WEB-02)', () => {
     expect(exports.MONEY_NAV_ITEM).toMatchObject({ id: 'money', to: '/admin/money', icon: 'wallet' });
   });
 
+  // SPEC-DEVIATION: D-19 the Quote Requests nav item sits beside ADMIN_NAV for both roles (plan 13-17).
+  it('exports the Quote Requests nav item beside ADMIN_NAV', () => {
+    expect(exports.QUOTE_REQUESTS_NAV_ITEM).toEqual({
+      id: 'quotes',
+      label: 'Quote Requests',
+      icon: 'inbox',
+      to: '/admin/quote-requests',
+    });
+  });
+
   it('exports the useToast hook', () => {
     expect(typeof exports.useToast).toBe('function');
   });
