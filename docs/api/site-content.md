@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-22T23:30:00-06:00
+updated: 2026-11-22T23:55:00-06:00
 ---
 
 # The site content API
@@ -165,7 +165,7 @@ apply, with the same messages: the type is read from the first bytes (JPG, PNG, 
 25 megapixels, and the location and camera data are removed before the file is stored. The picture is stored under a **new random id
 every time**, in this environment's share folder, `{root}/content/share/00000000-0000-0000-0000-000000000001/`, never in the orders
 folder, and the client never chooses the id. Facebook keeps a picture by its address, so a reused address would keep showing the old
-picture. The file the settings named before is queued for removal in the same save and leaves the storage on the next monthly cleanup
+picture. The file the settings named before is queued for removal in the same save and leaves the storage on the next daily cleanup
 run. Nothing calls the storage to delete during the request. The save is serialized with the other site content writes by the
 `site-content` lock. A save changes the settings row, so its `version` moves: the Business Info screen reads the settings again after
 a picture change.
@@ -467,7 +467,7 @@ The slot in the path is `main`, `back` or `fabric`; any other word is `404`.
 type is read from the first bytes (JPG, PNG, WEBP or HEIC, never SVG), the file is at most 10 MB and 25 megapixels, and the location and
 camera data are removed before the file is stored. The photo is stored under a random id in this environment's content folder,
 `{root}/content/lines/{lineId}/`, never in the orders folder, and the client never chooses the id. A slot that already holds a photo is
-replaced: the row stays, and the old file is queued for removal in the same save and leaves the storage on the next monthly cleanup run.
+replaced: the row stays, and the old file is queued for removal in the same save and leaves the storage on the next daily cleanup run.
 Nothing calls the storage to delete during the request.
 
 ```json

@@ -1,6 +1,6 @@
 # Guide: what CI runs, and when
 
-*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-22T16:10:00-06:00*
+*Created: 2026-10-16T01:12:00-05:00 · Updated: 2026-11-22T23:55:00-06:00*
 
 GitHub Actions checks every pull request and every push to `main`. One workflow, `.github/workflows/ci.yml`, holds the whole pipeline (OPS-02). A small second workflow, `.github/workflows/weekly.yml`, runs the same pipeline once a week with every browser engine (D-15). This page says which checks run in which situation, how to read a failed run, how many of the free minutes it should use, and what to do when the minutes run out. The last section, "Workflows at a glance", describes every workflow file and Dependabot one by one, including when each runs, what rights it has and what every job and step checks.
 
@@ -337,7 +337,7 @@ More in the runbook: [Secrets and variables](deploy.md#secrets-and-variables), [
 
 ### Maintenance (`maintenance.yml`)
 
-Maintenance calls the site's maintenance endpoint once a month, and whenever the owner presses **Run workflow** ("Run now"). The hosting plan has no scheduler, so GitHub is the scheduler (JOB-01, 01 D-10, D-21). The runbook is [maintenance.md](maintenance.md): this section only describes the file.
+Maintenance calls the site's maintenance endpoint every day, and whenever the owner presses **Run workflow** ("Run now"). The hosting plan has no scheduler, so GitHub is the scheduler (JOB-01, 01 D-10, D-21). The runbook is [maintenance.md](maintenance.md): this section only describes the file.
 
 - **Runs when:** the cron `17 19 * * *` fires (19:17 UTC every day, which is 03:17 in Manila), or someone presses **Run workflow**. There is no other trigger. GitHub runs schedules only from `main`, may delay them, and switches them off after 60 days without repository activity ([the runbook](maintenance.md#things-to-know-about-github-schedules) says how to turn them back on).
 - **Permissions:** none at the top and none on the job. The run only calls the site.

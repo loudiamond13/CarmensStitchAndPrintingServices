@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-22T16:10:00-06:00
+updated: 2026-11-22T23:55:00-06:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -188,7 +188,7 @@ This costs nothing beyond the free plan's normal use: a named size is a saved re
 first asked for in that size. The command never prints your keys or your cloud name.
 
 Photos that Managers add to product lines are kept in their own folder, `{root}/content/`, apart from the order photos in
-`{root}/orders/`. The monthly cleanup looks at both folders and queues any old file that no photo row names.
+`{root}/orders/`. The daily cleanup looks at both folders and queues any old file that no photo row names.
 
 ## Centre-cut public sizes (D-130)
 
