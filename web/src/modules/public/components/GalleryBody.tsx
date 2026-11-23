@@ -58,9 +58,7 @@ function GalleryResults({ items }: GalleryResultsProps) {
             index={viewing}
             onIndexChange={setViewing}
             onClose={history.close}
-            onQuote={() => {
-              history.leaveTo('/contact');
-            }}
+            onQuote={history.leaveTo}
           />
         </Suspense>
       )}
