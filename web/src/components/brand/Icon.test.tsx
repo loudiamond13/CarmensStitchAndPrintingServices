@@ -11,6 +11,7 @@ import {
   Funnel,
   Globe,
   History,
+  Inbox,
   KeyRound,
   LockOpen,
   Minus,
@@ -106,6 +107,7 @@ const OWNER_ICON_NAMES = [
   'globe',
   'chart-column',
   'download',
+  'inbox',
 ] as const;
 
 /** The one svg an Icon renders. */
@@ -245,6 +247,10 @@ describe('ICONS (App. D.5 names, D-32 aliases)', () => {
   it('draws chart-column and download with the lucide components of the same name (Phase 12, D-32)', () => {
     expect(ICONS['chart-column']).toBe(ChartColumn);
     expect(ICONS.download).toBe(Download);
+  });
+
+  it('draws inbox with lucide’s Inbox (Phase 13, D-29)', () => {
+    expect(ICONS.inbox).toBe(Inbox);
   });
 
   it('has no circle-x icon: page speed is gone (D-76)', () => {

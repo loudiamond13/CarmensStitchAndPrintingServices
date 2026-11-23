@@ -26,6 +26,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { LINE_IDS, lineProductTypesAre, productLinesBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
+import { quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -535,6 +536,49 @@ describe('Deleted Expenses for Managers (D-03, D-07, OQ-2; plan 06-16)', () => {
     await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
 
     expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/expenses/deleted')}`);
+  }, 15_000);
+});
+
+describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
+  it.each([
+    ['Manager', () => sessionResponse()],
+    ['Admin', adminSession],
+  ])(
+    'when a %s opens /admin/quote-requests they see the inbox titled "Quote Requests · CSPS Admin"',
+    async (_role, session) => {
+      answerRefresh(session());
+      quoteRequestsBackend(quoteRequestList([quoteRequestItem()]));
+      const router = createMemoryRouter(routes, { initialEntries: ['/admin/quote-requests'] });
+      render(<RouterProvider router={router} />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Quote Requests' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(await screen.findByRole('table', { name: 'Quote requests' })).toBeVisible();
+      expect(router.state.location.pathname).toBe('/admin/quote-requests');
+      await waitFor(() => {
+        expect(document.title).toBe('Quote Requests · CSPS Admin');
+      });
+    },
+    30_000,
+  );
+
+  it('is a lazy page under the URL-state layout with no Manager-only loader', async () => {
+    const { adminRoutes } = await import('@/modules/admin/routes');
+    const urlState = adminRoutes[0]?.children?.[0];
+    const route = urlState?.children?.find((child) => child.path === 'quote-requests');
+    expect(route?.lazy).toBeTypeOf('function');
+    expect(route?.loader).toBeUndefined();
+  });
+
+  it('a visitor without a session opening /admin/quote-requests goes to sign-in with the return path', async () => {
+    answerRefresh();
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/quote-requests'] });
+    render(<RouterProvider router={router} />);
+
+    await expect.poll(() => router.state.location.pathname, { timeout: 5000 }).toBe('/admin/login');
+
+    expect(router.state.location.search).toBe(`?returnUrl=${encodeURIComponent('/admin/quote-requests')}`);
   }, 15_000);
 });
 
