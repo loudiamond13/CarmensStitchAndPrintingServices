@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T10:05:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T13:10:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -133,9 +133,33 @@ The form file had only 0.02 KB of its 45 KB budget left. After the wave 5 fixes 
 
 The form budget gained 0.86 KB because the form no longer loads the legal page styles. The form file is now 44.23 KB of its 45 KB budget. No limit changed.
 
+## P13-BL-13 · Choices made in the Quote alerts test email (plan 13-13)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Test email wording.** A: heading "Quote alerts work", preview "Quote alerts reach this address.", no link. B: add an "Open Quote Requests" button.
+2. **A saved address that can never get mail.** A: the server answers "This address can't get email. Save a different address, then send a test." B: treat it like "no address saved".
+3. **Failure message for "no address" and "can't get email".** A: the UI spec's one failure message ("Couldn't send the test email." / "Check your internet connection and try again."). B: show the server's own sentence for these two.
+4. **The limit of 3 tests in 10 minutes.** A: counted per connection, like every other limit. B: counted per Quote alerts address.
+5. **Audit entry detail.** A: none (never the address). B: a fixed word such as `sent=1`.
+6. **Unsaved-change check.** A: spaces at either end are ignored when comparing the field to the saved address. B: exact text.
+
+## P13-BL-14 · Choices made in the staff Quote Requests list (plan 13-15)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Phone card order.** A: the shared phone card: the name as the title, the other columns below in table order. B: a custom card in the UI spec's order.
+2. **"Couldn't refresh" line.** A: the wording used elsewhere in admin, "Showing figures from {time}. Couldn't refresh." B: "Showing requests from {time}..."
+3. **Screen reader count on a filter with one request.** A: the spec text as written ("Spam 1 requests"). B: "1 request" for exactly one.
+4. **Refresh when staff come back to the tab.** A: every time. B: only when the list is over 30 seconds old.
+5. **Name link color.** A: dark text, underlined on hover. B: the orange link color used for order numbers.
+6. **Empty-list icon.** A: the inbox icon on every filter. B: on Open only.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
 - [ ] Contact page layout on a real phone (form first, then Messenger, Call, hours, phones, map).
 - [ ] The Quote alerts card in Site Content > Business info, in Blush and Espresso, on phone and desktop.
 - [ ] Quote form on a real phone: pick a photo and press Send at once. The photo must arrive, and Send shows Sending until it does (13-REVIEW-FIX-W5 CR-01).
+- [ ] Quote Requests list on a real phone: the cards, the filter pills and the search (plan 13-15).
+- [ ] Send a real test email from Site Content > Business info > Quote alerts and check it arrives (plan 13-13).
