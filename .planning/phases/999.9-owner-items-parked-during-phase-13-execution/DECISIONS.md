@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T15:02:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T16:11:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -196,6 +196,18 @@ The answer to a status change used to carry the whole request (name, phone, emai
 - **B:** answer the whole request, accept the 24-hour copy, and say so in the Privacy Policy.
 
 Order calls keep their full answers the same way. They were left alone because no "delete for good" is promised for orders.
+
+## P13-BL-19 · Choices made in staff notes and the Manager delete (plan 13-18)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A unless it says otherwise.
+
+1. **What adding a note answers.** A (as the plan says): the whole request, so the 24-hour repeat-press copy holds the visitor's details and the note text, like the old status answer (P13-BL-18). B (recommended): only `{ id, noteId, createdAtUtc, version }`. The request page reads the request again after a note either way. The wave 8 review fix may move this to B to match P13-BL-18; that fix report will say.
+2. **Saved answers after a delete.** A: repeat-press copies of earlier answers for that request stay for up to 24 hours. B: the delete removes them too.
+3. **Notes on a request that became an order.** A: allowed in every status. B: blocked once converted.
+4. **Note count.** A: no limit per request. B: a cap, for example 200.
+5. **What the delete audit entry records.** A: the status and the photo count. B: also the note and history counts, or nothing at all.
+6. **Delete check order.** A: a converted request is refused before the version check, as the plan orders. B: the version check first.
+7. **Wording to confirm:** "Write a note first.", "Keep the note to 1,000 characters or fewer.", "A request that became an order can't be deleted.", and the audit labels "Quote request note added" and "Quote request deleted".
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
