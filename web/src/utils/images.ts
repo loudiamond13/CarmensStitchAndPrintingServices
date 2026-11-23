@@ -202,15 +202,25 @@ function isControl(character: string): boolean {
   return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
 }
 
-/** The name as the server cleans it for a message: no folders, no control characters, at most 80 characters. */
+/** Half of a surrogate pair on its own: `Array.from` yields one when a name holds a broken emoji. */
+function isLoneSurrogate(character: string): boolean {
+  const code = character.charCodeAt(0);
+  return character.length === 1 && code >= 0xd800 && code <= 0xdfff;
+}
+
+/**
+ * The name as the server cleans it for a message: no folders, no control characters, no half emoji, at most 80 characters. The cut
+ * never splits an emoji, because half of one makes the JSON body unreadable on the server.
+ */
 export function cleanFileName(name: string): string {
   const cut = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
   const leaf = cut >= 0 ? name.slice(cut + 1) : name;
   const cleaned = Array.from(leaf)
-    .filter((character) => !isControl(character))
+    .filter((character) => !isControl(character) && !isLoneSurrogate(character))
     .join('')
     .trim();
-  const limited = cleaned.length > FILE_NAME_LIMIT ? cleaned.slice(0, FILE_NAME_LIMIT) : cleaned;
+  let limited = cleaned.slice(0, FILE_NAME_LIMIT);
+  if (/[\ud800-\udbff]$/.test(limited)) limited = limited.slice(0, -1);
   return limited === '' ? 'This file' : limited;
 }
 

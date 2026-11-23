@@ -588,8 +588,17 @@ describe('cleanFileName (the server cleans the name the same way)', () => {
     ['  side\u0007.jpg  ', 'side.jpg'],
     ['', 'This file'],
     ['a'.repeat(100), 'a'.repeat(80)],
+    ['a'.repeat(79) + '\u{1F600}b.jpg', 'a'.repeat(79)],
+    ['a'.repeat(78) + '\u{1F600}b.jpg', 'a'.repeat(78) + '\u{1F600}'],
+    ['x\ud83d.jpg', 'x.jpg'],
+    ['x\ude00.jpg', 'x.jpg'],
   ])('%j becomes %j', (name, expected) => {
     expect(cleanFileName(name)).toBe(expected);
+  });
+
+  it('never leaves half of an emoji, so the name always reads as JSON on the server', () => {
+    const name = cleanFileName('a'.repeat(79) + '\u{1F600}'.repeat(3));
+    expect(JSON.stringify(name)).not.toMatch(/\\ud[89a-f]/i);
   });
 });
 

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Csps.Domain.QuoteRequests;
+using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -260,6 +261,39 @@ public sealed class CreateQuoteRequestTests(CspsDatabase database) : IClassFixtu
             ids.Count.ShouldBe(2);
             ids.Distinct().Count().ShouldBe(2);
         }
+    }
+
+    // Review W5 WR-01: a lone surrogate makes the body unreadable, so the server sees no ticket. The browser must never send one.
+    [Fact]
+    public async Task ABodyWithHalfAnEmojiInAPhotoNameIsReadAsNoTicketAndSavesNothing()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var broken = await PostRawPhotoNameAsync(client, "\\ud83d");
+        using var whole = await PostRawPhotoNameAsync(client, "\\ud83d\\ude00.jpg");
+
+        broken.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(broken, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("quote-requests.ticket-expired");
+        var text = await whole.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        whole.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        await using var context = database.CreateContext();
+        (await context.Set<QuoteRequest>().AsNoTracking().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    // Posts the JSON text as written, so an escaped lone surrogate reaches the server unchanged.
+    private static async Task<HttpResponseMessage> PostRawPhotoNameAsync(HttpClient client, string escapedName)
+    {
+        var ticket = await QuoteRequestFixtures.GetTicketAsync(client);
+        var json = $$"""
+            {"customerName":"Juan Dela Cruz","contactNumber":"0917 123 4567","ticket":"{{ticket}}","photos":["{{escapedName}}"],"uploadKey":"{{QuoteRequestFixtures.NewUploadKey()}}"}
+            """;
+        using var request = ApiRequests.Create(HttpMethod.Post, QuoteRequestFixtures.Route);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     private static async Task ShouldRefuseAsync(HttpResponseMessage response, string field, string message)

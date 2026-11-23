@@ -1,3 +1,4 @@
+using System.Text;
 using Csps.Domain.Common;
 
 namespace Csps.Application.Images;
@@ -77,7 +78,10 @@ public static class ImageErrors
         return Error.Validation(TooBigCode, message, FieldErrors(message));
     }
 
-    /// <summary>Cleans a client file name for a message: no folders, no control characters, at most 80 characters.</summary>
+    /// <summary>
+    /// Cleans a client file name for a message: no folders, no control characters, no half emoji, at most 80 characters. The cut never
+    /// splits an emoji. The browser cleans names the same way (<c>cleanFileName</c>).
+    /// </summary>
     /// <param name="fileName">The name as sent.</param>
     /// <returns>The cleaned name, or <c>This file</c> when nothing is left.</returns>
     public static string CleanName(string? fileName)
@@ -85,10 +89,24 @@ public static class ImageErrors
         var name = fileName ?? string.Empty;
         var cut = name.LastIndexOfAny(['/', '\\']);
         var leaf = cut >= 0 ? name[(cut + 1)..] : name;
-        var cleaned = new string([.. leaf.Where(static character => !char.IsControl(character))]).Trim();
+        var kept = new StringBuilder(leaf.Length);
+        for (var index = 0; index < leaf.Length; index++)
+        {
+            var character = leaf[index];
+            if (char.IsHighSurrogate(character) && index + 1 < leaf.Length && char.IsLowSurrogate(leaf[index + 1]))
+            {
+                kept.Append(character).Append(leaf[++index]);
+            }
+            else if (!char.IsControl(character) && !char.IsSurrogate(character))
+            {
+                kept.Append(character);
+            }
+        }
+
+        var cleaned = kept.ToString().Trim();
         if (cleaned.Length > FileNameLimit)
         {
-            cleaned = cleaned[..FileNameLimit];
+            cleaned = cleaned[..(char.IsHighSurrogate(cleaned[FileNameLimit - 1]) ? FileNameLimit - 1 : FileNameLimit)];
         }
 
         return cleaned.Length == 0 ? "This file" : cleaned;
