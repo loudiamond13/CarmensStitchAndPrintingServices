@@ -23,6 +23,8 @@ export interface QuoteAnswers {
   ticketStatus?: number;
   /** The minimum seconds the ticket answer and the expired-ticket 400 carry (D-41). Default: 0, so tests never wait. */
   minimumSeconds?: number;
+  /** The code and field errors of a failed create that is not an expired ticket. */
+  problem?: { code?: string; errors?: Record<string, string[]> };
 }
 
 /** The default answer of every test: the form ticket read (the Contact page reads it). A test that checks the ticket or the create calls answerQuote. */
@@ -89,7 +91,7 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
         );
       }
       return HttpResponse.json(
-        { title: 'Something went wrong.', status },
+        { title: 'Something went wrong.', status, ...answers.problem },
         { status, headers: { 'Content-Type': 'application/problem+json' } },
       );
     }),

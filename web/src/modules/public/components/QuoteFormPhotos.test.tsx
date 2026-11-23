@@ -359,6 +359,22 @@ describe('QuoteForm when photos do not upload (Q3 partial, D-03)', () => {
   });
 });
 
+describe('QuoteForm keeps the photos when the send fails (D-26)', () => {
+  it('keeps every photo and starts no upload after a 429', async () => {
+    answerQuote({ createStatuses: [429] });
+    const calls = answerPhotos();
+    const { container } = renderForm();
+    await pickPhotos(container, [pngFile('logo.png'), pngFile('sketch.png', 128)]);
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("You've sent a few requests in a short time.");
+    expect(within(screen.getByRole('list', { name: 'Photos to send' })).getAllByRole('listitem')).toHaveLength(2);
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe('QuoteForm Send Another with photos (Q3)', () => {
   it('clears the photos, makes a new upload key and a new ticket', async () => {
     const probe = answerQuote();
