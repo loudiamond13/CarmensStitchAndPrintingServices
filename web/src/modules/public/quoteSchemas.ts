@@ -32,13 +32,31 @@ export const quoteFormSchema = object({
     minLength(1, ERRORS.nameRequired),
     maxLength(CUSTOMER_NAME_MAX, ERRORS.nameTooLong),
   ),
+  teamName: string(),
   contactNumber: string().check(trim(), refine(isMobileNumber, ERRORS.numberInvalid)),
+  email: string(),
+  product: string(),
+  quantity: string(),
+  message: string(),
+  subjectLine: string(),
 });
+
+/** The five quantity ranges the form offers (stub). */
+export const QUOTE_QUANTITIES: readonly { value: string; label: string }[] = [];
 
 export type QuoteFormValues = output<typeof quoteFormSchema>;
 
 /** A blank form. */
-export const EMPTY_QUOTE_FORM: QuoteFormValues = { customerName: '', contactNumber: '' };
+export const EMPTY_QUOTE_FORM: QuoteFormValues = {
+  customerName: '',
+  teamName: '',
+  contactNumber: '',
+  email: '',
+  product: '',
+  quantity: '',
+  message: '',
+  subjectLine: '',
+};
 
 /**
  * The create body for the checked values, without the ticket (the form adds it when it sends). Optional text goes as empty text,
