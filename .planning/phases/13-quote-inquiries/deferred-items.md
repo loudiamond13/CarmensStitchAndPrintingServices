@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-22T22:47:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T08:40:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -12,9 +12,16 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-22, wave 4 gate | `SiteContentLockTests.AMissingLockRowFailsClearlyAndIsNeverReadAsBusy`, `ManagerRosterLockTests.ADeadlockOnTheLockInsideAnOuterTransactionIsALostRaceWithTheTransactionEnded` | LocalDB "Connection Timeout Expired" in the post-login phase (about 14 s), full suite only, no other agents running | 6 of 6 passed |
 | 2026-11-22, 13-04 | `LegalPages.test.tsx` old Cookie Policy address | `document.title` raced the lazy route load | passed alone and in a full re-run |
 | 2026-11-22, 13-06 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` | 500 on the test-only `POST /api/testing/site-content`, about 3 in 7 class runs | passed alone 3 of 3 |
+| 2026-11-23, 13-11 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` | Same 500 on `POST /api/testing/site-content` while other agents used LocalDB | passed on re-run and in two later runs |
+| 2026-11-23, 13-12 | `PublicLayout.test.tsx` | Failed under full web-suite load in the executor's worktree | 48 of 48 passed alone; passed in the wave 5 gate |
+| 2026-11-23, wave 5 gate | `CompanyExpenseCheckTests.TheLegacyHolderCannotPay` (LegacyFitCheck) | LocalDB connection error during the full .NET suite | LegacyFitCheck alone: 275 passed, 1 skipped |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
 ## Deferred review findings
 
 - 13-REVIEW-W1 WR-02: the Cloudinary usage month cursor is saved before the alarm lines are returned. Waiting on the owner (behavior change).
+
+## Stale build hid a failing check (wave 5)
+
+`build-output.node.test.ts` reads the built site in `src/Csps.Server/wwwroot` and only rebuilds when it is missing. The main checkout had a build from 2026-11-21, so the full suite passed while a fresh build failed on the 13-09 placeholder `you@gmail.com` (fixed in f1fd0076, owner item P13-BL-11 item 7). Later gates should rebuild the web app first.
