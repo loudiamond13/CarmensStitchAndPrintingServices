@@ -5,6 +5,7 @@ import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } fro
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import QuoteRequestsPage from '@/modules/admin/pages/QuoteRequestsPage';
@@ -315,14 +316,18 @@ describe('the Photos column (UI-SPEC R1 item 4)', () => {
     );
     renderPage();
 
-    const photos = async (name: string) => within(await rowOf(name)).getAllByRole('cell')[5];
-    expect((await photos('All Arrived'))?.textContent).toBe('3');
+    const photos = async (name: string): Promise<HTMLElement> => {
+      const cell = within(await rowOf(name)).getAllByRole('cell')[5];
+      if (cell === undefined) throw new Error(`No Photos cell for ${name}.`);
+      return cell;
+    };
+    expect((await photos('All Arrived')).textContent).toBe('3');
     const missing = await photos('Some Missing');
-    expect(missing?.textContent).toBe('2 of 3 photos arrived');
-    expect(missing?.querySelector('svg')).not.toBeNull();
-    expect(within(missing as HTMLElement).getByText('photos arrived', { exact: false })).toHaveClass('sr-only');
+    expect(missing.textContent).toBe('2 of 3 photos arrived');
+    expect(missing.querySelector('svg')).not.toBeNull();
+    expect(within(missing).getByText('photos arrived').className).toBe(srOnlyClasses);
     expect(await photos('No Photos')).toHaveTextContent('Not set');
-    expect((await photos('Marked Spam'))?.textContent).toBe('Removed');
+    expect((await photos('Marked Spam')).textContent).toBe('Removed');
   });
 });
 
@@ -419,7 +424,9 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
     renderPage();
     await rowOf('Juan Dela Cruz');
 
-    const options = queryClient.getQueryCache().find({ queryKey: ['quote-requests', 'list'] })?.options;
+    // The page's observer carries the refresh options.
+    const query = queryClient.getQueryCache().find({ queryKey: ['quote-requests', 'list'], exact: false });
+    const options = query?.observers[0]?.options;
     expect(options?.refetchInterval).toBe(60_000);
     expect(options?.refetchIntervalInBackground).toBe(false);
     expect(options?.refetchOnWindowFocus).toBe('always');

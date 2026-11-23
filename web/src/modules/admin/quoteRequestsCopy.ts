@@ -29,9 +29,9 @@ export const QUOTE_REQUESTS_COPY = {
   /** "21-50 pcs" */
   pieces: (range: string): string => `${range} pcs`,
   photos: {
-    /** "2 of 3", with the hidden " photos arrived" after it. */
+    /** "2 of 3", with the hidden "photos arrived" after it. */
     partial: (stored: number, declared: number): string => `${formatCount(stored)} of ${formatCount(declared)}`,
-    partialHidden: ' photos arrived',
+    partialHidden: 'photos arrived',
     removed: 'Removed',
   },
   pills: {

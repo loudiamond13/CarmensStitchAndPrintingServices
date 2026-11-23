@@ -1,15 +1,20 @@
 // SPEC-GAP: quote requests inbox table (UI-SPEC R1 item 4). The R1 ResponsiveTable columns: Received, Name, Phone, Product,
 // Pieces, Photos and Status; cards below 768px with the name as the card title. The whole row is not a link: the name link
 // is the one way in. Every value is React text (T-13-43).
+import type { ReactNode } from 'react';
 import { UiLink } from '@/components/actions';
+import { Icon } from '@/components/brand';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { ResponsiveTable, type ResponsiveTableColumn } from '@/components/lists';
 import { Badge } from '@/components/status';
 import { QUOTE_REQUESTS_COPY } from '@/modules/admin/quoteRequestsCopy';
 import { isQuoteStatus, QUOTE_STATUS_TONE, quoteStatusLabel } from '@/modules/admin/quoteStatus';
 import type { QuoteRequestListItem } from '@/modules/admin/services/quoteRequestsService';
-import { formatBusinessDate, formatBusinessTime } from '@/utils/format';
+import { formatBusinessDate, formatBusinessTime, formatCount } from '@/utils/format';
 import {
   quoteNameLinkClasses,
+  quotePhotosClasses,
+  quotePhotosWarningClasses,
   quoteReceivedClasses,
   quoteReceivedTimeClasses,
   quoteTeamClasses,
@@ -35,7 +40,8 @@ function productText(item: QuoteRequestListItem): string | null {
   return product.title;
 }
 
-function ReceivedCell({ utc }: { utc: string }) {
+function receivedCell(item: QuoteRequestListItem): ReactNode {
+  const utc = item.receivedAtUtc;
   const date = formatBusinessDate(utc);
   const time = formatBusinessTime(utc);
   if (date === null || time === null) return null;
@@ -58,13 +64,25 @@ function NameCell({ item }: { item: QuoteRequestListItem }) {
   );
 }
 
-function photosText(item: QuoteRequestListItem): string | null {
+/** "3"; with missing photos the warning icon and "2 of 3" with hidden "photos arrived"; none is empty; "Removed" after Spam. */
+function photosCell(item: QuoteRequestListItem): ReactNode {
+  if (item.photosRemoved) return COPY.photos.removed;
   const declared = Number(item.photoCount);
-  return declared > 0 ? String(declared) : null;
+  const stored = Number(item.storedPhotoCount);
+  if (declared <= 0) return null;
+  if (stored >= declared) return formatCount(declared);
+  return (
+    <span className={quotePhotosClasses}>
+      <span className={quotePhotosWarningClasses}>
+        <Icon name="triangle-alert" size={16} />
+      </span>
+      {COPY.photos.partial(stored, declared)} <span className={srOnlyClasses}>{COPY.photos.partialHidden}</span>
+    </span>
+  );
 }
 
 const COLUMNS: readonly ResponsiveTableColumn<QuoteRequestListItem>[] = [
-  { key: 'received', header: COPY.columns.received, cell: (item) => <ReceivedCell utc={item.receivedAtUtc} /> },
+  { key: 'received', header: COPY.columns.received, cell: receivedCell },
   { key: 'name', header: COPY.columns.name, lead: true, cell: (item) => <NameCell item={item} /> },
   { key: 'phone', header: COPY.columns.phone, cell: (item) => item.contactNumber },
   { key: 'product', header: COPY.columns.product, cell: productText },
@@ -73,7 +91,7 @@ const COLUMNS: readonly ResponsiveTableColumn<QuoteRequestListItem>[] = [
     header: COPY.columns.pieces,
     cell: (item) => (item.quantity === null || item.quantity === '' ? null : COPY.pieces(item.quantity)),
   },
-  { key: 'photos', header: COPY.columns.photos, cell: photosText },
+  { key: 'photos', header: COPY.columns.photos, cell: photosCell },
   { key: 'status', header: COPY.columns.status, cell: (item) => <QuoteStatusBadge status={item.status} /> },
 ];
 
