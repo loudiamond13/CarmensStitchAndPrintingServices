@@ -1,10 +1,11 @@
 // The photo area of the quote form (UI-SPEC Q2, D-43). Before the first tap it is a label and one Choose Photos button that opens the
 // file chooser at once. The picker, its checks and the upload code load as one piece while the visitor chooses; the chosen files are
-// handed to the picker, which checks and lists them.
-import { useId, useRef, useState, type ChangeEvent, type Ref } from 'react';
+// checked by that piece, then the picker lists them. Until then the form's handle waits for that check (review W5 CR-01).
+import { useId, useImperativeHandle, useRef, useState, type ChangeEvent, type Ref } from 'react';
 import { Button } from '@/components/actions/Button';
 import { PUBLIC_COPY } from '../copy';
 import type { QuotePhotoLimits } from '../hooks/useQuoteTicket';
+import type { FirstPick } from '../quotePhotoKit';
 import type { QuotePhotoPickerHandle } from './QuotePhotoPicker';
 import { loadQuotePhotoKit, type QuotePhotoKit } from './lazyQuotePhotoKit';
 import {
@@ -27,28 +28,36 @@ export interface QuotePhotoSlotProps {
   handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
 }
 
-interface Loaded {
+interface Loaded extends FirstPick {
   kit: QuotePhotoKit;
-  limits: QuotePhotoLimits | undefined;
-  firstPick: File[];
 }
 
 export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }: QuotePhotoSlotProps) {
   const labelId = useId();
   const input = useRef<HTMLInputElement>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Loading: the photo piece is loading and checking the first pick, and Choose Photos shows a spinner and takes no second pick.
+  const [status, setStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
+  const picker = useRef<QuotePhotoPickerHandle>(null);
+  // The first pick while the photo piece loads and checks it: the photos it added, or none when the piece did not load.
+  const first = useRef<Promise<readonly File[]>>(undefined);
+
+  useImperativeHandle(handleRef, () => ({
+    clearErrors: () => {
+      picker.current?.clearErrors();
+    },
+    settled: async () => (await picker.current?.settled()) ?? (await first.current) ?? photos,
+  }));
 
   if (loaded !== null) {
-    const { QuotePhotoPicker, pickerRules } = loaded.kit;
     return (
-      <QuotePhotoPicker
+      <loaded.kit.QuotePhotoPicker
         photos={photos}
         onChange={onChange}
         disabled={disabled}
-        rules={pickerRules(loaded.limits)}
-        firstPick={loaded.firstPick}
-        handleRef={handleRef}
+        rules={loaded.rules}
+        firstErrors={loaded.errors}
+        handleRef={picker}
       />
     );
   }
@@ -59,15 +68,18 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
     if (files.length === 0) {
       return;
     }
-    setFailed(false);
-    void Promise.all([loadQuotePhotoKit(), limits()]).then(
-      ([kit, rules]) => {
-        setLoaded({ kit, limits: rules, firstPick: files });
-      },
-      () => {
-        setFailed(true);
-      },
-    );
+    setStatus('loading');
+    first.current = Promise.all([loadQuotePhotoKit(), limits()])
+      .then(async ([kit, rules]) => {
+        const pick = await kit.firstPick(files, rules);
+        setLoaded({ kit, ...pick });
+        onChange(pick.photos);
+        return pick.photos;
+      })
+      .catch(() => {
+        setStatus('failed');
+        return [];
+      });
   };
 
   return (
@@ -81,15 +93,16 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
           variant="secondary"
           icon="image"
           aria-disabled={disabled}
+          pending={status === 'loading'}
           onClick={() => {
-            if (!disabled) input.current?.click();
+            input.current?.click();
           }}
         >
           {COPY.choosePhotos}
         </Button>
       </div>
       <p className={photoCountClasses}>{COPY.hint('10 MB', 5)}</p>
-      {failed && (
+      {status === 'failed' && (
         <p role="alert" className={photoCountClasses}>
           {PUBLIC_COPY.contact.formLoadFailed.body}
         </p>

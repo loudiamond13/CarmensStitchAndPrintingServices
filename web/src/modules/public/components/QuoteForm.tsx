@@ -191,7 +191,10 @@ export function QuoteForm() {
     }
   }, [sent]);
 
-  const { pending, error: sendError } = submission;
+  // Send waits for photos still being loaded or checked (review W5 CR-01); the form shows it is sending meanwhile.
+  const [settling, setSettling] = useState(false);
+  const { pending: sending, error: sendError } = submission;
+  const pending = sending || settling;
 
   // Starts loading the server-answer piece as a send starts, so a refusal shows at once.
   const loadAnswers = (): void => {
@@ -274,7 +277,10 @@ export function QuoteForm() {
         void handleSubmit(async (values) => {
           pickerRef.current?.clearErrors();
           loadAnswers();
-          await submission.submit({ values, photos });
+          setSettling(true);
+          const picked = (await pickerRef.current?.settled()) ?? photos;
+          setSettling(false);
+          await submission.submit({ values, photos: picked });
         }, onInvalid)(event);
       }}
     >

@@ -29,7 +29,7 @@ import {
 } from '@/components/media/media.recipe';
 import { Note } from '@/components/states/Note';
 import { PUBLIC_COPY } from '@/modules/public/copy';
-import { checkQuotePhotos, QUOTE_PHOTO_RULES, type QuotePhotoRules } from '@/modules/public/quotePhotos';
+import { checkQuotePhotos, QUOTE_PHOTO_RULES, sameFile, type QuotePhotoRules } from '@/modules/public/quotePhotos';
 import { cleanFileName, fileSizeText, previewImage, sizeText } from '@/utils/images';
 import {
   photoCountClasses,
@@ -57,20 +57,22 @@ export interface QuotePhotoPickerProps {
   /** The form is sending: every control keeps focus but ignores a press. */
   disabled?: boolean;
   handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
-  /** Files the visitor chose before this picker was loaded: they are checked and added when it shows. */
-  firstPick?: readonly File[] | undefined;
+  /** The refusals of the files chosen before this picker was loaded, shown when it shows. */
+  firstErrors?: PickErrors | undefined;
 }
 
 export interface QuotePhotoPickerHandle {
   /** The form calls this on submit: the pick-error box goes away. */
   clearErrors: () => void;
+  /** Resolves with the photos once every pick still being checked is in, so Send never leaves one out (review W5 CR-01). */
+  settled: () => Promise<readonly File[]>;
 }
 
 /** Where focus goes once the list has changed: a row's Remove, or the add control. */
 type FocusTarget = File | 'add';
 
 /** The last pick's refusals: one line per refused file, then the count line. */
-interface PickErrors {
+export interface PickErrors {
   refusals: readonly string[];
   countLine: string | null;
 }
@@ -83,11 +85,11 @@ export function QuotePhotoPicker({
   rules = QUOTE_PHOTO_RULES,
   disabled = false,
   handleRef,
-  firstPick,
+  firstErrors = NO_ERRORS,
 }: QuotePhotoPickerProps) {
   const labelId = useId();
   const [over, setOver] = useState(false);
-  const [errors, setErrors] = useState<PickErrors>(NO_ERRORS);
+  const [errors, setErrors] = useState<PickErrors>(firstErrors);
   const latest = useRef(photos);
   // A missing entry is a preview still being drawn; null is a photo the browser cannot draw.
   const [previews, setPreviews] = useState<ReadonlyMap<File, string | null>>(new Map());
@@ -101,7 +103,6 @@ export function QuotePhotoPicker({
   const drawing = useRef<File | null>(null);
   // Picks run one after the other, so each one counts the photos the one before it added (review W1 IN-05).
   const queue = useRef<Promise<void>>(Promise.resolve());
-  const firstPickDone = useRef(false);
   const atLimit = photos.length >= rules.maxPhotos;
 
   // One preview at a time, and never for a file over the size limit.
@@ -141,15 +142,17 @@ export function QuotePhotoPicker({
     clearErrors: () => {
       setErrors(NO_ERRORS);
     },
+    settled: () =>
+      queue.current.then(
+        () => latest.current,
+        () => latest.current,
+      ),
   }));
 
   // The list a pick that is still being checked must add to, even if a Remove ran meanwhile.
   useEffect(() => {
     latest.current = photos;
   }, [photos]);
-
-  const sameFile = (a: File, b: File): boolean =>
-    a === b || (a.name === b.name && a.size === b.size && a.lastModified === b.lastModified);
 
   const addNow = async (files: File[]): Promise<void> => {
     setErrors(NO_ERRORS);
@@ -169,18 +172,15 @@ export function QuotePhotoPicker({
   };
 
   const addFiles = (files: File[]): Promise<void> => {
-    if (disabled || files.length === 0) return Promise.resolve();
+    if (files.length === 0) return Promise.resolve();
+    // The send has already taken its photos, so a late pick is refused out loud instead of being lost.
+    if (disabled) {
+      setErrors({ refusals: [], countLine: COPY.whileSending });
+      return Promise.resolve();
+    }
     queue.current = queue.current.then(() => addNow(files));
     return queue.current;
   };
-
-  // The files chosen before this picker loaded are added once, as a normal pick.
-  useEffect(() => {
-    if (firstPickDone.current || firstPick === undefined || firstPick.length === 0) return;
-    firstPickDone.current = true;
-    void addFiles([...firstPick]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the first render with files
-  }, []);
 
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);

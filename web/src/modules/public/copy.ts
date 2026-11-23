@@ -359,6 +359,8 @@ export const PUBLIC_COPY = {
         count === 1
           ? `You can send up to ${String(max)} photos. 1 of the photos you picked wasn't added.`
           : `You can send up to ${String(max)} photos. ${String(count)} of the photos you picked weren't added.`,
+      // A photo dropped while the inquiry is sending (review W5 CR-01): plain words, an owner item.
+      whileSending: "Photos can't be added while your inquiry is sending.",
     },
   },
   footer: {

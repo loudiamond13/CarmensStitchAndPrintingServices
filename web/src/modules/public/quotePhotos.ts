@@ -59,6 +59,11 @@ export interface QuotePhotoCheck {
 
 const COPY = PUBLIC_COPY.contact.photos;
 
+/** The same photo picked again: the same File, or one with the same name, size and time. */
+export function sameFile(a: File, b: File): boolean {
+  return a === b || (a.name === b.name && a.size === b.size && a.lastModified === b.lastModified);
+}
+
 /**
  * Checks a pick against the rules before anything is sent. The type is read from the file's first bytes, never its name or MIME
  * header (CWE-434). A refused file names itself and does not use up a place; a valid file past the count limit is only counted.

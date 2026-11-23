@@ -545,32 +545,40 @@ describe('QuotePhotoPicker picks that overlap (review W1 IN-05)', () => {
   });
 });
 
-describe('QuotePhotoPicker first pick (D-43)', () => {
-  it('checks and adds the files the visitor picked before the picker was loaded', async () => {
-    const onChange = vi.fn<(photos: File[]) => void>();
-    const logo = pngFile('logo.png');
-    render(<QuotePhotoPicker photos={[]} onChange={onChange} firstPick={[logo, textFile('notes.jpg')]} />);
+describe('QuotePhotoPicker first pick and settled (D-43, review W5 CR-01)', () => {
+  it('shows the refusals of the first pick, checked before the picker loaded', () => {
+    render(
+      <QuotePhotoPicker
+        photos={[pngFile('logo.png')]}
+        onChange={vi.fn()}
+        firstErrors={{ refusals: ["notes.jpg isn't a photo we can take."], countLine: null }}
+      />,
+    );
 
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalledWith([logo]);
-    });
-    expect(await screen.findByText(/notes\.jpg isn't a photo we can take/)).toBeInTheDocument();
-    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toHaveTextContent("notes.jpg isn't a photo we can take.");
   });
 
-  it('applies the first pick once, even if the picker renders again', async () => {
-    const onChange = vi.fn<(photos: File[]) => void>();
+  it('settles with the photos once a pick still being checked is in', async () => {
+    const handle = createRef<QuotePhotoPickerHandle>();
+    const { container } = render(<Harness handleRef={handle} />);
     const logo = pngFile('logo.png');
-    const view = render(<QuotePhotoPicker photos={[]} onChange={onChange} firstPick={[logo]} />);
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalledTimes(1);
-    });
 
-    view.rerender(<QuotePhotoPicker photos={[logo]} onChange={onChange} firstPick={[logo]} />);
-    await act(async () => {
-      await Promise.resolve();
-    });
+    const upload = userEvent.setup().upload(galleryInput(container), logo);
+    await upload;
+    const settled = await handle.current?.settled();
 
-    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(settled).toEqual([logo]);
+  });
+
+  it('refuses a pick out loud while the form is sending, and adds nothing', async () => {
+    const onChange = vi.fn<(photos: File[]) => void>();
+    render(<Harness disabled onChange={onChange} />);
+    const zone = screen.getByText(/Drop your logo/).closest('[data-over]');
+    if (zone === null) throw new Error('No drop zone');
+
+    fireEvent.drop(zone, { dataTransfer: { files: [pngFile('late.png')] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Photos can't be added while your inquiry is sending.");
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@
 // text is saved first, then each photo goes to its own place, at most two at a time, with the upload key the create call declared.
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest';
@@ -11,6 +12,7 @@ import { server } from '@/test/msw';
 import { siteFailureHandler } from '@/test/publicFixtures';
 import { answerPhotos, pngFile } from '@/test/quotePhotoFixtures';
 import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
+import { defaultBrowserImageParts } from '@/utils/images';
 import { quoteService, type QuoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
 
@@ -390,6 +392,98 @@ describe('QuoteForm when photos do not upload (Q3 partial, D-03)', () => {
 
     await screen.findByText(/1 of your photos didn't upload/);
     await expectNoAxeViolations(container);
+  });
+});
+
+/** A promise the test opens by hand. */
+function gate() {
+  let open = (): void => undefined;
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { opened, open };
+}
+
+describe('QuoteForm never drops a photo still being loaded or checked (review W5 CR-01, D-03)', () => {
+  it('waits for the photo piece still loading when Send is pressed, and declares the photo', async () => {
+    const probe = answerQuote();
+    const ticket = gate();
+    server.use(
+      http.get('*/api/v1/public/quote-requests/ticket', async () => {
+        await ticket.opened;
+        return HttpResponse.json({
+          ticket: 'ticket-late',
+          photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+          minimumSeconds: 0,
+        });
+      }),
+    );
+    const uploads = spyUploads();
+    const { container } = renderForm();
+    await fillRequired();
+    await userEvent.upload(fileInput(container), [pngFile('logo.png')]);
+    const choose = screen.getByRole('button', { name: 'Choose Photos' });
+    expect(choose).toHaveAttribute('aria-busy', 'true');
+    const opened = vi.fn();
+    fileInput(container).addEventListener('click', opened);
+    await userEvent.click(choose);
+    expect(opened).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+    expect(screen.getByRole('button', { name: 'Sending' })).toBeInTheDocument();
+    ticket.open();
+
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    expect(probe.creates).toHaveLength(1);
+    expect(probe.creates[0]?.body.photos).toEqual(['logo.png']);
+    expect(uploads).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for a photo still being checked when Send is pressed, and declares it', async () => {
+    const probe = answerQuote();
+    const uploads = spyUploads();
+    const { container } = renderForm();
+    await pickPhotos(container, [pngFile('logo.png')]);
+    await fillRequired();
+    const check = gate();
+    const readHead = defaultBrowserImageParts.readHead.bind(defaultBrowserImageParts);
+    vi.spyOn(defaultBrowserImageParts, 'readHead').mockImplementation(async (file) => {
+      await check.opened;
+      return readHead(file);
+    });
+    await userEvent.upload(fileInput(container), [pngFile('sketch.png', 128)]);
+
+    await userEvent.click(screen.getByRole('button', SEND));
+    expect(screen.getByRole('button', { name: 'Sending' })).toBeInTheDocument();
+    check.open();
+
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    expect(probe.creates).toHaveLength(1);
+    expect(probe.creates[0]?.body.photos).toEqual(['logo.png', 'sketch.png']);
+    expect(uploads).toHaveBeenCalledTimes(2);
+  });
+
+  it('says so when a photo is dropped while the inquiry is sending, instead of losing it quietly', async () => {
+    answerQuote();
+    const { gates } = holdUploads();
+    const { container } = renderForm();
+    await pickPhotos(container, [pngFile('logo.png')]);
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    await waitFor(() => {
+      expect(gates).toHaveLength(1);
+    });
+    const zone = screen.getByText(/Drop your logo/).closest('[data-over]');
+    if (zone === null) throw new Error('No drop zone');
+
+    fireEvent.drop(zone, { dataTransfer: { files: [pngFile('late.png', 90)] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Photos can't be added while your inquiry is sending.");
+    await act(async () => {
+      gates[0]?.finish();
+      await Promise.resolve();
+    });
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
   });
 });
 
