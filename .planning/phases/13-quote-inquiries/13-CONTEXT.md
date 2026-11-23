@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-21T20:52:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-22T20:40:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -71,6 +71,9 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-35:** **The quote form loads as its own piece right after the Contact page appears**, into a placeholder of the same size so nothing shifts (CLS). The form keeps the same tools as the admin forms (react-hook-form, the resolver, zod). The form piece gets its own size limit in `build:budget` (about 45 KB gz) so it cannot grow unnoticed. The Contact page itself stays within the 150 KB public limit; no limit is raised. (owner, 2026-11-21)
 - **D-36:** **Staff view quote photos at 2000 pixels on the long side** (the existing `csps_full_2000` size). No new Cloudinary named size and no Cloudinary setup rerun. "Open Full Size" means this view. (owner, 2026-11-21)
 - **D-37:** **A per-sender limit on quote requests: at most 3 a day from the same phone number or the same email**, on top of the per-address limit (D-26), the site-wide hourly ceiling and the staff email cap (D-09). It catches a bot that keeps changing address without blocking people who share a mobile network. The numbers are settings with tests; a request over it sees the same plain D-26 message. (owner, 2026-11-21)
+- **D-38:** **An expired form ticket is answered with a ready replacement ticket.** The `quote-requests.ticket-expired` 400 carries a fresh ticket the server already counts as old enough (back-dated by the minimum time), so the form's one silent resend is never treated as a too-fast bot and the lead is never lost. Fixes review 13-REVIEW-W3 CR-01; plans 13-09 and 13-12 use the ticket from that answer. (owner, 2026-11-22)
+- **D-39:** **Public quote photo uploads get their own upload limit, apart from the staff upload slots.** Visitors can never crowd out staff order and product photo uploads. Fixes review 13-REVIEW-W2 WR-01. (owner, 2026-11-22)
+- **D-40:** **A form ticket stays reusable for its lifetime; the rate limits are the real guard.** No one-use tracking. The docs are corrected so they do not present the ticket as stronger than it is. Settles review 13-REVIEW-W3 WR-02. (owner, 2026-11-22)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
