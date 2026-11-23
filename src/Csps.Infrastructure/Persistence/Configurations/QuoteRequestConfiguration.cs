@@ -53,6 +53,9 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.HasMany(request => request.StatusChanges).WithOne().HasForeignKey(change => change.QuoteRequestId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(request => request.StatusChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
 
+        // RED stub: the notes table is mapped in GREEN.
+        builder.Ignore(request => request.Notes);
+
         // NO ACTION on the staff links, so removing a user never rewrites history (SEC-08). A visitor has no user, so CreatedById stays null.
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.CreatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.UpdatedById).OnDelete(DeleteBehavior.NoAction);

@@ -11,6 +11,7 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 {
     private readonly List<QuoteRequestPhoto> _photos = [];
     private readonly List<QuoteRequestStatusChange> _statusChanges = [];
+    private readonly List<QuoteRequestNote> _notes = [];
 
     // Used by EF Core (constructor binding) and by Receive.
     private QuoteRequest(
@@ -110,6 +111,17 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the status moves staff made, oldest first.</summary>
     public IReadOnlyList<QuoteRequestStatusChange> StatusChanges => _statusChanges;
+
+    /// <summary>Gets the internal staff notes added in this unit of work, oldest first.</summary>
+    public IReadOnlyList<QuoteRequestNote> Notes => _notes;
+
+    /// <summary>Adds an internal staff note (D-17). RED stub.</summary>
+    /// <param name="text">The note.</param>
+    /// <param name="by">Who wrote it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>A failure until the note rules exist.</returns>
+    public Result<QuoteRequestNote> AddNote(string text, Guid by, DateTimeOffset now) =>
+        Result.Failure<QuoteRequestNote>(Error.NotFound("stub", $"{Id}{text}{by}{now}"));
 
     /// <summary>
     /// Declares the photos the visitor is about to send, one empty place per file name in the order given, and keeps the hash and the

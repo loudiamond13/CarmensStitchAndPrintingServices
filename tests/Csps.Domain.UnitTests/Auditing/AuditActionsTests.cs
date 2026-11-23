@@ -11,7 +11,7 @@ public sealed class AuditActionsTests
     [Fact]
     public void CatalogHoldsTheAuthProfileUserPhaseSixSevenAndEleventhCodes()
     {
-        AuditActions.All.Count.ShouldBe(134);
+        AuditActions.All.Count.ShouldBe(135);
         AuditActions.All.ShouldContain(AuditActions.SignInFailed);
         AuditActions.SignInFailed.ShouldBe("auth.sign-in-failed");
     }
@@ -51,6 +51,17 @@ public sealed class AuditActionsTests
         AuditActions.All.ShouldContain("quote-request.status-changed");
         AuditActions.SelfService.ShouldNotContain("quote-request.status-changed");
         AuditEntry.Create(Now, null, "quote-request.status-changed", null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe("quote-request.status-changed");
+    }
+
+    [Fact]
+    public void TheQuoteRequestNoteAddedCodeIsInTheCatalogAndAcceptedByAuditEntry()
+    {
+        var field = typeof(AuditActions).GetField("QuoteRequestNoteAdded").ShouldNotBeNull();
+
+        ((string)field.GetRawConstantValue()!).ShouldBe("quote-request.note-added");
+        AuditActions.All.ShouldContain("quote-request.note-added");
+        AuditActions.SelfService.ShouldNotContain("quote-request.note-added");
+        AuditEntry.Create(Now, null, "quote-request.note-added", null, null, null, null, new string('a', AuditEntry.CorrelationIdLength), null).Action.ShouldBe("quote-request.note-added");
     }
 
     [Fact]

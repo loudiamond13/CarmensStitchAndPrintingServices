@@ -152,6 +152,7 @@ const API_ACTIONS = [
   'site-settings.share-picture-changed',
   'quote-alerts.test-sent',
   'quote-request.status-changed',
+  'quote-request.note-added',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -175,13 +176,18 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors every code of the API', () => {
-    expect(API_ACTIONS).toHaveLength(134);
-    expect(AUDIT_ACTION_CODES).toHaveLength(134);
+    expect(API_ACTIONS).toHaveLength(135);
+    expect(AUDIT_ACTION_CODES).toHaveLength(135);
   });
 
   it('reads a quote request status change under Orders (D-15)', () => {
     expect(auditActionLabel('quote-request.status-changed')).toBe('Quote request status changed');
     expect(auditActionGroup('quote-request.status-changed')).toBe('Orders');
+  });
+
+  it('reads a quote request note under Orders (D-17)', () => {
+    expect(auditActionLabel('quote-request.note-added')).toBe('Quote request note added');
+    expect(auditActionGroup('quote-request.note-added')).toBe('Orders');
   });
 
   it('reads the Quote alerts test email under Site content (D-11)', () => {

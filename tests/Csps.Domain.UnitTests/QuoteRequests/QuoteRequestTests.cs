@@ -174,6 +174,77 @@ public sealed class QuoteRequestTests
     }
 
     [Fact]
+    public void AddingANoteKeepsTheTrimmedTextWithWhoAndWhenAndMovesTheEditVersion()
+    {
+        var request = Received();
+        var version = request.EditVersion;
+
+        var result = request.AddNote("  Called, will send mockup Friday.\nAsked for sizes.  ", StaffId, Later);
+
+        result.IsSuccess.ShouldBeTrue();
+        var note = result.Value;
+        request.Notes.ShouldBe([note]);
+        note.Id.ShouldNotBe(Guid.Empty);
+        note.QuoteRequestId.ShouldBe(request.Id);
+        note.Text.ShouldBe("Called, will send mockup Friday.\nAsked for sizes.");
+        note.CreatedById.ShouldBe(StaffId);
+        note.CreatedAtUtc.ShouldBe(Later);
+        request.EditVersion.ShouldNotBe(version);
+        request.Status.ShouldBe(QuoteRequestStatus.New);
+    }
+
+    [Fact]
+    public void NotesOnlyAppend()
+    {
+        var request = Received();
+
+        var first = request.AddNote("First.", StaffId, Now.AddMinutes(1)).Value;
+        var second = request.AddNote("Second.", StaffId, Now.AddMinutes(2)).Value;
+
+        request.Notes.ShouldBe([first, second]);
+        first.Id.ShouldNotBe(second.Id);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\n\t ")]
+    public void AnEmptyNoteIsRefusedAndChangesNothing(string text)
+    {
+        var request = Received();
+        var version = request.EditVersion;
+
+        NoteRefused(request.AddNote(text, StaffId, Later), "Write a note first.");
+        request.Notes.ShouldBeEmpty();
+        request.EditVersion.ShouldBe(version);
+    }
+
+    [Fact]
+    public void ANoteIsLimitedToOneThousandUtf16UnitsAfterTrimming()
+    {
+        var request = Received();
+
+        request.AddNote($"  {new string('a', 1000)}  ", StaffId, Later).IsSuccess.ShouldBeTrue();
+        NoteRefused(request.AddNote(new string('a', 1001), StaffId, Later), "Keep the note to 1,000 characters or fewer.");
+        request.Notes.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void ANoteCanBeAddedInEveryStatus()
+    {
+        foreach (var status in Enum.GetValues<QuoteRequestStatus>().Where(status => status != QuoteRequestStatus.Converted))
+        {
+            At(status).AddNote("Still useful.", StaffId, Later).IsSuccess.ShouldBeTrue(status.ToString());
+        }
+    }
+
+    [Fact]
+    public void AMissingNoteIsAnException()
+    {
+        Should.Throw<ArgumentNullException>(() => Received().AddNote(null!, StaffId, Later));
+    }
+
+    [Fact]
     public void StoredNumbersAreFixed()
     {
         ((byte)QuoteRequestStatus.New).ShouldBe((byte)1);
@@ -467,6 +538,15 @@ public sealed class QuoteRequestTests
         var fields = result.Error.FieldErrors.ShouldNotBeNull();
         fields.Keys.ShouldBe(["status"]);
         fields["status"].ShouldBe([message]);
+    }
+
+    private static void NoteRefused(Result<QuoteRequestNote> result, string message)
+    {
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Code.ShouldBe("quote-requests.validation");
+        var fields = result.Error.FieldErrors.ShouldNotBeNull();
+        fields.Keys.ShouldBe(["text"]);
+        fields["text"].ShouldBe([message]);
     }
 
     private static void Refused(QuoteRequestInput input, string field, string message)
