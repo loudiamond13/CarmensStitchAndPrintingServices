@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-22T23:55:00-06:00
+updated: 2026-11-22T21:25:00-06:00
 ---
 
 # The site content API
@@ -66,6 +66,7 @@ settings. A value that is not set is `null`.
 | `directionsUrl`, `mapEmbedUrl` | The Google Maps links. |
 | `messengerUrl`, `facebookUrl`, `instagramUrl`, `tiktokUrl` | The contact and social links. |
 | `contactEmail` | The shop email, for staff only. It is never sent to a public page. |
+| `quoteAlertsEmail` | The inbox that gets an email for each quote request, for staff only (13 D-07). `null` when not set. It is never sent to a public page. |
 | `phones` | `[{ number, label, isMain }]`, the main number first. `number` is written as people read it, such as `0917 123 4567`. |
 | `sharePicture` | The default link preview picture as `{ src320, src640, width, height }`, or `null` when none is set. See "The link preview picture" below. |
 | `timeZoneId`, `currencyCode`, `locale` | Fixed and read-only: `Asia/Manila`, `PHP`, `en-PH`. They are not part of the save. |
@@ -94,6 +95,7 @@ settings. A value that is not set is `null`.
   "instagramUrl": "https://www.instagram.com/yourpage",
   "tiktokUrl": "https://www.tiktok.com/@yourpage",
   "contactEmail": "name@example.test",
+  "quoteAlertsEmail": "quotes@example.test",
   "phones": [
     { "number": "0917 123 4567", "label": "Globe", "isMain": true },
     { "number": "02 8123 4567", "label": null, "isMain": false }
@@ -102,6 +104,14 @@ settings. A value that is not set is `null`.
 ```
 
 - An empty optional value is stored as not set and is left out of the public site.
+- `quoteAlertsEmail` follows the same rule: a value that is empty, blank or missing from the body clears the saved address. The
+  web form always sends the field (`null` when it is empty), so a form save never clears it by accident. An API caller that
+  leaves it out clears it, as with every other optional value.
+- `quoteAlertsEmail` is set by a Manager only (the save is Manager only). It never appears in `GET /api/v1/public/site`, in
+  `GET /api/v1/public/privacy-contact`, in the public snapshot or in any page head. Tests assert that. An Admin can read it in
+  the staff read above, as with the shop email.
+- A change to it writes the usual `site-settings.changed` audit entry with the field name `quoteAlertsEmail` and no address in
+  the detail. The audit viewer reads it as "Quote alerts email changed".
 - Text is trimmed. Lengths count UTF-16 code units, the same unit as a JavaScript string length.
 - The answer is the settings as saved, in the shape of the read above.
 - Any other member in the body is ignored, including `createdById`, `updatedById`, `createdAtUtc` and `updatedAtUtc`. The server
@@ -129,6 +139,7 @@ keyed `phones`.
 | `instagramUrl` | Optional: https on `instagram.com` or `www.instagram.com`. |
 | `tiktokUrl` | Optional: https on `tiktok.com` or `www.tiktok.com`. |
 | `contactEmail` | Optional, a valid email, at most 254. |
+| `quoteAlertsEmail` | Optional, a valid email, at most 254. Over 254 answers "Keep the email to 254 characters or fewer."; a wrong shape answers "Enter a valid email, like name@gmail.com". The shop email is allowed. |
 | `phones` | 1 to 4 numbers, exactly one main. Each is a Philippine mobile or landline number, not listed twice, with a label of at most 20. |
 
 A link must be https on its exact host, with no sign-in part, no odd port, no space and no square bracket. A `javascript:` or
