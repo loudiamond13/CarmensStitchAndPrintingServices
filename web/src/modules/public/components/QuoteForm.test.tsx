@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
@@ -23,6 +23,12 @@ function renderForm(address = '/contact') {
     </MemoryRouter>
   );
   return render(<QuoteForm />, { wrapper });
+}
+
+/** Shows the address the form sees, so a test can tell it was never rewritten. */
+function AddressProbe() {
+  const { search } = useLocation();
+  return <p>{`Address search: ${search}`}</p>;
 }
 
 async function fillRequired(name = 'Juan Dela Cruz', number = '0917 123 4567') {
@@ -808,5 +814,64 @@ describe('QuoteForm product preselect (Q4, D-24)', () => {
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('line:volleyball');
     });
+  });
+
+  it.each([
+    ['a key that fails the allow-list', '?product=..%2F..%2Fadmin'],
+    ['a 200 character key', `?product=${'a'.repeat(200)}`],
+    ['a safe key for a hidden line', '?product=hidden-line'],
+  ])('ignores %s with no message and leaves the address alone', async (_name, search) => {
+    answerQuote();
+    render(
+      <MemoryRouter initialEntries={[`/contact${search}`]}>
+        <ToastProvider>
+          <QuoteForm />
+          <AddressProbe />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await screen.findByRole('option', { name: 'Basketball Jerseys' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText(`Address search: ${search}`)).toBeInTheDocument();
+  });
+
+  it('keeps Custom design when the visitor chose it before the lines arrived', async () => {
+    answerQuote();
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    server.use(
+      http.get('*/api/v1/public/product-lines', async () => {
+        await gate;
+        return HttpResponse.json(demoLines);
+      }),
+    );
+    renderForm('/contact?product=volleyball');
+    const product = screen.getByRole('combobox', { name: 'Product type' });
+    await userEvent.selectOptions(product, 'Custom design');
+
+    open();
+    await screen.findByRole('option', { name: 'Volleyball Jerseys' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(product).toHaveValue('custom');
+  });
+
+  it('does not choose the line again after Send Another', async () => {
+    answerQuote();
+    renderForm('/contact?product=volleyball');
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('line:volleyball');
+    });
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    await userEvent.click(await screen.findByRole('button', { name: 'Send Another' }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('');
   });
 });
