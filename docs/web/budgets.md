@@ -1,6 +1,6 @@
 # Bundle budgets: what the build measures and what to do when it fails
 
-*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-22T21:40:00-06:00*
+*Created: 2026-10-09T03:15:00-05:00 · Updated: 2026-11-22T23:50:00-06:00*
 
 Every `vite build` measures how much JavaScript and CSS a visitor's phone has to download before the first page appears, and the build **fails** when a number passes its limit (requirement PERF-01, plan 02-33). Nobody has to remember to check: `npm run build`, `npm run build:budget` and `npm run verify` all run the same check, and Phase 3 CI runs the same commands.
 
@@ -225,7 +225,7 @@ The tightest row is Privacy, which carries the cookies and saved settings sectio
 
 ## The quote form piece (Phase 13, plan 13-09, D-35)
 
-The Get a Quote form on `/contact` uses react-hook-form, zod and the resolver, which no public page carries (they are forbidden in every public page's initial JS, see "Rules that fail the build"). So the form is its own lazy piece: `ContactPage` renders `LazyQuoteForm` (`components/lazyQuoteForm.ts`, `lazy(() => import('./QuoteForm'))`) inside a `Suspense` with a placeholder card of the form's height, and the browser fetches the piece right after the page shows. The Contact row still counts only what the page loads first, so it stays at or under 150 KB and no limit was raised.
+The Get a Quote form on `/contact` uses react-hook-form, zod and the resolver, which no public page carries (they are forbidden in every public page's initial JS, see "Rules that fail the build"). So the form is its own lazy piece: `ContactPage` renders `QuoteFormSlot` (`components/QuoteFormSlot.tsx`), which loads the form with `lazy(loadQuoteForm)` (`components/lazyQuoteForm.ts`, `import('./QuoteForm')`) inside a `Suspense` with a placeholder card of the form's height, and the browser fetches the piece right after the page shows. If the piece fails to load, the slot shows a small error with Try Again in the form's place and the rest of the page stays. The Contact row still counts only what the page loads first, so it stays at or under 150 KB and no limit was raised.
 
 The piece has **its own row, "Quote form", at 45 KB** (`BUDGETS.quoteFormJs` and `QUOTE_FORM_CHUNK` in `budget.ts`, tests in `budget.test.ts`). It is the form chunk plus every chunk it imports statically, each counted once, **minus the chunks the Contact route already loads** (the entry, the layout and the shared React chunk), so it is only what the form adds. A build with no chunk for `src/modules/public/components/QuoteForm.tsx` fails, as a route module without a chunk does.
 

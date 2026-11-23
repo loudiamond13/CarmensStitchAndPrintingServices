@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T23:55:00-06:00 · Updated: 2026-11-22T23:55:00-06:00*
+*Created: 2026-11-22T23:55:00-06:00 · Updated: 2026-11-22T23:50:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -75,6 +75,15 @@ The executor added one line the plan did not list: the email-sender entry now sa
 
 - **A (built, recommended):** keep the line.
 - **B:** remove or reword it.
+
+## P13-BL-08 · Should the sign-in and profile email check use the stricter D-42 rule too? (fix 13-REVIEW-FIX-W4, WR-04)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+D-42 named only the shop email and the Quote alerts address, so the fix added a new stricter browser rule (`isContactEmail`) for those two and left the shared `isEmailShaped` rule unchanged. `isEmailShaped` also checks the sign-in and staff profile emails.
+
+- **A (built, recommended):** keep the sign-in and profile check as it is; staff emails are already checked by the server's own rules.
+- **B:** use the stricter rule for the sign-in and profile emails too.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
