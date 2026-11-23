@@ -150,6 +150,14 @@ public sealed class QuoteRequestRetentionJobTests(CspsDatabase database) : IClas
         job.Name.ShouldBe("quote-request-retention");
     }
 
+    [Fact]
+    public void TheQuoteRemovalReasonsKeepTheirStoredNumbers()
+    {
+        ((int)ImageDeletionReason.QuoteSpam).ShouldBe(6);
+        ((int)ImageDeletionReason.QuoteDeleted).ShouldBe(7);
+        ((int)ImageDeletionReason.QuotePurged).ShouldBe(8);
+    }
+
     private static MaintenanceLine Line(MaintenanceJobReport report, string label) => report.Lines.Single(line => line.Label == label);
 
     private QuoteRequestRetentionJob NewJob(CspsDbContext context, FakeTimeProvider clock) =>
