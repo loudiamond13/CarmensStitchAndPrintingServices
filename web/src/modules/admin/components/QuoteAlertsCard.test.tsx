@@ -12,7 +12,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { createDeferred } from '@/test/fakeFetch';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
-import { demoSiteSettings } from '@/test/siteContentFixtures';
+import { demoSiteSettings, problemAnswer } from '@/test/siteContentFixtures';
 
 // R5 Quote alerts card (INQ-04, D-07, OR-3; plan 13-07): the card on its own, in a form made from the Business Info schema.
 
@@ -141,5 +141,94 @@ describe('QuoteAlertsCard', () => {
       expect(keys).toHaveLength(2);
     });
     expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it('waits with its reason while no address is saved, and sends nothing (R5 empty)', async () => {
+    const keys = testSendBackend();
+    const user = userEvent.setup();
+    const { container } = render(<CardInForm address="" />);
+
+    const send = screen.getByRole('button', { name: 'Send Test Email' });
+    expect(send).toHaveAttribute('aria-disabled', 'true');
+    expect(send).toHaveAccessibleDescription('Save an address first, then send a test.');
+    await user.click(send);
+
+    expect(keys).toHaveLength(0);
+    await expectNoAxeViolations(container);
+  });
+
+  it('waits with its reason while the field differs from the saved address (R5 partial)', async () => {
+    const keys = testSendBackend();
+    const user = userEvent.setup();
+    const { container } = render(<CardInForm address="quotes@example.com" />);
+
+    const field = screen.getByLabelText('Quote alerts email');
+    await user.clear(field);
+    await user.type(field, 'new.quotes@example.com');
+
+    const send = screen.getByRole('button', { name: 'Send Test Email' });
+    expect(send).toHaveAttribute('aria-disabled', 'true');
+    expect(send).toHaveAccessibleDescription('Save your change first, then send a test.');
+    await user.click(send);
+    expect(keys).toHaveLength(0);
+    await expectNoAxeViolations(container);
+
+    await user.clear(field);
+    await user.type(field, 'quotes@example.com');
+    expect(screen.getByRole('button', { name: 'Send Test Email' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.queryByText('Save your change first, then send a test.')).not.toBeInTheDocument();
+  });
+
+  it('is enabled with no reason when the field holds the saved address (R5 populated)', async () => {
+    const { container } = render(<CardInForm address="quotes@example.com" />);
+
+    const send = screen.getByRole('button', { name: 'Send Test Email' });
+    expect(send).not.toHaveAttribute('aria-disabled');
+    expect(send).not.toHaveAttribute('aria-describedby');
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows the rate limit toast after a 429 (R5 error)', async () => {
+    testSendBackend(() => problemAnswer(429, { code: 'rate-limited' }));
+    const user = userEvent.setup();
+    const { container } = render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    expect(await screen.findByText('Too many test emails.')).toBeVisible();
+    expect(screen.getByText('Wait a few minutes and try again.')).toBeVisible();
+    expect(screen.queryByText('Test email on its way')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows the send failed toast when the network drops or the server fails (R5 error)', async () => {
+    let calls = 0;
+    testSendBackend(() => {
+      calls += 1;
+      return calls === 1 ? HttpResponse.error() : problemAnswer(500);
+    });
+    const user = userEvent.setup();
+    render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+    expect(await screen.findByText("Couldn't send the test email.")).toBeVisible();
+    expect(screen.getByText('Check your internet connection and try again.')).toBeVisible();
+
+    await user.click(await screen.findByRole('button', { name: 'Send Test Email' }));
+    await vi.waitFor(() => {
+      expect(screen.getAllByText("Couldn't send the test email.")).toHaveLength(2);
+    });
+  });
+
+  it('wraps a long saved address in the success toast (R5 long-text)', async () => {
+    testSendBackend();
+    const long = `${'quote.alerts.for.the.shop'.repeat(8)}@example.com`;
+    const user = userEvent.setup();
+    render(<CardInForm address={long} />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    const message = await screen.findByText(`It should reach ${long} within a few minutes. Check the spam folder too.`);
+    expect(message.closest('.wrap-anywhere')).not.toBeNull();
   });
 });

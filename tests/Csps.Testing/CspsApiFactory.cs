@@ -156,6 +156,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("RateLimits:QuoteCreate:PermitLimit", "100000");
         builder.UseSetting("RateLimits:QuoteCeiling:PermitLimit", "100000");
 
+        // The Quote alerts test email too; RealLimitsFactory restores the real 3 in 10 minutes.
+        builder.UseSetting("RateLimits:QuoteAlertTest:PermitLimit", "100000");
+
         // The quote form's minimum time to submit is off, so a test sends right after it gets its ticket; the bot guard tests set it again.
         builder.UseSetting("QuoteRequests:MinimumSeconds", "0");
 

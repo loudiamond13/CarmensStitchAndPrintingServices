@@ -59,6 +59,7 @@ internal sealed class RealLimitsFactory : CspsApiFactory
 
         builder.UseSetting("RateLimits:QuoteCreate:PermitLimit", "5");
         builder.UseSetting("RateLimits:QuoteCeiling:PermitLimit", "60");
+        builder.UseSetting("RateLimits:QuoteAlertTest:PermitLimit", "3");
 
         if (RemoteIpFromHeader)
         {
