@@ -190,7 +190,9 @@ public sealed class DeleteQuoteRequestTests(CspsDatabase database) : IClassFixtu
     {
         await using var context = database.CreateContext();
         (await context.QuoteRequests.CountAsync(request => request.Id == id, TestContext.Current.CancellationToken)).ShouldBe(1);
-        (await context.AuditLog.CountAsync(audit => audit.Action == "quote-request.deleted", TestContext.Current.CancellationToken)).ShouldBe(0);
+        // The audit log is append-only, so the class database keeps other tests' entries: count this request's only.
+        var target = id.ToString("D");
+        (await context.AuditLog.CountAsync(audit => audit.Action == "quote-request.deleted" && audit.TargetId == target, TestContext.Current.CancellationToken)).ShouldBe(0);
     }
 
     // Fails the delete entry after the photos were queued and the request removed, before the save.

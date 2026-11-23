@@ -15,6 +15,10 @@ public interface IQuoteRequestStore
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);
 
+    /// <summary>Marks a found request for removal; the save removes it with its photo places, notes and history (D-16).</summary>
+    /// <param name="request">The tracked request.</param>
+    void Remove(QuoteRequest request);
+
     /// <summary>
     /// Takes the standing <c>quote-requests</c> lock for the current transaction, so the per-sender count and the insert of a request
     /// cannot run at the same time as another send (D-37). Call it first inside <see cref="IUnitOfWork.InTransactionAsync{T}"/>.

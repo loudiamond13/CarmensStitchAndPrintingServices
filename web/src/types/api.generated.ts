@@ -2304,7 +2304,14 @@ export interface paths {
         get: operations["GetQuoteRequest"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Deletes a quote request for good, Managers only (D-16), for example on a visitor's data-removal request. The `version` query
+         *     parameter is the request's version as the Manager last saw it. The request goes with its photo places, notes and history, and
+         *     each stored photo is queued for the daily maintenance run, which deletes the files. A request that became an order cannot be
+         *     deleted this way (400 `quote-requests.converted-locked`). The audit log records who and when with the status and the photo
+         *     count, never the visitor's details. This cannot be undone.
+         */
+        delete: operations["DeleteQuoteRequest"];
         options?: never;
         head?: never;
         patch?: never;
@@ -14371,6 +14378,77 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteQuoteRequest: {
+        parameters: {
+            query?: {
+                /** @description The version text the Manager last saw; required. */
+                version?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

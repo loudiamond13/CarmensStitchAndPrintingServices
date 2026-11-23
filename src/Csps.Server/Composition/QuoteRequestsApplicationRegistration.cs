@@ -25,6 +25,7 @@ public static class QuoteRequestsApplicationRegistration
         services.AddScoped<ChangeQuoteRequestStatusHandler>();
         services.AddSingleton<IValidator<AddQuoteRequestNoteRequest>, AddQuoteRequestNoteRequestValidator>();
         services.AddScoped<AddQuoteRequestNoteHandler>();
+        services.AddScoped<DeleteQuoteRequestHandler>();
         return services;
     }
 }

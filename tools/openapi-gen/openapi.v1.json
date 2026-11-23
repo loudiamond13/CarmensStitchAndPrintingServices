@@ -20066,6 +20066,91 @@
       }
     },
     "/api/v1/quote-requests/{id}": {
+      "delete": {
+        "operationId": "DeleteQuoteRequest",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version text the Manager last saw; required.",
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a quote request for good, Managers only (D-16), for example on a visitor's data-removal request. The `version` query\nparameter is the request's version as the Manager last saw it. The request goes with its photo places, notes and history, and\neach stored photo is queued for the daily maintenance run, which deletes the files. A request that became an order cannot be\ndeleted this way (400 `quote-requests.converted-locked`). The audit log records who and when with the status and the photo\ncount, never the visitor's details. This cannot be undone.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      },
       "get": {
         "operationId": "GetQuoteRequest",
         "parameters": [
