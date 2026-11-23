@@ -1,5 +1,6 @@
 using Csps.Application.Ports;
 using Csps.Domain.QuoteRequests;
+using Csps.Infrastructure.Common;
 using Csps.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +16,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var matches = context.QuoteRequests.AsNoTracking().Where(request => OpenStatuses.Contains(request.Status));
+        var matches = Filter(context.QuoteRequests.AsNoTracking(), query);
 
         // Command 1: the count over every page. Command 2: the page, newest received first and ending on the id so paging is stable.
         var total = await matches.CountAsync(cancellationToken).ConfigureAwait(false);
@@ -39,6 +40,56 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                 request.Status))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
-        return new QuoteRequestListPage(rows, total);
+
+        // Command 3: the pill counts, one grouped query over the status that ignores the search and the page.
+        var byStatus = await context.QuoteRequests.AsNoTracking()
+            .GroupBy(request => request.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return new QuoteRequestListPage(rows, total, ToCounts(byStatus.ToDictionary(static row => row.Status, static row => row.Count)));
+    }
+
+    private static QuoteRequestCounts ToCounts(Dictionary<QuoteRequestStatus, int> byStatus)
+    {
+        int Of(QuoteRequestStatus status) => byStatus.GetValueOrDefault(status);
+        var open = OpenStatuses.Sum(Of);
+        return new QuoteRequestCounts(
+            open,
+            Of(QuoteRequestStatus.Converted),
+            Of(QuoteRequestStatus.Closed),
+            Of(QuoteRequestStatus.Spam),
+            byStatus.Values.Sum());
+    }
+
+    // The status group and the search. A typed wildcard stays literal (CWE-943). The phone is matched on its digits inside the E.164 text.
+    private static IQueryable<QuoteRequest> Filter(IQueryable<QuoteRequest> requests, QuoteRequestListQuery query)
+    {
+        requests = query.Group switch
+        {
+            QuoteRequestGroup.Converted => requests.Where(request => request.Status == QuoteRequestStatus.Converted),
+            QuoteRequestGroup.Closed => requests.Where(request => request.Status == QuoteRequestStatus.Closed),
+            QuoteRequestGroup.Spam => requests.Where(request => request.Status == QuoteRequestStatus.Spam),
+            QuoteRequestGroup.All => requests,
+            _ => requests.Where(request => OpenStatuses.Contains(request.Status)),
+        };
+
+        if (query.Search is not { } search)
+        {
+            return requests;
+        }
+
+        var pattern = LikePattern.Contains(search);
+        if (query.PhoneDigits is { } digits)
+        {
+            return requests.Where(request =>
+                EF.Functions.Like(request.CustomerName, pattern, LikePattern.EscapeCharacter)
+                || EF.Functions.Like(request.TeamName, pattern, LikePattern.EscapeCharacter)
+                || request.ContactNumberE164.Contains(digits));
+        }
+
+        return requests.Where(request =>
+            EF.Functions.Like(request.CustomerName, pattern, LikePattern.EscapeCharacter)
+            || EF.Functions.Like(request.TeamName, pattern, LikePattern.EscapeCharacter));
     }
 }

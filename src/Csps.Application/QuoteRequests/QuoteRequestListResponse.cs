@@ -30,9 +30,18 @@ public sealed record QuoteRequestListItem(
     bool PhotosRemoved,
     string Status);
 
+/// <summary>The number of requests behind each filter pill, over the whole table: the search and the page do not change them.</summary>
+/// <param name="Open">New, Contacted and Quoted.</param>
+/// <param name="Converted">Converted into an order.</param>
+/// <param name="Closed">Closed with no order.</param>
+/// <param name="Spam">Marked Spam.</param>
+/// <param name="All">Every request.</param>
+public sealed record QuoteRequestCountsResponse(int Open, int Converted, int Closed, int Spam, int All);
+
 /// <summary>One page of the staff inbox (INQ-05).</summary>
 /// <param name="Items">The rows of this page.</param>
-/// <param name="Total">How many requests match, across all pages.</param>
+/// <param name="Total">How many requests match the status and search, across all pages.</param>
 /// <param name="Page">The page number asked for.</param>
 /// <param name="Size">The page size asked for.</param>
-public sealed record QuoteRequestListResponse(IReadOnlyList<QuoteRequestListItem> Items, int Total, int Page, int Size);
+/// <param name="Counts">The count of each filter pill.</param>
+public sealed record QuoteRequestListResponse(IReadOnlyList<QuoteRequestListItem> Items, int Total, int Page, int Size, QuoteRequestCountsResponse Counts);

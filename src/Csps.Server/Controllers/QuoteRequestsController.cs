@@ -19,17 +19,29 @@ namespace Csps.Server.Controllers;
 public sealed class QuoteRequestsController(ListQuoteRequestsHandler list) : ControllerBase
 {
     /// <summary>
-    /// Lists the quote requests that are still open: New, Contacted and Quoted, newest received first. Both roles read every request.
+    /// Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
+    /// New, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search
+    /// and the page do not change. The email and the message are not in the list.
     /// </summary>
+    /// <param name="status"><c>open</c> (the default), <c>converted</c>, <c>closed</c>, <c>spam</c> or <c>all</c>.</param>
+    /// <param name="q">Search text for the name, the team or the digits of the phone number; up to 100 characters.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the page, or 401 without a valid token.</returns>
+    /// <param name="page">The page number, from 1 to 100000.</param>
+    /// <param name="size">Rows per page: 10, 20, 50 or 100; 20 when not sent.</param>
+    /// <returns>200 with the page, 400 for a bad status, search, page or size, or 401 without a valid token.</returns>
     [HttpGet]
     [EndpointName("ListQuoteRequests")]
     [ProducesResponseType<QuoteRequestListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IResult> List(CancellationToken cancellationToken)
+    public async Task<IResult> List(
+        [FromQuery] string? status,
+        [FromQuery] string? q,
+        CancellationToken cancellationToken,
+        [FromQuery] int page = 1,
+        [FromQuery] int size = ListQuoteRequestsRequest.DefaultSize)
     {
-        var result = await list.HandleAsync(cancellationToken).ConfigureAwait(false);
-        return result.ToHttpResult(HttpContext, static page => TypedResults.Ok(page));
+        var result = await list.HandleAsync(new ListQuoteRequestsRequest(status, q, page, size), cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
     }
 }

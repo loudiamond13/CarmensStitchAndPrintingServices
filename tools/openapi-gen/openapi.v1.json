@@ -6576,6 +6576,64 @@
         ],
         "type": "object"
       },
+      "QuoteRequestCountsResponse": {
+        "description": "The number of requests behind each filter pill, over the whole table: the search and the page do not change them.",
+        "properties": {
+          "all": {
+            "description": "Every request.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "closed": {
+            "description": "Closed with no order.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "converted": {
+            "description": "Converted into an order.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "open": {
+            "description": "New, Contacted and Quoted.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "spam": {
+            "description": "Marked Spam.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "open",
+          "converted",
+          "closed",
+          "spam",
+          "all"
+        ],
+        "type": "object"
+      },
       "QuoteRequestListItem": {
         "description": "One request in the staff inbox (INQ-05). It carries no email and no message.",
         "properties": {
@@ -6667,6 +6725,10 @@
       "QuoteRequestListResponse": {
         "description": "One page of the staff inbox (INQ-05).",
         "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/QuoteRequestCountsResponse",
+            "description": "The count of each filter pill."
+          },
           "items": {
             "description": "The rows of this page.",
             "items": {
@@ -6693,7 +6755,7 @@
             ]
           },
           "total": {
-            "description": "How many requests match, across all pages.",
+            "description": "How many requests match the status and search, across all pages.",
             "format": "int32",
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -6706,7 +6768,8 @@
           "items",
           "total",
           "page",
-          "size"
+          "size",
+          "counts"
         ],
         "type": "object"
       },
@@ -19503,6 +19566,52 @@
     "/api/v1/quote-requests": {
       "get": {
         "operationId": "ListQuoteRequests",
+        "parameters": [
+          {
+            "description": "`open` (the default), `converted`, `closed`, `spam` or `all`.",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search text for the name, the team or the digits of the phone number; up to 100 characters.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page: 10, 20, 50 or 100; 20 when not sent.",
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -19513,6 +19622,16 @@
               }
             },
             "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
           },
           "401": {
             "content": {
@@ -19525,7 +19644,7 @@
             "description": "Unauthorized"
           }
         },
-        "summary": "Lists the quote requests that are still open: New, Contacted and Quoted, newest received first. Both roles read every request.",
+        "summary": "Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:\nNew, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search\nand the page do not change. The email and the message are not in the list.",
         "tags": [
           "QuoteRequests"
         ]

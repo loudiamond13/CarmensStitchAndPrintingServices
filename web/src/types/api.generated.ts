@@ -2255,7 +2255,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lists the quote requests that are still open: New, Contacted and Quoted, newest received first. Both roles read every request. */
+        /**
+         * Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
+         *     New, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search
+         *     and the page do not change. The email and the message are not in the list.
+         */
         get: operations["ListQuoteRequests"];
         put?: never;
         post?: never;
@@ -5579,6 +5583,34 @@ export interface components {
              */
             slot: number | string;
         };
+        /** @description The number of requests behind each filter pill, over the whole table: the search and the page do not change them. */
+        QuoteRequestCountsResponse: {
+            /**
+             * Format: int32
+             * @description Every request.
+             */
+            all: number | string;
+            /**
+             * Format: int32
+             * @description Closed with no order.
+             */
+            closed: number | string;
+            /**
+             * Format: int32
+             * @description Converted into an order.
+             */
+            converted: number | string;
+            /**
+             * Format: int32
+             * @description New, Contacted and Quoted.
+             */
+            open: number | string;
+            /**
+             * Format: int32
+             * @description Marked Spam.
+             */
+            spam: number | string;
+        };
         /** @description One request in the staff inbox (INQ-05). It carries no email and no message. */
         QuoteRequestListItem: {
             /** @description The mobile number in its display form, such as `0917 123 4567`. */
@@ -5617,6 +5649,8 @@ export interface components {
         };
         /** @description One page of the staff inbox (INQ-05). */
         QuoteRequestListResponse: {
+            /** @description The count of each filter pill. */
+            counts: components["schemas"]["QuoteRequestCountsResponse"];
             /** @description The rows of this page. */
             items: components["schemas"]["QuoteRequestListItem"][];
             /**
@@ -5631,7 +5665,7 @@ export interface components {
             size: number | string;
             /**
              * Format: int32
-             * @description How many requests match, across all pages.
+             * @description How many requests match the status and search, across all pages.
              */
             total: number | string;
         };
@@ -13955,7 +13989,16 @@ export interface operations {
     };
     ListQuoteRequests: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description `open` (the default), `converted`, `closed`, `spam` or `all`. */
+                status?: string;
+                /** @description Search text for the name, the team or the digits of the phone number; up to 100 characters. */
+                q?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page: 10, 20, 50 or 100; 20 when not sent. */
+                size?: number | string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13969,6 +14012,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuoteRequestListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Unauthorized */
