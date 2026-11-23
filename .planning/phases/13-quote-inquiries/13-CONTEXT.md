@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-22T20:40:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-22T23:40:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -74,6 +74,9 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-38:** **An expired form ticket is answered with a ready replacement ticket.** The `quote-requests.ticket-expired` 400 carries a fresh ticket the server already counts as old enough (back-dated by the minimum time), so the form's one silent resend is never treated as a too-fast bot and the lead is never lost. Fixes review 13-REVIEW-W3 CR-01; plans 13-09 and 13-12 use the ticket from that answer. (owner, 2026-11-22)
 - **D-39:** **Public quote photo uploads get their own upload limit, apart from the staff upload slots.** Visitors can never crowd out staff order and product photo uploads. Fixes review 13-REVIEW-W2 WR-01. (owner, 2026-11-22)
 - **D-40:** **A form ticket stays reusable for its lifetime; the rate limits are the real guard.** No one-use tracking. The docs are corrected so they do not present the ticket as stronger than it is. Settles review 13-REVIEW-W3 WR-02. (owner, 2026-11-22)
+- **D-41:** **The form ticket answer carries the minimum seconds, and the form waits that long.** The form never hard-codes the server's `QuoteRequests:MinimumSeconds`, so raising the setting can never make real sends vanish. The replacement ticket (D-38) follows the same value. Fixes review 13-REVIEW-W4 WR-03. (owner, 2026-11-22)
+- **D-42:** **One stricter email rule for the shop email and the Quote alerts address:** no spaces, line breaks or control characters, a dotted domain, and none of `, ; < > ( ) "`. The server rule and the zod rule match. A saved shop email that fails is flagged only when it is next saved; nothing changes stored data. Fixes review 13-REVIEW-W4 WR-04. (owner, 2026-11-22)
+- **D-43:** **The photo picker loads as its own piece the first time a visitor taps to add photos**, so the quote form stays inside its 45 KB budget (D-35, no raise). Applies to plan 13-12. (owner, 2026-11-22)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
