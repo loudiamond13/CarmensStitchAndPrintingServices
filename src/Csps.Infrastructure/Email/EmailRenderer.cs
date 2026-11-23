@@ -58,6 +58,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
             ManagerEmailChangedEmail changed => ManagerEmailChanged(changed, clock.Zone),
             ManagerResetLinkEmail link => ManagerResetLink(link),
+            QuoteAlertEmail alert => QuoteAlert(alert),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -119,6 +120,19 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new ParagraphBlock($"Didn't expect this? Ask {email.ManagerName} or another Manager."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
+
+    private EmailContent QuoteAlert(QuoteAlertEmail email) =>
+        new(
+            Subject: $"New quote request from {email.CustomerName}",
+            Preheader: $"{email.CustomerName} sent a quote request.",
+            Heading: "New quote request",
+            Blocks:
+            [
+                new ParagraphBlock("A visitor sent a quote request on the website."),
+                new ParagraphBlock($"Name: {email.CustomerName}"),
+                new ParagraphBlock($"Photos: {email.PhotoCount.ToString(CultureInfo.InvariantCulture)}"),
+            ],
+            Button: new EmailButton("Open in admin", links.Value.QuoteRequestLink(email.RequestId)));
 
     private EmailContent Changed(PasswordChangedEmail email, TimeZoneInfo zone)
     {
