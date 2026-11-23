@@ -46,7 +46,7 @@ export const PUBLIC_COPY = {
     products:
       'See our product lines, starting prices and everything you can customize, from fabric to names and numbers.',
     gallery: 'Photos of real team orders from leagues, schools, riding clubs and offices.',
-    contact: 'Message us on Messenger or call the shop. See our hours, address and map.',
+    contact: 'Ask for a quote, message us on Messenger or call the shop. See our hours, address and map.',
     notFound: "This page couldn't be found.",
   },
   crumbs: { label: 'Breadcrumb', home: 'Home', products: 'Products', gallery: 'Gallery', contact: 'Contact' },
@@ -222,20 +222,13 @@ export const PUBLIC_COPY = {
   contact: {
     eyebrow: 'Get a quote',
     headline: { plain: "Let's build", accent: 'your kit.' },
-    // SPEC-GAP (D-18): the lead until the inquiry form returns in Phase 13.
-    lead: "Tell us about your team and what you need. Message us on Messenger or call the shop, and we'll reply with a mockup and price, usually the same day.",
+    // App. E.4's lead; its long dash is a comma (OR-4).
+    lead: 'Tell us about your team and what you need. We reply with a mockup and price, usually the same day. Faster? Message us on Messenger.',
+    // The two big buttons of the aside.
     now: {
-      title: 'Message us',
-      intro: 'The fastest way to get a mockup and a price.',
       messenger: 'Message us on Messenger',
       messengerNote: 'Fastest reply · send photos of your design',
       call: (phone: string) => `Call ${phone}`,
-      whatToSend: 'What to send',
-      sendItems: [
-        'Your team or group name',
-        'What you need and about how many pieces',
-        'Your design, logo or a rough idea. A phone photo is fine.',
-      ],
     },
     phones: {
       title: 'Call or text',

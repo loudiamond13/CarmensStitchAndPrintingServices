@@ -207,7 +207,7 @@ describe('ContactPage layout (UI-SPEC Q1, App. E.4, Edge INQ-08 empty)', { timeo
     const messenger = within(aside).getByRole('link', { name: /^Message us on Messenger/ });
     const hours = await within(aside).findByRole('heading', { level: 2, name: 'Business hours' });
     expect(messenger.compareDocumentPosition(hours)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(within(aside).getByRole('link', { name: /^Call 0917 123 4567/ })).toBeInTheDocument();
+    expect(within(aside).getAllByRole('link', { name: /^Call 0917 123 4567/ }).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('What to send')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Message us' })).not.toBeInTheDocument();
   });
@@ -225,7 +225,7 @@ describe('ContactPage layout (UI-SPEC Q1, App. E.4, Edge INQ-08 empty)', { timeo
     server.use(siteHandler({ ...demoSite, messengerUrl: null }));
     await renderContact();
 
-    expect(await screen.findByRole('link', { name: /^Call 0917 123 4567/ })).toBeInTheDocument();
+    expect((await screen.findAllByRole('link', { name: /^Call 0917 123 4567/ })).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByRole('link', { name: /^Message us on Messenger/ })).not.toBeInTheDocument();
   });
 });

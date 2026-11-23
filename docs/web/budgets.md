@@ -234,12 +234,23 @@ Two things to know when the form grows:
 - **A shared chunk counts whole.** zod's classic API and the admin forms share one chunk with zod's core; the form pulls that chunk in full even though it uses a few checks. The form therefore uses `zod/mini` (the same package, named imports, no new package): the classic-only part stays in the admin chunks and the form loads only the core (about 14.7 KB gzip) instead of the whole classic bundle (about 23.7 KB). With the classic API the first, two-field version of the form measured 49.36 KB; with `zod/mini` it measured 40.61 KB.
 - **react-hook-form is about 14 KB gzip** of the row and cannot be split.
 
-Figures from `npm run build:budget` (gzip -9, 1 KB = 1000 B):
+Figures from `npm run build:budget` (gzip -9, 1 KB = 1000 B), at the end of plan 13-09 (the complete text form, no photo picker yet):
 
-| Measure | Plan 13-09, task 1 (two fields) | Limit |
-|---|---|---|
-| Contact | 146.60 KB | 150 KB |
-| Quote form | 40.61 KB | 45 KB |
+| Measure | Size | Limit | Room |
+|---|---|---|---|
+| Home | 146.20 KB | 150 KB | 3.80 KB |
+| Products | 143.11 KB | 150 KB | 6.89 KB |
+| Gallery | 144.25 KB | 150 KB | 5.75 KB |
+| Contact | 147.20 KB | 150 KB | 2.80 KB |
+| Privacy | 148.97 KB | 150 KB | 1.03 KB |
+| Terms | 147.19 KB | 150 KB | 2.81 KB |
+| Accessibility | 146.74 KB | 150 KB | 3.26 KB |
+| Not found | 138.98 KB | 150 KB | 11.02 KB |
+| Admin JS | 223.15 KB | 250 KB | 26.85 KB |
+| CSS | 20.48 KB | 35 KB | 14.52 KB |
+| **Quote form** | **43.89 KB** | **45 KB** | **1.11 KB** |
+
+Watch two rows. **Quote form has 1.11 KB left**, and the photo picker (plan 13-12) joins the form's piece, so it will need to save size somewhere (for example by loading the picker as its own lazy piece after the first photo is chosen) or the owner has to rule on the limit; no limit was raised here. **Privacy has 1.03 KB left**: the form's strings sit in `copy.ts`, which every public page loads, and added about 0.7 KB to each public row; the header's "Get a Quote" handler is a few bytes in the layout (`quoteFormEvent.ts`), and the scroll and focus code ships with the Contact page only (`quoteFormTarget.ts`).
 
 ## Lighthouse first visit with the consent bar (Phase 12, plan 12-24)
 

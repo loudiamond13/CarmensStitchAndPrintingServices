@@ -54,9 +54,12 @@ export const quoteFormStatusClasses = tw('flex flex-col gap-3');
 /** The send-failed box text: Small, ink. */
 export const quoteFormStatusTextClasses = tw('m-0 text-14 leading-5 text-ink');
 
-/** The card shown while the form piece loads: the form card's look and its height, so nothing shifts when the form appears (D-35). */
+/**
+ * The card shown while the form piece loads: the form card's look and its height, so nothing shifts when the form appears (D-35).
+ * Measured with the text form: 696px at 1440px wide, and 1036px at 320px wide (one column; a wider phone is a little shorter, so 1000px).
+ */
 export const quoteFormPlaceholderClasses = tw(
-  'flex min-h-[330px] flex-col gap-6 rounded-lg border border-line bg-surface p-8 pg-phone:min-h-[320px] pg-phone:rounded-md pg-phone:p-5',
+  'flex min-h-[696px] flex-col gap-6 rounded-lg border border-line bg-surface p-8 pg-phone:min-h-[1000px] pg-phone:rounded-md pg-phone:p-5',
 );
 
 /** The Message box spans both columns (one at 767px and below) and grows with the text up to 12 lines, then scrolls inside. */
