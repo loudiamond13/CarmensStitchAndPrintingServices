@@ -84,6 +84,8 @@ export interface PhotoTileProps {
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onDropOn: (id: string) => void;
+  /** False for a list with no cover (quote request photos): photo 1 then has no Cover mark. */
+  hasCover?: boolean | undefined;
 }
 
 export function PhotoTile({
@@ -103,10 +105,11 @@ export function PhotoTile({
   onDragStart,
   onDragEnd,
   onDropOn,
+  hasCover = true,
 }: PhotoTileProps) {
   const holdsPosition = photo.state === 'saved' || photo.state === 'draft';
   const saved = photo.state === 'saved';
-  const cover = holdsPosition && position === 1;
+  const cover = hasCover && holdsPosition && position === 1;
   const fileName = photo.fileName ?? photo.description;
   const thumbName = COPY.open(position, total, photo.description);
 

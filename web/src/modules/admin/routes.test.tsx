@@ -1,6 +1,6 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createBrowserRouter, createMemoryRouter as createRouter, type RouteObject } from 'react-router';
@@ -608,6 +608,36 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
       expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
       expect(backend.lists.at(-1)?.searchParams.get('status')).toBe('spam');
       expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('juan');
+    } finally {
+      router.dispose();
+      window.history.replaceState(null, '', '/');
+    }
+  }, 30_000);
+
+  it("the request page's back link returns to the inbox view the user left (UI-SPEC R2)", async () => {
+    answerRefresh(sessionResponse());
+    quoteRequestsBackend(quoteRequestList([quoteRequestItem(undefined, { status: 'spam' })], { counts: QUOTE_COUNTS }));
+    quoteRequestBackend(quoteRequestDetail(undefined, { status: 'spam' }));
+    window.history.replaceState(null, '', '/admin/quote-requests?status=spam&q=juan');
+    const router = createBrowserRouter(routes, { patchRoutesOnNavigation: discoverRoutes });
+    try {
+      render(<RouterProvider router={router} />);
+      const user = userEvent.setup();
+
+      await user.click(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 }));
+      await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' }, { timeout: 10_000 });
+      const back = within(screen.getByRole('main')).getByRole('link', { name: 'Quote Requests' });
+      expect(back).toHaveAttribute('href', '/admin/quote-requests?status=spam&q=juan');
+      await user.click(back);
+
+      await waitFor(() => {
+        expect(window.location.pathname).toBe('/admin/quote-requests');
+      });
+      expect(window.location.search).toBe('?status=spam&q=juan');
+      expect(router.state.historyAction).toBe('POP');
+      expect(await screen.findByRole('searchbox', { name: 'Search requests' }, { timeout: 10_000 })).toHaveValue(
+        'juan',
+      );
     } finally {
       router.dispose();
       window.history.replaceState(null, '', '/');

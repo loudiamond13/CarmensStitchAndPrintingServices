@@ -2,6 +2,7 @@
 // Pieces, Photos and Status; cards below 768px with the name as the card title. The whole row is not a link: the name link
 // is the one way in. Every value is React text (T-13-43).
 import type { ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
@@ -54,9 +55,21 @@ function receivedCell(item: QuoteRequestListItem): ReactNode {
 }
 
 function NameCell({ item }: { item: QuoteRequestListItem }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const to = `/admin/quote-requests/${encodeURIComponent(item.id)}`;
   return (
     <div className={quoteWhoClasses}>
-      <UiLink to={`/admin/quote-requests/${encodeURIComponent(item.id)}`} className={quoteNameLinkClasses}>
+      <UiLink
+        to={to}
+        className={quoteNameLinkClasses}
+        onClick={(event) => {
+          // A plain click remembers this inbox view, so the request page's Back can return to it (UI-SPEC R2).
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          void navigate(to, { state: { from: `${location.pathname}${location.search}` } });
+        }}
+      >
         {item.customerName}
       </UiLink>
       {item.teamName !== null && item.teamName !== '' && <span className={quoteTeamClasses}>{item.teamName}</span>}

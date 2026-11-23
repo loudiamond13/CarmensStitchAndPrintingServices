@@ -71,3 +71,34 @@ export const QUOTE_REQUESTS_COPY = {
   /** The hidden polite line when a refresh brings new requests: "1 new quote request." */
   arrived: (count: number): string => `${formatCount(count)} new ${count === 1 ? 'quote request' : 'quote requests'}.`,
 } as const;
+
+// SPEC-GAP: quote request page copy (UI-SPEC R2 and Copywriting "R2 head" to "Not found").
+export const QUOTE_REQUEST_COPY = {
+  /** Shown as "Quote Request · CSPS Admin": the visitor's name never reaches the title (CWE-598). */
+  documentTitle: 'Quote Request',
+  /** The loading noun: "Loading the quote request…". */
+  loadingThing: 'the quote request',
+  back: 'Quote Requests',
+  received: (when: string): string => `Received ${when} from the website`,
+  details: {
+    title: 'Request',
+    team: 'Team / organization',
+    phone: 'Contact number',
+    email: 'Email',
+    product: 'Product type',
+    quantity: 'Quantity (estimate)',
+    message: 'Message',
+  },
+  photos: {
+    title: 'Photos',
+    /** The name of the tile list and the viewer. */
+    listName: 'Request photos',
+    /** After the count chip, visually hidden: "3 photos". */
+    countHidden: (count: number): string => (count === 1 ? 'photo' : 'photos'),
+  },
+  history: {
+    title: 'History',
+    separator: ' · ',
+    received: 'Received from the website',
+  },
+} as const;

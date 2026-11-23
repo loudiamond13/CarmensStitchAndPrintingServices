@@ -1,4 +1,4 @@
-// Staff inbox calls (INQ-05, D-14, D-18, OR-5). Types come from the generated OpenAPI types.
+// Staff inbox and request calls (INQ-05, D-14, D-15, D-18, OR-5). Types come from the generated OpenAPI types.
 import { apiClient, type HttpClient } from '@/core/api/apiClient';
 import type { components } from '@/types/api.generated';
 
@@ -8,6 +8,9 @@ export type QuoteRequestListResponse = Schemas['QuoteRequestListResponse'];
 export type QuoteRequestListItem = Schemas['QuoteRequestListItem'];
 export type QuoteRequestCounts = Schemas['QuoteRequestCountsResponse'];
 export type NewQuoteCountResponse = Schemas['NewQuoteCountResponse'];
+export type QuoteRequestDetailResponse = Schemas['QuoteRequestDetailResponse'];
+export type QuoteRequestPhoto = Schemas['QuoteRequestPhotoResponse'];
+export type QuoteRequestStatusChange = Schemas['QuoteRequestStatusChangeResponse'];
 
 /** The status groups of the inbox pills; `open` is New, Contacted and Quoted (D-18). */
 export const QUOTE_STATUS_FILTERS = ['open', 'converted', 'closed', 'spam', 'all'] as const;
@@ -25,6 +28,8 @@ export interface QuoteRequestsService {
   list(query: QuoteRequestsListQuery, signal?: AbortSignal): Promise<QuoteRequestListResponse>;
   /** `GET /api/v1/quote-requests/new-count`: how many requests are at status New, the same for every staff member (D-14). */
   newCount(signal?: AbortSignal): Promise<NewQuoteCountResponse>;
+  /** `GET /api/v1/quote-requests/{id}`: one request in full, with its photo addresses, history and version (D-13, D-36). */
+  get(id: string, signal?: AbortSignal): Promise<QuoteRequestDetailResponse>;
 }
 
 export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
@@ -35,6 +40,8 @@ export function createQuoteRequestsService(client: HttpClient): QuoteRequestsSer
         signal,
       }),
     newCount: (signal) => client.get<NewQuoteCountResponse>('/quote-requests/new-count', { signal }),
+    get: (id, signal) =>
+      client.get<QuoteRequestDetailResponse>(`/quote-requests/${encodeURIComponent(id)}`, { signal }),
   };
 }
 

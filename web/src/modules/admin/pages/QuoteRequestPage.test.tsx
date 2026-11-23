@@ -123,7 +123,7 @@ describe('the populated request (INQ-05, UI-SPEC R2)', () => {
     ]);
     expect(within(card).queryByText('Cover')).toBeNull();
 
-    await user.click(tiles[1] as HTMLElement);
+    await user.click(within(card).getByRole('button', { name: 'Open photo 2 of 3: back.jpg' }));
     const viewer = await screen.findByRole('dialog');
     expect(within(viewer).getByRole('link', { name: /Open Full Size/ })).toHaveAttribute(
       'href',
