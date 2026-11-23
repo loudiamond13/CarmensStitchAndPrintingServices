@@ -21,6 +21,7 @@ import {
   quoteFormNoticeClasses,
   quotePhotoSlotClasses,
   quoteFormSendClasses,
+  quoteFormLiveClasses,
   quoteFormStatusClasses,
   quoteFormStatusTextClasses,
 } from './quoteForm.recipe';
@@ -463,11 +464,10 @@ export function QuoteForm() {
         </Button>
       </div>
       <div className={quoteFormStatusClasses}>
-        {pending && photos.length > 0 && (
-          <p role="status" className={quoteFormStatusTextClasses}>
-            {COPY.sendingPhotos}
-          </p>
-        )}
+        {/* Always present, so a screen reader announces the text when it changes (WCAG 4.1.3). */}
+        <p role="status" className={quoteFormLiveClasses}>
+          {pending && photos.length > 0 && COPY.sendingPhotos}
+        </p>
         {sendStatus()}
       </div>
     </form>

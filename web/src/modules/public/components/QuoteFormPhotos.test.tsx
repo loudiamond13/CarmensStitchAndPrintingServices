@@ -259,6 +259,32 @@ describe('QuoteForm while it sends (Q3 loading)', () => {
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
   });
 
+  it('keeps the polite status region in place before the send and only changes its text (WCAG 4.1.3)', async () => {
+    answerQuote();
+    const { gates } = holdUploads();
+    const { container } = renderForm();
+    await pickPhotos(container, [pngFile('logo.png')]);
+    await fillRequired();
+    const region = container.querySelector('form [role="status"]');
+    expect(region).not.toBeNull();
+    expect(region).toHaveTextContent('');
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await waitFor(() => {
+      expect(region).toHaveTextContent('Sending your photos. This can take a minute on mobile data.');
+    });
+    expect(region?.isConnected).toBe(true);
+    await waitFor(() => {
+      expect(gates).toHaveLength(1);
+    });
+    await act(async () => {
+      gates[0]?.finish();
+      await Promise.resolve();
+    });
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+  });
+
   it('shows no photo line for a text-only send', async () => {
     answerQuote({ minimumSeconds: 1 });
     renderForm();

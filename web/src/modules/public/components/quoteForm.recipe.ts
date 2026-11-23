@@ -54,6 +54,9 @@ export const quoteFormStatusClasses = tw('flex flex-col gap-3');
 /** The send-failed box text: Small, ink. */
 export const quoteFormStatusTextClasses = tw('m-0 text-14 leading-5 text-ink');
 
+/** The polite photo line: the same text, and while it is empty it takes no room in the column (no gap above the box). */
+export const quoteFormLiveClasses = tw('m-0 text-14 leading-5 text-ink empty:-mb-3');
+
 /**
  * The card shown while the form piece loads: the form card's look and its height, so nothing shifts when the form appears (D-35).
  * Measured with the text form: 696px at 1440px wide, and 1036px at 320px wide (one column; a wider phone is a little shorter, so 1000px).
