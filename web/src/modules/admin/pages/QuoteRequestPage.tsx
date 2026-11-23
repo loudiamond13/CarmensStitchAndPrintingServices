@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { ButtonLink, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
-import { Skeleton } from '@/components/feedback';
+import { Skeleton, useToast } from '@/components/feedback';
 import {
   loginBackClasses,
   pageHeadClasses,
@@ -49,6 +49,7 @@ import type {
   QuoteRequestDetailResponse,
   QuoteRequestStatusChanged,
 } from '@/modules/admin/services/quoteRequestsService';
+import { describeHttpError } from '@/utils/describeHttpError';
 import { formatBusinessDateTime } from '@/utils/format';
 
 const COPY = QUOTE_REQUEST_COPY;
@@ -180,6 +181,7 @@ export default function QuoteRequestPage() {
   const { id = '' } = useParams();
   const query = useQuoteRequestQuery(id);
   const queryClient = useQueryClient();
+  const toast = useToast();
   // Each 409 shows the banner again (a new key), so it is announced and takes focus.
   const [conflicts, setConflicts] = useState(0);
   const [loadingLatest, setLoadingLatest] = useState(false);
@@ -210,10 +212,18 @@ export default function QuoteRequestPage() {
     setLoadingLatest(true);
     const result = await query.refetch();
     setLoadingLatest(false);
-    if (!result.isError) {
-      focusHeading.current = true;
-      setConflicts(0);
+    if (result.isError) {
+      if (isHttpError(result.error) && result.error.status === 404) {
+        // Gone: the page drops it and shows the not-found state, which takes focus.
+        void queryClient.resetQueries({ queryKey: quoteRequestKey(id) });
+        return;
+      }
+      const copy = describeHttpError(result.error);
+      if (copy !== null) toast.show({ tone: 'danger', title: copy.title, message: copy.body });
+      return;
     }
+    focusHeading.current = true;
+    setConflicts(0);
   };
 
   const validId = isQuoteRequestId(id);

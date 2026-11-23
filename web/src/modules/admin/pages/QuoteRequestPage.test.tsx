@@ -301,6 +301,45 @@ describe('Change Status on the page (D-15, D-14)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toHaveFocus();
   });
 
+  it('keeps the banner and focus on Load Latest and shows a danger toast when Load Latest fails', async () => {
+    quoteRequestBackend(
+      (read) => (read === 1 ? quoteRequestDetail(ID) : quoteProblem(500)),
+      () => quoteProblem(409, { code: 'quote-requests.conflict' }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
+    const loadLatest = await screen.findByRole('button', { name: 'Load Latest' });
+    await user.click(loadLatest);
+
+    expect(await screen.findByText('Something went wrong')).toBeVisible();
+    expect(screen.getByText('Please try again.')).toBeVisible();
+    expect(screen.getByText('Someone else changed this request.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+    expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toBeVisible();
+  });
+
+  it('shows not found, focused, when Load Latest finds the request gone', async () => {
+    quoteRequestBackend(
+      (read) => (read === 1 ? quoteRequestDetail(ID) : quoteProblem(404, { code: 'quote-requests.not-found' })),
+      () => quoteProblem(409, { code: 'quote-requests.conflict' }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
+    await user.click(await screen.findByRole('button', { name: 'Load Latest' }));
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Quote request not found' });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+  });
+
   it('shows the ConflictBanner after the Spam confirm closes on a 409, with focus on Load Latest', async () => {
     quoteRequestBackend(quoteRequestDetail(ID), () => quoteProblem(409, { code: 'quote-requests.conflict' }));
     renderPage();
