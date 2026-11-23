@@ -228,6 +228,7 @@ test('@quote Get a Quote on a product line preselects it', async ({ page, reques
 
     await expect(page).toHaveURL(/\/contact\?product=basketball$/);
     await expect(page.getByRole('combobox', { name: 'Product type' })).toHaveValue('line:basketball');
-    expect(views.join(' ')).not.toContain('product');
+    await expect.poll(() => views).toContain('{"path":"/contact"}');
+    expect(views.join(' ')).not.toContain('?');
   });
 });

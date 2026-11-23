@@ -85,7 +85,10 @@ export function ProductArticle({ line, index, total }: ProductArticleProps) {
         </div>
         <PriceLine price={line.startsAtPrice} minimum={line.minimumQuantity} />
         <div className={articleButtonsClasses}>
-          <UiLink to="/contact" className={aBtnPrimaryClasses}>
+          <UiLink
+            to={safeKey === undefined ? '/contact' : `/contact?product=${safeKey}`}
+            className={aBtnPrimaryClasses}
+          >
             {PUBLIC_COPY.actions.getQuote}
             <Icon name="arrow-right" size={20} />
           </UiLink>
