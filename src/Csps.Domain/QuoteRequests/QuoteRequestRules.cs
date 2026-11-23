@@ -51,6 +51,21 @@ public static class QuoteRequestRules
     /// <summary>The text above the field errors.</summary>
     public const string InvalidMessage = "Check the highlighted fields.";
 
+    /// <summary>The field name of the status in a status change.</summary>
+    public const string StatusField = "status";
+
+    /// <summary>The message for a status staff may not set by hand: Converted or a number that is not a status.</summary>
+    public const string StatusInvalid = "Choose a status.";
+
+    /// <summary>The message for a move to the status the request already has; <c>{0}</c> is the status name.</summary>
+    public const string StatusAlreadyFormat = "This request is already {0}.";
+
+    /// <summary>The machine code of a status change on a request that became an order (D-15).</summary>
+    public const string ConvertedLockedCode = "quote-requests.converted-locked";
+
+    /// <summary>The plain-English text of that 400.</summary>
+    public const string ConvertedLockedMessage = "A request that became an order can't change status.";
+
     /// <summary>The field name of the visitor name.</summary>
     public const string CustomerNameField = "customerName";
 

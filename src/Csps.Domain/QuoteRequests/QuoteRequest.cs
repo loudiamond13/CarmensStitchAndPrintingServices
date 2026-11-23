@@ -154,13 +154,45 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         return Result.Success();
     }
 
-    /// <summary>Moves the request to another status by hand (D-15).</summary>
+    /// <summary>
+    /// Moves the request to another status by hand (D-15). Moves among New, Contacted, Quoted, Closed and Spam are free in any direction.
+    /// Converted is set only by turning the request into an order, and a Converted request keeps its status. Each move adds a history
+    /// row with who and when and gives the request a new edit version, so the save stamps who last changed it.
+    /// </summary>
     /// <param name="to">The new status.</param>
     /// <param name="by">The staff member who moved it.</param>
     /// <param name="now">The current instant.</param>
-    /// <returns>The storage ids of the photos to queue for removal.</returns>
-    public Result<IReadOnlyList<string>> ChangeStatus(QuoteRequestStatus to, Guid by, DateTimeOffset now) =>
-        Status == to && by == Guid.Empty && now == default ? Result.Success<IReadOnlyList<string>>([]) : Result.Success<IReadOnlyList<string>>([]);
+    /// <returns>The storage ids of the photos to queue for removal, or a 400 on <c>status</c>; nothing changes on a failure.</returns>
+    public Result<IReadOnlyList<string>> ChangeStatus(QuoteRequestStatus to, Guid by, DateTimeOffset now)
+    {
+        if (Status == QuoteRequestStatus.Converted)
+        {
+            return Result.Failure<IReadOnlyList<string>>(Error.Validation(
+                QuoteRequestRules.ConvertedLockedCode,
+                QuoteRequestRules.ConvertedLockedMessage,
+                new Dictionary<string, string[]> { [QuoteRequestRules.StatusField] = [QuoteRequestRules.ConvertedLockedMessage] }));
+        }
+
+        if (to == QuoteRequestStatus.Converted || !Enum.IsDefined(to))
+        {
+            return QuoteRequestRules.Reject<IReadOnlyList<string>>(QuoteRequestRules.StatusField, QuoteRequestRules.StatusInvalid);
+        }
+
+        if (to == Status)
+        {
+            var key = QuoteRequestStatusNames.ToKey(to);
+            var name = string.Concat(char.ToUpperInvariant(key[0]).ToString(), key[1..]);
+            return QuoteRequestRules.Reject<IReadOnlyList<string>>(
+                QuoteRequestRules.StatusField,
+                QuoteRequestRules.StatusAlreadyFormat.Replace("{0}", name, StringComparison.Ordinal));
+        }
+
+        _statusChanges.Add(new QuoteRequestStatusChange(Guid.CreateVersion7(now), Id, Status, to, by, now));
+        Status = to;
+        StatusChangedAtUtc = now;
+        EditVersion = Guid.CreateVersion7(now);
+        return Result.Success<IReadOnlyList<string>>([]);
+    }
 
     /// <summary>Makes a new request at status New, checking every field rule again so no caller can skip one.</summary>
     /// <param name="id">The new id, a version 7 id.</param>

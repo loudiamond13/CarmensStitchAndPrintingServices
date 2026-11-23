@@ -1,3 +1,4 @@
+using Csps.Application.Common;
 using Csps.Application.Images;
 using Csps.Domain.Common;
 using Csps.Domain.QuoteRequests;
@@ -24,6 +25,15 @@ public static class QuoteRequestErrors
 
     /// <summary>The plain-English text for a request that does not exist.</summary>
     public const string NotFoundMessage = "This quote request was not found.";
+
+    /// <summary>The code of a status change sent with an out-of-date row version.</summary>
+    public const string ConflictCode = "quote-requests.conflict";
+
+    /// <summary>The code of a status change on a request that became an order (D-15).</summary>
+    public const string ConvertedLockedCode = QuoteRequestRules.ConvertedLockedCode;
+
+    /// <summary>Gets the 409 for a change made from an out-of-date copy of the request.</summary>
+    public static Error Conflict { get; } = Error.Conflict(ConflictCode, EditErrors.StaleMessage);
 
     /// <summary>The code of a photo upload that is not allowed: wrong key, wrong id, expired key, filled or unknown place, or a spam request.</summary>
     public const string PhotoNotFoundCode = "quote-requests.photo-not-found";

@@ -225,6 +225,9 @@ public static class AuditActions
     /// <summary>A Manager sent a test email to the Quote alerts address (D-11). No detail: the address is never written (CWE-532).</summary>
     public const string QuoteAlertsTestSent = "quote-alerts.test-sent";
 
+    /// <summary>Staff moved a quote request to another status (D-15). The detail holds the old and new status only, never customer details.</summary>
+    public const string QuoteRequestStatusChanged = "quote-request.status-changed";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -654,5 +657,6 @@ public static class AuditActions
         GalleryItemMoved,
         SharePictureChanged,
         QuoteAlertsTestSent,
+        QuoteRequestStatusChanged,
     ];
 }

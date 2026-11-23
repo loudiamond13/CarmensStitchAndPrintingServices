@@ -2310,6 +2310,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a quote request to another status, for both roles. The body is `{ "status": "...", "version": "..." }` with one of new,
+         *     contacted, quoted, closed or spam, and the row version the page was opened with. Moves among those five are free in any
+         *     direction. Converted is set only by turning the request into an order: it is refused as a target (400
+         *     `quote-requests.validation`), and a Converted request cannot change status by hand (400
+         *     `quote-requests.converted-locked`). A move to the status the request already has is a 400. Every move is recorded in the
+         *     history with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New
+         *     count for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the
+         *     daily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is
+         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored answer.
+         */
+        post: operations["ChangeQuoteRequestStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -3273,6 +3300,16 @@ export interface components {
             currentPassword: null | string;
             /** @description The new password as typed. */
             newPassword: null | string;
+        };
+        /**
+         * @description The Change Status action on a quote request (D-15). Any other member in the body, such as a forged `updatedById`, is ignored:
+         *     who moved the request and when come from the token and the clock (SEC-08).
+         */
+        ChangeQuoteRequestStatusRequest: {
+            /** @description The status key: new, contacted, quoted, closed or spam. Converted is set only by turning the request into an order. */
+            status: null | string;
+            /** @description The base64 of the eight-byte row version the page was opened with. */
+            version: null | string;
         };
         /** @description One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04). */
         CompanyExpenseDetailResponse: {
@@ -14263,6 +14300,72 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeQuoteRequestStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+                "application/json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+                "text/json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -707,6 +707,30 @@
         ],
         "type": "object"
       },
+      "ChangeQuoteRequestStatusRequest": {
+        "description": "The Change Status action on a quote request (D-15). Any other member in the body, such as a forged `updatedById`, is ignored:\nwho moved the request and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "status": {
+            "description": "The status key: new, contacted, quoted, closed or spam. Converted is set only by turning the request into an order.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The base64 of the eight-byte row version the page was opened with.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "version"
+        ],
+        "type": "object"
+      },
       "CompanyExpenseDetailResponse": {
         "description": "One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04).",
         "properties": {
@@ -19998,6 +20022,120 @@
           }
         },
         "summary": "Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer\nand the 2000 px \"Open Full Size\"), the names of the photos that never arrived, when the photos were removed for Spam, the status\nhistory newest first ending with the arrival, who last changed it, and the row version a status change must send back.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/{id}/status": {
+      "post": {
+        "operationId": "ChangeQuoteRequestStatus",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeQuoteRequestStatusRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeQuoteRequestStatusRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChangeQuoteRequestStatusRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteRequestDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Moves a quote request to another status, for both roles. The body is `{ \"status\": \"...\", \"version\": \"...\" }` with one of new,\ncontacted, quoted, closed or spam, and the row version the page was opened with. Moves among those five are free in any\ndirection. Converted is set only by turning the request into an order: it is refused as a target (400\n`quote-requests.validation`), and a Converted request cannot change status by hand (400\n`quote-requests.converted-locked`). A move to the status the request already has is a 400. Every move is recorded in the\nhistory with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New\ncount for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the\ndaily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is\nignored. A retry with the same `Idempotency-Key` and body answers with the stored answer.",
         "tags": [
           "QuoteRequests"
         ]
