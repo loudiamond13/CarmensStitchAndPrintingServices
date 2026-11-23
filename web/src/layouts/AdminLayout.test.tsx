@@ -499,13 +499,14 @@ describe('AdminLayout theme (D-13)', () => {
 });
 
 describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
-  it('lists Dashboard, Orders, Expenses and Profile, with their paths', async () => {
+  it('lists Dashboard, Orders, Quotes (D-30), Expenses and Profile, with their paths', async () => {
     await renderAt('/admin');
     const links = within(tabBar()).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual(['Dashboard', 'Orders', 'Expenses', 'Profile']);
+    expect(links.map((link) => link.textContent)).toEqual(['Dashboard', 'Orders', 'Quotes', 'Expenses', 'Profile']);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/admin',
       '/admin/orders',
+      '/admin/quote-requests',
       '/admin/expenses',
       '/admin/profile',
     ]);

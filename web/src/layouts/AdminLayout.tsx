@@ -80,7 +80,7 @@ export interface AdminFrameProps {
   withAuditLog?: boolean | undefined;
   /** Adds the My Money item after Company Expenses to the sidebar and the drawer (D-39); the real shell sets it, the dev scenarios do not. */
   withMoney?: boolean | undefined;
-  /** Adds the Quote Requests item after Orders to the sidebar and the drawer (D-19); the real shell sets it, the dev scenarios do not. */
+  /** Adds the Quote Requests item after Orders to the sidebar and the drawer (D-19) and the Quotes tab (D-30); the real shell sets it, the dev scenarios do not. */
   withQuoteRequests?: boolean | undefined;
   /** The New counts per section (D-14): the Quote Requests item shows its count. */
   counts?: SidebarProps['counts'];
@@ -143,7 +143,7 @@ export function AdminFrame({
           <main id="main" tabIndex={-1} aria-busy={loading ? true : undefined} className={adminBodyClasses}>
             {loading ? <SkeletonPageHead /> : children}
           </main>
-          <TabBar active={section} />
+          <TabBar active={section} withQuotes={withQuoteRequests} counts={counts} />
         </div>
       </div>
       <MobileNavDrawer

@@ -3,7 +3,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { holdsItsContent, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createQuoteRequest, createStaff } from './testing-api.ts';
 
 /** A Philippine mobile number nobody used before in this run, so the per-sender limit never meets it. */
@@ -67,4 +68,42 @@ test('@quote the nav shows the new count', async ({ page, request, guard }) => {
   // The inbox marks the item current. The count may have moved since, so the item is found by its address.
   await page.goto('/admin/quote-requests');
   await expect(side.locator('a[href="/admin/quote-requests"]')).toHaveAttribute('aria-current', 'page');
+});
+
+test('@quote at 320px the five tabs share the bar, nothing scrolls sideways and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+  await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  const count = await openWithCount(page, '/admin');
+  const bar = page.locator('[data-ui="s-admin-main"] nav[aria-label="Admin"]');
+  const tabs = bar.getByRole('link');
+  await expect(tabs).toHaveCount(5);
+  expect(await tabs.allTextContents()).toEqual([
+    'Dashboard',
+    'Orders',
+    expect.stringContaining('Quotes'),
+    'Expenses',
+    'Profile',
+  ]);
+  await expect(bar.getByRole('link', { name: `Quotes, ${chip(count)} new`, exact: true })).toBeVisible();
+
+  const widths: number[] = [];
+  for (const tab of await tabs.all()) {
+    widths.push((await tab.boundingBox())?.width ?? 0);
+    expect(await tab.evaluate(holdsItsContent), 'no tab label is cut off').toBe(true);
+  }
+  for (const width of widths) {
+    expect(width, 'each tab is at least a 44px target').toBeGreaterThanOrEqual(44);
+    expect(Math.abs(width - (widths[0] ?? 0)), 'the tabs share the bar equally').toBeLessThan(1);
+  }
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
 });

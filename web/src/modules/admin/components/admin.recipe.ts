@@ -34,11 +34,17 @@ export const adminBodyClasses = tw(
 // App. C hides the bar everywhere and shows it as a grid only inside `@container pg (max-width: 767px)`, where all its
 // other rules sit too. A hidden bar shows nothing, so here only its display depends on the container.
 
-/** `.s-tabbar`: a sticky 4-column bar at the bottom of the main column, on the surface at 94% over a 12px blur,
- * with 12px of bottom padding plus the device's safe area (D-36). */
+/** `.s-tabbar`: a sticky bar at the bottom of the main column, on the surface at 94% over a 12px blur, with 12px of bottom
+ * padding plus the device's safe area (D-36). The column count is in `tabBarColumnClasses`. */
 export const tabBarClasses = tw(
-  'sticky bottom-0 z-30 mt-auto hidden grid-cols-4 border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-[calc(12px+env(safe-area-inset-bottom))] [backdrop-filter:blur(12px)] pg-phone:grid',
+  'sticky bottom-0 z-30 mt-auto hidden border-t border-line bg-[color-mix(in_srgb,var(--surface)_94%,transparent)] px-2 pt-[6px] pb-[calc(12px+env(safe-area-inset-bottom))] [backdrop-filter:blur(12px)] pg-phone:grid',
 );
+
+/** App. E.6's four equal columns; SPEC-DEVIATION: OQ-2 (D-30) five with the Quotes tab. */
+export const tabBarColumnClasses = {
+  four: tw('grid-cols-4'),
+  five: tw('grid-cols-5'),
+} as const;
 
 /**
  * `.s-tab-i`, `.s-tab-i.is-on` and its `::before` accent bar, read from `aria-current="page"`; D-03 (C-35) adds the
@@ -51,8 +57,13 @@ export const tabItemClasses = tw(
 /** `.s-tab-i.is-on .csp-icon`: the current tab's icon in the accent ink. */
 export const tabIconClasses = tw('group-aria-[current=page]/tab:text-accent-ink');
 
-// RED stub.
-export const tabBarCountClasses = '';
+/** The icon's box on a counted tab, so the chip can sit at its top right. */
+export const tabIconBoxClasses = tw('relative inline-flex');
+
+/** SPEC-GAP: NavCount (UI-SPEC R4) on a tab: the `tabCountClasses` geometry, 600, accent ground, at the icon's top right. */
+export const tabBarCountClasses = tw(
+  'absolute -top-1.5 left-3 h-5 min-w-[22px] rounded-xs bg-accent px-1.5 text-center text-[12px] leading-5 font-semibold text-on-accent tabular-nums',
+);
 
 // ── Route-chunk skeleton (UI-SPEC UI Considerations: loading, route chunks) ──
 

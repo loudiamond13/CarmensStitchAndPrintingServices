@@ -3,8 +3,8 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import type { AdminSection } from '@/components/navigation';
 import { expectNoAxeViolations } from '@/test/axe';
-import { tabBarClasses, tabBarCountClasses } from './admin.recipe';
-import { TAB_BAR_ITEMS, TabBar } from './TabBar';
+import { tabBarColumnClasses, tabBarCountClasses } from './admin.recipe';
+import { QUOTES_TAB_ITEM, TAB_BAR_ITEMS, TabBar } from './TabBar';
 
 // The phone tab bar (App. E.6) with the fifth "Quotes" tab and its New count (D-30, D-14; UI-SPEC R4).
 
@@ -33,7 +33,7 @@ describe('TabBar (App. E.6, D-30)', () => {
   it('has five tabs, Quotes right after Orders, with their paths', () => {
     render(
       <MemoryRouter>
-        <TabBar />
+        <TabBar withQuotes />
       </MemoryRouter>,
     );
 
@@ -45,13 +45,25 @@ describe('TabBar (App. E.6, D-30)', () => {
       '/admin/expenses',
       '/admin/profile',
     ]);
-    expect(TAB_BAR_ITEMS.map((item) => item.id)).toEqual(['dashboard', 'orders', 'quotes', 'expenses', 'profile']);
+    expect(TAB_BAR_ITEMS.map((item) => item.id)).toEqual(['dashboard', 'orders', 'expenses', 'profile']);
+    expect(QUOTES_TAB_ITEM).toEqual({ id: 'quotes', label: 'Quotes', icon: 'inbox', to: '/admin/quote-requests' });
+  });
+
+  it("keeps App. E.6's four tabs and four columns without the prop (the parity scenarios stay equal)", () => {
+    render(
+      <MemoryRouter>
+        <TabBar counts={{ quotes: 3 }} />
+      </MemoryRouter>,
+    );
+
+    expect(tabs().map((tab) => tab.textContent)).toEqual(['Dashboard', 'Orders', 'Expenses', 'Profile']);
+    expect(tokens(screen.getByRole('navigation', { name: 'Admin' }).className)).toContain('grid-cols-4');
   });
 
   it('draws Quotes with the 22px inbox icon', () => {
     render(
       <MemoryRouter>
-        <TabBar />
+        <TabBar withQuotes />
       </MemoryRouter>,
     );
 
@@ -61,14 +73,21 @@ describe('TabBar (App. E.6, D-30)', () => {
   });
 
   it('shares the bar among five equal columns', () => {
-    expect(tokens(tabBarClasses)).toContain('grid-cols-5');
-    expect(tokens(tabBarClasses)).not.toContain('grid-cols-4');
+    render(
+      <MemoryRouter>
+        <TabBar withQuotes />
+      </MemoryRouter>,
+    );
+    const bar = tokens(screen.getByRole('navigation', { name: 'Admin' }).className);
+
+    expect(bar).toContain(tabBarColumnClasses.five);
+    expect(bar).not.toContain(tabBarColumnClasses.four);
   });
 
   it('shows the New count chip at the icon and names the tab "Quotes, 3 new"', () => {
     render(
       <MemoryRouter>
-        <TabBar counts={{ quotes: 3 }} />
+        <TabBar withQuotes counts={{ quotes: 3 }} />
       </MemoryRouter>,
     );
     const tab = quotesTab();
@@ -99,7 +118,7 @@ describe('TabBar (App. E.6, D-30)', () => {
   it('caps the chip at "99+" above 99', () => {
     render(
       <MemoryRouter>
-        <TabBar counts={{ quotes: 250 }} />
+        <TabBar withQuotes counts={{ quotes: 250 }} />
       </MemoryRouter>,
     );
 
@@ -113,7 +132,7 @@ describe('TabBar (App. E.6, D-30)', () => {
   ])('shows no chip and no hidden text for %s', (_case, counts) => {
     render(
       <MemoryRouter>
-        <TabBar counts={counts} />
+        <TabBar withQuotes counts={counts} />
       </MemoryRouter>,
     );
 
@@ -126,7 +145,7 @@ describe('TabBar (App. E.6, D-30)', () => {
     const active: AdminSection = 'quotes';
     render(
       <MemoryRouter>
-        <TabBar active={active} counts={{ quotes: 1 }} />
+        <TabBar withQuotes active={active} counts={{ quotes: 1 }} />
       </MemoryRouter>,
     );
 
@@ -139,7 +158,7 @@ describe('TabBar (App. E.6, D-30)', () => {
   ])('has no axe violations %s', async (_case, counts) => {
     const { container } = render(
       <MemoryRouter>
-        <TabBar active="quotes" counts={counts} />
+        <TabBar withQuotes active="quotes" counts={counts} />
       </MemoryRouter>,
     );
     await expectNoAxeViolations(container);
