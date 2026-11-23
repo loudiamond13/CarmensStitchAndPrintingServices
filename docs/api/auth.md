@@ -1,6 +1,6 @@
 ---
 created: 2026-10-15T11:30:00-05:00
-updated: 2026-11-23T17:17:00-06:00
+updated: 2026-11-23T17:18:00-06:00
 ---
 
 # The authentication and sessions API
