@@ -18,6 +18,7 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
     private const string ExpiredCode = "quote-requests.ticket-expired";
     private static readonly DateTimeOffset Start = new(2026, 11, 22, 10, 0, 0, TimeSpan.Zero);
     private static readonly Dictionary<string, string> ThreeSeconds = new() { ["QuoteRequests:MinimumSeconds"] = "3" };
+    private static readonly Dictionary<string, string> SevenSeconds = new() { ["QuoteRequests:MinimumSeconds"] = "7" };
 
     [Fact]
     public async Task ARealVisitorWithAFreshTicketIsSaved()
@@ -223,6 +224,34 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
         rules.GetProperty("maxPhotos").GetInt32().ShouldBe(QuoteRequestRules.MaxPhotos);
         rules.GetProperty("maxBytes").GetInt32().ShouldBe(ImageUploadLimits.MaxFileBytes);
         rules.GetProperty("maxPixels").GetInt64().ShouldBe(25_000_000);
+    }
+
+    [Fact]
+    public async Task TheTicketAnswerCarriesTheConfiguredMinimumSeconds()
+    {
+        await using var factory = new RealLimitsFactory(database.ConnectionString, SevenSeconds);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri($"{QuoteRequestFixtures.Route}/ticket", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("minimumSeconds").GetInt32().ShouldBe(7);
+    }
+
+    [Fact]
+    public async Task TheExpiredTicketAnswerCarriesTheConfiguredMinimumSecondsAsANumber()
+    {
+        await using var factory = new RealLimitsFactory(database.ConnectionString, SevenSeconds);
+        using var client = factory.CreateClient();
+        var body = QuoteRequestFixtures.MinimalBody();
+        body["ticket"] = "not-a-ticket";
+
+        using var response = await QuoteRequestFixtures.PostAsync(client, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+        problem.GetProperty("minimumSeconds").GetInt32().ShouldBe(7);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-22T23:50:00-06:00
+updated: 2026-11-23T00:00:00-06:00
 ---
 
 # The quote requests API
@@ -28,7 +28,7 @@ the form ticket, the photo upload and the bot guards. The staff inbox and the al
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `GET /public/quote-requests/ticket` | Anyone | none | `200` `{ "ticket": "...", "photoRules": { "maxPhotos": 5, "maxBytes": 10485760, "maxPixels": 25000000 } }`, never cached; `429` |
+| `GET /public/quote-requests/ticket` | Anyone | none | `200` `{ "ticket": "...", "photoRules": { "maxPhotos": 5, "maxBytes": 10485760, "maxPixels": 25000000 }, "minimumSeconds": 3 }`, never cached; `429` |
 | `POST /public/quote-requests` | Anyone | the form below, with an `Idempotency-Key` and the `ticket` | `200` `{ "id": "...", "photoSlots": [...] }`; `400 quote-requests.validation` with field errors; `400 quote-requests.ticket-expired`; `409 auth.session-busy`; `429 rate-limited` |
 | `POST /public/quote-requests/{id}/photos/{slot}` | Anyone with the request's upload key | one multipart form with the file in the `file` part; headers `Idempotency-Key` and `X-Upload-Key` | `200` with no body; `400`; `404 quote-requests.photo-not-found`; `413`; `422 quote-requests.photo-refused`; `429`; `503` |
 
@@ -119,6 +119,8 @@ the value.
 The form asks for a ticket when it opens: `GET /public/quote-requests/ticket`. The ticket is made with Data Protection (purpose
 `Csps.QuoteTicket.v1`), so the server signs and encrypts it and the browser cannot make or change one. It holds the time it was
 issued. The answer also lists the photo rules the form checks before it sends a file (OR-3); they come from the server's own limits.
+It carries `minimumSeconds` too (D-41): the value of `QuoteRequests:MinimumSeconds`, a whole number from 0 to 60. The form waits that
+long after it gets the ticket before it sends, so raising the setting never makes real sends vanish.
 
 The create call must carry the ticket in `ticket`.
 
@@ -134,13 +136,14 @@ limits per address, for the whole site and per sender do that.
 | A missing, changed, unreadable or too old ticket (`QuoteRequests:TicketLifetime`, 24 hours by default, 1 to 72 hours) | `400 quote-requests.ticket-expired`, with the message on the `ticket` field and a new ticket in `replacementTicket`. Nothing is saved. |
 
 A real visitor who left the form open overnight gets the `400`, never a silent success (Pitfall 4). The `400` carries
-`replacementTicket` (D-38): a ticket the server issued already `QuoteRequests:MinimumSeconds` old. The form sends the same body once
+`replacementTicket` (D-38): a ticket the server issued already `QuoteRequests:MinimumSeconds` old, and `minimumSeconds` (D-41), the same
+whole number the ticket answer carries. The form sends the same body once
 more at once, with that ticket in `ticket`, and the minimum time does not catch it. The resend needs a new `Idempotency-Key`, because the
 body has changed. A bot gains nothing from this: it could already wait the minimum time after any ticket call. A ticket from
 `GET /public/quote-requests/ticket` is still too young when it is used at once.
 
 A send that is too fast is a silent `200` with a made-up id and nothing saved. A client must never cause one: it waits out
-the minimum time after it gets a ticket from the ticket call, and uses `replacementTicket` for the resend.
+the `minimumSeconds` of the answer after it gets a ticket from the ticket call, and uses `replacementTicket` for the resend.
 
 ### The honeypot
 
@@ -185,6 +188,6 @@ answer and is not counted again.
 - `200` with `{ "id": "...", "photoSlots": [...] }`. The id names the new request. Nothing else about it is sent back.
 - `400 quote-requests.validation` with an `errors` object: one array of messages for each field that failed, with the field names
   above. An empty or unreadable body lists the two required fields (after the ticket is checked).
-- `400 quote-requests.ticket-expired` when there is no good ticket. The answer holds `replacementTicket`, a ticket to use for one resend at once.
+- `400 quote-requests.ticket-expired` when there is no good ticket. The answer holds `replacementTicket`, a ticket to use for one resend at once, and `minimumSeconds`, how long a client waits after any ticket.
 - `409 auth.session-busy` "Something changed at the same time. Try again." when two sends collided twice, or the `quote-requests` lock was not had within 10 seconds. Nothing is saved; the visitor sends the same form again.
 - `429 rate-limited` when one address sends too many, the whole site is busy, or one sender has sent too many.

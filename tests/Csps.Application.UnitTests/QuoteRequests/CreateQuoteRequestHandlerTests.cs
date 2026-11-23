@@ -178,6 +178,7 @@ public sealed class CreateQuoteRequestHandlerTests
         var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
 
         result.Error.Extensions.ShouldNotBeNull()["replacementTicket"].ShouldBe("replacement-ticket");
+        result.Error.Extensions["minimumSeconds"].ShouldBe(minimumSeconds);
         harness.IssuedAt.ShouldBe([Now - TimeSpan.FromSeconds(minimumSeconds)]);
         harness.Added.ShouldBeEmpty();
     }

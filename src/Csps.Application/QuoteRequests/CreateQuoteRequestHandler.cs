@@ -48,7 +48,7 @@ public sealed class CreateQuoteRequestHandler(
         {
             // The replacement is already as old as the minimum time, so the visitor's one resend is not taken for a bot (D-38).
             var replacement = tickets.Issue(clock.UtcNow - TimeSpan.FromSeconds(settings.MinimumSeconds));
-            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.TicketExpired(replacement));
+            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.TicketExpired(replacement, settings.MinimumSeconds));
         }
 
         if (!string.IsNullOrWhiteSpace(request.SubjectLine))

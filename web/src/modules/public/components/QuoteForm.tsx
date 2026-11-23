@@ -44,9 +44,6 @@ import { quoteService, type CreateQuoteAnswer } from '../services/quoteService';
 
 const COPY = PUBLIC_COPY.contact.form;
 
-/** The server's minimum time after the ticket is read (QuoteRequests:MinimumSeconds, 3 by default); a send sooner is caught as a bot. */
-export const QUOTE_MINIMUM_WAIT_MS = 3000;
-
 const TICKET_EXPIRED_CODE = 'quote-requests.ticket-expired';
 
 /** The fields in page order: the first one with an error takes focus. */
@@ -59,18 +56,13 @@ interface Resend {
   readonly ticket: string;
 }
 
-export interface QuoteFormProps {
-  /** How long to wait after the ticket arrives before sending; defaults to the server's minimum time. */
-  minimumWaitMs?: number;
-}
-
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
 }
 
-export function QuoteForm({ minimumWaitMs = QUOTE_MINIMUM_WAIT_MS }: QuoteFormProps) {
+export function QuoteForm() {
   const titleId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
@@ -111,19 +103,19 @@ export function QuoteForm({ minimumWaitMs = QUOTE_MINIMUM_WAIT_MS }: QuoteFormPr
       return quoteService.create({ ...body, ticket: repeat.ticket }, repeat.key);
     }
     const held = await tickets.ready();
-    const remaining = held === null ? 0 : held.issuedAt + minimumWaitMs - Date.now();
+    const remaining = held === null ? 0 : held.issuedAt + held.minimumSeconds * 1000 - Date.now();
     if (remaining > 0) {
       await wait(remaining);
     }
     try {
       return await quoteService.create({ ...body, ticket: held?.ticket ?? null }, key);
     } catch (error: unknown) {
-      const replacement =
-        isHttpError(error) && error.code === TICKET_EXPIRED_CODE ? error.problem?.replacementTicket : undefined;
+      const problem = isHttpError(error) && error.code === TICKET_EXPIRED_CODE ? error.problem : undefined;
+      const replacement = problem?.replacementTicket;
       if (replacement === undefined) {
         throw error;
       }
-      tickets.adopt(replacement);
+      tickets.adopt(replacement, problem?.minimumSeconds ?? held?.minimumSeconds ?? 0);
       const resend: Resend = { forKey: key, key: newIdempotencyKey(), ticket: replacement };
       resendRef.current = resend;
       return quoteService.create({ ...body, ticket: replacement }, resend.key);

@@ -17,13 +17,28 @@ public sealed class GetQuoteFormTicketHandlerTests
     {
         var tickets = Substitute.For<IQuoteFormTickets>();
         tickets.Issue(Now).Returns("the-ticket");
-        var handler = new GetQuoteFormTicketHandler(tickets, new FixedCalendar(), new ImageUploadSettings { MaxBytes = 5_000_000, MaxPixels = 12_000_000 });
+        var handler = new GetQuoteFormTicketHandler(tickets, new FixedCalendar(), new ImageUploadSettings { MaxBytes = 5_000_000, MaxPixels = 12_000_000 }, new QuoteRequestSettings());
 
         var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Ticket.ShouldBe("the-ticket");
         result.Value.PhotoRules.ShouldBe(new QuotePhotoRulesResponse(QuoteRequestRules.MaxPhotos, 5_000_000, 12_000_000));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(7)]
+    [InlineData(60)]
+    public async Task TheAnswerCarriesTheConfiguredMinimumSeconds(int minimumSeconds)
+    {
+        var tickets = Substitute.For<IQuoteFormTickets>();
+        tickets.Issue(Now).Returns("the-ticket");
+        var handler = new GetQuoteFormTicketHandler(tickets, new FixedCalendar(), new ImageUploadSettings(), new QuoteRequestSettings { MinimumSeconds = minimumSeconds });
+
+        var result = await handler.HandleAsync(TestContext.Current.CancellationToken);
+
+        result.Value.MinimumSeconds.ShouldBe(minimumSeconds);
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

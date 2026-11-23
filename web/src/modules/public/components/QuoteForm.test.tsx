@@ -1,26 +1,28 @@
 // The Get a Quote form (UI-SPEC Q1 and Q3; INQ-01, INQ-03, D-26, D-38): what a visitor types is sent with the ticket, the success
 // state and Send Another, and nothing the visitor typed is cleared by a failure.
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
+import { HttpError } from '@/core/api/errors';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { demoLines } from '@/test/publicFixtures';
-import { answerQuote } from '@/test/quoteFixtures';
+import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
+import { quoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
 
-function renderForm(props: { minimumWaitMs?: number } = {}) {
+function renderForm() {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <MemoryRouter>
       <ToastProvider>{children}</ToastProvider>
     </MemoryRouter>
   );
-  return render(<QuoteForm minimumWaitMs={0} {...props} />, { wrapper });
+  return render(<QuoteForm />, { wrapper });
 }
 
 async function fillRequired(name = 'Juan Dela Cruz', number = '0917 123 4567') {
@@ -89,27 +91,14 @@ describe('QuoteForm send (INQ-01)', () => {
   });
 
   it('shows the pending label "Sending" while the request runs', async () => {
-    answerQuote();
-    renderForm({ minimumWaitMs: 800 });
+    answerQuote({ minimumSeconds: 1 });
+    renderForm();
     await fillRequired();
 
     await userEvent.click(screen.getByRole('button', SEND));
 
     expect(await screen.findByRole('button', { name: 'Sending' })).toBeInTheDocument();
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
-  });
-
-  it('does not send until the minimum time after the ticket has passed (the docs: a client must never cause a too-fast send)', async () => {
-    const probe = answerQuote();
-    const openedAt = Date.now();
-    renderForm({ minimumWaitMs: 600 });
-    await fillRequired();
-
-    await userEvent.click(screen.getByRole('button', SEND));
-    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
-
-    expect(probe.creates).toHaveLength(1);
-    expect(Date.now() - openedAt).toBeGreaterThanOrEqual(550);
   });
 
   it('sends nothing and focuses Your name when a required field is empty', async () => {
@@ -122,6 +111,117 @@ describe('QuoteForm send (INQ-01)', () => {
     expect(screen.getByText('Enter a mobile number, like 0917 123 4567.')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /Your name/ })).toHaveFocus();
     expect(probe.creates).toHaveLength(0);
+  });
+});
+
+describe('QuoteForm minimum wait (D-41: the server says how long)', () => {
+  const RULES = { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  function expiredAnswer(minimumSeconds: number) {
+    return new HttpError({
+      kind: 'http',
+      status: 400,
+      problem: {
+        type: undefined,
+        title: 'The form timed out. Please send it again.',
+        status: 400,
+        detail: undefined,
+        instance: undefined,
+        traceId: undefined,
+        code: 'quote-requests.ticket-expired',
+        errors: { ticket: ['The form timed out. Please send it again.'] },
+        replacementTicket: 'ticket-replacement',
+        minimumSeconds,
+      },
+    });
+  }
+
+  /** The service answers at once (no network), so only the form's own wait is on the clock. */
+  function stubService(options: { minimumSeconds: number; ticketFails?: boolean; expiredFirst?: boolean }) {
+    const getTicket = vi
+      .spyOn(quoteService, 'getTicket')
+      .mockImplementation(() =>
+        options.ticketFails === true
+          ? Promise.reject(new HttpError({ kind: 'network' }))
+          : Promise.resolve({ ticket: 'ticket-1', photoRules: RULES, minimumSeconds: options.minimumSeconds }),
+      );
+    const create = vi.spyOn(quoteService, 'create');
+    if (options.expiredFirst === true) {
+      create.mockRejectedValueOnce(expiredAnswer(options.minimumSeconds));
+    }
+    create.mockResolvedValue({ id: QUOTE_ID, photoSlots: [] });
+    return { getTicket, create };
+  }
+
+  /** Fills the form on the real clock, then freezes the clock and sends, so the wait can be stepped. */
+  async function sendOnFakeClock() {
+    await fillRequired();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    fireEvent.click(screen.getByRole('button', SEND));
+  }
+
+  const tickets = (create: ReturnType<typeof stubService>['create']) =>
+    create.mock.calls.map(([body]) => body.ticket);
+
+  it('waits the minimum seconds the ticket answer carried, not a fixed 3', async () => {
+    const { create } = stubService({ minimumSeconds: 7 });
+    renderForm();
+
+    await sendOnFakeClock();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(create).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2100);
+
+    expect(tickets(create)).toEqual(['ticket-1']);
+  });
+
+  it('waits less than the old fixed 3 seconds when the server says 1', async () => {
+    const { create } = stubService({ minimumSeconds: 1 });
+    renderForm();
+
+    await sendOnFakeClock();
+    await vi.advanceTimersByTimeAsync(1100);
+
+    expect(tickets(create)).toEqual(['ticket-1']);
+  });
+
+  it('sends at once when the ticket answer says 0 seconds', async () => {
+    const { create } = stubService({ minimumSeconds: 0 });
+    renderForm();
+
+    await sendOnFakeClock();
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(tickets(create)).toEqual(['ticket-1']);
+  });
+
+  it('waits the first ticket out, then resends at once with the replacement the 400 carried', async () => {
+    const { create } = stubService({ minimumSeconds: 7, expiredFirst: true });
+    renderForm();
+
+    await sendOnFakeClock();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(create).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2100);
+
+    expect(tickets(create)).toEqual(['ticket-1', 'ticket-replacement']);
+  });
+
+  it('sends a try without a ticket at once and the resend with the replacement at once, whatever the 400 says', async () => {
+    const { create } = stubService({ minimumSeconds: 7, ticketFails: true, expiredFirst: true });
+    renderForm();
+
+    await sendOnFakeClock();
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(tickets(create)).toEqual([null, 'ticket-replacement']);
   });
 });
 

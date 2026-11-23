@@ -95,7 +95,7 @@ public sealed class ErrorTests
     [Fact]
     public void ValidationKeepsItsExtraMembers()
     {
-        var extensions = new Dictionary<string, string>(StringComparer.Ordinal) { ["replacement"] = "abc" };
+        var extensions = new Dictionary<string, object>(StringComparer.Ordinal) { ["replacement"] = "abc", ["minimumSeconds"] = 7 };
 
         var error = Error.Validation("order.invalid", "Some details need fixing.", OneFieldError, extensions);
 

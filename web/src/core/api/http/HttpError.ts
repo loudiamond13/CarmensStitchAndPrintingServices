@@ -26,6 +26,8 @@ export interface ProblemDetails {
   readonly code: string | undefined;
   /** The ready replacement ticket of an expired quote form ticket (D-38). */
   readonly replacementTicket?: string | undefined;
+  /** How many seconds a client waits after a ticket (QuoteRequests:MinimumSeconds), sent with the replacement ticket (D-41). */
+  readonly minimumSeconds?: number | undefined;
   readonly errors: FieldErrors;
 }
 
@@ -86,6 +88,10 @@ function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function numberOrUndefined(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 function parseFieldErrors(value: unknown): FieldErrors {
   if (!isRecord(value)) {
     return noFieldErrors;
@@ -113,6 +119,7 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     traceId: stringOrUndefined(value.traceId),
     code: stringOrUndefined(value.code),
     replacementTicket: stringOrUndefined(value.replacementTicket),
+    minimumSeconds: numberOrUndefined(value.minimumSeconds),
     errors: parseFieldErrors(value.errors),
   });
 }

@@ -10,6 +10,8 @@ export interface HeldTicket {
   readonly ticket: string;
   /** The browser clock (ms) when the ticket arrived; 0 for a replacement, which the server counts as old enough. */
   readonly issuedAt: number;
+  /** How many seconds the server says to wait after the ticket arrived (QuoteRequests:MinimumSeconds, D-41). */
+  readonly minimumSeconds: number;
 }
 
 export interface QuoteTicketHolder {
@@ -17,8 +19,8 @@ export interface QuoteTicketHolder {
   ready(): Promise<HeldTicket | null>;
   /** Reads a new ticket now. */
   refresh(): void;
-  /** Keeps the replacement ticket of an expired answer. */
-  adopt(ticket: string): void;
+  /** Keeps the replacement ticket of an expired answer, with the minimum seconds that answer carried. */
+  adopt(ticket: string, minimumSeconds: number): void;
   /** Cancels a read that is still running. */
   stop(): void;
 }
@@ -47,13 +49,17 @@ export function createQuoteTicketHolder(
       const controller = new AbortController();
       running = controller;
       current = read(controller.signal).then(
-        (answer: QuoteFormTicket) => ({ ticket: answer.ticket, issuedAt: clock.now() }),
+        (answer: QuoteFormTicket) => ({
+          ticket: answer.ticket,
+          issuedAt: clock.now(),
+          minimumSeconds: Number(answer.minimumSeconds),
+        }),
         () => null,
       );
     },
-    adopt: (ticket) => {
+    adopt: (ticket, minimumSeconds) => {
       stop();
-      current = Promise.resolve({ ticket, issuedAt: 0 });
+      current = Promise.resolve({ ticket, issuedAt: 0, minimumSeconds });
     },
     stop,
   };

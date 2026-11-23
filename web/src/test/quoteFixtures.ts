@@ -19,6 +19,8 @@ export interface QuoteAnswers {
   replacementTicket?: string;
   /** Fails the ticket read with this status. */
   ticketStatus?: number;
+  /** The minimum seconds the ticket answer and the expired-ticket 400 carry (D-41). Default: 0, so tests never wait. */
+  minimumSeconds?: number;
 }
 
 /** The default answer of every test: the form ticket read (the Contact page reads it). A test that checks the ticket or the create calls answerQuote. */
@@ -27,6 +29,7 @@ export function quoteTicketHandler() {
     HttpResponse.json({
       ticket: 'ticket-default',
       photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+      minimumSeconds: 0,
     }),
   );
 }
@@ -45,6 +48,7 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
       return HttpResponse.json({
         ticket,
         photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+        minimumSeconds: answers.minimumSeconds ?? 0,
       });
     }),
     http.post('*/api/v1/public/quote-requests', async ({ request }) => {
@@ -64,6 +68,7 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
             code: 'quote-requests.ticket-expired',
             errors: { ticket: ['The form timed out. Please send it again.'] },
             replacementTicket: answers.replacementTicket,
+            minimumSeconds: answers.minimumSeconds ?? 0,
           },
           { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
         );

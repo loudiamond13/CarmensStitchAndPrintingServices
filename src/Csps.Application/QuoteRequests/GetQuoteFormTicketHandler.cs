@@ -12,7 +12,8 @@ namespace Csps.Application.QuoteRequests;
 /// <param name="tickets">The ticket maker.</param>
 /// <param name="calendar">The business clock.</param>
 /// <param name="photoLimits">The photo limits.</param>
-public sealed class GetQuoteFormTicketHandler(IQuoteFormTickets tickets, IBusinessCalendar calendar, ImageUploadSettings photoLimits)
+/// <param name="settings">The quote form limits.</param>
+public sealed class GetQuoteFormTicketHandler(IQuoteFormTickets tickets, IBusinessCalendar calendar, ImageUploadSettings photoLimits, QuoteRequestSettings settings)
 {
     /// <summary>Makes a ticket.</summary>
     /// <param name="cancellationToken">Cancels the work.</param>
@@ -22,6 +23,7 @@ public sealed class GetQuoteFormTicketHandler(IQuoteFormTickets tickets, IBusine
         var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(new QuoteFormTicketResponse(
             tickets.Issue(clock.UtcNow),
-            new QuotePhotoRulesResponse(QuoteRequestRules.MaxPhotos, photoLimits.MaxBytes, photoLimits.MaxPixels)));
+            new QuotePhotoRulesResponse(QuoteRequestRules.MaxPhotos, photoLimits.MaxBytes, photoLimits.MaxPixels),
+            settings.MinimumSeconds));
     }
 }

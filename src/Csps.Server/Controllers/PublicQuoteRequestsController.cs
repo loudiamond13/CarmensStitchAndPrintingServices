@@ -34,7 +34,7 @@ public sealed class PublicQuoteRequestsController(
     /// Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
     /// issued, so the server can tell how old it is; the create call must carry it in <c>ticket</c>. A ticket can be used for any number of sends during
     /// its lifetime, so it only stops a bot that sends at once: the rate limits are the real guard. The answer also
-    /// lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form uses the
+    /// lists the photo rules the form checks before it sends a file, and <c>minimumSeconds</c>, how long the form waits after it gets the ticket before it sends (D-41). A ticket is good for 24 hours by default; the form uses the
     /// <c>replacementTicket</c> of the create answer when it is 400 with the code <c>quote-requests.ticket-expired</c>, or asks for a new one here. Never cached.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>

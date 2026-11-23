@@ -130,6 +130,12 @@ describe('parseProblemDetails', () => {
     expect(parseProblemDetails({ title: 'Not found' })?.replacementTicket).toBeUndefined();
   });
 
+  it('reads the minimumSeconds extension of an expired quote ticket (D-41) and drops one that is not a number', () => {
+    expect(parseProblemDetails({ minimumSeconds: 7 })?.minimumSeconds).toBe(7);
+    expect(parseProblemDetails({ minimumSeconds: '7' })?.minimumSeconds).toBeUndefined();
+    expect(parseProblemDetails({ title: 'Not found' })?.minimumSeconds).toBeUndefined();
+  });
+
   it('keeps only string messages in each field-error list', () => {
     const parsed = parseProblemDetails({
       errors: { Amount: ['Enter an amount.', 5, null], Name: 'not a list', Qty: ['Enter a quantity.'] },

@@ -9,7 +9,7 @@ namespace Csps.Domain.Common;
 [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "C#-only solution; 'Error' is the PRD section 3.3 name and is only a keyword in VB.")]
 public sealed record Error
 {
-    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors, TimeSpan? retryAfter = null, IReadOnlyDictionary<string, string>? extensions = null)
+    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors, TimeSpan? retryAfter = null, IReadOnlyDictionary<string, object>? extensions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
@@ -37,18 +37,18 @@ public sealed record Error
     /// <summary>How long the caller should wait. Set by <see cref="TooManyRequests"/> only.</summary>
     public TimeSpan? RetryAfter { get; }
 
-    /// <summary>Extra text members the answer carries next to the code, such as a ticket to use on the next try. Set by <see cref="Validation"/> only.</summary>
-    public IReadOnlyDictionary<string, string>? Extensions { get; }
+    /// <summary>Extra members (text or numbers) the answer carries next to the code, such as a ticket to use on the next try. Set by <see cref="Validation"/> only.</summary>
+    public IReadOnlyDictionary<string, object>? Extensions { get; }
 
     /// <summary>The input breaks field rules. At least one field error is required, so a 400 always explains itself.</summary>
     /// <param name="code">A stable machine-readable code.</param>
     /// <param name="message">A short plain-English message.</param>
     /// <param name="fieldErrors">Messages per field; must contain at least one entry.</param>
-    /// <param name="extensions">Extra text members for the answer; none when null.</param>
+    /// <param name="extensions">Extra members for the answer; none when null.</param>
     /// <returns>The validation error.</returns>
     /// <exception cref="ArgumentNullException">When <paramref name="fieldErrors"/> is null.</exception>
     /// <exception cref="ArgumentException">When <paramref name="fieldErrors"/> is empty, or the code or message is blank.</exception>
-    public static Error Validation(string code, string message, IReadOnlyDictionary<string, string[]> fieldErrors, IReadOnlyDictionary<string, string>? extensions = null)
+    public static Error Validation(string code, string message, IReadOnlyDictionary<string, string[]> fieldErrors, IReadOnlyDictionary<string, object>? extensions = null)
     {
         ArgumentNullException.ThrowIfNull(fieldErrors);
         if (fieldErrors.Count == 0)

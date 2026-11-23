@@ -37,14 +37,18 @@ public static class QuoteRequestErrors
     /// <summary>The extra member of the ticket-expired 400 that holds the ticket to use for the resend (D-38).</summary>
     public const string ReplacementTicketKey = "replacementTicket";
 
+    /// <summary>The extra member of the ticket-expired 400 that holds how long the form waits before the resend (D-41).</summary>
+    public const string MinimumSecondsKey = "minimumSeconds";
+
     /// <summary>Builds the answer for a send with no good form ticket: a 400, never a silent success, so a real lead is not lost.</summary>
     /// <param name="replacementTicket">A new ticket, issued already as old as the minimum time, so the one resend is not treated as too fast.</param>
+    /// <param name="minimumSeconds">How long the form waits after it gets the ticket (QuoteRequests:MinimumSeconds).</param>
     /// <returns>The error.</returns>
-    public static Error TicketExpired(string replacementTicket) => Error.Validation(
+    public static Error TicketExpired(string replacementTicket, int minimumSeconds) => Error.Validation(
         TicketExpiredCode,
         TicketExpiredMessage,
         new Dictionary<string, string[]> { [TicketField] = [TicketExpiredMessage] },
-        new Dictionary<string, string> { [ReplacementTicketKey] = replacementTicket });
+        new Dictionary<string, object> { [ReplacementTicketKey] = replacementTicket, [MinimumSecondsKey] = minimumSeconds });
 
     /// <summary>The code of a send over the per-sender daily limit; the same code the per-address rate limit uses (D-37).</summary>
     public const string SenderLimitCode = "rate-limited";

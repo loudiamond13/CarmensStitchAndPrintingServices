@@ -8,6 +8,7 @@ import { createQuoteService, type CreateQuoteBody } from './quoteService';
 const TICKET_ANSWER = {
   ticket: 'ticket-1',
   photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+  minimumSeconds: 3,
 };
 
 const BODY: CreateQuoteBody = {
