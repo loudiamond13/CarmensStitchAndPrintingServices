@@ -57,6 +57,8 @@ export interface QuotePhotoPickerProps {
   /** The form is sending: every control keeps focus but ignores a press. */
   disabled?: boolean;
   handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
+  /** Files the visitor chose before this picker was loaded: they are checked and added when it shows. */
+  firstPick?: readonly File[] | undefined;
 }
 
 export interface QuotePhotoPickerHandle {

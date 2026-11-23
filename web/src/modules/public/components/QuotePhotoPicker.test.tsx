@@ -446,3 +446,115 @@ describe('QuotePhotoPicker keyboard and focus (UI Q2 a11y)', () => {
     await expectNoAxeViolations(container);
   });
 });
+
+describe('QuotePhotoPicker picks that overlap (review W1 IN-05)', () => {
+  it('keeps 5 photos and counts what was left out when two picks are made at once', async () => {
+    const onChange = vi.fn<(photos: File[]) => void>();
+    const { container } = render(<Harness onChange={onChange} />);
+    const first = [pngFile('a1.png'), pngFile('a2.png'), pngFile('a3.png')];
+    const second = [pngFile('b1.png'), pngFile('b2.png'), pngFile('b3.png')];
+
+    fireEvent.change(galleryInput(container), { target: { files: first } });
+    fireEvent.change(cameraInput(container), { target: { files: second } });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /^Remove / })).toHaveLength(5);
+    });
+    expect(removeNames()).toEqual([
+      'Remove a1.png',
+      'Remove a2.png',
+      'Remove a3.png',
+      'Remove b1.png',
+      'Remove b2.png',
+    ]);
+    expect(
+      await screen.findByText("You can send up to 5 photos. 1 of the photos you picked wasn't added."),
+    ).toBeInTheDocument();
+    expect(screen.getByText('5 of 5 photos')).toBeInTheDocument();
+  });
+
+  it('adds the same photo once, however many times it is picked', async () => {
+    const { container } = render(<Harness />);
+    const logo = pngFile('logo.png');
+    const user = userEvent.setup();
+
+    await user.upload(galleryInput(container), logo);
+    await screen.findByRole('button', { name: 'Remove logo.png' });
+    await user.upload(galleryInput(container), logo);
+    await user.upload(galleryInput(container), [logo, logo]);
+
+    await waitFor(() => {
+      expect(screen.getByText('1 of 5 photos')).toBeInTheDocument();
+    });
+    expect(removeNames()).toEqual(['Remove logo.png']);
+  });
+
+  it('takes a different photo that has the same name', async () => {
+    const { container } = render(<Harness />);
+    const user = userEvent.setup();
+
+    await user.upload(galleryInput(container), pngFile('photo.png', 64));
+    await screen.findByRole('button', { name: 'Remove photo.png' });
+    await user.upload(galleryInput(container), pngFile('photo.png', 128));
+
+    await waitFor(() => {
+      expect(screen.getByText('2 of 5 photos')).toBeInTheDocument();
+    });
+  });
+
+  it('does not keep a preview that was drawn after its photo was removed', async () => {
+    const finishers: ((url: string | null) => void)[] = [];
+    vi.mocked(previewImage).mockImplementation(
+      () =>
+        new Promise<string | null>((resolve) => {
+          finishers.push(resolve);
+        }),
+    );
+    const { container } = render(<Harness />);
+    const logo = pngFile('logo.png');
+    const user = userEvent.setup();
+    await user.upload(galleryInput(container), logo);
+    await user.click(await screen.findByRole('button', { name: 'Remove logo.png' }));
+
+    await act(async () => {
+      finishers[0]?.(PREVIEW);
+      await Promise.resolve();
+    });
+    await user.upload(galleryInput(container), logo);
+
+    await screen.findByRole('button', { name: 'Remove logo.png' });
+    await waitFor(() => {
+      expect(previewImage).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe('QuotePhotoPicker first pick (D-43)', () => {
+  it('checks and adds the files the visitor picked before the picker was loaded', async () => {
+    const onChange = vi.fn<(photos: File[]) => void>();
+    const logo = pngFile('logo.png');
+    render(<QuotePhotoPicker photos={[]} onChange={onChange} firstPick={[logo, textFile('notes.jpg')]} />);
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith([logo]);
+    });
+    expect(await screen.findByText(/notes\.jpg isn't a photo we can take/)).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies the first pick once, even if the picker renders again', async () => {
+    const onChange = vi.fn<(photos: File[]) => void>();
+    const logo = pngFile('logo.png');
+    const view = render(<QuotePhotoPicker photos={[]} onChange={onChange} firstPick={[logo]} />);
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledTimes(1);
+    });
+
+    view.rerender(<QuotePhotoPicker photos={[logo]} onChange={onChange} firstPick={[logo]} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});

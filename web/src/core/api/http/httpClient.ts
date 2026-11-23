@@ -40,6 +40,8 @@ export interface RequestConfig {
   readonly keepalive?: boolean | undefined;
   /** 'text' asks for a text/csv file and resolves to its text; any other answer is still a parse error. Defaults to 'json'. */
   readonly responseType?: 'json' | 'text' | undefined;
+  /** A 2xx answer with no body is a success that resolves to undefined. Off unless set: elsewhere an empty 200 is a parse error. */
+  readonly allowEmptyBody?: boolean | undefined;
 }
 
 export type RequestOptions = Omit<RequestConfig, 'method' | 'url' | 'body'>;

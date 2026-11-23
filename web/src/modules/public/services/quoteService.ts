@@ -11,6 +11,20 @@ export interface QuoteService {
   getTicket(signal?: AbortSignal): Promise<QuoteFormTicket>;
   /** `POST /api/v1/public/quote-requests` with one Idempotency-Key per filled form. */
   create(body: CreateQuoteBody, idempotencyKey: string, signal?: AbortSignal): Promise<CreateQuoteAnswer>;
+  /**
+   * `POST /api/v1/public/quote-requests/{id}/photos/{slot}`: one photo as a multipart form (part `file`), with the upload key the create
+   * call declared in `X-Upload-Key`. The answer is 200 with no body. The client never retries a keyed form upload; the caller resends
+   * with the same Idempotency-Key.
+   */
+  uploadPhoto(
+    id: string,
+    slot: number,
+    file: Blob,
+    fileName: string,
+    uploadKey: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<void>;
 }
 
 export function createQuoteService(client: HttpClient): QuoteService {
@@ -18,6 +32,7 @@ export function createQuoteService(client: HttpClient): QuoteService {
     getTicket: (signal) => client.get<QuoteFormTicket>('/public/quote-requests/ticket', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<CreateQuoteAnswer>('/public/quote-requests', body, { idempotencyKey, signal }),
+    uploadPhoto: () => Promise.reject(new Error('not implemented')),
   };
 }
 

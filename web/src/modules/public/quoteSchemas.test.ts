@@ -2,10 +2,11 @@
 /// <reference types="node" />
 // The quote form's schema (OR-3, INQ-01): every case of the server validator (CreateQuoteRequestRequestValidatorTests, plan 13-01)
 // gives the same message here, at the same edge. A mobile from the shared phone cases passes and a landline fails.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   isPlainEmail,
+  newUploadKey,
   QUOTE_QUANTITIES,
   quoteFormSchema,
   toCreateQuoteRequest,
@@ -304,5 +305,34 @@ describe('toCreateQuoteRequest', () => {
 
   it('hands the honeypot on as typed', () => {
     expect(toCreateQuoteRequest(valid({ subjectLine: 'bot text' })).subjectLine).toBe('bot text');
+  });
+});
+
+describe('newUploadKey (INQ-02, T-13-36)', () => {
+  it('is 32 random bytes as 43 base64url characters with no padding', () => {
+    for (let run = 0; run < 50; run++) {
+      expect(newUploadKey()).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    }
+  });
+
+  it('makes a different key every time', () => {
+    const keys = new Set(Array.from({ length: 20 }, () => newUploadKey()));
+
+    expect(keys.size).toBe(20);
+  });
+
+  it('turns the bytes of the browser random source into text and uses nothing else', () => {
+    const spy = vi
+      .spyOn(crypto, 'getRandomValues')
+      .mockImplementation(<T extends ArrayBufferView | null>(array: T): T => {
+        (array as unknown as Uint8Array).fill(0xfb);
+        return array;
+      });
+
+    const key = newUploadKey();
+
+    expect(spy).toHaveBeenCalledOnce();
+    expect(key).toBe(Buffer.alloc(32, 0xfb).toString('base64url'));
+    spy.mockRestore();
   });
 });

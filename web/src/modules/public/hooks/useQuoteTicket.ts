@@ -12,6 +12,15 @@ export interface HeldTicket {
   readonly issuedAt: number;
   /** How many seconds the server says to wait after the ticket arrived (QuoteRequests:MinimumSeconds, D-41). */
   readonly minimumSeconds: number;
+  /** The photo limits the server sent with the ticket (the picker applies them, OR-3); none for a replacement before any read. */
+  readonly photoRules?: QuotePhotoLimits | undefined;
+}
+
+/** The photo limits of the ticket answer, as numbers. */
+export interface QuotePhotoLimits {
+  readonly maxPhotos: number;
+  readonly maxBytes: number;
+  readonly maxPixels: number;
 }
 
 export interface QuoteTicketHolder {
