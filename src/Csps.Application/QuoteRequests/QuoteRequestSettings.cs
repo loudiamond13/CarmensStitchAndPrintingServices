@@ -24,7 +24,7 @@ public sealed class QuoteRequestSettings
     /// <summary>Gets or sets how long a visitor's upload key works after the request is saved; from 5 minutes to 24 hours.</summary>
     public TimeSpan UploadKeyLifetime { get; set; } = TimeSpan.FromHours(2);
 
-    /// <summary>Gets or sets the fewest seconds between the form ticket and the send; a faster send is caught as a bot. From 0 to 60 (D-25).</summary>
+    /// <summary>Gets or sets the fewest seconds between the form ticket and the send; a faster send is caught as a bot. It only stops a send made at once, because a ticket can be used again (D-40). From 0 to 60 (D-25).</summary>
     public int MinimumSeconds { get; set; } = 3;
 
     /// <summary>The most requests one sender can be allowed in a day.</summary>

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-22T23:00:00-06:00
+updated: 2026-11-22T23:50:00-06:00
 ---
 
 # The quote requests API
@@ -110,7 +110,8 @@ filled first) is queued for removal as `UploadUndone`, and the maintenance job r
 ## Bot guards (INQ-03)
 
 There is no CAPTCHA, puzzle or challenge a visitor must solve (WCAG 3.3.8). Four quiet guards protect the inbox and the alert email.
-Every number is a setting, checked when the server starts. A bad value stops the start and the message names the setting, never
+They are layers, not walls. The ticket and the hidden field only stop simple bots. The real guard is the set of limits: per address,
+for the whole site and per sender (see below, D-40). Every number is a setting, checked when the server starts. A bad value stops the start and the message names the setting, never
 the value.
 
 ### The form ticket and the minimum time
@@ -120,6 +121,11 @@ The form asks for a ticket when it opens: `GET /public/quote-requests/ticket`. T
 issued. The answer also lists the photo rules the form checks before it sends a file (OR-3); they come from the server's own limits.
 
 The create call must carry the ticket in `ticket`.
+
+A ticket is not single use and is not tied to a visitor, an address or an `Idempotency-Key` (D-40). It can be used for any number of sends
+during its whole lifetime. So the minimum time is a one-time delay: a script that waits once after getting a ticket passes it for every
+later send with that ticket. It stops only a bot that posts at once. Do not count on the ticket to stop repeated or scripted sends: the
+limits per address, for the whole site and per sender do that.
 
 | Case | Answer |
 |---|---|
@@ -148,6 +154,8 @@ A caught send (a filled `subjectLine`, or a ticket under the minimum time) write
 catches spike. An expired ticket is not a catch and writes nothing.
 
 ### Limits per address and for the whole site (D-26)
+
+These limits and the per-sender limit below are the real guard against floods (D-40). The ticket and the hidden field are only a first filter.
 
 | Setting | Default | Window | What it limits |
 |---|---|---|---|

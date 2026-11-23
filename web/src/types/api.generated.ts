@@ -2188,7 +2188,8 @@ export interface paths {
         };
         /**
          * Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
-         *     issued, so the server can tell how fast the form was sent; the create call must carry it in `ticket`. The answer also
+         *     issued, so the server can tell how old it is; the create call must carry it in `ticket`. A ticket can be used for any number of sends during
+         *     its lifetime, so it only stops a bot that sends at once: the rate limits are the real guard. The answer also
          *     lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form uses the
          *     `replacementTicket` of the create answer when it is 400 with the code `quote-requests.ticket-expired`, or asks for a new one here. Never cached.
          */

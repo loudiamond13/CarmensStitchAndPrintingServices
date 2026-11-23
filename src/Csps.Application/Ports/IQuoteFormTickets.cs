@@ -2,7 +2,9 @@ namespace Csps.Application.Ports;
 
 /// <summary>
 /// The signed ticket a visitor gets before the quote form can be sent (INQ-03, D-25). It holds the time it was issued, so the
-/// server, not the browser, knows how long the form was open.
+/// server, not the browser, knows how old the ticket is. It is not single use and is not tied to a visitor: it can be used for any
+/// number of sends until it expires, so the minimum time only stops a bot that sends at once and the rate limits are the real
+/// guard (D-40).
 /// </summary>
 public interface IQuoteFormTickets
 {
