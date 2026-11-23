@@ -231,6 +231,25 @@ describe('Move to Spam (D-04)', () => {
     });
   });
 
+  it('tells the page about a 409 from the confirm only once the dialog has closed', async () => {
+    quoteRequestBackend(quoteRequestDetail(ID), () => quoteProblem(409, { code: 'quote-requests.conflict' }));
+    const openDialogs: number[] = [];
+    const onConflict = vi.fn(() => {
+      openDialogs.push(document.querySelectorAll('[role="dialog"][data-state="open"]').length);
+    });
+    const { user } = renderMenu(quoteRequestDetail(ID), { onConflict });
+    await user.click(trigger());
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Spam' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mark this request as spam?' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Mark as Spam' }));
+
+    await waitFor(() => {
+      expect(onConflict).toHaveBeenCalledTimes(1);
+    });
+    expect(openDialogs).toEqual([0]);
+  });
+
   it('Mark as Spam shows Marking while it runs, then moves and toasts', async () => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {

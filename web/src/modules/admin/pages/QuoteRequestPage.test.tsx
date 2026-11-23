@@ -301,6 +301,25 @@ describe('Change Status on the page (D-15, D-14)', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toHaveFocus();
   });
 
+  it('shows the ConflictBanner after the Spam confirm closes on a 409, with focus on Load Latest', async () => {
+    quoteRequestBackend(quoteRequestDetail(ID), () => quoteProblem(409, { code: 'quote-requests.conflict' }));
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Spam' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mark this request as spam?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Mark as Spam' }));
+
+    const title = await screen.findByText('Someone else changed this request.');
+    const banner = title.closest<HTMLElement>('[role="alert"]');
+    if (banner === null) throw new Error('The banner is not an alert.');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(within(banner).getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+  });
+
   it('shows no status menu on a Converted request', async () => {
     quoteRequestBackend(quoteRequestDetail(ID, { status: 'converted' }));
     renderPage();

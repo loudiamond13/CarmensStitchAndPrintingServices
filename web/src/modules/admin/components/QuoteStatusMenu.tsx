@@ -76,6 +76,8 @@ export function QuoteStatusMenu({ request, onMoved, onConflict }: QuoteStatusMen
   // A move from the Spam confirm shows its failure in the dialog, not in a toast.
   const inDialog = useRef(false);
   const focusAfterDialog = useRef(false);
+  // A 409 from the confirm waits until the dialog has closed, so the banner is read and takes focus.
+  const conflictAfterDialog = useRef(false);
   const menuId = useId();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -94,7 +96,11 @@ export function QuoteStatusMenu({ request, onMoved, onConflict }: QuoteStatusMen
       },
       onFailure: (copy: ErrorCopy, error) => {
         if (isConflict(error)) {
-          onConflict();
+          if (inDialog.current) {
+            conflictAfterDialog.current = true;
+          } else {
+            onConflict();
+          }
           return;
         }
         if (isGone(error)) {
@@ -133,16 +139,24 @@ export function QuoteStatusMenu({ request, onMoved, onConflict }: QuoteStatusMen
     inDialog.current = true;
     const outcome = await move.submit({ status: 'spam', version: request.version });
     inDialog.current = false;
-    if (outcome.ok || isConflict(outcome.error) || isGone(outcome.error)) {
+    if (!outcome.ok && isConflict(outcome.error)) {
+      setSpamOpen(false);
+      return undefined;
+    }
+    if (outcome.ok || isGone(outcome.error)) {
       closeSpam();
       return undefined;
     }
     return outcome;
   };
 
-  // Once the confirm has closed, Change Status takes focus back (the item that opened it is gone).
+  // Once the confirm has closed, a 409 raises the banner, else Change Status takes focus back.
   useEffect(() => {
-    if (focusAfterDialog.current && !spamOpen) {
+    if (spamOpen) return;
+    if (conflictAfterDialog.current) {
+      conflictAfterDialog.current = false;
+      onConflict();
+    } else if (focusAfterDialog.current) {
       focusAfterDialog.current = false;
       buttonRef.current?.focus();
     }
