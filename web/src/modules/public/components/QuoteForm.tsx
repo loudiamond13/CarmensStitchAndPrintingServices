@@ -13,12 +13,12 @@ import { isHttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { cardHeadClasses, cardTitleClasses, formCardClasses, smallMutedClasses } from './contact.recipe';
-import { inlineLinkClasses } from './legal.recipe';
 import {
   quoteFormFooterClasses,
   quoteFormGridClasses,
   quoteFormMessageClasses,
   quoteFormNoticeClasses,
+  quoteFormNoticeLinkClasses,
   quotePhotoSlotClasses,
   quoteFormSendClasses,
   quoteFormLiveClasses,
@@ -447,7 +447,7 @@ export function QuoteForm() {
       <div className={quoteFormFooterClasses}>
         <p className={quoteFormNoticeClasses}>
           {COPY.notice.before}
-          <UiLink to="/privacy" className={inlineLinkClasses}>
+          <UiLink to="/privacy" className={quoteFormNoticeLinkClasses}>
             {COPY.notice.link}
           </UiLink>
           {COPY.notice.after}

@@ -73,6 +73,9 @@ export const quoteFormMessageClasses = tw(
 /** The privacy notice (D-27): Small, muted, at most 340px wide. */
 export const quoteFormNoticeClasses = tw('m-0 max-w-[340px] text-14 leading-5 text-ink-muted');
 
+/** The Privacy Policy link in the notice: the inline link look of the legal pages, kept here so the form does not load their styles. */
+export const quoteFormNoticeLinkClasses = tw('text-link underline underline-offset-[3px]');
+
 /** Send Inquiry takes the full width under the notice at 420px and below. */
 export const quoteFormSendClasses = tw('pg-xs:w-full');
 
