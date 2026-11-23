@@ -377,6 +377,22 @@ describe('QuotePhotoPicker limits and the add area (D-02)', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it.each(['browse', 'Take Photo', 'Choose Photos'])(
+    'opens no chooser from %s while the form is sending',
+    async (name) => {
+      const { container } = render(<Harness disabled />);
+      const opened = vi.fn();
+      galleryInput(container).addEventListener('click', opened);
+      cameraInput(container).addEventListener('click', opened);
+      const button = screen.getByRole('button', { name });
+
+      await userEvent.setup().click(button);
+
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+      expect(opened).not.toHaveBeenCalled();
+    },
+  );
+
   it('wraps a long file name anywhere', async () => {
     render(<Harness initial={[pngFile(`${'a'.repeat(70)}.png`)]} />);
 
