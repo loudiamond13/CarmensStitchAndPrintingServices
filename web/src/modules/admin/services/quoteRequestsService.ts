@@ -11,6 +11,7 @@ export type NewQuoteCountResponse = Schemas['NewQuoteCountResponse'];
 export type QuoteRequestDetailResponse = Schemas['QuoteRequestDetailResponse'];
 export type QuoteRequestPhoto = Schemas['QuoteRequestPhotoResponse'];
 export type QuoteRequestStatusChange = Schemas['QuoteRequestStatusChangeResponse'];
+export type QuoteRequestStatusChanged = Schemas['QuoteRequestStatusChangedResponse'];
 
 /** The status groups of the inbox pills; `open` is New, Contacted and Quoted (D-18). */
 export const QUOTE_STATUS_FILTERS = ['open', 'converted', 'closed', 'spam', 'all'] as const;
@@ -30,6 +31,17 @@ export interface QuoteRequestsService {
   newCount(signal?: AbortSignal): Promise<NewQuoteCountResponse>;
   /** `GET /api/v1/quote-requests/{id}`: one request in full, with its photo addresses, history and version (D-13, D-36). */
   get(id: string, signal?: AbortSignal): Promise<QuoteRequestDetailResponse>;
+  /**
+   * `POST /api/v1/quote-requests/{id}/status` with the row version the page holds (D-15). The answer is only the new status and
+   * version; the page reads the request again for its history. `409 quote-requests.conflict` when someone else changed it.
+   */
+  changeStatus(
+    id: string,
+    status: string,
+    version: string,
+    idempotencyKey: string,
+    signal?: AbortSignal,
+  ): Promise<QuoteRequestStatusChanged>;
 }
 
 export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
@@ -42,6 +54,12 @@ export function createQuoteRequestsService(client: HttpClient): QuoteRequestsSer
     newCount: (signal) => client.get<NewQuoteCountResponse>('/quote-requests/new-count', { signal }),
     get: (id, signal) =>
       client.get<QuoteRequestDetailResponse>(`/quote-requests/${encodeURIComponent(id)}`, { signal }),
+    changeStatus: (id, status, version, idempotencyKey, signal) =>
+      client.post<QuoteRequestStatusChanged>(
+        `/quote-requests/${encodeURIComponent(id)}/status`,
+        { status, version },
+        { idempotencyKey, signal },
+      ),
   };
 }
 

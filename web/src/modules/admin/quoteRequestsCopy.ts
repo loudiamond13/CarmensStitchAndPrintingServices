@@ -101,4 +101,23 @@ export const QUOTE_REQUEST_COPY = {
     separator: ' · ',
     received: 'Received from the website',
   },
+  status: {
+    menu: 'Change Status',
+    /** The button while a move runs, as OrderStatusMenu. */
+    saving: 'Saving',
+    moveTo: (label: string): string => `Move to ${label}`,
+    moved: { title: 'Status changed', message: (label: string): string => `This request is now ${label}.` },
+    failed: "Couldn't change the status",
+  },
+  /** The D-04 confirm before a Spam move deletes photos. */
+  spam: {
+    title: 'Mark this request as spam?',
+    message: (photos: number): string =>
+      `Its ${formatCount(photos)} ${photos === 1 ? 'photo' : 'photos'} will be deleted within a day and can't be brought back. The request text stays until it's cleaned up after 6 months.`,
+    confirm: 'Mark as Spam',
+    pending: 'Marking',
+    cancel: 'Cancel',
+  },
+  /** The ConflictBanner lines after a 409. */
+  conflict: { title: 'Someone else changed this request.', body: 'Load the latest to see it.' },
 } as const;

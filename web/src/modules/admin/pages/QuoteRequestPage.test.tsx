@@ -245,13 +245,17 @@ describe('Change Status on the page (D-15, D-14)', () => {
     expect(screen.getByRole('button', { name: 'Change Status' })).toHaveFocus();
   });
 
-  it('uses the version of the answer for the next move', async () => {
-    const backend = quoteRequestBackend(quoteRequestDetail(ID), (body, id) => ({
-      id,
-      status: body.status,
-      statusChangedAtUtc: '2026-11-21T08:05:00Z',
-      version: body.version === 'AAAAAAAAB9E=' ? 'AAAAAAAAB9I=' : 'AAAAAAAAB9J=',
-    }));
+  it('uses the version of the latest read for the next move', async () => {
+    const backend = quoteRequestBackend(
+      (read) =>
+        read === 1 ? quoteRequestDetail(ID) : quoteRequestDetail(ID, { status: 'contacted', version: 'AAAAAAAAB9I=' }),
+      (body, id) => ({
+        id,
+        status: body.status,
+        statusChangedAtUtc: '2026-11-21T08:05:00Z',
+        version: body.version === 'AAAAAAAAB9E=' ? 'AAAAAAAAB9I=' : 'AAAAAAAAB9J=',
+      }),
+    );
     renderPage();
     const user = userEvent.setup();
 
@@ -280,14 +284,16 @@ describe('Change Status on the page (D-15, D-14)', () => {
     await user.click(await screen.findByRole('button', { name: 'Change Status' }));
     await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
 
-    const banner = await screen.findByRole('alert');
-    expect(banner).toHaveTextContent('Someone else changed this request. Load the latest to see it.');
+    const title = await screen.findByText('Someone else changed this request.');
+    const banner = title.closest<HTMLElement>('[role="alert"]');
+    if (banner === null) throw new Error('The banner is not an alert.');
+    expect(banner).toHaveTextContent('Someone else changed this request.Load the latest to see it.');
     const loadLatest = within(banner).getByRole('button', { name: 'Load Latest' });
     expect(loadLatest).toHaveFocus();
     await user.click(loadLatest);
 
     await waitFor(() => {
-      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByText('Someone else changed this request.')).toBeNull();
     });
     expect(backend.reads.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Contacted', { selector: '*:not(li)' })).toBeVisible();

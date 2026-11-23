@@ -14,9 +14,18 @@ export interface ConflictBannerProps {
   onLoadLatest: () => void;
   /** The latest version is on its way: the button reads "Loading" and ignores presses. */
   pending?: boolean | undefined;
+  /** A screen's own bold line, in place of the shared one. */
+  title?: string | undefined;
+  /** A screen's own muted line, in place of the shared one. */
+  body?: string | undefined;
 }
 
-export function ConflictBanner({ onLoadLatest, pending = false }: ConflictBannerProps) {
+export function ConflictBanner({
+  onLoadLatest,
+  pending = false,
+  title = STATES_COPY.conflict.title,
+  body = STATES_COPY.conflict.body,
+}: ConflictBannerProps) {
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     button.current?.focus();
@@ -25,8 +34,8 @@ export function ConflictBanner({ onLoadLatest, pending = false }: ConflictBanner
     <div className={bannerStartClasses} role="alert">
       <Icon name="triangle-alert" size={20} />
       <div className={bannerTextClasses}>
-        <strong>{STATES_COPY.conflict.title}</strong>
-        <span>{STATES_COPY.conflict.body}</span>
+        <strong>{title}</strong>
+        <span>{body}</span>
       </div>
       <Button ref={button} variant="secondary" size="sm" pending={pending} onClick={onLoadLatest}>
         {pending ? STATES_COPY.conflict.loading : STATES_COPY.conflict.loadLatest}
