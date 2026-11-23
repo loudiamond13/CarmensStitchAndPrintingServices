@@ -5,6 +5,7 @@ using Csps.Application.Ports;
 using Csps.Domain.Common;
 using Csps.Domain.Content;
 using Csps.Domain.QuoteRequests;
+using Csps.Domain.Time;
 using FluentValidation;
 
 namespace Csps.Application.QuoteRequests;
@@ -110,7 +111,7 @@ public sealed class CreateQuoteRequestHandler(
         {
             return await ConflictRetry
                 .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => SaveUnderLockAsync(saved, clock.UtcNow, token), cancellationToken),
+                    () => unitOfWork.InTransactionAsync(token => SaveUnderLockAsync(saved, clock, token), cancellationToken),
                     Result.Failure<CreateQuoteRequestResponse>(AuthErrors.SessionBusy))
                 .ConfigureAwait(false);
         }
@@ -120,8 +121,9 @@ public sealed class CreateQuoteRequestHandler(
         }
     }
 
-    private async Task<Result<CreateQuoteRequestResponse>> SaveUnderLockAsync(QuoteRequest saved, DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task<Result<CreateQuoteRequestResponse>> SaveUnderLockAsync(QuoteRequest saved, BusinessClock clock, CancellationToken cancellationToken)
     {
+        var now = clock.UtcNow;
         await store.LockAsync(cancellationToken).ConfigureAwait(false);
         var recent = await store.CountRecentFromSenderAsync(saved.ContactNumberE164, saved.Email, now - QuoteRequestSettings.SenderWindow, cancellationToken).ConfigureAwait(false);
         if (recent.Count >= settings.PerSenderPerDay)
@@ -132,17 +134,37 @@ public sealed class CreateQuoteRequestHandler(
         }
 
         store.Add(saved);
-        await QueueAlertAsync(saved, cancellationToken).ConfigureAwait(false);
+        await QueueAlertAsync(saved, HourStart(clock), cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(new CreateQuoteRequestResponse(saved.Id, [.. saved.Photos.Select(static photo => new QuotePhotoSlotResponse(photo.Slot, photo.FileName))]));
     }
 
+    // The start of the current business hour, as an instant.
+    private static DateTimeOffset HourStart(BusinessClock clock)
+    {
+        var local = TimeZoneInfo.ConvertTime(clock.UtcNow, clock.Zone);
+        return (local - TimeSpan.FromTicks(local.Ticks % TimeSpan.TicksPerHour)).ToUniversalTime();
+    }
+
     // The staff alert joins the request's own save, so it exists only when the request does (INQ-04). No address means no alert (D-07).
-    private async Task QueueAlertAsync(QuoteRequest saved, CancellationToken cancellationToken)
+    // The count runs under the quote-requests lock and the rows of earlier sends are committed, so a busy hour never passes the limit (D-09).
+    private async Task QueueAlertAsync(QuoteRequest saved, DateTimeOffset hourStart, CancellationToken cancellationToken)
     {
         var address = (await siteContent.GetQuoteAlertsEmailAsync(cancellationToken).ConfigureAwait(false)).Trim();
         if (address.Length == 0)
         {
+            return;
+        }
+
+        var sent = await outbox.CountRecentAsync(AuthEmailKind.QuoteAlert, address, hourStart, cancellationToken).ConfigureAwait(false);
+        if (sent >= settings.AlertsPerHour)
+        {
+            var overflowSent = await outbox.CountRecentAsync(AuthEmailKind.QuoteAlertsOverflow, address, hourStart, cancellationToken).ConfigureAwait(false);
+            if (overflowSent == 0)
+            {
+                await EnqueueQuietlyAsync(new QuoteAlertsOverflowEmail(address), cancellationToken).ConfigureAwait(false);
+            }
+
             return;
         }
 
@@ -156,6 +178,11 @@ public sealed class CreateQuoteRequestHandler(
             saved.QuantityRange is { } range ? QuantityLabel(range) : null,
             saved.Photos.Count,
             saved.Message);
+        await EnqueueQuietlyAsync(email, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnqueueQuietlyAsync(AuthEmail email, CancellationToken cancellationToken)
+    {
         try
         {
             await outbox.EnqueueAsync(email, cancellationToken).ConfigureAwait(false);

@@ -404,6 +404,56 @@ public sealed class CreateQuoteRequestHandlerTests
     }
 
     [Fact]
+    public async Task TheCountStartsAtTheTopOfTheBusinessHourAndBelowTheLimitAnAlertIsQueued()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 19;
+
+        await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        harness.Outbox.Counts.ShouldBe([(AuthEmailKind.QuoteAlert, "quotes@example.com", new DateTimeOffset(2026, 11, 22, 10, 0, 0, TimeSpan.Zero))]);
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertEmail>();
+    }
+
+    [Fact]
+    public async Task AtTheLimitOneOverflowEmailIsQueuedForTheHour()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 20;
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertsOverflowEmail>().To.ShouldBe("quotes@example.com");
+    }
+
+    [Fact]
+    public async Task AfterTheOverflowEmailNothingElseIsQueuedThatHour()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 20;
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlertsOverflow] = 1;
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheLimitComesFromTheSetting()
+    {
+        var harness = new Harness(alertsPerHour: 2) { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 2;
+
+        await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertsOverflowEmail>();
+    }
+
+    [Fact]
     public async Task ACaughtBotAndARefusedSenderQueueNoAlert()
     {
         var caught = new Harness { AlertsAddress = "quotes@example.com" };
@@ -430,7 +480,7 @@ public sealed class CreateQuoteRequestHandlerTests
 
     private sealed class Harness
     {
-        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3, int perSenderPerDay = 3)
+        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3, int perSenderPerDay = 3, int alertsPerHour = 20)
         {
             Store = Substitute.For<IQuoteRequestStore>();
             Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call =>
@@ -465,7 +515,7 @@ public sealed class CreateQuoteRequestHandlerTests
                 new FixedCalendar(),
                 Unit,
                 validator ?? new CreateQuoteRequestRequestValidator(),
-                new QuoteRequestSettings { MinimumSeconds = minimumSeconds, PerSenderPerDay = perSenderPerDay },
+                new QuoteRequestSettings { MinimumSeconds = minimumSeconds, PerSenderPerDay = perSenderPerDay, AlertsPerHour = alertsPerHour },
                 tickets,
                 botLog,
                 siteContent,
@@ -513,6 +563,10 @@ public sealed class CreateQuoteRequestHandlerTests
 
         public int SavesAtEnqueue { get; private set; } = -1;
 
+        public Dictionary<AuthEmailKind, int> Recent { get; } = [];
+
+        public List<(AuthEmailKind Kind, string To, DateTimeOffset Since)> Counts { get; } = [];
+
         public ValueTask EnqueueAsync(AuthEmail email, CancellationToken cancellationToken)
         {
             if (FailWith is not null)
@@ -526,7 +580,11 @@ public sealed class CreateQuoteRequestHandlerTests
             return ValueTask.CompletedTask;
         }
 
-        public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken) => Task.FromResult(0);
+        public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken)
+        {
+            Counts.Add((kind, toAddress, since));
+            return Task.FromResult(Recent.GetValueOrDefault(kind));
+        }
 
         public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(0);
     }

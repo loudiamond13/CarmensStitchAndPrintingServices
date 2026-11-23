@@ -36,7 +36,10 @@ public sealed class QuoteRequestSettings
     /// <summary>Gets or sets how many requests one mobile number or one email may send in 24 hours; from 1 to 50 (D-37).</summary>
     public int PerSenderPerDay { get; set; } = 3;
 
-    /// <summary>Gets or sets how many staff alert emails are sent in one business hour (D-09).</summary>
+    /// <summary>The most staff alert emails an hour that can be allowed.</summary>
+    public const int MaxAlertsPerHour = 200;
+
+    /// <summary>Gets or sets how many staff alert emails are sent in one business hour; from 1 to 200. Past it, one overflow email is sent for the hour (D-09).</summary>
     public int AlertsPerHour { get; set; } = 20;
 
     /// <summary>Gets or sets how long a form ticket stays good; from 1 to 72 hours. An older ticket is a 400 so a real visitor can send again.</summary>
@@ -59,6 +62,11 @@ public sealed class QuoteRequestSettings
         if (PerSenderPerDay is < 1 or > MaxPerSenderPerDay)
         {
             return $"{SectionName}:PerSenderPerDay must be from 1 to {MaxPerSenderPerDay}.";
+        }
+
+        if (AlertsPerHour is < 1 or > MaxAlertsPerHour)
+        {
+            return $"{SectionName}:AlertsPerHour must be from 1 to {MaxAlertsPerHour}.";
         }
 
         return TicketLifetime < MinTicketLifetime || TicketLifetime > MaxTicketLifetime
