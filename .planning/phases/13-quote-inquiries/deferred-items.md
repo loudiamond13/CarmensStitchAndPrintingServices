@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T13:10:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T15:30:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -21,6 +21,7 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, plan 13-14 | `QuoteForm.test.tsx` "shows the pending label Sending while the request runs" | failed once in the full web suite | alone: 3 of 3 passed |
 | 2026-11-23, plan 13-15 | `no-long-dash.node.test.ts` | ran past its 5 s limit (5210 ms) under machine load | alone: passed in 2.8 s |
 | 2026-11-23, plan 13-14 | `scripts/license-policy.test.ts` "exits 1 on a stricter policy" | fails in a fresh worktree ("No packages found in this path"), as in 13-09 and 13-12 | passes in the main checkout |
+| 2026-11-23, plan 13-17 | `QuoteForm.test.tsx` "shows the pending label Sending..." (second time, recurring under load) | failed in the full web suite | alone: 1 of 1, whole file 50 of 50 |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 

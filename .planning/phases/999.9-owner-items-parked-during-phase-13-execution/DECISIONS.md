@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T14:20:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T15:30:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -164,6 +164,28 @@ The form budget gained 0.86 KB because the form no longer loads the legal page s
 3. **Who decides a request is "new".** A: the browser, with two rare misses (a visit that opens on page 2 or later; a request closed before this visit saw it, then moved back to New). B: the list answer from the server says what is new (an API change).
 4. **Which address the "Test email on its way" message names.** A: the address saved when Send Test Email was pressed, with no API change. If another Manager saves a different address in that moment, the message can name the wrong one. B: the server's answer names the address it mailed.
 
+## P13-BL-16 · Choices made in the quote request detail and status moves (plan 13-16)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Spam and photos that never arrived.** A: Spam clears every photo place, including the names of photos that never arrived. B: keep those names.
+2. **The "received" line in the history.** A: built from the received time when the request is read, not stored. B: store a first history row when the visitor sends the form, as orders do.
+3. **History order.** A: newest first, as the UI spec shows. B: oldest first, like the order history.
+4. **Moving to the status it already has.** A: refused with "This request is already {status}." B: accepted with no change, as orders do.
+5. **Wording:** "A request that became an order can't change status.", "Choose a status." and the shared "This was changed by someone else. Reload and try again." A: keep. B: new wording.
+6. **Audit page detail.** A: the label "Quote request status changed" only. B: also "Status: New to Contacted".
+7. **A photo upload at the moment of a Spam move.** A: that photo is removed by the 2-day stray photo sweep instead of the next daily run. B: a lock so it is always queued at once.
+
+## P13-BL-17 · Choices made in the new quote request count (plan 13-17)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Screen reader count above 99.** A: "Quote Requests, 99+ new", like the chip. B: the exact count.
+2. **The count after a failed read.** A: it keeps trying every 60 seconds and when staff return to the tab, with no chip meanwhile, so it comes back by itself. B: pause like the inbox list until Try Again or a reload.
+3. **Phone tab width at 320 px.** A: about 61 px each (the bar keeps its side padding; the spec says 64; every tab is still at least 44 px and no label is cut). B: drop the padding for exactly 64 px.
+4. **Dashboard strip while it re-reads after a failure.** A: the failure line stays and Try Again shows busy. B: swap to the loading look, which reads the failure out again each time.
+5. **Strip figure for large counts.** A: the exact count ("1,250"). B: "99+" like the chip.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -172,3 +194,4 @@ The form budget gained 0.86 KB because the form no longer loads the legal page s
 - [ ] Quote form on a real phone: pick a photo and press Send at once. The photo must arrive, and Send shows Sending until it does (13-REVIEW-FIX-W5 CR-01).
 - [ ] Quote Requests list on a real phone: the cards, the filter pills and the search (plan 13-15).
 - [ ] Send a real test email from Site Content > Business info > Quote alerts and check it arrives (plan 13-13).
+- [ ] The Quote Requests count chip, the rail dot, the Quotes phone tab and the dashboard strip in Blush and Espresso, on phone and desktop (plan 13-17).
