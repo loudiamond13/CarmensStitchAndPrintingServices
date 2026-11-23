@@ -28,7 +28,7 @@ internal sealed class OutboxEmailSender(CspsDbContext context, EmailRenderer ren
         // Defense in depth for a deleted person's scrambled address (IN-08). The message never repeats the address.
         if (IsReservedDomain(email.To))
         {
-            throw new ArgumentException("The recipient is in a domain reserved for names that cannot receive mail.", nameof(email));
+            throw new UndeliverableRecipientException();
         }
 
         var rendered = await renderer.RenderAsync(email, cancellationToken).ConfigureAwait(false);

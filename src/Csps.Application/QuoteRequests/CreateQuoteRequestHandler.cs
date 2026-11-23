@@ -187,7 +187,7 @@ public sealed class CreateQuoteRequestHandler(
         {
             await outbox.EnqueueAsync(email, cancellationToken).ConfigureAwait(false);
         }
-        catch (ArgumentException)
+        catch (UndeliverableRecipientException)
         {
             // An address that can never receive mail must not cost the shop a lead; the request is still saved.
         }

@@ -394,13 +394,32 @@ public sealed class CreateQuoteRequestHandlerTests
     public async Task AnAddressThatCannotReceiveMailStillSavesTheRequest()
     {
         var harness = new Harness { AlertsAddress = "quotes@example.com" };
-        harness.Outbox.FailWith = new ArgumentException("The recipient cannot receive mail.");
+        harness.Outbox.FailWith = new UndeliverableRecipientException();
 
         var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
 
         result.IsSuccess.ShouldBeTrue();
         harness.Added.ShouldHaveSingleItem();
         harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData("range")]
+    [InlineData("null")]
+    [InlineData("argument")]
+    public async Task AnyOtherAlertFailureIsNotSwallowed(string kind)
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.FailWith = kind switch
+        {
+            "range" => new ArgumentOutOfRangeException(nameof(kind)),
+            "null" => new ArgumentNullException(nameof(kind)),
+            _ => new ArgumentException("A bad format argument."),
+        };
+
+        await Should.ThrowAsync<ArgumentException>(async () => await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken));
+
+        harness.Unit.Commits.ShouldBe(0);
     }
 
     [Fact]
