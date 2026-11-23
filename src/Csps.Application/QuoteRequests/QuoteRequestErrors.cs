@@ -34,11 +34,17 @@ public static class QuoteRequestErrors
     /// <summary>The field the ticket error is listed on.</summary>
     public const string TicketField = "ticket";
 
-    /// <summary>Gets the answer for a send with no good form ticket: a 400, never a silent success, so a real lead is not lost.</summary>
-    public static Error TicketExpired { get; } = Error.Validation(
+    /// <summary>The extra member of the ticket-expired 400 that holds the ticket to use for the resend (D-38).</summary>
+    public const string ReplacementTicketKey = "replacementTicket";
+
+    /// <summary>Builds the answer for a send with no good form ticket: a 400, never a silent success, so a real lead is not lost.</summary>
+    /// <param name="replacementTicket">A new ticket, issued already as old as the minimum time, so the one resend is not treated as too fast.</param>
+    /// <returns>The error.</returns>
+    public static Error TicketExpired(string replacementTicket) => Error.Validation(
         TicketExpiredCode,
         TicketExpiredMessage,
-        new Dictionary<string, string[]> { [TicketField] = [TicketExpiredMessage] });
+        new Dictionary<string, string[]> { [TicketField] = [TicketExpiredMessage] },
+        new Dictionary<string, string> { [ReplacementTicketKey] = replacementTicket });
 
     /// <summary>The code of a send over the per-sender daily limit; the same code the per-address rate limit uses (D-37).</summary>
     public const string SenderLimitCode = "rate-limited";

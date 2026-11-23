@@ -159,12 +159,37 @@ public sealed class CreateQuoteRequestHandlerTests
         var result = await harness.Handler.HandleAsync(Request() with { SubjectLine = "text" }, TestContext.Current.CancellationToken);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error.ShouldBeSameAs(QuoteRequestErrors.TicketExpired);
         result.Error.Code.ShouldBe("quote-requests.ticket-expired");
         result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(["ticket"]);
         harness.Caught.ShouldBeEmpty("an expired ticket is not a caught bot");
         harness.Added.ShouldBeEmpty();
         harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(0)]
+    [InlineData(60)]
+    public async Task ATicketExpiredAnswerCarriesAReplacementIssuedAlreadyMinimumSecondsOld(int minimumSeconds)
+    {
+        var harness = new Harness(minimumSeconds: minimumSeconds) { TicketReading = QuoteTicketReading.Expired };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Error.Extensions.ShouldNotBeNull()["replacementTicket"].ShouldBe("replacement-ticket");
+        harness.IssuedAt.ShouldBe([Now - TimeSpan.FromSeconds(minimumSeconds)]);
+        harness.Added.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AGoodTicketIssuesNoReplacement()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.IssuedAt.ShouldBeEmpty();
     }
 
     [Theory]
@@ -317,6 +342,11 @@ public sealed class CreateQuoteRequestHandlerTests
             });
             var tickets = Substitute.For<IQuoteFormTickets>();
             tickets.Read(Arg.Any<string?>(), Arg.Any<DateTimeOffset>()).Returns(_ => TicketReading);
+            tickets.Issue(Arg.Any<DateTimeOffset>()).Returns(call =>
+            {
+                IssuedAt.Add(call.Arg<DateTimeOffset>());
+                return "replacement-ticket";
+            });
             var botLog = Substitute.For<IQuoteBotCatchLog>();
             botLog.When(log => log.Caught(Arg.Any<string>())).Do(call => Caught.Add(call.Arg<string>()));
             Handler = new CreateQuoteRequestHandler(
@@ -338,6 +368,8 @@ public sealed class CreateQuoteRequestHandlerTests
         public QuoteTicketReading TicketReading { get; set; } = QuoteTicketReading.Valid(TimeSpan.FromSeconds(10));
 
         public List<string> Caught { get; } = [];
+
+        public List<DateTimeOffset> IssuedAt { get; } = [];
 
         public IQuoteRequestStore Store { get; }
 

@@ -8,7 +8,7 @@ namespace Csps.Server.Http;
 /// Turns use-case results into HTTP results. Every failure maps here, in one switch, to an RFC 9457
 /// ProblemDetails (FND-05, D-26): Validation 400 with <c>errors</c>, NotFound 404, Conflict 409,
 /// BusinessRule 422, Forbidden 403, Unauthenticated 401,
-/// TooManyRequests 429 (with Retry-After). 4xx bodies carry the error's machine code.
+/// TooManyRequests 429 (with Retry-After). 4xx bodies carry the error's machine code and its extra members, if any.
 /// </summary>
 public static class ResultHttpExtensions
 {
@@ -69,7 +69,16 @@ public static class ResultHttpExtensions
             http.Items[CspsProblemDetails.AuthoredErrorItem] = true;
         }
 
-        return TypedResults.Problem(CspsProblemDetails.Build(http, status, error.Message, SortedFieldErrors(error), error.Code));
+        var problem = CspsProblemDetails.Build(http, status, error.Message, SortedFieldErrors(error), error.Code);
+        if (error.Extensions is not null)
+        {
+            foreach (var (name, value) in error.Extensions)
+            {
+                problem.Extensions[name] = value;
+            }
+        }
+
+        return TypedResults.Problem(problem);
     }
 
     // Ordinal key order, messages in insertion order: identical failures serialize identically (FND-05 ordering edge).

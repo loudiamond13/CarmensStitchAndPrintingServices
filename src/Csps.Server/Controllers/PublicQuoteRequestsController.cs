@@ -33,8 +33,8 @@ public sealed class PublicQuoteRequestsController(
     /// <summary>
     /// Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
     /// issued, so the server can tell how fast the form was sent; the create call must carry it in <c>ticket</c>. The answer also
-    /// lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form asks for a new
-    /// one when the create call answers 400 with the code <c>quote-requests.ticket-expired</c>. Never cached.
+    /// lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form uses the
+    /// <c>replacementTicket</c> of the create answer when it is 400 with the code <c>quote-requests.ticket-expired</c>, or asks for a new one here. Never cached.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the ticket and the photo rules, or 429 when the address asks too often.</returns>
@@ -53,7 +53,7 @@ public sealed class PublicQuoteRequestsController(
     /// Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
     /// saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
     /// is ignored. The body must carry the <c>ticket</c> from the ticket call; without a good one the answer is a 400 with the code
-    /// <c>quote-requests.ticket-expired</c> and nothing is saved. The member <c>subjectLine</c> is reserved and must be left empty. A visitor who will send photos names up to 5 files in <c>photos</c> and sends an <c>uploadKey</c> the browser made
+    /// <c>quote-requests.ticket-expired</c>, nothing is saved, and the answer carries a new ticket in <c>replacementTicket</c>: send once more with it (and a new <c>Idempotency-Key</c>). The member <c>subjectLine</c> is reserved and must be left empty. A visitor who will send photos names up to 5 files in <c>photos</c> and sends an <c>uploadKey</c> the browser made
     /// (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one <c>photoSlots</c> entry per
     /// file and never echoes the key. A retry with the same <c>Idempotency-Key</c> and body answers with the stored 200 and saves
     /// nothing more.

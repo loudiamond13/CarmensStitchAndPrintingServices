@@ -134,6 +134,62 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
+    public async Task AnExpiredTicketAnswerCarriesAReplacementThatTheImmediateResendCanUse()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
+        var clock = new FakeTimeProvider(Start);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = factory.CreateClient();
+        var body = QuoteRequestFixtures.MinimalBody();
+        body["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+        clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
+
+        using var expired = await QuoteRequestFixtures.PostAsync(client, body);
+
+        expired.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(expired, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe(ExpiredCode);
+        var replacement = problem.GetProperty("replacementTicket").GetString().ShouldNotBeNull();
+        body["ticket"] = replacement;
+
+        using var resend = await QuoteRequestFixtures.PostAsync(client, body);
+
+        resend.StatusCode.ShouldBe(HttpStatusCode.OK, await resend.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var context = database.CreateContext();
+        (await context.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1, "the resend is saved, not treated as too fast");
+        CatchEvents(baseFactory).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATamperedTicketAnswerAlsoCarriesAUsableReplacementButAFreshTicketIsStillTooFast()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
+        var clock = new FakeTimeProvider(Start);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = factory.CreateClient();
+        var body = QuoteRequestFixtures.MinimalBody();
+        body["ticket"] = "not-a-ticket";
+
+        using var refused = await QuoteRequestFixtures.PostAsync(client, body);
+
+        var problem = await ProblemJson.ReadAsync(refused, TestContext.Current.CancellationToken);
+        body["ticket"] = problem.GetProperty("replacementTicket").GetString();
+        using var resend = await QuoteRequestFixtures.PostAsync(client, body);
+        resend.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var fresh = QuoteRequestFixtures.MinimalBody();
+        fresh["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+        using var tooFast = await QuoteRequestFixtures.PostAsync(client, fresh);
+
+        tooFast.StatusCode.ShouldBe(HttpStatusCode.OK);
+        await using var context = database.CreateContext();
+        (await context.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1, "only the replacement send was saved");
+        ShouldHaveOneCatch(baseFactory, "too-fast");
+    }
+
+    [Fact]
     public async Task NoTicketIsTheSame400()
     {
         await database.ResetAsync();

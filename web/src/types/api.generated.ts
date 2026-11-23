@@ -2167,7 +2167,7 @@ export interface paths {
          * Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
          *     saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
          *     is ignored. The body must carry the `ticket` from the ticket call; without a good one the answer is a 400 with the code
-         *     `quote-requests.ticket-expired` and nothing is saved. The member `subjectLine` is reserved and must be left empty. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
+         *     `quote-requests.ticket-expired`, nothing is saved, and the answer carries a new ticket in `replacementTicket`: send once more with it (and a new `Idempotency-Key`). The member `subjectLine` is reserved and must be left empty. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
          *     (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one `photoSlots` entry per
          *     file and never echoes the key. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves
          *     nothing more.
@@ -2189,8 +2189,8 @@ export interface paths {
         /**
          * Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
          *     issued, so the server can tell how fast the form was sent; the create call must carry it in `ticket`. The answer also
-         *     lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form asks for a new
-         *     one when the create call answers 400 with the code `quote-requests.ticket-expired`. Never cached.
+         *     lists the photo rules the form checks before it sends a file. A ticket is good for 24 hours by default; the form uses the
+         *     `replacementTicket` of the create answer when it is 400 with the code `quote-requests.ticket-expired`, or asks for a new one here. Never cached.
          */
         get: operations["GetQuoteFormTicket"];
         put?: never;

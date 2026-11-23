@@ -92,6 +92,24 @@ public sealed class ErrorTests
         Error.Validation("a.b", "m", OneFieldError).RetryAfter.ShouldBeNull();
     }
 
+    [Fact]
+    public void ValidationKeepsItsExtraMembers()
+    {
+        var extensions = new Dictionary<string, string>(StringComparer.Ordinal) { ["replacement"] = "abc" };
+
+        var error = Error.Validation("order.invalid", "Some details need fixing.", OneFieldError, extensions);
+
+        error.Extensions.ShouldBeSameAs(extensions);
+    }
+
+    [Fact]
+    public void AnErrorHasNoExtraMembersUnlessGivenSome()
+    {
+        Error.Validation("a.b", "m", OneFieldError).Extensions.ShouldBeNull();
+        Error.NotFound("a.b", "m").Extensions.ShouldBeNull();
+        Error.TooManyRequests("a.b", "m", TimeSpan.FromSeconds(1)).Extensions.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

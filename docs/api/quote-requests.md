@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-22T19:36:00-06:00
+updated: 2026-11-22T23:00:00-06:00
 ---
 
 # The quote requests API
@@ -119,10 +119,16 @@ The create call must carry the ticket in `ticket`.
 |---|---|
 | A good ticket at least `QuoteRequests:MinimumSeconds` old (3 by default, 0 to 60) | the request is handled normally. A ticket exactly that old is accepted. |
 | A ticket younger than that | `200` in the normal shape with a made-up id and the declared photo places. Nothing is saved. |
-| A missing, changed, unreadable or too old ticket (`QuoteRequests:TicketLifetime`, 24 hours by default, 1 to 72 hours) | `400 quote-requests.ticket-expired`, with the message on the `ticket` field. Nothing is saved. |
+| A missing, changed, unreadable or too old ticket (`QuoteRequests:TicketLifetime`, 24 hours by default, 1 to 72 hours) | `400 quote-requests.ticket-expired`, with the message on the `ticket` field and a new ticket in `replacementTicket`. Nothing is saved. |
 
-A real visitor who left the form open overnight gets the `400`, never a silent success (Pitfall 4). The form then fetches a new ticket and
-sends once more. The resend needs a new `Idempotency-Key`, because the body has changed.
+A real visitor who left the form open overnight gets the `400`, never a silent success (Pitfall 4). The `400` carries
+`replacementTicket` (D-38): a ticket the server issued already `QuoteRequests:MinimumSeconds` old. The form sends the same body once
+more at once, with that ticket in `ticket`, and the minimum time does not catch it. The resend needs a new `Idempotency-Key`, because the
+body has changed. A bot gains nothing from this: it could already wait the minimum time after any ticket call. A ticket from
+`GET /public/quote-requests/ticket` is still too young when it is used at once.
+
+A send that is too fast is a silent `200` with a made-up id and nothing saved. A client must never cause one: it waits out
+the minimum time after it gets a ticket from the ticket call, and uses `replacementTicket` for the resend.
 
 ### The honeypot
 
@@ -165,5 +171,5 @@ answer and is not counted again.
 - `200` with `{ "id": "...", "photoSlots": [...] }`. The id names the new request. Nothing else about it is sent back.
 - `400 quote-requests.validation` with an `errors` object: one array of messages for each field that failed, with the field names
   above. An empty or unreadable body lists the two required fields (after the ticket is checked).
-- `400 quote-requests.ticket-expired` when there is no good ticket.
+- `400 quote-requests.ticket-expired` when there is no good ticket. The answer holds `replacementTicket`, a ticket to use for one resend at once.
 - `429 rate-limited` when one address sends too many, the whole site is busy, or one sender has sent too many.

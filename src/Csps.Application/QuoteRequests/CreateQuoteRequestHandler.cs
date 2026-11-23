@@ -30,7 +30,7 @@ public sealed class CreateQuoteRequestHandler(
     IQuoteBotCatchLog botLog)
 {
     /// <summary>
-    /// Saves the request. The form ticket and the hidden field are judged first (INQ-03): no good ticket is a 400 so a real visitor
+    /// Saves the request. The form ticket and the hidden field are judged first (INQ-03): no good ticket is a 400 that carries a replacement ticket so a real visitor
     /// sends again; a filled hidden field or a ticket younger than the minimum time gets the answer of a saved request and nothing is
     /// saved (D-25).
     /// </summary>
@@ -45,7 +45,9 @@ public sealed class CreateQuoteRequestHandler(
         var ticket = tickets.Read(request.Ticket, clock.UtcNow);
         if (!ticket.IsValid)
         {
-            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.TicketExpired);
+            // The replacement is already as old as the minimum time, so the visitor's one resend is not taken for a bot (D-38).
+            var replacement = tickets.Issue(clock.UtcNow - TimeSpan.FromSeconds(settings.MinimumSeconds));
+            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.TicketExpired(replacement));
         }
 
         if (!string.IsNullOrWhiteSpace(request.SubjectLine))
