@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 4/26 plans executed
+**Plans:** 5/26 plans executed
 
 Plans:
 **Wave 1**
@@ -1427,7 +1427,7 @@ Plans:
 - [x] 13-04-PLAN.md: Privacy Policy 1.1 draft covers quote requests and the daily cleanup (D-28) (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 13-05-PLAN.md: photos are stored privately one per call; a failed photo never loses the request (D-03) (wave 2)
+- [x] 13-05-PLAN.md: photos are stored privately one per call; a failed photo never loses the request (D-03) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 13-06-PLAN.md: form ticket, honeypot, per-address, site-wide and per-sender limits, no CAPTCHA (wave 3)
@@ -1671,7 +1671,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 4/26 | In Progress | - |
+| 13. Quote Inquiries | 5/26 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
