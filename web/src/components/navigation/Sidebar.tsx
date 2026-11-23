@@ -156,9 +156,9 @@ export function formatNavCount(count: number): string {
   return count > 99 ? '99+' : formatCount(count);
 }
 
-/** The hidden end of an item's name: "Quote Requests, 3 new". */
-export function navCountHiddenText(shown: string): string {
-  return `, ${shown} new`;
+/** An item's name with its count: "Quote Requests, 3 new". It is one hidden text, so no browser puts a space before the comma. */
+export function navCountName(label: string, shown: string): string {
+  return `${label}, ${shown} new`;
 }
 
 export interface SidebarProps {
@@ -245,6 +245,8 @@ export function Sidebar({
           .map((item) => {
             const count = counts?.[item.id] ?? 0;
             const shown = count > 0 ? formatNavCount(count) : null;
+            const labelId = `${idBase}-${item.id}`;
+            const nameId = shown === null ? labelId : `${labelId}-count`;
             const icon = <Icon name={item.icon} size={20} className={navIconClasses} />;
             return (
               <UiLink
@@ -254,9 +256,7 @@ export function Sidebar({
                 className={navItemClasses({ collapsed })}
                 aria-current={active === item.id ? 'page' : undefined}
                 aria-labelledby={
-                  item.manager === true && !collapsed && active !== item.id
-                    ? `${idBase}-${item.id} ${idBase}-${item.id}-tag`
-                    : `${idBase}-${item.id}`
+                  item.manager === true && !collapsed && active !== item.id ? `${nameId} ${labelId}-tag` : nameId
                 }
                 title={collapsed ? item.label : undefined}
               >
@@ -268,12 +268,16 @@ export function Sidebar({
                     <span aria-hidden="true" className={navCountDotClasses[layout]} />
                   </span>
                 )}
-                <span id={`${idBase}-${item.id}`} className={labelClasses}>
+                <span id={labelId} className={labelClasses}>
                   {item.label}
-                  {shown !== null && <span className={srOnlyClasses}>{navCountHiddenText(shown)}</span>}
                 </span>
+                {shown !== null && (
+                  <span id={nameId} className={srOnlyClasses}>
+                    {navCountName(item.label, shown)}
+                  </span>
+                )}
                 {item.manager === true && !collapsed && (
-                  <span id={`${idBase}-${item.id}-tag`} className={navTagClasses}>
+                  <span id={`${labelId}-tag`} className={navTagClasses}>
                     Manager
                   </span>
                 )}

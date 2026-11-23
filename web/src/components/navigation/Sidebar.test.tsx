@@ -606,6 +606,8 @@ describe('Sidebar Quote Requests item and New count (D-14, D-19)', () => {
     const quotes = link('Quote Requests');
 
     expect(quotes).toHaveAccessibleName('Quote Requests, 3 new');
+    // One hidden text holds the whole name, so a browser adds no space before the comma (a hidden span is not inline).
+    expect(quotes.getAttribute('aria-labelledby')).toBe(within(quotes).getByText('Quote Requests, 3 new').id);
     const chip = part(quotes, navCountClasses);
     expect(chip?.textContent).toBe('3');
     expect(chip?.getAttribute('aria-hidden')).toBe('true');
