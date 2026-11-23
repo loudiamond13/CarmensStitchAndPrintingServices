@@ -45,6 +45,9 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
     /// <summary>The name the content folder pass keeps its place under, apart from the orders pass.</summary>
     public const string ContentCursorName = "stray-sweep-content";
 
+    /// <summary>The name the quotes folder pass keeps its place under, apart from the other passes.</summary>
+    public const string QuotesCursorName = "stray-sweep-quotes";
+
     /// <inheritdoc />
     public int Order => 20;
 
