@@ -64,8 +64,6 @@ public sealed class GetQuoteRequestTests(CspsDatabase database) : IClassFixture<
         history[0].GetProperty("changedBy").ValueKind.ShouldBe(JsonValueKind.Null);
         history[0].GetProperty("changedAt").GetDateTimeOffset().ShouldBe(Received);
 
-        body.GetProperty("recordedBy").ValueKind.ShouldBe(JsonValueKind.Null);
-        body.GetProperty("recordedAt").GetDateTimeOffset().ShouldBe(Received);
         body.GetProperty("lastChangedBy").ValueKind.ShouldBe(JsonValueKind.Null);
         body.GetProperty("lastChangedAt").ValueKind.ShouldBe(JsonValueKind.Null);
 

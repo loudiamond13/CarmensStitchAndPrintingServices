@@ -2289,6 +2289,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer
+         *     and the 2000 px "Open Full Size"), the names of the photos that never arrived, when the photos were removed for Spam, the status
+         *     history newest first ending with the arrival, who last changed it, and the row version a status change must send back.
+         */
+        get: operations["GetQuoteRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -5662,6 +5683,63 @@ export interface components {
              */
             spam: number | string;
         };
+        /** @description One quote request in full for staff (INQ-05, D-13). */
+        QuoteRequestDetailResponse: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /** @description The email address; null when none. */
+            email: null | string;
+            /** @description The status history, newest first, ending with the arrival. */
+            history: components["schemas"]["QuoteRequestStatusChangeResponse"][];
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the request was last changed; null when never.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description What the visitor wrote; null when nothing. */
+            message: null | string;
+            /** @description The file names of the photos that never arrived (D-03), in slot order. */
+            missingPhotos: string[];
+            /**
+             * Format: int32
+             * @description How many photo places the request holds.
+             */
+            photoCount: number | string;
+            /** @description The photos that arrived, in slot order. */
+            photos: components["schemas"]["QuoteRequestPhotoResponse"][];
+            /**
+             * Format: date-time
+             * @description When the photos were removed because the request was marked Spam (D-04); null while kept.
+             */
+            photosRemovedAtUtc: null | string;
+            product: null | components["schemas"]["QuoteRequestProduct"];
+            /** @description The estimated quantity key such as `21-50`; null when none was chosen. */
+            quantity: null | string;
+            /**
+             * Format: date-time
+             * @description When the request was received, in UTC.
+             */
+            receivedAtUtc: string;
+            /** @description The status key: new, contacted, quoted, converted, closed or spam. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAtUtc: string;
+            /** @description The team or organization; null when none. */
+            teamName: null | string;
+            /** @description The row version to send with a status change. */
+            version: string;
+        };
         /** @description One request in the staff inbox (INQ-05). It carries no email and no message. */
         QuoteRequestListItem: {
             /** @description The mobile number in its display form, such as `0917 123 4567`. */
@@ -5720,12 +5798,51 @@ export interface components {
              */
             total: number | string;
         };
+        /** @description One stored photo of a quote request (INQ-05, D-36). The addresses are built when the request is read and are never stored. */
+        QuoteRequestPhotoResponse: {
+            /** @description The file name the visitor declared. */
+            fileName: string;
+            /** @description The address of the 2000 px JPEG behind "Open Full Size". */
+            fullSize: string;
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /**
+             * Format: int32
+             * @description The place, from 0.
+             */
+            slot: number | string;
+            /** @description The tile thumb, with a 2x candidate. */
+            thumb: components["schemas"]["ImageSourceResponse"];
+            /** @description The whole photo for the viewer, with width candidates. */
+            viewer: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
+        };
         /** @description What the visitor chose in the product list (D-24). */
         QuoteRequestProduct: {
             /** @description One of `line`, `custom` or `not-sure`. */
             choice: string;
             /** @description The line title at the moment of the request; null for another choice. */
             title: null | string;
+        };
+        /** @description One row of the status history (D-15). The last row is the arrival: from null to new, by nobody (SEC-08). */
+        QuoteRequestStatusChangeResponse: {
+            /**
+             * Format: date-time
+             * @description When it moved.
+             */
+            changedAt: string;
+            changedBy: null | components["schemas"]["ActorRef"];
+            /** @description The status the request left; null for the arrival. */
+            from: null | string;
+            /** @description The status the request entered. */
+            to: string;
         };
         /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
@@ -14105,6 +14222,47 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

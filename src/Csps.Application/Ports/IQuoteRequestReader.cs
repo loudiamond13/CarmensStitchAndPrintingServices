@@ -1,8 +1,9 @@
+using Csps.Application.Users;
 using Csps.Domain.QuoteRequests;
 
 namespace Csps.Application.Ports;
 
-/// <summary>Untracked reads of quote requests for staff (INQ-05): the inbox list. Nothing here changes a request.</summary>
+/// <summary>Untracked reads of quote requests for staff (INQ-05): the inbox list and one request. Nothing here changes a request.</summary>
 public interface IQuoteRequestReader
 {
     /// <summary>
@@ -18,7 +19,67 @@ public interface IQuoteRequestReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>How many requests are at status New.</returns>
     Task<int> CountNewAsync(CancellationToken cancellationToken);
+
+    /// <summary>Reads one request with its photo places and its status history, newest move first.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The request as stored, or null when there is no such request.</returns>
+    Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
 }
+
+/// <summary>One photo place as stored. A place with no public id is a photo that never arrived.</summary>
+/// <param name="Slot">The place, from 0.</param>
+/// <param name="FileName">The file name the visitor declared.</param>
+/// <param name="PublicId">The storage id; null while missing.</param>
+/// <param name="Width">The upright width; null while missing.</param>
+/// <param name="Height">The upright height; null while missing.</param>
+public sealed record QuoteRequestPhotoRow(int Slot, string FileName, string? PublicId, int? Width, int? Height);
+
+/// <summary>One status move as stored, with the mover's current name.</summary>
+/// <param name="From">The status the request left.</param>
+/// <param name="To">The status the request entered.</param>
+/// <param name="ChangedBy">Who moved it; null reads as System.</param>
+/// <param name="ChangedAtUtc">When it moved.</param>
+public sealed record QuoteRequestHistoryRow(QuoteRequestStatus From, QuoteRequestStatus To, ActorRef? ChangedBy, DateTimeOffset ChangedAtUtc);
+
+/// <summary>One request as stored. The phone is still E.164; the handler makes its display form and the photo addresses.</summary>
+/// <param name="Id">The request id.</param>
+/// <param name="ReceivedAtUtc">When it was received.</param>
+/// <param name="CustomerName">The visitor's name.</param>
+/// <param name="TeamName">The team; null when none.</param>
+/// <param name="ContactNumberE164">The mobile number as E.164.</param>
+/// <param name="Email">The email; null when none.</param>
+/// <param name="ProductChoice">What was chosen in the product list; null when nothing.</param>
+/// <param name="ProductTitle">The line title at the moment of the request; null for another choice.</param>
+/// <param name="QuantityRange">The estimated quantity; null when none.</param>
+/// <param name="Message">What the visitor wrote; null when nothing.</param>
+/// <param name="Status">The status.</param>
+/// <param name="StatusChangedAtUtc">When the status last changed.</param>
+/// <param name="Photos">The photo places in slot order.</param>
+/// <param name="PhotosRemovedAtUtc">When the photos were removed for Spam; null while kept.</param>
+/// <param name="History">The status moves, newest first.</param>
+/// <param name="LastChangedBy">Who last changed the request; null when nobody has.</param>
+/// <param name="LastChangedAtUtc">When it was last changed; null when never.</param>
+/// <param name="RowVersion">The row version a change must send back.</param>
+public sealed record QuoteRequestDetailView(
+    Guid Id,
+    DateTimeOffset ReceivedAtUtc,
+    string CustomerName,
+    string? TeamName,
+    string ContactNumberE164,
+    string? Email,
+    QuoteProductChoice? ProductChoice,
+    string? ProductTitle,
+    QuoteQuantityRange? QuantityRange,
+    string? Message,
+    QuoteRequestStatus Status,
+    DateTimeOffset StatusChangedAtUtc,
+    IReadOnlyList<QuoteRequestPhotoRow> Photos,
+    DateTimeOffset? PhotosRemovedAtUtc,
+    IReadOnlyList<QuoteRequestHistoryRow> History,
+    ActorRef? LastChangedBy,
+    DateTimeOffset? LastChangedAtUtc,
+    byte[] RowVersion);
 
 /// <summary>Which requests the status part of the inbox list keeps (D-18).</summary>
 public enum QuoteRequestGroup

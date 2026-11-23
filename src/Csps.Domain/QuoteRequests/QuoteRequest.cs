@@ -10,6 +10,7 @@ namespace Csps.Domain.QuoteRequests;
 public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 {
     private readonly List<QuoteRequestPhoto> _photos = [];
+    private readonly List<QuoteRequestStatusChange> _statusChanges = [];
 
     // Used by EF Core (constructor binding) and by Receive.
     private QuoteRequest(
@@ -101,8 +102,14 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
     /// <summary>Gets when the upload key stops working, in UTC; null when no photo was declared.</summary>
     public DateTimeOffset? UploadKeyExpiresAtUtc { get; private set; }
 
+    /// <summary>Gets when the photos were removed because the request was marked Spam (D-04); null while they are kept.</summary>
+    public DateTimeOffset? PhotosRemovedAtUtc { get; private set; }
+
     /// <summary>Gets the photo places the visitor declared, in slot order.</summary>
     public IReadOnlyList<QuoteRequestPhoto> Photos => _photos;
+
+    /// <summary>Gets the status moves staff made, oldest first.</summary>
+    public IReadOnlyList<QuoteRequestStatusChange> StatusChanges => _statusChanges;
 
     /// <summary>
     /// Declares the photos the visitor is about to send, one empty place per file name in the order given, and keeps the hash and the

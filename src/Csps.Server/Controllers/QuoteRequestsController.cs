@@ -12,12 +12,13 @@ namespace Csps.Server.Controllers;
 /// </summary>
 /// <param name="list">The inbox list handler.</param>
 /// <param name="getNewCount">The shared New count handler.</param>
+/// <param name="get">The one-request read handler.</param>
 [ApiController]
 [Route("api/v1/quote-requests")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class QuoteRequestsController(ListQuoteRequestsHandler list, GetNewQuoteCountHandler getNewCount) : ControllerBase
+public sealed class QuoteRequestsController(ListQuoteRequestsHandler list, GetNewQuoteCountHandler getNewCount, GetQuoteRequestHandler get) : ControllerBase
 {
     /// <summary>
     /// Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
@@ -60,5 +61,24 @@ public sealed class QuoteRequestsController(ListQuoteRequestsHandler list, GetNe
     {
         var result = await getNewCount.HandleAsync(cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static count => TypedResults.Ok(count));
+    }
+
+    /// <summary>
+    /// Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer
+    /// and the 2000 px "Open Full Size"), the names of the photos that never arrived, when the photos were removed for Spam, the status
+    /// history newest first ending with the arrival, who last changed it, and the row version a status change must send back.
+    /// </summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the request, 401 without a valid token, or 404 when there is no such request.</returns>
+    [HttpGet("{id:guid}")]
+    [EndpointName("GetQuoteRequest")]
+    [ProducesResponseType<QuoteRequestDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> Get(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await get.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static request => TypedResults.Ok(request));
     }
 }

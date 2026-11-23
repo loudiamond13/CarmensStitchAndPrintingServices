@@ -95,6 +95,9 @@ public sealed class CspsDbContext(DbContextOptions<CspsDbContext> options) : Ide
     /// <summary>The photo places of quote requests (INQ-02).</summary>
     public DbSet<QuoteRequestPhoto> QuoteRequestPhotos => Set<QuoteRequestPhoto>();
 
+    /// <summary>The status history of quote requests (D-15).</summary>
+    public DbSet<QuoteRequestStatusChange> QuoteRequestStatusChanges => Set<QuoteRequestStatusChange>();
+
     /// <summary>The last order number given out in each business year (ORD-14, D-23).</summary>
     public DbSet<OrderNumberCounter> OrderNumberCounters => Set<OrderNumberCounter>();
 

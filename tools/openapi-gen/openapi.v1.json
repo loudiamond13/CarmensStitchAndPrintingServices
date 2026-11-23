@@ -6652,6 +6652,160 @@
         ],
         "type": "object"
       },
+      "QuoteRequestDetailResponse": {
+        "description": "One quote request in full for staff (INQ-05, D-13).",
+        "properties": {
+          "contactNumber": {
+            "description": "The mobile number in its display form, such as `0917 123 4567`.",
+            "type": "string"
+          },
+          "customerName": {
+            "description": "The visitor's name.",
+            "type": "string"
+          },
+          "email": {
+            "description": "The email address; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "history": {
+            "description": "The status history, newest first, ending with the arrival.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestStatusChangeResponse"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "The request id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "description": "When the request was last changed; null when never.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastChangedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who last changed the request; null when nobody has."
+              }
+            ]
+          },
+          "message": {
+            "description": "What the visitor wrote; null when nothing.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "missingPhotos": {
+            "description": "The file names of the photos that never arrived (D-03), in slot order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "photoCount": {
+            "description": "How many photo places the request holds.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "photos": {
+            "description": "The photos that arrived, in slot order.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestPhotoResponse"
+            },
+            "type": "array"
+          },
+          "photosRemovedAtUtc": {
+            "description": "When the photos were removed because the request was marked Spam (D-04); null while kept.",
+            "format": "date-time",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "product": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestProduct",
+                "description": "What the visitor chose; null when nothing was chosen."
+              }
+            ]
+          },
+          "quantity": {
+            "description": "The estimated quantity key such as `21-50`; null when none was chosen.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedAtUtc": {
+            "description": "When the request was received, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "The status key: new, contacted, quoted, converted, closed or spam.",
+            "type": "string"
+          },
+          "statusChangedAtUtc": {
+            "description": "When the status last changed.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "teamName": {
+            "description": "The team or organization; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "description": "The row version to send with a status change.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "receivedAtUtc",
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "product",
+          "quantity",
+          "message",
+          "status",
+          "statusChangedAtUtc",
+          "photoCount",
+          "photos",
+          "missingPhotos",
+          "photosRemovedAtUtc",
+          "history",
+          "lastChangedBy",
+          "lastChangedAt",
+          "version"
+        ],
+        "type": "object"
+      },
       "QuoteRequestListItem": {
         "description": "One request in the staff inbox (INQ-05). It carries no email and no message.",
         "properties": {
@@ -6791,6 +6945,64 @@
         ],
         "type": "object"
       },
+      "QuoteRequestPhotoResponse": {
+        "description": "One stored photo of a quote request (INQ-05, D-36). The addresses are built when the request is read and are never stored.",
+        "properties": {
+          "fileName": {
+            "description": "The file name the visitor declared.",
+            "type": "string"
+          },
+          "fullSize": {
+            "description": "The address of the 2000 px JPEG behind \"Open Full Size\".",
+            "type": "string"
+          },
+          "height": {
+            "description": "The height in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "slot": {
+            "description": "The place, from 0.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "thumb": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The tile thumb, with a 2x candidate."
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/ImageSourceResponse",
+            "description": "The whole photo for the viewer, with width candidates."
+          },
+          "width": {
+            "description": "The width in pixels, as the photo is shown upright.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slot",
+          "fileName",
+          "width",
+          "height",
+          "thumb",
+          "viewer",
+          "fullSize"
+        ],
+        "type": "object"
+      },
       "QuoteRequestProduct": {
         "description": "What the visitor chose in the product list (D-24).",
         "properties": {
@@ -6809,6 +7021,45 @@
         "required": [
           "choice",
           "title"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestStatusChangeResponse": {
+        "description": "One row of the status history (D-15). The last row is the arrival: from null to new, by nobody (SEC-08).",
+        "properties": {
+          "changedAt": {
+            "description": "When it moved.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "changedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who moved it; null for the arrival or a system move."
+              }
+            ]
+          },
+          "from": {
+            "description": "The status the request left; null for the arrival.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "to": {
+            "description": "The status the request entered.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "changedBy",
+          "changedAt"
         ],
         "type": "object"
       },
@@ -19694,6 +19945,59 @@
           }
         },
         "summary": "Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is\nkept per person.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/{id}": {
+      "get": {
+        "operationId": "GetQuoteRequest",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteRequestDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer\nand the 2000 px \"Open Full Size\"), the names of the photos that never arrived, when the photos were removed for Spam, the status\nhistory newest first ending with the arrival, who last changed it, and the row version a status change must send back.",
         "tags": [
           "QuoteRequests"
         ]
