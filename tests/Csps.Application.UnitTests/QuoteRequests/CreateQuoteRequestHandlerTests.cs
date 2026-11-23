@@ -188,6 +188,61 @@ public sealed class CreateQuoteRequestHandlerTests
     }
 
     [Fact]
+    public async Task TheLockIsTakenBeforeTheSenderIsCountedAndTheCountIsBeforeTheInsert()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Request() with { Email = "Juan@Example.com" }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Order.ShouldBe(["lock", "count", "add"]);
+        harness.CountedFor.ShouldBe(("+639171234567", "Juan@Example.com", Now - TimeSpan.FromHours(24)));
+    }
+
+    [Fact]
+    public async Task ASenderAtTheLimitIsRefusedWithAWaitUntilTheOldestRequestLeavesTheWindowAndNothingIsSaved()
+    {
+        var harness = new Harness(perSenderPerDay: 3)
+        {
+            Recent = new QuoteSenderRecent([Now - TimeSpan.FromHours(20), Now - TimeSpan.FromHours(10), Now - TimeSpan.FromHours(1)]),
+        };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(Csps.Domain.Common.ErrorKind.TooManyRequests);
+        result.Error.Code.ShouldBe("rate-limited");
+        result.Error.Message.ShouldBe(QuoteRequestErrors.SenderLimitMessage);
+        result.Error.RetryAfter.ShouldBe(TimeSpan.FromHours(4));
+        harness.Added.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ASenderOverTheLimitWaitsForEnoughRequestsToLeaveTheWindow()
+    {
+        var harness = new Harness(perSenderPerDay: 2)
+        {
+            Recent = new QuoteSenderRecent([Now - TimeSpan.FromHours(23), Now - TimeSpan.FromHours(22), Now - TimeSpan.FromHours(1)]),
+        };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.Error.RetryAfter.ShouldBe(TimeSpan.FromHours(2), "two must leave before the sender is under the limit of 2");
+    }
+
+    [Fact]
+    public async Task ASenderOneBelowTheLimitIsSaved()
+    {
+        var harness = new Harness(perSenderPerDay: 3) { Recent = new QuoteSenderRecent([Now - TimeSpan.FromHours(2), Now - TimeSpan.FromHours(1)]) };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+    }
+
+    [Fact]
     public async Task AWhitespaceHoneypotIsNotAFill()
     {
         var harness = new Harness();
@@ -241,10 +296,25 @@ public sealed class CreateQuoteRequestHandlerTests
 
     private sealed class Harness
     {
-        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3)
+        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3, int perSenderPerDay = 3)
         {
             Store = Substitute.For<IQuoteRequestStore>();
-            Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call => Added.Add(call.Arg<QuoteRequest>()));
+            Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call =>
+            {
+                Order.Add("add");
+                Added.Add(call.Arg<QuoteRequest>());
+            });
+            Store.LockAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+            {
+                Order.Add("lock");
+                return Task.CompletedTask;
+            });
+            Store.CountRecentFromSenderAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(call =>
+            {
+                Order.Add("count");
+                CountedFor = (call.ArgAt<string>(0), call.ArgAt<string?>(1), call.ArgAt<DateTimeOffset>(2));
+                return Task.FromResult(Recent);
+            });
             var tickets = Substitute.For<IQuoteFormTickets>();
             tickets.Read(Arg.Any<string?>(), Arg.Any<DateTimeOffset>()).Returns(_ => TicketReading);
             var botLog = Substitute.For<IQuoteBotCatchLog>();
@@ -254,10 +324,16 @@ public sealed class CreateQuoteRequestHandlerTests
                 new FixedCalendar(),
                 Unit,
                 validator ?? new CreateQuoteRequestRequestValidator(),
-                new QuoteRequestSettings { MinimumSeconds = minimumSeconds },
+                new QuoteRequestSettings { MinimumSeconds = minimumSeconds, PerSenderPerDay = perSenderPerDay },
                 tickets,
                 botLog);
         }
+
+        public QuoteSenderRecent Recent { get; set; } = new([]);
+
+        public List<string> Order { get; } = [];
+
+        public (string E164, string? Email, DateTimeOffset Since) CountedFor { get; private set; }
 
         public QuoteTicketReading TicketReading { get; set; } = QuoteTicketReading.Valid(TimeSpan.FromSeconds(10));
 

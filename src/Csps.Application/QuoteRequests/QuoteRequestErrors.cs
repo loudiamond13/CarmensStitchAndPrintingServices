@@ -40,6 +40,17 @@ public static class QuoteRequestErrors
         TicketExpiredMessage,
         new Dictionary<string, string[]> { [TicketField] = [TicketExpiredMessage] });
 
+    /// <summary>The code of a send over the per-sender daily limit; the same code the per-address rate limit uses (D-37).</summary>
+    public const string SenderLimitCode = "rate-limited";
+
+    /// <summary>The plain-English text of that 429; the same words as the per-address rate limit (D-26, D-37).</summary>
+    public const string SenderLimitMessage = "Too many attempts from this address. Please wait and try again.";
+
+    /// <summary>Builds the 429 for a mobile number or email that has sent its daily number of requests.</summary>
+    /// <param name="retryAfter">How long until the oldest counted request leaves the window; must be positive.</param>
+    /// <returns>The error.</returns>
+    public static Error SenderLimit(TimeSpan retryAfter) => Error.TooManyRequests(SenderLimitCode, SenderLimitMessage, retryAfter);
+
     /// <summary>Gets the answer for a request that does not exist: a 404.</summary>
     public static Error NotFound { get; } = Error.NotFound(NotFoundCode, NotFoundMessage);
 

@@ -95,14 +95,28 @@ public sealed class CreateQuoteRequestHandler(
             }
         }
 
-        await unitOfWork.InTransactionAsync(
+        // The count and the insert run under one lock, so two sends at once from one sender never pass the limit (D-37, CWE-362).
+        var wait = await unitOfWork.InTransactionAsync(
             async token =>
             {
+                await store.LockAsync(token).ConfigureAwait(false);
+                var recent = await store.CountRecentFromSenderAsync(saved.ContactNumberE164, saved.Email, clock.UtcNow - QuoteRequestSettings.SenderWindow, token).ConfigureAwait(false);
+                if (recent.Count >= settings.PerSenderPerDay)
+                {
+                    // The sender may send again once enough of the counted requests have left the window.
+                    return (TimeSpan?)(recent.Times[recent.Count - settings.PerSenderPerDay] + QuoteRequestSettings.SenderWindow - clock.UtcNow);
+                }
+
                 store.Add(saved);
                 await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                return saved.Id;
+                return null;
             },
             cancellationToken).ConfigureAwait(false);
+        if (wait is { } retryAfter)
+        {
+            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.SenderLimit(retryAfter));
+        }
+
         return Result.Success(new CreateQuoteRequestResponse(saved.Id, [.. saved.Photos.Select(static photo => new QuotePhotoSlotResponse(photo.Slot, photo.FileName))]));
     }
 

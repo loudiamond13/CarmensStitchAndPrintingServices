@@ -159,6 +159,9 @@ public class CspsApiFactory : WebApplicationFactory<Program>
         // The quote form's minimum time to submit is off, so a test sends right after it gets its ticket; the bot guard tests set it again.
         builder.UseSetting("QuoteRequests:MinimumSeconds", "0");
 
+        // The per-sender daily limit is at its widest, so suites that send many requests with one test phone are not stopped; the sender limit tests set 3.
+        builder.UseSetting("QuoteRequests:PerSenderPerDay", "50");
+
         ConfigureSettings(builder);
     }
 

@@ -14,6 +14,8 @@ public sealed class QuoteRequestSettingsTests
         settings.UploadKeyLifetime.ShouldBe(TimeSpan.FromHours(2));
         settings.MinimumSeconds.ShouldBe(3);
         settings.TicketLifetime.ShouldBe(TimeSpan.FromHours(24));
+        settings.PerSenderPerDay.ShouldBe(3);
+        QuoteRequestSettings.SenderWindow.ShouldBe(TimeSpan.FromHours(24));
         QuoteRequestSettings.SectionName.ShouldBe("QuoteRequests");
     }
 
@@ -48,6 +50,23 @@ public sealed class QuoteRequestSettingsTests
     public void AMinimumTimeJustOutsideTheRangeIsRefused(int seconds)
     {
         new QuoteRequestSettings { MinimumSeconds = seconds }.Validate().ShouldBe("QuoteRequests:MinimumSeconds must be from 0 to 60.");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(50)]
+    public void APerSenderLimitAtEitherEdgeIsAccepted(int perDay)
+    {
+        new QuoteRequestSettings { PerSenderPerDay = perDay }.Validate().ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(51)]
+    public void APerSenderLimitJustOutsideTheRangeIsRefused(int perDay)
+    {
+        new QuoteRequestSettings { PerSenderPerDay = perDay }.Validate().ShouldBe("QuoteRequests:PerSenderPerDay must be from 1 to 50.");
     }
 
     [Theory]
