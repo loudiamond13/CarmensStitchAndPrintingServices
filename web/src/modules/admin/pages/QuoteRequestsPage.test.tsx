@@ -33,7 +33,17 @@ beforeEach(() => {
 afterEach(() => {
   queryClient.clear();
   clearSession();
+  focusManager.setFocused(undefined);
+  vi.useRealTimers();
 });
+
+/** The window loses focus and gets it back, as TanStack Query sees it. */
+function refocusWindow(): void {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+}
 
 function renderPage(search = '', onUrlUpdate: OnUrlUpdateFunction = () => undefined) {
   return render(
@@ -420,16 +430,122 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
   });
 
   it('reads again every 60 seconds while visible and whenever the window regains focus', async () => {
-    quoteRequestsBackend(quoteRequestList(ROWS));
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const backend = quoteRequestsBackend(quoteRequestList(ROWS));
     renderPage();
     await rowOf('Juan Dela Cruz');
 
-    // The page's observer carries the refresh options.
+    const first = backend.lists.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await waitFor(() => {
+      expect(backend.lists.length).toBe(first + 1);
+    });
+    refocusWindow();
+    await waitFor(() => {
+      expect(backend.lists.length).toBe(first + 2);
+    });
     const query = queryClient.getQueryCache().find({ queryKey: ['quote-requests', 'list'], exact: false });
-    const options = query?.observers[0]?.options;
-    expect(options?.refetchInterval).toBe(60_000);
-    expect(options?.refetchIntervalInBackground).toBe(false);
-    expect(options?.refetchOnWindowFocus).toBe('always');
+    expect(query?.observers[0]?.options.refetchIntervalInBackground).toBe(false);
+  });
+
+  it('a failed refresh stops the clock and the focus re-read, so the stale line and Try Again stay put', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let fail = false;
+    const backend = quoteRequestsBackend(() => (fail ? quoteProblem(500) : quoteRequestList(ROWS)));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+    fail = true;
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['quote-requests'] });
+    });
+    const line = await screen.findByText(/^Showing figures from .+\. Couldn't refresh\.$/);
+    const tryAgain = screen.getByRole('button', { name: 'Try Again' });
+    tryAgain.focus();
+    const before = backend.lists.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180_000);
+    });
+    refocusWindow();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(backend.lists.length).toBe(before);
+    expect(line.isConnected).toBe(true);
+    expect(tryAgain).toHaveFocus();
+  });
+
+  it('Try Again on the stale line keeps the line and the focused button in place while it reads, then the clock resumes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let mode: 'ok' | 'fail' | 'hold' = 'ok';
+    let release = (): void => undefined;
+    const backend = quoteRequestsBackend(async () => {
+      if (mode === 'fail') return quoteProblem(500);
+      if (mode === 'hold') {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      }
+      return quoteRequestList(ROWS);
+    });
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+    mode = 'fail';
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['quote-requests'] });
+    });
+    const line = await screen.findByText(/^Showing figures from .+\. Couldn't refresh\.$/);
+    const tryAgain = screen.getByRole('button', { name: 'Try Again' });
+
+    mode = 'hold';
+    const before = backend.lists.length;
+    tryAgain.focus();
+    fireEvent.click(tryAgain);
+    await waitFor(() => {
+      expect(backend.lists.length).toBe(before + 1);
+    });
+    expect(line.isConnected).toBe(true);
+    expect(tryAgain.isConnected).toBe(true);
+    expect(tryAgain).toHaveFocus();
+    expect(tryAgain).toHaveAttribute('aria-busy', 'true');
+
+    mode = 'ok';
+    act(() => {
+      release();
+    });
+    await waitFor(() => {
+      expect(line.isConnected).toBe(false);
+    });
+    const recovered = backend.lists.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    await waitFor(() => {
+      expect(backend.lists.length).toBe(recovered + 1);
+    });
+  });
+
+  it('a failed first load is not read again by the clock or on focus, so the error stays put', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const backend = quoteRequestsBackend(() => quoteProblem(500));
+    renderPage();
+    const error = await screen.findByRole('alert');
+    expect(error).toHaveTextContent("Couldn't load the quote requests.");
+    const before = backend.lists.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180_000);
+    });
+    refocusWindow();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+
+    expect(backend.lists.length).toBe(before);
+    expect(error.isConnected).toBe(true);
   });
 
   it('a refresh that brings a new request says so politely and never moves focus', async () => {

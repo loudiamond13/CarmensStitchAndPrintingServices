@@ -5,7 +5,7 @@
 //   - First load: SkeletonTable with 5 rows in a busy region; the pills show without counts.
 //   - Empty: each pill has its own words; a search with no match offers Clear Search.
 //   - A failed first load is an ErrorState with Try Again; a failed later refresh keeps the rows and shows the stale line.
-//   - The list reads again every 60 seconds and on focus. New rows never move focus; a hidden polite line says how many New
+//   - The list reads again every 60 seconds and on focus, but not after a failed read. New rows never move focus; a hidden polite line says how many New
 //     requests arrived since the last answer for the same view.
 // The document title never holds a name (T-13-44).
 import { useEffect, useState } from 'react';
@@ -80,10 +80,9 @@ export default function QuoteRequestsPage() {
   const rows = data?.items;
   const hasRows = rows !== undefined && rows.length > 0;
   const firstFailed = query.isError && data === undefined;
+  // The stale line stays while Try Again reads, so its alert is not read out again and focus stays on the button.
   const staleAt =
-    query.isError && data !== undefined && !query.isFetching
-      ? formatBusinessTime(new Date(query.dataUpdatedAt).toISOString())
-      : null;
+    query.isError && data !== undefined ? formatBusinessTime(new Date(query.dataUpdatedAt).toISOString()) : null;
   const empty = query.isSuccess && !hasRows && !pastTheEnd;
   const retry = (): void => {
     void query.refetch();
@@ -105,7 +104,7 @@ export default function QuoteRequestsPage() {
               <p role="alert" className={dashboardStaleTextClasses}>
                 {COPY.stale(staleAt)}
               </p>
-              <Button variant="ghost" size="sm" className={hitAreaClasses} onClick={retry}>
+              <Button variant="ghost" size="sm" className={hitAreaClasses} pending={query.isFetching} onClick={retry}>
                 {COPY.retry}
               </Button>
             </div>
