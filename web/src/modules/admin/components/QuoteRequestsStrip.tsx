@@ -1,8 +1,8 @@
 // SPEC-GAP: quote requests strip (D-19, UI-SPEC R4). The dashboard row under the MoneyStrip, in its look: the inbox tile (hidden on
 // phones), "New quote requests" over the server's New count (dimmed at 0, as KpiCard D-39) and Open Quote Requests. It reads the shared
 // count query, so a failed read leaves the rest of the dashboard alone, and the link works whatever the state.
-// A failed read shows its alert and Try Again in the figure's place, never an older count. The alert stays put while any read runs
-// again (Try Again is busy meanwhile), so the 60-second refresh never reads it out a second time.
+// A failed read shows its alert and Try Again in the figure's place, never an older count. The alert stays put until a read
+// succeeds (Try Again is busy while one runs), so the 60-second refresh never reads it out a second time.
 import clsx from 'clsx';
 import { useId } from 'react';
 import { Button, ButtonLink, hitAreaClasses } from '@/components/actions';
@@ -35,10 +35,12 @@ export interface QuoteRequestsStripProps {
 export function QuoteRequestsStrip({ query }: QuoteRequestsStripProps) {
   const labelId = useId();
   const count = query.data;
-  const loading = !query.isError && count === undefined;
+  // With no data, a re-read sets the query back to pending, so a failure counts until a later read succeeds.
+  const failed = query.isError || query.errorUpdatedAt > query.dataUpdatedAt;
+  const loading = !failed && count === undefined;
 
   let figure;
-  if (query.isError) {
+  if (failed) {
     figure = (
       <div className={moneyStripFailedClasses}>
         <p role="alert" className={moneyStripFailedTextClasses}>
@@ -69,7 +71,7 @@ export function QuoteRequestsStrip({ query }: QuoteRequestsStripProps) {
       <span className={moneyStripTileClasses}>
         <Icon name="inbox" size={18} />
       </span>
-      <LoadingRegion loading={loading} failed={query.isError} things={COPY.things} className={moneyStripBodyClasses}>
+      <LoadingRegion loading={loading} failed={failed} things={COPY.things} className={moneyStripBodyClasses}>
         <span id={labelId} className={moneyStripLabelClasses}>
           {COPY.label}
         </span>

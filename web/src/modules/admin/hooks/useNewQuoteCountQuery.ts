@@ -15,6 +15,9 @@ export interface NewQuoteCountQuery {
   readonly isError: boolean;
   /** True while a read runs. */
   readonly isFetching: boolean;
+  /** When the last read failed and the last read succeeded (0 for never). They stay put while a read runs. */
+  readonly errorUpdatedAt: number;
+  readonly dataUpdatedAt: number;
   readonly refetch: () => unknown;
 }
 

@@ -1,5 +1,5 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
@@ -14,7 +14,11 @@ import {
   moneyStripToneClasses,
 } from '@/modules/admin/components/money.recipe';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
-import { useNewQuoteCountQuery, type NewQuoteCountQuery } from '@/modules/admin/hooks/useNewQuoteCountQuery';
+import {
+  NEW_QUOTE_COUNT_REFRESH_MS,
+  useNewQuoteCountQuery,
+  type NewQuoteCountQuery,
+} from '@/modules/admin/hooks/useNewQuoteCountQuery';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 
@@ -34,7 +38,15 @@ function hasClasses(element: Element | null | undefined, classes: string): boole
 
 function queryOf(overrides: Partial<NewQuoteCountQuery> = {}): NewQuoteCountQuery {
   const isFetching = overrides.data === undefined && overrides.isError !== true;
-  return { data: undefined, isError: false, isFetching, refetch: vi.fn(), ...overrides };
+  return {
+    data: undefined,
+    isError: false,
+    isFetching,
+    errorUpdatedAt: 0,
+    dataUpdatedAt: 0,
+    refetch: vi.fn(),
+    ...overrides,
+  };
 }
 
 function renderStrip(query: NewQuoteCountQuery) {
@@ -120,14 +132,6 @@ describe('QuoteRequestsStrip (D-19, UI-SPEC R4)', () => {
     expect(within(strip()).getByRole('alert')).toHaveTextContent(COPY.failed);
   });
 
-  it('keeps the same failure line while a read runs again, with Try Again busy, so nothing is read out twice', () => {
-    renderStrip(queryOf({ isError: true, isFetching: true }));
-
-    expect(within(strip()).getByRole('alert')).toHaveTextContent(COPY.failed);
-    expect(within(strip()).getByRole('button', { name: COPY.retry })).toHaveAttribute('aria-busy', 'true');
-    expect(strip().querySelector('[aria-busy="true"]:not(button)')).toBeNull();
-  });
-
   it.each<[string, Partial<NewQuoteCountQuery>]>([
     ['3', { data: 3 }],
     ['0', { data: 0 }],
@@ -176,4 +180,98 @@ describe('QuoteRequestsStrip fed by the shared count query', () => {
     expect(await within(strip()).findByText('7')).toBeInTheDocument();
     expect(within(strip()).queryByRole('alert')).toBeNull();
   }, 10_000);
+
+  /** A count backend that always fails; while `hold` is set, each read waits for `release` before it fails. */
+  function failingBackend() {
+    const backend = { reads: 0, hold: false, release: (): void => undefined };
+    server.use(
+      http.get('*/api/v1/quote-requests/new-count', async () => {
+        backend.reads += 1;
+        if (backend.hold) {
+          await new Promise<void>((resolve) => {
+            backend.release = resolve;
+          });
+        }
+        return HttpResponse.json({ title: 'x', status: 500 }, { status: 500 });
+      }),
+    );
+    return backend;
+  }
+
+  function renderFed() {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Fed />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  /** While a read runs after a failed first read: the same alert and focused, busy Try Again, and no loading line. */
+  function expectFailureHeld(alert: HTMLElement, retry: HTMLElement) {
+    expect(alert.isConnected).toBe(true);
+    expect(retry.isConnected).toBe(true);
+    expect(retry).toHaveFocus();
+    expect(retry).toHaveAttribute('aria-busy', 'true');
+    expect(strip().querySelector('[aria-busy="true"]:not(button)')).toBeNull();
+    expect(screen.queryByText(/Loading the new quote requests/)).toBeNull();
+  }
+
+  it('after a failed first read, Try Again keeps the same alert and the focused, busy button while it reads', async () => {
+    const backend = failingBackend();
+    renderFed();
+    const alert = await within(strip()).findByRole('alert');
+    const retry = within(strip()).getByRole('button', { name: COPY.retry });
+    retry.focus();
+
+    backend.hold = true;
+    const before = backend.reads;
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(backend.reads).toBe(before + 1);
+    });
+    expectFailureHeld(alert, retry);
+
+    act(() => {
+      backend.release();
+    });
+    await waitFor(() => {
+      expect(retry).not.toHaveAttribute('aria-busy');
+    });
+    expect(alert.isConnected).toBe(true);
+    expect(retry).toHaveFocus();
+  });
+
+  it('after a failed first read, the 60-second re-read keeps the same alert and focus while it reads', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const backend = failingBackend();
+      renderFed();
+      const alert = await within(strip()).findByRole('alert');
+      const retry = within(strip()).getByRole('button', { name: COPY.retry });
+      retry.focus();
+
+      backend.hold = true;
+      const before = backend.reads;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(NEW_QUOTE_COUNT_REFRESH_MS);
+      });
+      await waitFor(() => {
+        expect(backend.reads).toBe(before + 1);
+      });
+      expectFailureHeld(alert, retry);
+
+      act(() => {
+        backend.release();
+      });
+      await waitFor(() => {
+        expect(retry).not.toHaveAttribute('aria-busy');
+      });
+      expect(alert.isConnected).toBe(true);
+      expect(retry).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
