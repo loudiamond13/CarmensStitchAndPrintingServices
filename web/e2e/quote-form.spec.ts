@@ -66,6 +66,41 @@ test('@quote a visitor sends an inquiry with a photo: the create and the upload 
   await expect(page.getByText(/didn't upload/)).toHaveCount(0);
 });
 
+// Review W5 CR-01: the form ticket is held, so the photo piece is still loading when Send is pressed. Send waits for it, and the
+// photo is declared and uploaded with the text.
+test('@quote a photo still loading when Send is pressed is sent with the text', async ({ page }) => {
+  let release = (): void => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/api/v1/public/quote-requests/ticket', async (route) => {
+    await held;
+    await route.fallback();
+  });
+  await page.goto('/contact');
+
+  const form = page.getByRole('form', { name: 'Inquiry form' });
+  await expect(form).toBeVisible();
+  await form.getByRole('textbox', { name: /Your name/ }).fill('Juan Dela Cruz');
+  await form.getByRole('textbox', { name: /Contact number/ }).fill(freshMobile());
+  const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
+  await form.locator('input[type="file"]').setInputFiles([photo]);
+  const create = page.waitForRequest(
+    (request) => request.url().endsWith('/api/v1/public/quote-requests') && request.method() === 'POST',
+  );
+  const upload = page.waitForResponse((response) =>
+    /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
+  );
+  await form.getByRole('button', { name: 'Send Inquiry' }).click();
+  await expect(form.getByRole('button', { name: 'Sending' })).toBeVisible();
+  release();
+
+  expect((await create).postDataJSON()).toMatchObject({ photos: ['logo.jpg'] });
+  expect((await upload).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeVisible();
+  await expect(page.getByText(/didn't upload/)).toHaveCount(0);
+});
+
 // The shared host runs with the quote limits lifted and cannot lower them for one test, so the create answers 429 from the page's
 // network layer, in the server's own words.
 test('@quote the rate limit keeps what the visitor typed', async ({ page, guard }) => {
