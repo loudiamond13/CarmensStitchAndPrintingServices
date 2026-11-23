@@ -236,8 +236,9 @@ const postalCodeField = z.string().superRefine((value, ctx) => {
 });
 
 /** White space and control characters as .NET sees them (char.IsWhiteSpace, char.IsControl), plus `, ; < > ( ) "`. */
-// eslint-disable-next-line no-control-regex -- the control characters are what the rule refuses
-const EMAIL_REFUSED_CHARACTERS = /[\u0000-\u0020\u007f-\u009f\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000,;<>()"]/u;
+const EMAIL_REFUSED_CHARACTERS =
+  // eslint-disable-next-line no-control-regex -- the control characters are what the rule refuses
+  /[\u0000-\u0020\u007f-\u009f\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000,;<>()"]/u;
 
 /** SiteLinks.IsContactEmail (D-42), the shop email and the Quote alerts address: one `@`, a dotted domain, no spaces, control characters or `, ; < > ( ) "`. */
 export function isContactEmail(value: string): boolean {
