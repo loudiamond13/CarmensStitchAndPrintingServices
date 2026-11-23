@@ -9,6 +9,9 @@ import { quoteService, type CreateQuoteAnswer, type CreateQuoteBody } from './se
 /** How many photos go up at the same time. */
 const AT_ONCE = 2;
 
+/** The wait before the one retry after a busy answer (429 or 5xx), so the busy moment can pass. */
+export const RETRY_WAIT_MS = 2000;
+
 /** The names the create call declares: the file names without folders or control characters. */
 function photoNames(photos: readonly File[]): string[] {
   return photos.map((file) => cleanFileName(file.name));
@@ -19,7 +22,17 @@ function worthRetrying(error: unknown): boolean {
   if (!isHttpError(error) || error.kind !== 'http') {
     return true;
   }
-  return error.status === 408 || error.status === 409 || error.status === 429 || error.status >= 500;
+  return error.status === 408 || error.status === 409 || isBusy(error);
+}
+
+function isBusy(error: unknown): boolean {
+  return isHttpError(error) && error.kind === 'http' && (error.status === 429 || error.status >= 500);
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export interface PhotoUpload {
@@ -64,6 +77,9 @@ export async function uploadPhotos({ requestId, slots, photos, names, uploadKey 
         try {
           if (!worthRetrying(first)) {
             throw first;
+          }
+          if (isBusy(first)) {
+            await wait(RETRY_WAIT_MS);
           }
           await send(index, slot, key);
         } catch {

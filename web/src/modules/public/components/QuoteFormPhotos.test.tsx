@@ -1,6 +1,6 @@
 // The photos of the Get a Quote form (UI-SPEC Q2 and Q3; INQ-02, D-01, D-03, D-05, D-43): the picker loads on the first tap, the
 // text is saved first, then each photo goes to its own place, at most two at a time, with the upload key the create call declared.
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -69,6 +69,7 @@ function holdUploads() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -272,11 +273,18 @@ describe('QuoteForm while it sends (Q3 loading)', () => {
 });
 
 describe('QuoteForm when photos do not upload (Q3 partial, D-03)', () => {
+  // Sends on a fake clock, stepped until the success card shows, so the retry wait after a busy answer (IN-02) takes no real time.
   async function sendWith(files: File[]) {
     const { container } = renderForm();
     await pickPhotos(container, files);
     await fillRequired();
-    await userEvent.click(screen.getByRole('button', SEND));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    fireEvent.click(screen.getByRole('button', SEND));
+    const sentCard = () => screen.queryByRole('heading', { level: 2, name: 'Inquiry sent' });
+    for (let step = 0; step < 100 && sentCard() === null; step++) {
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    vi.useRealTimers();
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
     return container;
   }
