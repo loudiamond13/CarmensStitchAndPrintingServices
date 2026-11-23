@@ -21,6 +21,8 @@ public sealed class EmailRendererTests
     // 07:42 UTC is 3:42 PM at +08:00, the business zone offset.
     private static readonly DateTimeOffset At = new(2026, 10, 14, 7, 42, 0, TimeSpan.Zero);
     private static readonly DeviceDescription Chrome = new("Chrome on Android", true);
+    private static readonly Guid RequestId = Guid.Parse("0192f5a0-7b1c-7d2e-8a3b-4c5d6e7f8091");
+    private const string QuoteFooter = "You get this because this address is set as Quote alerts in Site Content.";
 
     public static TheoryData<AuthEmail> AllKinds() =>
     [
@@ -35,6 +37,8 @@ public sealed class EmailRendererTests
         new EmailChangeNoticeEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", At, Chrome),
         new ManagerEmailChangedEmail("paolo.garcia@gmail.com", "paolo.new@gmail.com", "Carmen Reyes", At),
         new ManagerResetLinkEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, "Carmen Reyes"),
+        new QuoteAlertEmail("quotes@example.com", RequestId, "Juan Dela Cruz", "Riverside Riders", "0917 123 4567", "Basketball Jerseys", "21-50 pcs", 3, "We need 30 jerseys."),
+        new QuoteAlertsOverflowEmail("quotes@example.com"),
     ];
 
     [Theory]
@@ -505,6 +509,129 @@ public sealed class EmailRendererTests
         rendered.Subject.ShouldBe("048213 is your CSPS sign-in code");
         CountOf(rendered.Html, "048213").ShouldBe(2);
         CountOf(rendered.Text, "048213").ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheQuoteAlertHasTheSubjectTheSummaryLinesTheButtonAndTheQuoteFooter()
+    {
+        var rendered = await RenderAsync(
+            new QuoteAlertEmail("quotes@example.com", RequestId, "Juan Dela Cruz", "Riverside Riders", "0917 123 4567", "Basketball Jerseys", "21-50 pcs", 3, "We need 30 jerseys."));
+        var link = $"{BaseUrl}/admin/quote-requests/{RequestId:D}";
+
+        rendered.Subject.ShouldBe("New quote request from Juan Dela Cruz");
+        string[] lines =
+        [
+            "A visitor sent a quote request on the website.",
+            "Name: Juan Dela Cruz",
+            "Team: Riverside Riders",
+            "Phone: 0917 123 4567",
+            "Product: Basketball Jerseys",
+            "Quantity: 21-50 pcs",
+            "Photos: 3",
+            "Message: We need 30 jerseys.",
+            $"Open in admin: {link}",
+        ];
+        var at = 0;
+        foreach (var line in lines)
+        {
+            var found = rendered.Text.IndexOf(line, at, StringComparison.Ordinal);
+            found.ShouldBeGreaterThanOrEqualTo(0, $"missing or out of order: {line}");
+            at = found;
+        }
+
+        rendered.Html.ShouldContain($"href=\"{link}\"");
+        rendered.Html.ShouldContain("Open in admin</a>");
+        rendered.Text.ShouldContain(QuoteFooter);
+        rendered.Html.ShouldContain(QuoteFooter);
+        rendered.Text.ShouldNotContain("You're getting this because you have a staff account");
+        rendered.Html.ShouldNotContain("You&#39;re getting this because you have a staff account");
+    }
+
+    [Fact]
+    public async Task EmptyValuesAndNoPhotosLeaveTheirLinesOut()
+    {
+        var rendered = await RenderAsync(new QuoteAlertEmail("quotes@example.com", RequestId, "Juan Dela Cruz", null, "0917 123 4567", null, null, 0, null));
+
+        rendered.Text.ShouldContain("Name: Juan Dela Cruz");
+        rendered.Text.ShouldContain("Phone: 0917 123 4567");
+        foreach (var label in new[] { "Team:", "Product:", "Quantity:", "Photos:", "Message:" })
+        {
+            rendered.Text.ShouldNotContain(label);
+            rendered.Html.ShouldNotContain(label);
+        }
+
+        rendered.Text.ShouldNotContain("\u2014");
+        rendered.Text.ShouldNotContain("\u2013");
+    }
+
+    [Fact]
+    public async Task VisitorTextIsEncodedInTheHtmlAndLineBreaksAreKept()
+    {
+        var rendered = await RenderAsync(
+            new QuoteAlertEmail("quotes@example.com", RequestId, "<b>x</b>", "A&B <i>", "0917 123 4567", "<u>Line</u>", null, 1, "<script>alert(1)</script>\nsecond line"));
+
+        rendered.Html.ShouldNotContain("<script");
+        rendered.Html.ShouldNotContain("<b>x</b>");
+        rendered.Html.ShouldNotContain("<i>");
+        rendered.Html.ShouldNotContain("<u>");
+        rendered.Html.ShouldContain("&lt;b&gt;x&lt;/b&gt;");
+        rendered.Html.ShouldContain("A&amp;B &lt;i&gt;");
+        rendered.Html.ShouldContain("&lt;script&gt;alert(1)&lt;/script&gt;<br>second line");
+        rendered.Text.ShouldContain("Message: <script>alert(1)</script>\nsecond line");
+    }
+
+    [Fact]
+    public async Task AVisitorNameCannotChangeTheSubjectOrAddALine()
+    {
+        var injected = await RenderAsync(
+            new QuoteAlertEmail("quotes@example.com", RequestId, "Juan\r\nBcc: evil@example.com", "Team\r\nPhone: 000", "0917 123 4567", null, null, 0, null));
+        var longName = new string('n', 70);
+        var cut = await RenderAsync(new QuoteAlertEmail("quotes@example.com", RequestId, longName, null, "0917 123 4567", null, null, 0, null));
+
+        injected.Subject.ShouldBe("New quote request from Juan Bcc: evil@example.com");
+        injected.Subject.ShouldNotContain("\r");
+        injected.Subject.ShouldNotContain("\n");
+        injected.Text.ShouldContain("Name: Juan Bcc: evil@example.com");
+        injected.Text.ShouldContain("Team: Team Phone: 000");
+        Regex.Count(injected.Text, "(?m)^Phone:").ShouldBe(1);
+        cut.Subject.ShouldBe("New quote request from " + new string('n', 60) + "…");
+        cut.Text.ShouldContain($"Name: {longName}");
+    }
+
+    [Fact]
+    public async Task TheQuoteAlertHasNoAttachmentAndOnlyTheSitesOwnAdminLink()
+    {
+        var rendered = await RenderAsync(
+            new QuoteAlertEmail("quotes@example.com", RequestId, "Juan Dela Cruz", null, "0917 123 4567", null, null, 5, "Photos are coming."));
+
+        Regex.Matches(rendered.Html, "src=\"([^\"]*)\"").Select(match => match.Groups[1].Value).ShouldAllBe(source => source == "cid:csps-logo");
+        Regex.Matches(rendered.Html, "href=\"([^\"]*)\"").Select(match => match.Groups[1].Value)
+            .ShouldAllBe(target => target == $"{BaseUrl}/admin/quote-requests/{RequestId:D}");
+        rendered.Html.ShouldNotContain("cloudinary");
+        rendered.Text.ShouldNotContain("cloudinary");
+    }
+
+    [Fact]
+    public async Task TheOverflowEmailSaysMoreRequestsAreWaitingAndLinksToTheList()
+    {
+        var rendered = await RenderAsync(new QuoteAlertsOverflowEmail("quotes@example.com"));
+
+        rendered.Subject.ShouldBe("More quote requests are waiting");
+        rendered.Text.ShouldContain("More quote requests came in this hour than we email about. Open Quote Requests to see them all.");
+        rendered.Text.ShouldContain($"Open Quote Requests: {BaseUrl}/admin/quote-requests");
+        rendered.Html.ShouldContain($"href=\"{BaseUrl}/admin/quote-requests\"");
+        rendered.Html.ShouldContain("Open Quote Requests</a>");
+        rendered.Text.ShouldContain(QuoteFooter);
+        rendered.Html.ShouldContain(QuoteFooter);
+    }
+
+    [Fact]
+    public async Task OtherKindsKeepTheStaffAccountFooter()
+    {
+        var rendered = await RenderAsync(new DeactivatedNoticeEmail("paolo.garcia@gmail.com"));
+
+        rendered.Text.ShouldContain("You're getting this because you have a staff account at CSPS.");
+        rendered.Text.ShouldNotContain("Quote alerts");
     }
 
     [Fact]

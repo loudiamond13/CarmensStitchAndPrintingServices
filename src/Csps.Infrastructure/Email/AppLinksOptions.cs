@@ -38,6 +38,15 @@ public sealed class AppLinksOptions
     /// <returns>The absolute URL.</returns>
     public string ConfirmEmailLink(string token) => Build("/admin/confirm-email", token);
 
+    /// <summary>Returns the admin page of one quote request, which carries no token.</summary>
+    /// <param name="id">The request id.</param>
+    /// <returns>The absolute URL.</returns>
+    public string QuoteRequestLink(Guid id) => Build($"/admin/quote-requests/{id:D}", token: null);
+
+    /// <summary>Returns the admin Quote Requests list link, which carries no token.</summary>
+    /// <returns>The absolute URL.</returns>
+    public string QuoteRequestsPage() => Build("/admin/quote-requests", token: null);
+
     /// <summary>Tells whether <paramref name="options"/> holds a usable base URL.</summary>
     /// <param name="options">The options to check.</param>
     /// <returns>True when the base URL is acceptable.</returns>

@@ -1,4 +1,5 @@
 using Csps.Application.Auth;
+using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Application.QuoteRequests;
 using Csps.Application.UnitTests.Auth;
@@ -342,6 +343,131 @@ public sealed class CreateQuoteRequestHandlerTests
         harness.Added.ShouldHaveSingleItem();
     }
 
+    [Fact]
+    public async Task AnAlertIsQueuedAfterTheInsertAndBeforeTheSaveWithTheSummary()
+    {
+        var harness = new Harness { AlertsAddress = " quotes@example.com " };
+        harness.Store.FindShownLineAsync("basketball", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<QuoteProductLine?>(new QuoteProductLine(LineId, "Basketball Jerseys")));
+        var request = Request() with
+        {
+            TeamName = "Riverside Riders",
+            ProductChoice = "line",
+            ProductLineKey = "basketball",
+            Quantity = "21-50",
+            Message = "We need 30 jerseys.",
+            Photos = ["a.png", "b.png", "c.png"],
+            UploadKey = System.Buffers.Text.Base64Url.EncodeToString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)),
+        };
+
+        var result = await harness.Handler.HandleAsync(request, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        var alert = harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertEmail>();
+        alert.To.ShouldBe("quotes@example.com");
+        alert.RequestId.ShouldBe(result.Value.Id);
+        alert.CustomerName.ShouldBe("Juan Dela Cruz");
+        alert.TeamName.ShouldBe("Riverside Riders");
+        alert.PhoneDisplay.ShouldBe("0917 123 4567");
+        alert.ProductTitle.ShouldBe("Basketball Jerseys");
+        alert.QuantityLabel.ShouldBe("21-50 pcs");
+        alert.PhotoCount.ShouldBe(3);
+        alert.MessageExcerpt.ShouldBe("We need 30 jerseys.");
+        harness.Order.ShouldBe(["lock", "count", "add", "enqueue"]);
+        harness.Outbox.SavesAtEnqueue.ShouldBe(0, "the alert is queued before the one save, so it commits with the request");
+        harness.Unit.Saves.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task NoAddressQueuesNoAlertAndTheRequestIsStillSaved()
+    {
+        var harness = new Harness { AlertsAddress = "   " };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnAddressThatCannotReceiveMailStillSavesTheRequest()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.FailWith = new ArgumentException("The recipient cannot receive mail.");
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheCountStartsAtTheTopOfTheBusinessHourAndBelowTheLimitAnAlertIsQueued()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 19;
+
+        await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        harness.Outbox.Counts.ShouldBe([(AuthEmailKind.QuoteAlert, "quotes@example.com", new DateTimeOffset(2026, 11, 22, 10, 0, 0, TimeSpan.Zero))]);
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertEmail>();
+    }
+
+    [Fact]
+    public async Task AtTheLimitOneOverflowEmailIsQueuedForTheHour()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 20;
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertsOverflowEmail>().To.ShouldBe("quotes@example.com");
+    }
+
+    [Fact]
+    public async Task AfterTheOverflowEmailNothingElseIsQueuedThatHour()
+    {
+        var harness = new Harness { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 20;
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlertsOverflow] = 1;
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Added.ShouldHaveSingleItem();
+        harness.Outbox.Emails.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheLimitComesFromTheSetting()
+    {
+        var harness = new Harness(alertsPerHour: 2) { AlertsAddress = "quotes@example.com" };
+        harness.Outbox.Recent[AuthEmailKind.QuoteAlert] = 2;
+
+        await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        harness.Outbox.Emails.ShouldHaveSingleItem().ShouldBeOfType<QuoteAlertsOverflowEmail>();
+    }
+
+    [Fact]
+    public async Task ACaughtBotAndARefusedSenderQueueNoAlert()
+    {
+        var caught = new Harness { AlertsAddress = "quotes@example.com" };
+        var refused = new Harness(perSenderPerDay: 1) { AlertsAddress = "quotes@example.com" };
+        refused.Recent = new QuoteSenderRecent([Now.AddHours(-1)]);
+
+        await caught.Handler.HandleAsync(Request() with { SubjectLine = "hello-bot-text" }, TestContext.Current.CancellationToken);
+        var result = await refused.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        caught.Outbox.Emails.ShouldBeEmpty();
+        refused.Outbox.Emails.ShouldBeEmpty();
+    }
+
     private static CreateQuoteRequestRequest Request() =>
         CreateQuoteRequestRequest.Empty with { CustomerName = "Juan Dela Cruz", ContactNumber = "0917 123 4567", Ticket = "ticket" };
 
@@ -354,7 +480,7 @@ public sealed class CreateQuoteRequestHandlerTests
 
     private sealed class Harness
     {
-        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3, int perSenderPerDay = 3)
+        public Harness(IValidator<CreateQuoteRequestRequest>? validator = null, int minimumSeconds = 3, int perSenderPerDay = 3, int alertsPerHour = 20)
         {
             Store = Substitute.For<IQuoteRequestStore>();
             Store.When(store => store.Add(Arg.Any<QuoteRequest>())).Do(call =>
@@ -382,15 +508,28 @@ public sealed class CreateQuoteRequestHandlerTests
             });
             var botLog = Substitute.For<IQuoteBotCatchLog>();
             botLog.When(log => log.Caught(Arg.Any<string>())).Do(call => Caught.Add(call.Arg<string>()));
+            var siteContent = SiteContent;
+            Outbox = new ProbeOutbox(this);
             Handler = new CreateQuoteRequestHandler(
                 Store,
                 new FixedCalendar(),
                 Unit,
                 validator ?? new CreateQuoteRequestRequestValidator(),
-                new QuoteRequestSettings { MinimumSeconds = minimumSeconds, PerSenderPerDay = perSenderPerDay },
+                new QuoteRequestSettings { MinimumSeconds = minimumSeconds, PerSenderPerDay = perSenderPerDay, AlertsPerHour = alertsPerHour },
                 tickets,
-                botLog);
+                botLog,
+                siteContent,
+                Outbox);
         }
+
+        public string AlertsAddress
+        {
+            set => SiteContent.GetQuoteAlertsEmailAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(value));
+        }
+
+        public ISiteContentStore SiteContent { get; } = Substitute.For<ISiteContentStore>();
+
+        public ProbeOutbox Outbox { get; }
 
         public QuoteSenderRecent Recent { get; set; } = new([]);
 
@@ -413,6 +552,41 @@ public sealed class CreateQuoteRequestHandlerTests
         public List<QuoteRequest> Added { get; } = [];
 
         public CreateQuoteRequestHandler Handler { get; }
+    }
+
+    // Keeps what was queued and notes how far the request had got.
+    private sealed class ProbeOutbox(Harness harness) : IEmailOutbox
+    {
+        public List<AuthEmail> Emails { get; } = [];
+
+        public Exception? FailWith { get; set; }
+
+        public int SavesAtEnqueue { get; private set; } = -1;
+
+        public Dictionary<AuthEmailKind, int> Recent { get; } = [];
+
+        public List<(AuthEmailKind Kind, string To, DateTimeOffset Since)> Counts { get; } = [];
+
+        public ValueTask EnqueueAsync(AuthEmail email, CancellationToken cancellationToken)
+        {
+            if (FailWith is not null)
+            {
+                throw FailWith;
+            }
+
+            harness.Order.Add("enqueue");
+            SavesAtEnqueue = harness.Unit.Saves;
+            Emails.Add(email);
+            return ValueTask.CompletedTask;
+        }
+
+        public Task<int> CountRecentAsync(AuthEmailKind kind, string toAddress, DateTimeOffset since, CancellationToken cancellationToken)
+        {
+            Counts.Add((kind, toAddress, since));
+            return Task.FromResult(Recent.GetValueOrDefault(kind));
+        }
+
+        public Task<int> ScrubRecipientAsync(string oldAddress, string replacement, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(0);
     }
 
     private sealed class FixedCalendar : IBusinessCalendar

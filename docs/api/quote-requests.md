@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T00:00:00-06:00
+updated: 2026-11-23T01:32:00-06:00
 ---
 
 # The quote requests API
@@ -182,6 +182,19 @@ nothing. Until the limit, requests with the same phone or email stay separate ro
 The count and the insert run under the standing `quote-requests` lock row in one transaction, so two sends at once from one sender
 never make a fourth row. A caught bot saves nothing, so it never counts. A replay with the same `Idempotency-Key` returns the stored
 answer and is not counted again.
+
+### Staff alert email (INQ-04, D-09)
+
+When a Quote alerts address is saved in Site Content, each saved request queues one `QuoteAlert` email to that address in the same
+transaction as the request, so a rolled-back request queues nothing. A caught bot and a refused sender queue nothing. No email goes to the
+visitor. The email has the summary lines (name, team, phone, product, quantity, photos, first 300 characters of the message), a link to the
+request in admin and no attachment. The subject is `New quote request from {name}`, the name cut at 60 characters; line breaks and control
+characters in visitor text become one space, so no visitor text can add a header or a line.
+
+At most `QuoteRequests:AlertsPerHour` alerts (20 by default, 1 to 200) go out in one business hour. The count runs under the same
+`quote-requests` lock. The next request queues one `QuoteAlertsOverflow` email ("More quote requests are waiting") for that hour, and later
+requests that hour are inbox only. The next hour starts again. Every request is saved either way. A send that fails is retried by the
+email outbox and logged without the address or the content.
 
 ## Answers of the create call
 

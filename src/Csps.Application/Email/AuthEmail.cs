@@ -37,6 +37,12 @@ public enum AuthEmailKind
 
     /// <summary>The reset link a Manager sent to a colleague (USER-07).</summary>
     ManagerResetLink = 11,
+
+    /// <summary>The staff alert for a new quote request (INQ-04).</summary>
+    QuoteAlert = 12,
+
+    /// <summary>The one staff email an hour that says more quote requests are waiting (D-09).</summary>
+    QuoteAlertsOverflow = 13,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -226,4 +232,43 @@ public sealed record ManagerResetLinkEmail(string To, string Token, DateTimeOffs
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => ExpiresAt;
+}
+
+/// <summary>The staff alert for a new quote request: a summary and a link, never an attachment (INQ-04, D-08).</summary>
+/// <param name="To">The Quote alerts address.</param>
+/// <param name="RequestId">The id of the saved request, for the admin link.</param>
+/// <param name="CustomerName">The visitor's name, in full.</param>
+/// <param name="TeamName">The team or organization; null when none.</param>
+/// <param name="PhoneDisplay">The mobile number as people read it, such as "0917 123 4567".</param>
+/// <param name="ProductTitle">The product the visitor chose, as a label; null when none.</param>
+/// <param name="QuantityLabel">The estimated quantity, such as "21-50 pcs"; null when none.</param>
+/// <param name="PhotoCount">How many photos the visitor said they would send.</param>
+/// <param name="MessageExcerpt">The visitor's message as written; the email shows its first 300 characters. Null when none.</param>
+public sealed record QuoteAlertEmail(
+    string To,
+    Guid RequestId,
+    string CustomerName,
+    string? TeamName,
+    string PhoneDisplay,
+    string? ProductTitle,
+    string? QuantityLabel,
+    int PhotoCount,
+    string? MessageExcerpt) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.QuoteAlert;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The one email an hour that says more quote requests came in than staff are emailed about (D-09).</summary>
+/// <param name="To">The Quote alerts address.</param>
+public sealed record QuoteAlertsOverflowEmail(string To) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.QuoteAlertsOverflow;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
 }

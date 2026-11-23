@@ -1,8 +1,11 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
+using Csps.Application.Email;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
+using Csps.Domain.Content;
 using Csps.Domain.QuoteRequests;
+using Csps.Domain.Time;
 using FluentValidation;
 
 namespace Csps.Application.QuoteRequests;
@@ -21,6 +24,8 @@ namespace Csps.Application.QuoteRequests;
 /// <param name="settings">The quote form limits.</param>
 /// <param name="tickets">The form ticket reader.</param>
 /// <param name="botLog">The log of caught sends.</param>
+/// <param name="siteContent">The site content store, for the Quote alerts address.</param>
+/// <param name="outbox">The email outbox, for the staff alert.</param>
 public sealed class CreateQuoteRequestHandler(
     IQuoteRequestStore store,
     IBusinessCalendar calendar,
@@ -28,7 +33,9 @@ public sealed class CreateQuoteRequestHandler(
     IValidator<CreateQuoteRequestRequest> validator,
     QuoteRequestSettings settings,
     IQuoteFormTickets tickets,
-    IQuoteBotCatchLog botLog)
+    IQuoteBotCatchLog botLog,
+    ISiteContentStore siteContent,
+    IEmailOutbox outbox)
 {
     /// <summary>
     /// Saves the request. The form ticket and the hidden field are judged first (INQ-03): no good ticket is a 400 that carries a replacement ticket so a real visitor
@@ -104,7 +111,7 @@ public sealed class CreateQuoteRequestHandler(
         {
             return await ConflictRetry
                 .RunAsync(
-                    () => unitOfWork.InTransactionAsync(token => SaveUnderLockAsync(saved, clock.UtcNow, token), cancellationToken),
+                    () => unitOfWork.InTransactionAsync(token => SaveUnderLockAsync(saved, clock, token), cancellationToken),
                     Result.Failure<CreateQuoteRequestResponse>(AuthErrors.SessionBusy))
                 .ConfigureAwait(false);
         }
@@ -114,8 +121,9 @@ public sealed class CreateQuoteRequestHandler(
         }
     }
 
-    private async Task<Result<CreateQuoteRequestResponse>> SaveUnderLockAsync(QuoteRequest saved, DateTimeOffset now, CancellationToken cancellationToken)
+    private async Task<Result<CreateQuoteRequestResponse>> SaveUnderLockAsync(QuoteRequest saved, BusinessClock clock, CancellationToken cancellationToken)
     {
+        var now = clock.UtcNow;
         await store.LockAsync(cancellationToken).ConfigureAwait(false);
         var recent = await store.CountRecentFromSenderAsync(saved.ContactNumberE164, saved.Email, now - QuoteRequestSettings.SenderWindow, cancellationToken).ConfigureAwait(false);
         if (recent.Count >= settings.PerSenderPerDay)
@@ -126,9 +134,81 @@ public sealed class CreateQuoteRequestHandler(
         }
 
         store.Add(saved);
+        await QueueAlertAsync(saved, HourStart(clock), cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(new CreateQuoteRequestResponse(saved.Id, [.. saved.Photos.Select(static photo => new QuotePhotoSlotResponse(photo.Slot, photo.FileName))]));
     }
+
+    // The start of the current business hour, as an instant.
+    private static DateTimeOffset HourStart(BusinessClock clock)
+    {
+        var local = TimeZoneInfo.ConvertTime(clock.UtcNow, clock.Zone);
+        return (local - TimeSpan.FromTicks(local.Ticks % TimeSpan.TicksPerHour)).ToUniversalTime();
+    }
+
+    // The staff alert joins the request's own save, so it exists only when the request does (INQ-04). No address means no alert (D-07).
+    // The count runs under the quote-requests lock and the rows of earlier sends are committed, so a busy hour never passes the limit (D-09).
+    private async Task QueueAlertAsync(QuoteRequest saved, DateTimeOffset hourStart, CancellationToken cancellationToken)
+    {
+        var address = (await siteContent.GetQuoteAlertsEmailAsync(cancellationToken).ConfigureAwait(false)).Trim();
+        if (address.Length == 0)
+        {
+            return;
+        }
+
+        var sent = await outbox.CountRecentAsync(AuthEmailKind.QuoteAlert, address, hourStart, cancellationToken).ConfigureAwait(false);
+        if (sent >= settings.AlertsPerHour)
+        {
+            var overflowSent = await outbox.CountRecentAsync(AuthEmailKind.QuoteAlertsOverflow, address, hourStart, cancellationToken).ConfigureAwait(false);
+            if (overflowSent == 0)
+            {
+                await EnqueueQuietlyAsync(new QuoteAlertsOverflowEmail(address), cancellationToken).ConfigureAwait(false);
+            }
+
+            return;
+        }
+
+        var email = new QuoteAlertEmail(
+            address,
+            saved.Id,
+            saved.CustomerName,
+            saved.TeamName,
+            PhilippinePhone.TryParse(saved.ContactNumberE164, out var phone) ? phone.Display : saved.ContactNumberE164,
+            ProductLabel(saved),
+            saved.QuantityRange is { } range ? QuantityLabel(range) : null,
+            saved.Photos.Count,
+            saved.Message);
+        await EnqueueQuietlyAsync(email, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnqueueQuietlyAsync(AuthEmail email, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await outbox.EnqueueAsync(email, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ArgumentException)
+        {
+            // An address that can never receive mail must not cost the shop a lead; the request is still saved.
+        }
+    }
+
+    private static string? ProductLabel(QuoteRequest saved) => saved.ProductChoice switch
+    {
+        QuoteProductChoice.Line => saved.ProductTitle,
+        QuoteProductChoice.Custom => "Custom design",
+        QuoteProductChoice.NotSure => "Not sure yet",
+        _ => null,
+    };
+
+    private static string QuantityLabel(QuoteQuantityRange range) => range switch
+    {
+        QuoteQuantityRange.OneToNine => "1-9 pcs",
+        QuoteQuantityRange.TenToTwenty => "10-20 pcs",
+        QuoteQuantityRange.TwentyOneToFifty => "21-50 pcs",
+        QuoteQuantityRange.FiftyOneToHundred => "51-100 pcs",
+        _ => "100+ pcs",
+    };
 
     // The answer of a saved request with a made-up id, so a bot learns nothing. Nothing is stored; one log line holds the reason code only.
     private Result<CreateQuoteRequestResponse> Caught(string reason, CreateQuoteRequestRequest request, DateTimeOffset now)
