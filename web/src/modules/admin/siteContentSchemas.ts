@@ -39,6 +39,7 @@ export const FACEBOOK_URL_MAX = 300;
 export const INSTAGRAM_URL_MAX = 300;
 export const TIKTOK_URL_MAX = 300;
 export const CONTACT_EMAIL_MAX = 254;
+export const QUOTE_ALERTS_EMAIL_MAX = 254;
 export const MAX_PHONES = 4;
 export const PHONE_LABEL_MAX = 20;
 
@@ -245,6 +246,19 @@ const emailField = z.string().superRefine((value, ctx) => {
   }
 });
 
+/** The Quote alerts address: optional, a valid email, at most 254 characters (the length message comes first, as on the server). */
+const quoteAlertsEmailField = z.string().superRefine((value, ctx) => {
+  const text = value.trim();
+  if (text === '') {
+    return;
+  }
+  if (text.length > QUOTE_ALERTS_EMAIL_MAX) {
+    ctx.addIssue({ code: 'custom', message: ERRORS.quoteAlertsEmailTooLong });
+  } else if (!isEmailShaped(text) || hasBracketPlaceholder(text)) {
+    ctx.addIssue({ code: 'custom', message: ERRORS.email });
+  }
+});
+
 const phoneRowSchema = z.object({
   number: z.string(),
   label: z.string(),
@@ -303,6 +317,7 @@ export const businessInfoSchema = z.object({
   instagramUrl: optionalLink(isInstagramLink, ERRORS.instagramUrl, INSTAGRAM_URL_MAX),
   tiktokUrl: optionalLink(isTikTokLink, ERRORS.tiktokUrl, TIKTOK_URL_MAX),
   contactEmail: emailField,
+  quoteAlertsEmail: quoteAlertsEmailField,
   phones: phonesSchema,
 });
 
@@ -330,6 +345,7 @@ export function businessInfoValuesOf(settings: SiteSettings): BusinessInfoInput 
     instagramUrl: settings.instagramUrl ?? '',
     tiktokUrl: settings.tiktokUrl ?? '',
     contactEmail: settings.contactEmail ?? '',
+    quoteAlertsEmail: settings.quoteAlertsEmail ?? '',
     phones: settings.phones.map((phone) => ({ number: phone.number, label: phone.label ?? '', isMain: phone.isMain })),
   };
 }
@@ -359,6 +375,7 @@ export function toSiteSettingsRequest(values: BusinessInfoInput, version: string
     instagramUrl: optional(values.instagramUrl),
     tiktokUrl: optional(values.tiktokUrl),
     contactEmail: optional(values.contactEmail),
+    quoteAlertsEmail: optional(values.quoteAlertsEmail),
     phones: values.phones.map((phone) => ({
       number: phone.number.trim(),
       label: optional(phone.label),

@@ -26,6 +26,7 @@ import { isHttpError } from '@/core/api/errors';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { PhoneNumbersField } from '@/modules/admin/components/PhoneNumbersField';
+import { QuoteAlertsCard } from '@/modules/admin/components/QuoteAlertsCard';
 import { SharePictureCard } from '@/modules/admin/components/SharePictureCard';
 import {
   recordMetaClasses,
@@ -81,6 +82,7 @@ const TEXT_NAMES: readonly TextName[] = [
   'instagramUrl',
   'tiktokUrl',
   'contactEmail',
+  'quoteAlertsEmail',
 ];
 
 /** A phone row's key in the server's answer: `phones[1].number`. */
@@ -200,7 +202,7 @@ interface BusinessInfoFormProps {
 function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormProps) {
   const toast = useToast();
   const formRef = useRef<HTMLFormElement>(null);
-  // The form element holds the cards up to Email; Save Business Info sits after the link preview picture card, so it names the form it submits.
+  // The form element holds the cards up to Quote alerts; Save Business Info sits after the link preview picture card, so it names the form it submits.
   const formId = useId();
   // The settings version this form was opened with: changed only by a save of this form.
   const [version, setVersion] = useState(settings.version);
@@ -473,6 +475,8 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
               inputMode="email"
             />
           </Card>
+          {/* SPEC-GAP: quote alerts card. Inside the form, so one Save Business Info saves it (13 D-07). */}
+          <QuoteAlertsCard control={control} />
         </form>
         {/* SPEC-GAP: business info. Card 6 sits outside the form element: the picture saves on its own (D-26). */}
         <SharePictureCard picture={settings.sharePicture} onSettingsChange={takePictureVersion} />

@@ -443,7 +443,9 @@ describe('the save request (CONT-01)', () => {
   });
 
   it('fills the field from the saved address and leaves an unset one empty', () => {
-    expect(businessInfoValuesOf({ ...demoSiteSettings, quoteAlertsEmail: 'quotes@example.com' }).quoteAlertsEmail).toBe('quotes@example.com');
+    expect(businessInfoValuesOf({ ...demoSiteSettings, quoteAlertsEmail: 'quotes@example.com' }).quoteAlertsEmail).toBe(
+      'quotes@example.com',
+    );
     expect(businessInfoValuesOf(demoSiteSettings).quoteAlertsEmail).toBe('');
   });
 

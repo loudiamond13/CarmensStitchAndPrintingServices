@@ -24,7 +24,7 @@ internal sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteS
         builder.Property(settings => settings.CurrencyCode).IsRequired().IsUnicode().HasMaxLength(SiteSettings.CurrencyCodeMaxLength);
         builder.Property(settings => settings.Locale).IsRequired().IsUnicode().HasMaxLength(SiteSettings.LocaleMaxLength);
         builder.Property(settings => settings.ContactEmail).IsRequired().IsUnicode().HasMaxLength(SiteSettings.ContactEmailMaxLength);
-        builder.Ignore(settings => settings.QuoteAlertsEmail);
+        builder.Property(settings => settings.QuoteAlertsEmail).IsRequired().IsUnicode().HasMaxLength(SiteSettings.QuoteAlertsEmailMaxLength);
         builder.Property(settings => settings.ContactPhone).IsRequired().IsUnicode().HasMaxLength(SiteSettings.ContactPhoneMaxLength);
         builder.Property(settings => settings.AddressLine).IsRequired().IsUnicode().HasMaxLength(SiteSettings.AddressLineMaxLength);
         builder.Property(settings => settings.FacebookUrl).IsRequired().IsUnicode().HasMaxLength(SiteSettings.FacebookUrlMaxLength);
@@ -67,6 +67,7 @@ internal sealed class SiteSettingsConfiguration : IEntityTypeConfiguration<SiteS
             SiteSettingsDefaults.CurrencyCode,
             SiteSettingsDefaults.Locale,
             SiteSettingsDefaults.ContactEmail,
+            SiteSettingsDefaults.QuoteAlertsEmail,
             SiteSettingsDefaults.ContactPhone,
             SiteSettingsDefaults.AddressLine,
             SiteSettingsDefaults.FacebookUrl,

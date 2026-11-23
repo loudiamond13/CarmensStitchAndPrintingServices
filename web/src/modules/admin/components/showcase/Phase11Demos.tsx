@@ -95,6 +95,7 @@ function businessInfoWith(phones: PhoneRowInput[]): BusinessInfoInput {
     instagramUrl: '',
     tiktokUrl: '',
     contactEmail: '',
+    quoteAlertsEmail: '',
     phones,
   };
 }

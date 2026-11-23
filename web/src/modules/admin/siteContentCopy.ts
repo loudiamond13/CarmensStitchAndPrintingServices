@@ -36,6 +36,7 @@ export const SITE_CONTENT_COPY = {
       phones: { title: 'Phone numbers', hint: 'The main number is the one the Call buttons dial.' },
       links: { title: 'Messenger and social links', hint: 'Leave a link empty to hide it on the website.' },
       email: { title: 'Email', hint: "For staff use only. It's not shown on the website." },
+      quoteAlerts: { title: 'Quote alerts', hint: 'Where we email you when a visitor sends a quote request.' },
       zone: { title: 'Time zone and money', hint: 'These stay fixed so every date, status and total lines up.' },
     },
     fields: {
@@ -67,6 +68,10 @@ export const SITE_CONTENT_COPY = {
       instagramUrl: { label: 'Instagram' },
       tiktokUrl: { label: 'TikTok' },
       contactEmail: { label: 'Email' },
+      quoteAlertsEmail: {
+        label: 'Quote alerts email',
+        hint: 'Any inbox works, including the shop email. Leave it empty to get no emails; new requests still show in Quote Requests.',
+      },
     },
     /** The read-only rows of the Time zone and money card (OQ-6 A, D-35). */
     zone: {
@@ -652,6 +657,7 @@ export const SITE_CONTENT_COPY = {
     instagramUrl: 'Paste your Instagram link, like https://www.instagram.com/yourpage.',
     tiktokUrl: 'Paste your TikTok link, like https://www.tiktok.com/@yourpage.',
     email: 'Enter a valid email, like name@gmail.com',
+    quoteAlertsEmailTooLong: 'Keep the email to 254 characters or fewer.',
     phonesRequired: 'Add at least one phone number.',
     phonesTooMany: 'You can list up to 4 numbers.',
     phone: 'Enter a phone number, like 0917 123 4567 or 02 8123 4567.',

@@ -461,11 +461,11 @@ describe('the Quote alerts card (R5, INQ-04, D-07)', () => {
 
   it('shows the length message for an address over 254 characters', async () => {
     siteSettingsBackend();
-    const { user } = await openTab();
+    await openTab();
     const field = screen.getByLabelText(ALERTS_LABEL);
 
     fireEvent.change(field, { target: { value: `${'a'.repeat(250)}@b.ph` } });
-    await user.tab();
+    fireEvent.blur(field);
 
     expect(await screen.findByText('Keep the email to 254 characters or fewer.')).toBeVisible();
   });
@@ -910,7 +910,7 @@ const versionGuard = (body: { version?: string | null }, backend: { current: { v
   body.version === backend.current.version ? undefined : problemAnswer(409, { code: 'edit.stale' });
 
 describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
-  it('is card 6: after Email and before Time zone and money, and outside the form element', async () => {
+  it('is card 7: after Quote alerts and before Time zone and money, and outside the form element', async () => {
     siteSettingsBackend();
     const { container } = await openTab();
 
@@ -921,6 +921,7 @@ describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
       'Phone numbers',
       'Messenger and social links',
       'Email',
+      'Quote alerts',
       'Link preview picture',
       'Time zone and money',
     ]);
@@ -928,6 +929,7 @@ describe('the Link preview picture card (D-26, PUB-04; plan 11-34)', () => {
     expect(form).not.toBeNull();
     expect(form?.contains(screen.getByRole('heading', { name: 'Link preview picture' }))).toBe(false);
     expect(form?.contains(screen.getByRole('heading', { name: 'Email' }))).toBe(true);
+    expect(form?.contains(screen.getByRole('heading', { name: 'Quote alerts' }))).toBe(true);
   });
 
   it('still saves the form with Save Business Info, which sits after the cards', async () => {

@@ -820,6 +820,12 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<string>("QuoteAlertsEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(254)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -903,6 +909,7 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             CurrencyCode = "PHP",
                             FacebookUrl = "",
                             Locale = "en-PH",
+                            QuoteAlertsEmail = "",
                             Tagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.",
                             TimeZoneId = "Asia/Manila"
                         });

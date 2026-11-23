@@ -94,7 +94,14 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
                 : null);
     }
 
-    public Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) => Task.FromResult(string.Empty);
+    public async Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) =>
+        await context.SiteSettings
+            .AsNoTracking()
+            .Where(settings => settings.Id == SiteSettings.SingletonId)
+            .Select(settings => settings.QuoteAlertsEmail)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false)
+        ?? throw new InvalidOperationException(MissingRowMessage);
 
     public async Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken)
     {

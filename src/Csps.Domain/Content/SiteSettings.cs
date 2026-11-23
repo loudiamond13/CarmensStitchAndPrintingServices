@@ -85,6 +85,9 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <summary>The text above the field errors.</summary>
     public const string InvalidMessage = "Check the highlighted fields.";
 
+    /// <summary>The message for a quote alerts email over the limit.</summary>
+    public const string QuoteAlertsEmailTooLongMessage = "Keep the email to 254 characters or fewer.";
+
     /// <summary>The message for a missing business name.</summary>
     public const string BusinessNameRequiredMessage = "Enter the business name.";
 
@@ -262,8 +265,8 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
             rowVersion: []);
 
     /// <summary>
-    /// Replaces the business info: name, tagline, address parts, links and the shop email, and builds the phone rows that replace
-    /// the stored list. Text is trimmed and an empty optional value becomes null (the email and the Facebook link, whose columns
+    /// Replaces the business info: name, tagline, address parts, links, the shop email and the quote alerts email, and builds the phone rows that replace
+    /// the stored list. Text is trimmed and an empty optional value becomes null (the emails and the Facebook link, whose columns
     /// are required, become an empty string). The rules here keep every value inside its column and apply the link allow-lists,
     /// the postal code and the email shape (the request validator calls the same <see cref="SiteLinks"/> rules, so a value from any
     /// other writer is held to them too). A failure changes nothing.
@@ -291,6 +294,7 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         var instagram = Optional(values.InstagramUrl, InstagramUrlMaxLength, BusinessInfoFields.InstagramUrl, TooLongMessage(InstagramUrlMaxLength), errors);
         var tiktok = Optional(values.TikTokUrl, TikTokUrlMaxLength, BusinessInfoFields.TiktokUrl, TooLongMessage(TikTokUrlMaxLength), errors);
         var email = Optional(values.ContactEmail, ContactEmailMaxLength, BusinessInfoFields.ContactEmail, TooLongMessage(ContactEmailMaxLength), errors);
+        var quoteAlerts = Optional(values.QuoteAlertsEmail, QuoteAlertsEmailMaxLength, BusinessInfoFields.QuoteAlertsEmail, QuoteAlertsEmailTooLongMessage, errors);
         CheckShape(postalCode, SiteLinks.IsPostalCode, BusinessInfoFields.PostalCode, SiteLinks.PostalCodeInvalidMessage, errors);
         CheckShape(directions, SiteLinks.IsDirectionsLink, BusinessInfoFields.DirectionsUrl, SiteLinks.DirectionsInvalidMessage, errors);
         CheckShape(mapEmbed, SiteLinks.IsMapEmbedLink, BusinessInfoFields.MapEmbedUrl, SiteLinks.MapEmbedInvalidMessage, errors);
@@ -299,6 +303,7 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         CheckShape(instagram, SiteLinks.IsInstagramLink, BusinessInfoFields.InstagramUrl, SiteLinks.InstagramInvalidMessage, errors);
         CheckShape(tiktok, SiteLinks.IsTikTokLink, BusinessInfoFields.TiktokUrl, SiteLinks.TikTokInvalidMessage, errors);
         CheckShape(email, SiteLinks.IsContactEmail, BusinessInfoFields.ContactEmail, SiteLinks.ContactEmailInvalidMessage, errors);
+        CheckShape(quoteAlerts, SiteLinks.IsContactEmail, BusinessInfoFields.QuoteAlertsEmail, SiteLinks.ContactEmailInvalidMessage, errors);
         var phones = BuildPhones(values.Phones, now, errors);
         if (errors.Count > 0)
         {
@@ -321,6 +326,7 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
         InstagramUrl = TrackOptional(changed, BusinessInfoFields.InstagramUrl, InstagramUrl, instagram);
         TikTokUrl = TrackOptional(changed, BusinessInfoFields.TiktokUrl, TikTokUrl, tiktok);
         ContactEmail = Track(changed, BusinessInfoFields.ContactEmail, ContactEmail, email ?? string.Empty);
+        QuoteAlertsEmail = Track(changed, BusinessInfoFields.QuoteAlertsEmail, QuoteAlertsEmail, quoteAlerts ?? string.Empty);
         if (changed.Count > 0)
         {
             UpdatedAtUtc = now;
