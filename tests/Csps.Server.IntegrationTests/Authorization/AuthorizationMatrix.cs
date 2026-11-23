@@ -102,6 +102,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/gallery", "/api/v1/public/gallery", Anonymous: 200, Admin: 200, Manager: 200),
+        // The form ticket (INQ-03): anyone may fetch one; it is signed by the server and never cached.
+        new("GET", "/api/v1/public/quote-requests/ticket", "/api/v1/public/quote-requests/ticket", Anonymous: 200, Admin: 200, Manager: 200),
         // The public quote form (INQ-01): anyone may send it. The matrix sends an Idempotency-Key and no body, so every caller meets the 400 field errors.
         new("POST", "/api/v1/public/quote-requests", "/api/v1/public/quote-requests", Anonymous: 400, Admin: 400, Manager: 400),
         // One quote photo (INQ-02): anyone may send it with the request's upload key. The matrix sends an Idempotency-Key and no form body, so every caller meets 400 images.file-missing before the request is looked up.
@@ -425,6 +427,7 @@ public static class AuthorizationMatrix
             "GET /api/v1/public/product-lines",
             "GET /api/v1/public/home",
             "GET /api/v1/public/gallery",
+            "GET /api/v1/public/quote-requests/ticket",
             "POST /api/v1/public/quote-requests",
             "POST /api/v1/public/quote-requests/{id:guid}/photos/{slot:int}",
             "* /api/{**path}",

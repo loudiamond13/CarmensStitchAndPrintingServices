@@ -89,6 +89,19 @@ internal static class QuoteRequestFixtures
         return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Gets a form ticket the way the browser does, with a plain GET.</summary>
+    /// <param name="client">The client.</param>
+    /// <returns>The ticket text.</returns>
+    public static async Task<string> GetTicketAsync(HttpClient client)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using var response = await client.GetAsync(new Uri($"{Route}/ticket", UriKind.Relative), TestContext.Current.CancellationToken);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK, text);
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.GetProperty("ticket").GetString()!;
+    }
+
     /// <summary>The header that carries the upload key.</summary>
     public const string UploadKeyHeader = "X-Upload-Key";
 }
