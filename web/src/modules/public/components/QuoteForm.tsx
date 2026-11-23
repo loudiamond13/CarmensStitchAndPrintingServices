@@ -8,24 +8,38 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions/Button';
+import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { Field } from '@/components/forms/Field';
+import { Select, type SelectOption } from '@/components/forms/Select';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { pickErrorBodyClasses, pickErrorClasses, pickErrorIconClasses } from '@/components/media/media.recipe';
 import { isHttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { cardHeadClasses, cardTitleClasses, formCardClasses, smallMutedClasses } from './contact.recipe';
+import { inlineLinkClasses } from './legal.recipe';
 import {
   quoteFormFooterClasses,
   quoteFormGridClasses,
+  quoteFormMessageClasses,
+  quoteFormNoticeClasses,
+  quoteFormSendClasses,
   quoteFormStatusClasses,
   quoteFormStatusTextClasses,
 } from './quoteForm.recipe';
 import { PUBLIC_COPY } from '../copy';
+import { useProductLinesQuery } from '../hooks/useProductLinesQuery';
 import { useQuoteTicket } from '../hooks/useQuoteTicket';
-import { EMPTY_QUOTE_FORM, quoteFormSchema, toCreateQuoteRequest, type QuoteFormValues } from '../quoteSchemas';
+import {
+  EMPTY_QUOTE_FORM,
+  QUOTE_QUANTITIES,
+  quoteFormSchema,
+  toCreateQuoteRequest,
+  type QuoteFormValues,
+} from '../quoteSchemas';
 import { quoteService, type CreateQuoteAnswer } from '../services/quoteService';
 
 const COPY = PUBLIC_COPY.contact.form;
@@ -36,7 +50,7 @@ export const QUOTE_MINIMUM_WAIT_MS = 3000;
 const TICKET_EXPIRED_CODE = 'quote-requests.ticket-expired';
 
 /** The fields in page order: the first one with an error takes focus. */
-const FIELD_ORDER = ['customerName', 'contactNumber'] as const;
+const FIELD_ORDER = ['customerName', 'teamName', 'contactNumber', 'email', 'product', 'quantity', 'message'] as const;
 
 /** The one resend an expired ticket starts: the replacement ticket and its own key, kept so a retry repeats it and never sends twice. */
 interface Resend {
@@ -65,6 +79,16 @@ export function QuoteForm({ minimumWaitMs = QUOTE_MINIMUM_WAIT_MS }: QuoteFormPr
   const [sent, setSent] = useState(false);
   const toast = useToast();
   const tickets = useQuoteTicket();
+  const lines = useProductLinesQuery();
+  // The visible lines in the Products page order, then the two fixed choices. Until the lines arrive, or when the read fails,
+  // only the two fixed choices show and no message is shown (D-24).
+  const productOptions: SelectOption[] = [
+    ...(lines.status === 'success'
+      ? lines.data.lines.map((line) => ({ value: `line:${line.key}`, label: line.title }))
+      : []),
+    { value: 'custom', label: COPY.product.custom },
+    { value: 'not-sure', label: COPY.product.notSure },
+  ];
   const { control, handleSubmit, reset } = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteFormSchema),
     mode: 'onBlur',
@@ -202,6 +226,23 @@ export function QuoteForm({ minimumWaitMs = QUOTE_MINIMUM_WAIT_MS }: QuoteFormPr
         />
         <Controller
           control={control}
+          name="teamName"
+          render={({ field, fieldState }) => (
+            <Field
+              label={COPY.team.label}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              placeholder={COPY.team.placeholder}
+              autoComplete="organization"
+              readOnly={pending}
+            />
+          )}
+        />
+        <Controller
+          control={control}
           name="contactNumber"
           render={({ field, fieldState }) => (
             <Field
@@ -221,9 +262,117 @@ export function QuoteForm({ minimumWaitMs = QUOTE_MINIMUM_WAIT_MS }: QuoteFormPr
             />
           )}
         />
+        <Controller
+          control={control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <Field
+              label={COPY.email.label}
+              type="email"
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              placeholder={COPY.email.placeholder}
+              autoComplete="email"
+              inputMode="email"
+              readOnly={pending}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="product"
+          render={({ field, fieldState }) => (
+            <Select
+              label={COPY.product.label}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              placeholder={COPY.product.placeholder}
+              options={productOptions}
+              disabled={pending}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="quantity"
+          render={({ field, fieldState }) => (
+            <Select
+              label={COPY.quantity.label}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              placeholder={COPY.quantity.placeholder}
+              options={QUOTE_QUANTITIES}
+              disabled={pending}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="message"
+          render={({ field, fieldState }) => (
+            <Field
+              multiline
+              rows={6}
+              className={quoteFormMessageClasses}
+              label={COPY.message.label}
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message ?? ''}
+              placeholder={COPY.message.placeholder}
+              readOnly={pending}
+            />
+          )}
+        />
+        {/* The reference photo picker joins the form here (plan 13-12). */}
+      </div>
+      {/* The honeypot (INQ-03, D-25): off-screen, never display:none, out of the Tab order and hidden from assistive technology. */}
+      <div aria-hidden="true" className={srOnlyClasses}>
+        <Controller
+          control={control}
+          name="subjectLine"
+          render={({ field }) => (
+            <label>
+              {COPY.honeypot}
+              <input
+                type="text"
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </label>
+          )}
+        />
       </div>
       <div className={quoteFormFooterClasses}>
-        <Button variant="primary" size="lg" type="submit" iconRight="arrow-right" pending={pending}>
+        <p className={quoteFormNoticeClasses}>
+          {COPY.notice.before}
+          <UiLink to="/privacy" className={inlineLinkClasses}>
+            {COPY.notice.link}
+          </UiLink>
+          {COPY.notice.after}
+        </p>
+        <Button
+          variant="primary"
+          size="lg"
+          type="submit"
+          iconRight="arrow-right"
+          pending={pending}
+          className={quoteFormSendClasses}
+        >
           {pending ? COPY.sending : COPY.submit}
         </Button>
       </div>

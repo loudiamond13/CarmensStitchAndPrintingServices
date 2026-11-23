@@ -263,6 +263,39 @@ export const PUBLIC_COPY = {
         placeholder: '0917 123 4567',
         hint: "We'll text or call about your mockup.",
       },
+      team: { label: 'Team / organization', placeholder: 'Brgy. San Roque Ballers' },
+      email: { label: 'Email', placeholder: 'you@gmail.com' },
+      product: {
+        label: 'Product type',
+        placeholder: 'Choose a product',
+        // The two fixed choices that follow the product lines (D-24).
+        custom: 'Custom design',
+        notSure: 'Not sure yet',
+      },
+      quantity: {
+        label: 'Quantity (estimate)',
+        placeholder: 'How many pieces?',
+        options: [
+          { value: '1-9', label: '1-9 pcs' },
+          { value: '10-20', label: '10-20 pcs' },
+          { value: '21-50', label: '21-50 pcs' },
+          { value: '51-100', label: '51-100 pcs' },
+          { value: '100+', label: '100+ pcs' },
+        ],
+      },
+      message: {
+        label: 'Message',
+        placeholder: 'Colors, sport, deadline, sizes, anything you have in mind…',
+      },
+      // The honeypot (INQ-03, D-25): hidden from sight and from assistive technology.
+      honeypot: 'Leave this field empty',
+      // The accurate privacy notice (INQ-08, D-27); "Privacy Policy" is the link to /privacy.
+      notice: {
+        before:
+          "We use your details only to reply to this request and prepare your quote. We keep requests that don't become orders for 6 months. See our ",
+        link: 'Privacy Policy',
+        after: '.',
+      },
       submit: 'Send Inquiry',
       sending: 'Sending',
       success: {
@@ -277,7 +310,13 @@ export const PUBLIC_COPY = {
       errors: {
         nameRequired: 'Enter your name.',
         nameTooLong: 'Keep your name to 100 characters or fewer.',
+        teamTooLong: 'Keep the team name to 100 characters or fewer.',
         numberInvalid: 'Enter a mobile number, like 0917 123 4567.',
+        emailInvalid: 'Enter a valid email, like name@gmail.com',
+        emailTooLong: 'Keep the email to 254 characters or fewer.',
+        productInvalid: 'Choose a product from the list.',
+        quantityInvalid: 'Choose a quantity from the list.',
+        messageTooLong: 'Keep your message to 2,000 characters or fewer.',
       },
     },
     // The reference photo picker of the quote form (UI-SPEC Q2; D-01, D-02, D-06).
