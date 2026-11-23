@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T13:10:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T14:20:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -154,6 +154,15 @@ The form budget gained 0.86 KB because the form no longer loads the legal page s
 4. **Refresh when staff come back to the tab.** A: every time. B: only when the list is over 30 seconds old.
 5. **Name link color.** A: dark text, underlined on hover. B: the orange link color used for order numbers.
 6. **Empty-list icon.** A: the inbox icon on every filter. B: on Open only.
+
+## P13-BL-15 · Choices made in the wave 6 review fixes (13-REVIEW-FIX-W6)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Quote Requests list after a failed refresh.** A: it stops refreshing on its own (every 60 s and when staff return to the tab) until Try Again works. B: keep refreshing when staff return to the tab; a failed first load would then flash the loading rows each time.
+2. **The hidden "new quote request" line.** A: it clears after 5 seconds, and arrivals within that time add up ("2 new quote requests."). B: a longer time such as 10 seconds, or each arrival with only its own count.
+3. **Who decides a request is "new".** A: the browser, with two rare misses (a visit that opens on page 2 or later; a request closed before this visit saw it, then moved back to New). B: the list answer from the server says what is new (an API change).
+4. **Which address the "Test email on its way" message names.** A: the address saved when Send Test Email was pressed, with no API change. If another Manager saves a different address in that moment, the message can name the wrong one. B: the server's answer names the address it mailed.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
