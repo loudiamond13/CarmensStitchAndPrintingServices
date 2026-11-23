@@ -40,6 +40,11 @@ function telHref(number: string): string {
   return `tel:${number.replace(/[^\d+]/g, '')}`;
 }
 
+/** The mail target, with the characters RFC 6068 reserves encoded, so the address cannot add a Cc or a subject. */
+function mailtoHref(email: string): string {
+  return `mailto:${email.replace(/[%?#&]/g, (c) => encodeURIComponent(c))}`;
+}
+
 function Row({ term, children, message = false }: { term: string; children: ReactNode; message?: boolean }) {
   return (
     <div>
@@ -72,7 +77,7 @@ export function QuoteRequestDetailsCard({ request }: { request: QuoteRequestDeta
           </Row>
           <Row term={COPY.email}>
             {filled(request.email) ? (
-              <UiLink to={`mailto:${request.email}`} className={quoteContactLinkClasses}>
+              <UiLink to={mailtoHref(request.email)} className={quoteContactLinkClasses}>
                 {request.email}
               </UiLink>
             ) : (

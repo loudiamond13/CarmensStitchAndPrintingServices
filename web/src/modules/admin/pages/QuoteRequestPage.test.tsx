@@ -106,6 +106,18 @@ describe('the populated request (INQ-05, UI-SPEC R2)', () => {
     expect(detailValue('Message')).toHaveTextContent('Twelve jerseys, numbers 1 to 12.');
   });
 
+  it('encodes ?, &, # and % in the mailto: link, so an address cannot add a Cc or a subject', async () => {
+    const email = 'info?cc=other%40example.test&subject=Hi#x@example.test';
+    quoteRequestBackend(quoteRequestDetail(ID, { email }));
+    renderPage();
+
+    await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' });
+    expect(within(detailValue('Email')).getByRole('link', { name: email })).toHaveAttribute(
+      'href',
+      'mailto:info%3Fcc=other%2540example.test%26subject=Hi%23x@example.test',
+    );
+  });
+
   it('renders visitor text as text, never as HTML (CWE-79)', async () => {
     quoteRequestBackend(quoteRequestDetail(ID, { message: '<img src=x onerror=alert(1)><b>bold</b>' }));
     const { container } = renderPage();
