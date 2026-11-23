@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T06:46:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T08:05:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -107,6 +107,20 @@ D-42 named only the shop email and the Quote alerts address, so the fix added a 
 
 - **A (built, recommended):** keep all of the above.
 - **B:** change any of them (say which): new wording, a log line or staff notice for a refused address, or a stricter form rule for control characters (server rule plus its browser mirror).
+
+## P13-BL-11 · Choices made in the quote form photo upload and failure states (plan 13-12)
+
+**Status:** open · **Blocks:** nothing. Built as A in each item.
+
+1. **Retrying a failed photo.** A: one retry, only when a second try could help (no answer, or a 408, 409, 429 or 5xx reply). A 422 or 404 is final. B: retry every failure once.
+2. **Wording for one missing photo.** A: "Please send it to us on Messenger." B: "send them", as the UI spec writes it.
+3. **A dropped connection while the phone is online.** A: "We're not sure your inquiry went through..." (offline shows "Couldn't send..."). B: always "Couldn't send...".
+4. **When the failure message piece cannot load** (the form stays within its 45 KB budget by loading it only when Send is pressed). A: a plain alert line with the same words. B: keep the full red box and raise the form budget by about 0.2 KB.
+5. **Photo size check in the browser.** A: check the pixel limit for JPG, PNG and WebP, and leave HEIC to the server. B: no browser check.
+6. **Dropdowns while sending.** A: they stay disabled (as in 13-09). B: keep them enabled and ignore changes.
+7. **The Email placeholder "you@gmail.com"** (from the UI spec) was flagged by the build test that looks for email addresses in the public showcase files. A: add it to that test's list of allowed made-up addresses, which already has "name@gmail.com". B: change the placeholder to "you@example.com".
+
+The form file now has only 0.02 KB of its 45 KB budget left.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
