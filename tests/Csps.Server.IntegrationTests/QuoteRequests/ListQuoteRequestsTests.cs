@@ -116,6 +116,125 @@ public sealed class ListQuoteRequestsTests(CspsDatabase database) : IClassFixtur
         Ids(page).ShouldBe([id]);
     }
 
+    [Theory]
+    [InlineData("converted", new[] { "Converted Carl" })]
+    [InlineData("closed", new[] { "Closed Clea" })]
+    [InlineData("spam", new[] { "Spam Sid" })]
+    [InlineData("open", new[] { "Quoted Quin", "Contacted Cora", "New Nina" })]
+    [InlineData("all", new[] { "Spam Sid", "Closed Clea", "Converted Carl", "Quoted Quin", "Contacted Cora", "New Nina" })]
+    public async Task EachStatusGroupReturnsItsOwnRequests(string status, string[] expectedNames)
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedSixAsync();
+
+        var page = await rig.ReadAsync($"status={status}");
+
+        Names(page).ShouldBe(expectedNames);
+        page.GetProperty("total").GetInt32().ShouldBe(expectedNames.Length);
+    }
+
+    [Fact]
+    public async Task AnUnknownStatusIsA400OnTheStatusField()
+    {
+        await using var rig = await Rig.StartAsync(database);
+
+        await rig.ShouldRefuseAsync("status=pending", "status", "Choose a status.");
+    }
+
+    [Fact]
+    public async Task TheSearchMatchesTheNameAndTheTeamAnywhereInTheText()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var juan = await rig.SeedAsync(new Seed("Juan Dela Cruz", QuoteRequestStatus.New, Base, Team: "Brgy. San Roque Ballers", Phone: "0917 111 2222"));
+        await rig.SeedAsync(new Seed("Maria Santos", QuoteRequestStatus.New, Base.AddHours(1), Team: "Riders Club", Phone: "0918 333 4444"));
+
+        var byName = await rig.ReadAsync("q=juan");
+        var byTeam = await rig.ReadAsync("q=ballers");
+        var padded = await rig.ReadAsync("q=%20%20ballers%20");
+        var none = await rig.ReadAsync("q=nobody");
+
+        Ids(byName).ShouldBe([juan]);
+        Ids(byTeam).ShouldBe([juan]);
+        Ids(padded).ShouldBe([juan]);
+        none.GetProperty("total").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TypedWildcardsAreLiteralText()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedAsync(new Seed("Juan Dela Cruz", QuoteRequestStatus.New, Base));
+
+        var percent = await rig.ReadAsync("q=%25");
+        var underscore = await rig.ReadAsync("q=J_an");
+
+        percent.GetProperty("total").GetInt32().ShouldBe(0);
+        underscore.GetProperty("total").GetInt32().ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData("0917 123")]
+    [InlineData("917123")]
+    [InlineData("%2B63%20917%20123")]
+    [InlineData("0917-123-4567")]
+    public async Task SearchByPhoneDigitsMatchesTheStoredE164Number(string q)
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var match = await rig.SeedAsync(new Seed("Juan Dela Cruz", QuoteRequestStatus.New, Base, Phone: "0917 123 4567"));
+        await rig.SeedAsync(new Seed("Maria Santos", QuoteRequestStatus.New, Base.AddHours(1), Phone: "0918 765 4321"));
+
+        var page = await rig.ReadAsync($"q={q}");
+
+        Ids(page).ShouldBe([match]);
+    }
+
+    [Fact]
+    public async Task ASearchOver100CharactersIsA400WithTheSharedMessage()
+    {
+        await using var rig = await Rig.StartAsync(database);
+
+        await rig.ShouldRefuseAsync($"q={new string('a', 101)}", "q", "Use 100 characters or fewer.");
+    }
+
+    [Fact]
+    public async Task CountsCoverTheWholeTableAndIgnoreTheSearchAndThePage()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedSixAsync();
+        await rig.SeedAsync(new Seed("Second Closed", QuoteRequestStatus.Closed, Base.AddHours(10)));
+
+        var page = await rig.ReadAsync("status=spam&q=sid&size=10");
+
+        var counts = page.GetProperty("counts");
+        counts.GetProperty("open").GetInt32().ShouldBe(3);
+        counts.GetProperty("converted").GetInt32().ShouldBe(1);
+        counts.GetProperty("closed").GetInt32().ShouldBe(2);
+        counts.GetProperty("spam").GetInt32().ShouldBe(1);
+        counts.GetProperty("all").GetInt32().ShouldBe(7);
+        page.GetProperty("total").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task APageSizeOf15Is400AndPage2OfSize10HoldsRows11To20WithTheTotal()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        var ids = new List<Guid>();
+        for (var number = 0; number < 25; number++)
+        {
+            ids.Add(await rig.SeedAsync(new Seed($"Visitor {number}", QuoteRequestStatus.New, Base.AddMinutes(number))));
+        }
+
+        await rig.ShouldRefuseAsync("size=15", "size", "Use a page size of 10, 20, 50 or 100.");
+        var page = await rig.ReadAsync("page=2&size=10");
+
+        page.GetProperty("total").GetInt32().ShouldBe(25);
+        page.GetProperty("page").GetInt32().ShouldBe(2);
+        page.GetProperty("size").GetInt32().ShouldBe(10);
+        Ids(page).ShouldBe(Enumerable.Reverse(ids).Skip(10).Take(10).ToList());
+    }
+
+    private static List<string?> Names(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("customerName").GetString())];
+
     private static List<Guid> Ids(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid())];
 
     private static List<string?> Statuses(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("status").GetString())];
@@ -217,6 +336,29 @@ public sealed class ListQuoteRequestsTests(CspsDatabase database) : IClassFixtur
             }
 
             return id;
+        }
+
+        // One request in each of the six statuses, received one hour apart in the order New to Spam.
+        public async Task SeedSixAsync()
+        {
+            await SeedAsync(new Seed("New Nina", QuoteRequestStatus.New, Base));
+            await SeedAsync(new Seed("Contacted Cora", QuoteRequestStatus.Contacted, Base.AddHours(1)));
+            await SeedAsync(new Seed("Quoted Quin", QuoteRequestStatus.Quoted, Base.AddHours(2)));
+            await SeedAsync(new Seed("Converted Carl", QuoteRequestStatus.Converted, Base.AddHours(3)));
+            await SeedAsync(new Seed("Closed Clea", QuoteRequestStatus.Closed, Base.AddHours(4)));
+            await SeedAsync(new Seed("Spam Sid", QuoteRequestStatus.Spam, Base.AddHours(5)));
+        }
+
+        // Expects a 400 that names only the one field, with the one message.
+        public async Task ShouldRefuseAsync(string query, string field, string message)
+        {
+            using var response = await GetAsync(Admin.AccessToken, $"{Route}?{query}");
+            response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+            var problem = await ProblemJson.ReadAsync(response, TestContext.Current.CancellationToken);
+            problem.GetProperty("code").GetString().ShouldBe("quote-requests.list-invalid");
+            var errors = problem.GetProperty("errors");
+            errors.EnumerateObject().Select(property => property.Name).ShouldBe([field]);
+            errors.GetProperty(field).EnumerateArray().Select(item => item.GetString()).ShouldBe([message]);
         }
 
         public async ValueTask DisposeAsync()
