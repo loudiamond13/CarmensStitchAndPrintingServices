@@ -575,6 +575,84 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
     });
   });
 
+  it('the new-request line clears after 5 seconds, so a second single arrival is read out again', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let rows = ROWS;
+    quoteRequestsBackend(() => quoteRequestList(rows));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+
+    rows = [
+      quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva', receivedAtUtc: '2026-11-22T01:00:00Z' }),
+      ...ROWS,
+    ];
+    refocusWindow();
+    const line = await screen.findByText('1 new quote request.');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4_900);
+    });
+    expect(line).toHaveTextContent('1 new quote request.');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(line.textContent).toBe('');
+
+    rows = [
+      quoteRequestItem(quoteRequestId(10), { customerName: 'Liza Ramos', receivedAtUtc: '2026-11-22T02:00:00Z' }),
+      ...rows,
+    ];
+    refocusWindow();
+    expect(await screen.findByRole('link', { name: 'Liza Ramos' })).toBeVisible();
+    await waitFor(() => {
+      expect(line).toHaveTextContent('1 new quote request.');
+    });
+  });
+
+  it('a second arrival while the line still shows adds to its count', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let rows = ROWS;
+    quoteRequestsBackend(() => quoteRequestList(rows));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+
+    rows = [
+      quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva', receivedAtUtc: '2026-11-22T01:00:00Z' }),
+      ...ROWS,
+    ];
+    refocusWindow();
+    const line = await screen.findByText('1 new quote request.');
+    rows = [
+      quoteRequestItem(quoteRequestId(10), { customerName: 'Liza Ramos', receivedAtUtc: '2026-11-22T02:00:00Z' }),
+      ...rows,
+    ];
+    refocusWindow();
+
+    await waitFor(() => {
+      expect(line).toHaveTextContent('2 new quote requests.');
+    });
+  });
+
+  it('a filter change clears the new-request line at once', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let rows = ROWS;
+    quoteRequestsBackend(() => quoteRequestList(rows));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+    rows = [
+      quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva', receivedAtUtc: '2026-11-22T01:00:00Z' }),
+      ...ROWS,
+    ];
+    refocusWindow();
+    const line = await screen.findByText('1 new quote request.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'All 20 requests' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'All 20 requests' })).toHaveAttribute('aria-pressed', 'true');
+    });
+    expect(line.textContent).toBe('');
+  });
+
   it('a filter change is not news: no new-request line', async () => {
     quoteRequestsBackend((url) =>
       url.searchParams.get('status') === 'all'

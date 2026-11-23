@@ -6,7 +6,8 @@
 //   - Empty: each pill has its own words; a search with no match offers Clear Search.
 //   - A failed first load is an ErrorState with Try Again; a failed later refresh keeps the rows and shows the stale line.
 //   - The list reads again every 60 seconds and on focus, but not after a failed read. New rows never move focus; a hidden polite line says how many New
-//     requests arrived since the last answer for the same view.
+//     requests arrived since the last answer for the same view. The line clears after 5 seconds and on a view change, so
+//     the next arrival changes the text and is read out.
 // The document title never holds a name (T-13-44).
 import { useEffect, useState } from 'react';
 import { Button, hitAreaClasses } from '@/components/actions';
@@ -35,6 +36,8 @@ import { formatBusinessTime } from '@/utils/format';
 const COPY = QUOTE_REQUESTS_COPY;
 /** The table caption Pagination moves focus to. */
 const RESULTS_ID = 'quote-requests-results';
+/** How long the hidden new-request line stays before it clears. */
+const ARRIVED_CLEAR_MS = 5_000;
 
 /** The ids of the New requests in an answer. */
 function newIds(data: QuoteRequestListResponse): readonly string[] {
@@ -46,6 +49,12 @@ interface Seen {
   readonly view: string;
   readonly data: QuoteRequestListResponse;
   readonly ids: readonly string[];
+}
+
+/** The New requests a refresh brought, for the view they arrived in. */
+interface Arrived {
+  readonly view: string;
+  readonly count: number;
 }
 
 export default function QuoteRequestsPage() {
@@ -65,17 +74,31 @@ export default function QuoteRequestsPage() {
   // Adjust during render: a fresh answer for the same view that holds New requests the last one did not is news.
   const view = `${params.status}|${params.q ?? ''}|${String(params.page)}|${String(params.size)}`;
   const [seen, setSeen] = useState<Seen | null>(null);
-  const [arrived, setArrived] = useState('');
+  const [arrived, setArrived] = useState<Arrived | null>(null);
+  if (arrived !== null && arrived.view !== view) {
+    setArrived(null);
+  }
   if (data !== undefined && !query.isPlaceholderData && seen?.data !== data) {
     const ids = newIds(data);
     if (seen !== null && seen.view === view) {
       const added = ids.filter((id) => !seen.ids.includes(id)).length;
       if (added > 0) {
-        setArrived(COPY.arrived(added));
+        // A line still showing adds up, so the text always changes.
+        setArrived({ view, count: (arrived?.view === view ? arrived.count : 0) + added });
       }
     }
     setSeen({ view, data, ids });
   }
+
+  useEffect(() => {
+    if (arrived === null) return;
+    const timer = setTimeout(() => {
+      setArrived(null);
+    }, ARRIVED_CLEAR_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [arrived]);
 
   const rows = data?.items;
   const hasRows = rows !== undefined && rows.length > 0;
@@ -169,7 +192,7 @@ export default function QuoteRequestsPage() {
         />
       )}
       <div role="status" aria-live="polite" className={srOnlyClasses}>
-        {arrived}
+        {arrived === null ? '' : COPY.arrived(arrived.count)}
       </div>
     </>
   );
