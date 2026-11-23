@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T06:43:00-06:00
+updated: 2026-11-23T08:52:00-06:00
 ---
 
 # The quote requests API
@@ -228,8 +228,8 @@ Rows come newest received first. Two requests received at the same time come by 
 ### The search
 
 - The name and the team match anywhere in the text, ignoring case. A typed `%`, `_` or `[` is plain text, not a wildcard.
-- The phone is matched on its digits. The server keeps only the digits of `q`, drops a leading `63` or `0` when at least 3 digits are left, and looks for those digits inside the stored E.164 number. So `0917 123`, `917123` and `+63 917 123` all find `+639171234567`.
-- Fewer than 3 digits is not a phone search, so one typed digit never matches every number.
+- The phone is matched on its digits. The server keeps only the digits of `q`, drops a leading `63` or `0`, and looks for those digits inside the stored E.164 number. So `0917 123`, `917123` and `+63 917 123` all find `+639171234567`.
+- Fewer than 3 digits left after that is not a phone search, so a prefix alone (`0`, `091`, `639`, `+639`) never matches every number.
 - A search matches when the name, the team or the phone matches.
 
 ### The list answer

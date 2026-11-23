@@ -8,8 +8,9 @@ public static class QuoteRequestSearchText
     private const string TrunkPrefix = "0";
 
     /// <summary>
-    /// Keeps the digits of the text. A leading 63 or 0 is dropped when at least 3 digits remain, because the stored number is E.164
-    /// (<c>+639171234567</c>). Fewer than 3 digits is no phone search, so one typed digit never matches every number.
+    /// Keeps the digits of the text and drops a leading 63 or 0, because the stored number is E.164 (<c>+639171234567</c>), so a
+    /// local 0917 and +63 917 search the same digits. Fewer than 3 digits left is no phone search, so a prefix such as 639 never
+    /// matches every number.
     /// </summary>
     /// <param name="text">The typed search text.</param>
     /// <returns>The digits to match, or null when the text has too few.</returns>
@@ -21,11 +22,11 @@ public static class QuoteRequestSearchText
         }
 
         var digits = new string([.. text.Where(char.IsAsciiDigit)]);
-        if (digits.StartsWith(CountryCode, StringComparison.Ordinal) && digits.Length - CountryCode.Length >= MinDigits)
+        if (digits.StartsWith(CountryCode, StringComparison.Ordinal))
         {
             digits = digits[CountryCode.Length..];
         }
-        else if (digits.StartsWith(TrunkPrefix, StringComparison.Ordinal) && digits.Length - TrunkPrefix.Length >= MinDigits)
+        else if (digits.StartsWith(TrunkPrefix, StringComparison.Ordinal))
         {
             digits = digits[TrunkPrefix.Length..];
         }

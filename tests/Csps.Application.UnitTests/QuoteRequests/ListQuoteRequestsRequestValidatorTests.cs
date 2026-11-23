@@ -107,8 +107,10 @@ public sealed class ListQuoteRequestsRequestValidatorTests
     [InlineData("+63 917 123 4567", "9171234567")]
     [InlineData("63917123", "917123")]
     [InlineData("0917", "917")]
-    [InlineData("091", "091")]
     [InlineData("0917-123-4567", "9171234567")]
+    [InlineData("09171", "9171")]
+    [InlineData("+639171", "9171")]
+    [InlineData("639171", "9171")]
     public void PhoneDigitsDropALeadingZeroOr63(string text, string expected)
     {
         QuoteRequestSearchText.PhoneDigits(text).ShouldBe(expected);
@@ -122,6 +124,13 @@ public sealed class ListQuoteRequestsRequestValidatorTests
     [InlineData("Juan 2")]
     [InlineData("09")]
     [InlineData("12")]
+    [InlineData("0")]
+    [InlineData("63")]
+    [InlineData("091")]
+    [InlineData("0 9")]
+    [InlineData("639")]
+    [InlineData("+639")]
+    [InlineData("+63 91")]
     public void FewerThanThreeDigitsIsNoPhoneSearch(string? text)
     {
         QuoteRequestSearchText.PhoneDigits(text).ShouldBeNull();

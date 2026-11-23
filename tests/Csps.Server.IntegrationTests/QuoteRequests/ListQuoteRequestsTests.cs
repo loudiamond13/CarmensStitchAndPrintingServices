@@ -188,6 +188,21 @@ public sealed class ListQuoteRequestsTests(CspsDatabase database) : IClassFixtur
         Ids(page).ShouldBe([match]);
     }
 
+    [Theory]
+    [InlineData("639")]
+    [InlineData("%2B639")]
+    [InlineData("091")]
+    public async Task APhonePrefixAloneMatchesNoNumber(string q)
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedAsync(new Seed("Juan Dela Cruz", QuoteRequestStatus.New, Base, Phone: "0917 123 4567"));
+        await rig.SeedAsync(new Seed("Maria Santos", QuoteRequestStatus.New, Base.AddHours(1), Phone: "0918 765 4321"));
+
+        var page = await rig.ReadAsync($"q={q}");
+
+        Ids(page).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task ASearchOver100CharactersIsA400WithTheSharedMessage()
     {
