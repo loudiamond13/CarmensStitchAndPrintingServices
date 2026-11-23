@@ -391,7 +391,8 @@ describe('QuoteForm validation timing (OR-3, Interaction Contract)', () => {
     await userEvent.type(screen.getByRole('textbox', { name: /Your name/ }), 'Juan');
     await userEvent.type(screen.getByRole('textbox', { name: /Contact number/ }), '02 8123 4567');
     await userEvent.type(screen.getByRole('textbox', { name: 'Email' }), 'nope');
-    await userEvent.type(screen.getByRole('textbox', { name: 'Message' }), 'm'.repeat(2001), { delay: null });
+    await userEvent.click(screen.getByRole('textbox', { name: 'Message' }));
+    await userEvent.paste('m'.repeat(2001));
 
     await userEvent.click(screen.getByRole('button', SEND));
 
