@@ -131,15 +131,17 @@ public sealed class QuoteRequestsController(
     /// trimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote
     /// it and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the
     /// request's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A
-    /// retry with the same <c>Idempotency-Key</c> and body answers with the stored answer.
+    /// retry with the same <c>Idempotency-Key</c> and body answers with the stored answer. The answer holds only the request id, the note
+    /// id, when it was written and the new row version, so no visitor details or note text are stored with it; read the request again
+    /// for the notes.
     /// </summary>
     /// <param name="id">The request id.</param>
     /// <param name="body">The note; a null or unreadable body is reported as a field error.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the request and its notes newest first, 400 on the text, 401 without a valid token, 404 when there is no such request, or 409 when two saves lost a race twice.</returns>
+    /// <returns>200 with the note id and the new version, 400 on the text, 401 without a valid token, 404 when there is no such request, or 409 when two saves lost a race twice.</returns>
     [HttpPost("{id:guid}/notes")]
     [EndpointName("AddQuoteRequestNote")]
-    [ProducesResponseType<QuoteRequestDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<QuoteRequestNoteAddedResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -150,7 +152,7 @@ public sealed class QuoteRequestsController(
         CancellationToken cancellationToken)
     {
         var result = await addNote.HandleAsync(id, body ?? AddQuoteRequestNoteRequest.Empty, cancellationToken).ConfigureAwait(false);
-        return result.ToHttpResult(HttpContext, static request => TypedResults.Ok(request));
+        return result.ToHttpResult(HttpContext, static added => TypedResults.Ok(added));
     }
 
     /// <summary>

@@ -37,12 +37,17 @@ public sealed class QuoteRequestNoteTests(CspsDatabase database) : IClassFixture
             createdById = Guid.NewGuid(),
             createdAtUtc = "2020-01-01T00:00:00Z",
         });
-        var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
+        var added = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
 
-        body.GetProperty("id").GetGuid().ShouldBe(id);
-        body.GetProperty("version").GetString().ShouldNotBe(before);
+        added.EnumerateObject().Select(member => member.Name).ShouldBe(["id", "noteId", "createdAtUtc", "version"]);
+        added.GetProperty("id").GetGuid().ShouldBe(id);
+        added.GetProperty("version").GetString().ShouldNotBe(before);
+        var body = await rig.ReadAsync(id);
+        added.GetProperty("version").GetString().ShouldBe(body.GetProperty("version").GetString());
         body.GetProperty("lastChangedBy").GetProperty("id").GetGuid().ShouldBe(rig.Admin.UserId);
         var notes = body.GetProperty("notes").EnumerateArray().ToList();
+        added.GetProperty("noteId").GetGuid().ShouldBe(notes[0].GetProperty("id").GetGuid());
+        added.GetProperty("createdAtUtc").GetDateTimeOffset().ShouldBe(notes[0].GetProperty("createdAtUtc").GetDateTimeOffset());
         notes.Count.ShouldBe(2);
         notes[0].EnumerateObject().Select(member => member.Name).ShouldBe(["id", "text", "createdBy", "createdAtUtc"]);
         notes[0].GetProperty("text").GetString().ShouldBe(Note);
@@ -72,7 +77,7 @@ public sealed class QuoteRequestNoteTests(CspsDatabase database) : IClassFixture
         using var response = await rig.PostNoteAsync(rig.Admin.AccessToken, id, new { text = Note });
         var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
 
-        var noteId = body.GetProperty("notes")[0].GetProperty("id").GetGuid();
+        var noteId = body.GetProperty("noteId").GetGuid();
         var token = TestContext.Current.CancellationToken;
         await using var context = database.CreateContext();
         var entry = await context.AuditLog.AsNoTracking()
@@ -80,6 +85,42 @@ public sealed class QuoteRequestNoteTests(CspsDatabase database) : IClassFixture
         (entry.TargetType, entry.ActorUserId, entry.Detail).ShouldBe(("QuoteRequest", (Guid?)rig.Admin.UserId, $"note={noteId:D}"));
         entry.Detail.ShouldNotBeNull().ShouldNotContain("mockup", Case.Insensitive);
         entry.Detail.ShouldNotContain("Juan", Case.Insensitive);
+    }
+
+    [Fact]
+    public async Task TheStoredRetryAnswerHoldsNoVisitorDetailsOrNoteText()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed(
+            "Juan Dela Cruz",
+            QuoteRequestStatus.New,
+            Received,
+            Team: "Brgy. San Roque Ballers",
+            Email: "juan@example.test",
+            Message: "Twelve jerseys, numbers 1 to 12.",
+            PhotoNames: ["front.jpg"],
+            StoredSlots: [0]));
+        foreach (var text in new[] { "Asked for the sizes.", Note })
+        {
+            using var response = await rig.PostNoteAsync(rig.Admin.AccessToken, id, new { text });
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        // The idempotency gate keeps each 200 answer for 24 hours, where the purge and the delete cannot reach it.
+        var token = TestContext.Current.CancellationToken;
+        await using var context = database.CreateContext();
+        var stored = await context.IdempotencyRecords.AsNoTracking()
+            .Where(record => record.ResponseBody != null && record.ResponseBody.Contains(id.ToString("D")))
+            .Select(record => record.ResponseBody!)
+            .ToListAsync(token);
+        stored.Count.ShouldBe(2);
+        foreach (var body in stored)
+        {
+            foreach (var personal in new[] { "Juan Dela Cruz", "San Roque", "juan@example.test", "0917", "Twelve jerseys", "front.jpg", "fullSize", "thumb", "sizes", "mockup" })
+            {
+                body.ShouldNotContain(personal, Case.Insensitive);
+            }
+        }
     }
 
     [Theory]
@@ -112,8 +153,8 @@ public sealed class QuoteRequestNoteTests(CspsDatabase database) : IClassFixture
         }
 
         using var exact = await rig.PostNoteAsync(rig.Admin.AccessToken, id, new { text = new string('a', 1000) });
-        var body = await QuoteRequestStaffRig.BodyAsync(exact, HttpStatusCode.OK);
-        body.GetProperty("notes")[0].GetProperty("text").GetString()!.Length.ShouldBe(1000);
+        exact.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await rig.ReadAsync(id)).GetProperty("notes")[0].GetProperty("text").GetString()!.Length.ShouldBe(1000);
         (await NoteCountAsync(rig, id)).ShouldBe(1);
     }
 

@@ -1,9 +1,9 @@
+using System.Reflection;
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Application.QuoteRequests;
 using Csps.Application.UnitTests.Auth;
-using Csps.Application.Users;
 using Csps.Domain.QuoteRequests;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -20,7 +20,7 @@ public sealed class AddQuoteRequestNoteHandlerTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task ANoteIsAddedWithOneAuditEntryWithoutTheTextInOneSaveAndTheAnswerIsTheDetail()
+    public async Task ANoteIsAddedWithOneAuditEntryWithoutTheTextInOneSaveAndAnswersOnlyTheIdsTimeAndVersion()
     {
         var harness = new Harness();
 
@@ -34,8 +34,7 @@ public sealed class AddQuoteRequestNoteHandlerTests
             .ShouldBe(("quote-request.note-added", "QuoteRequest", AuditKey.Of(harness.Request.Id), $"note={note.Id:D}", false));
         harness.Unit.Saves.ShouldBe(1);
         harness.Unit.Commits.ShouldBe(1);
-        var answered = result.Value.Notes.ShouldHaveSingleItem();
-        (answered.Id, answered.Text, answered.CreatedBy, answered.CreatedAtUtc).ShouldBe((harness.Saved.Id, harness.Saved.Text, harness.Saved.CreatedBy, harness.Saved.CreatedAtUtc));
+        result.Value.ShouldBe(new QuoteRequestNoteAddedResponse(harness.Request.Id, note.Id, Now, "AAAAAAAAB9I="));
     }
 
     [Fact]
@@ -99,17 +98,6 @@ public sealed class AddQuoteRequestNoteHandlerTests
     }
 
     [Fact]
-    public async Task ARequestGoneBeforeTheReadIs404()
-    {
-        var harness = new Harness();
-        harness.Reader.GetDetailAsync(harness.Request.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<QuoteRequestDetailView?>(null));
-
-        var result = await harness.Handler.HandleAsync(harness.Request.Id, new AddQuoteRequestNoteRequest("Hi."), Token);
-
-        result.Error.Code.ShouldBe("quote-requests.not-found");
-    }
-
-    [Fact]
     public async Task AMissingRequestThrows()
     {
         var harness = new Harness();
@@ -119,6 +107,9 @@ public sealed class AddQuoteRequestNoteHandlerTests
 
     private sealed class Harness
     {
+        // The row version a good save gives the request, as the database does.
+        private static readonly byte[] SavedVersion = [0, 0, 0, 0, 0, 0, 7, 210];
+
         public Harness(bool noCaller = false)
         {
             Request = QuoteRequest.Receive(
@@ -126,14 +117,13 @@ public sealed class AddQuoteRequestNoteHandlerTests
                 new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null),
                 Received).Value;
             Store.FindAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<QuoteRequest?>(Request));
-            Saved = new QuoteRequestNoteRow(Guid.CreateVersion7(Now), "Called, will send mockup Friday.", new ActorRef(CallerId, "Maria Santos", false), Now);
-            Reader.GetDetailAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<QuoteRequestDetailView?>(View()));
+            Unit = new FakeUnitOfWork(() =>
+                typeof(QuoteRequest).GetProperty(nameof(QuoteRequest.RowVersion), BindingFlags.Public | BindingFlags.Instance)!
+                    .SetValue(Request, SavedVersion.ToArray()));
             var context = Substitute.For<IRequestContext>();
             context.UserId.Returns(noCaller ? null : CallerId);
             Handler = new AddQuoteRequestNoteHandler(
                 Store,
-                Reader,
-                Substitute.For<IImageDelivery>(),
                 Audit,
                 Unit,
                 context,
@@ -143,37 +133,12 @@ public sealed class AddQuoteRequestNoteHandlerTests
 
         public QuoteRequest Request { get; }
 
-        public QuoteRequestNoteRow Saved { get; }
-
         public IQuoteRequestStore Store { get; } = Substitute.For<IQuoteRequestStore>();
-
-        public IQuoteRequestReader Reader { get; } = Substitute.For<IQuoteRequestReader>();
 
         public RecordingAudit Audit { get; } = new();
 
-        public FakeUnitOfWork Unit { get; } = new();
+        public FakeUnitOfWork Unit { get; }
 
         public AddQuoteRequestNoteHandler Handler { get; }
-
-        private QuoteRequestDetailView View() => new(
-            Request.Id,
-            Received,
-            "Juan Dela Cruz",
-            null,
-            "+639171234567",
-            null,
-            null,
-            null,
-            null,
-            null,
-            QuoteRequestStatus.New,
-            Received,
-            [],
-            null,
-            [],
-            [Saved],
-            Saved.CreatedBy,
-            Now,
-            [0, 0, 0, 0, 0, 0, 7, 210]);
     }
 }

@@ -2331,7 +2331,9 @@ export interface paths {
          *     trimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote
          *     it and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the
          *     request's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A
-         *     retry with the same `Idempotency-Key` and body answers with the stored answer.
+         *     retry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the request id, the note
+         *     id, when it was written and the new row version, so no visitor details or note text are stored with it; read the request again
+         *     for the notes.
          */
         post: operations["AddQuoteRequestNote"];
         delete?: never;
@@ -5876,6 +5878,29 @@ export interface components {
              * @description How many requests match the status and search, across all pages.
              */
             total: number | string;
+        };
+        /**
+         * @description The answer to an added note (D-17). It holds no visitor details and no note text, because the idempotency gate keeps it for 24
+         *     hours where the purge and the delete cannot reach it. The page reads the request again for the notes.
+         */
+        QuoteRequestNoteAddedResponse: {
+            /**
+             * Format: date-time
+             * @description When the note was written.
+             */
+            createdAtUtc: string;
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The new note's id.
+             */
+            noteId: string;
+            /** @description The request's new row version to send with the next change. */
+            version: string;
         };
         /** @description One internal staff note (D-17). The author's name is read from their own row, so it stays after the account is deleted. */
         QuoteRequestNoteResponse: {
@@ -14483,7 +14508,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                    "application/json": components["schemas"]["QuoteRequestNoteAddedResponse"];
                 };
             };
             /** @description Bad Request */

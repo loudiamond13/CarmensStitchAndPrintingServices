@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T15:53:00-06:00
+updated: 2026-11-23T16:54:58-06:00
 ---
 
 # The quote requests API
@@ -217,7 +217,7 @@ data and may do the same things, except the delete, which is for a Manager only.
 | `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
 | `GET /quote-requests/{id}` | `200` the request in full; `401`; `404 quote-requests.not-found` |
 | `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the new status and version; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
-| `POST /quote-requests/{id}/notes` | with an `Idempotency-Key`: `200` the request in full with the new note first; `400 quote-requests.validation`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
+| `POST /quote-requests/{id}/notes` | with an `Idempotency-Key`: `200` the note id, its time and the new version; `400 quote-requests.validation`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 | `DELETE /quote-requests/{id}?version=...` | Manager only, with an `Idempotency-Key`: `204`; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `403` for an Admin; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 
 ### The list query
@@ -387,8 +387,14 @@ Rows come newest received first. Two requests received at the same time come by 
 - No version is sent. A note does move the request's `version`, so a status change sent with the version from before the note gets
   `409 quote-requests.conflict`; read the request again and retry.
 - Each note adds one audit entry `quote-request.note-added` with the detail `note=<note id>`. The note text is never in the audit log.
-- The answer is the request in full, as `GET /quote-requests/{id}` gives it, with the new note first. The idempotency gate keeps that
-  answer for 24 hours.
+- The answer holds only what the page needs after a note:
+
+  ```json
+  { "id": "...", "noteId": "...", "createdAtUtc": "2026-11-21T08:05:00+00:00", "version": "AAAAAAAAB9I=" }
+  ```
+
+  It has no visitor details, no photo addresses and no note text, because the idempotency gate keeps the answer for 24 hours, where
+  the 6-month purge and the Manager delete cannot reach it. Read the request again with `GET /quote-requests/{id}` for the notes.
 
 ## Deleting a request (D-16)
 
