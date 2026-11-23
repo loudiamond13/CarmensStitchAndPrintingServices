@@ -233,6 +233,38 @@ public sealed class ListQuoteRequestsTests(CspsDatabase database) : IClassFixtur
         Ids(page).ShouldBe(Enumerable.Reverse(ids).Skip(10).Take(10).ToList());
     }
 
+    [Fact]
+    public async Task TheNewCountIsTheRequestsAtStatusNewAndTheSameForEveryStaffMember()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        for (var number = 0; number < 3; number++)
+        {
+            await rig.SeedAsync(new Seed($"New {number}", QuoteRequestStatus.New, Base.AddMinutes(number)));
+        }
+
+        await rig.SeedAsync(new Seed("Contacted One", QuoteRequestStatus.Contacted, Base.AddHours(1)));
+        await rig.SeedAsync(new Seed("Contacted Two", QuoteRequestStatus.Contacted, Base.AddHours(2)));
+        await rig.SeedAsync(new Seed("Converted One", QuoteRequestStatus.Converted, Base.AddHours(3)));
+        var manager = await TestSessions.StartAsync(rig.Factory, Roles.Manager);
+
+        var forAdmin = await rig.ReadCountAsync(rig.Admin.AccessToken);
+        var forManager = await rig.ReadCountAsync(manager.AccessToken);
+        using var anonymous = await rig.GetAsync(null, $"{Route}/new-count");
+
+        forAdmin.ShouldBe(3);
+        forManager.ShouldBe(3);
+        anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task TheNewCountIsZeroWhenNothingIsWaiting()
+    {
+        await using var rig = await Rig.StartAsync(database);
+        await rig.SeedAsync(new Seed("Quoted Quin", QuoteRequestStatus.Quoted, Base));
+
+        (await rig.ReadCountAsync(rig.Admin.AccessToken)).ShouldBe(0);
+    }
+
     private static List<string?> Names(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("customerName").GetString())];
 
     private static List<Guid> Ids(JsonElement page) => [.. page.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid())];
@@ -336,6 +368,16 @@ public sealed class ListQuoteRequestsTests(CspsDatabase database) : IClassFixtur
             }
 
             return id;
+        }
+
+        // Reads the New count, expects a 200 and returns the number.
+        public async Task<int> ReadCountAsync(string token)
+        {
+            using var response = await GetAsync(token, $"{Route}/new-count");
+            var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+            using var document = JsonDocument.Parse(text);
+            return document.RootElement.GetProperty("count").GetInt32();
         }
 
         // One request in each of the six statuses, received one hour apart in the order New to Spam.

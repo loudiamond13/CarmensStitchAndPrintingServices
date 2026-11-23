@@ -324,6 +324,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
         // Listing quote requests (INQ-05, D-13): both roles read every request; anonymous gets 401.
         new("GET", "/api/v1/quote-requests", "/api/v1/quote-requests", Anonymous: 401, Admin: 200, Manager: 200),
+        // The shared New count for the badge (D-14): the same number for both roles.
+        new("GET", "/api/v1/quote-requests/new-count", "/api/v1/quote-requests/new-count", Anonymous: 401, Admin: 200, Manager: 200),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
         new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
