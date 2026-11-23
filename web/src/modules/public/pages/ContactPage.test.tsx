@@ -148,8 +148,8 @@ describe('ContactPage loading and failure (UI states)', { timeout: 20_000 }, () 
     const { container } = await renderContact();
 
     expect(await screen.findByRole('form', { name: 'Inquiry form' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary')).toContainElement(screen.getByRole('status'));
-    expect(screen.getByRole('status')).toHaveTextContent('Loading our contact details…');
+    const aside = screen.getByRole('complementary');
+    expect(within(aside).getByRole('status')).toHaveTextContent('Loading our contact details…');
     expect(screen.queryByRole('link', { name: 'Call us' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Messenger/ })).not.toBeInTheDocument();
     await expectNoAxeViolations(container);
