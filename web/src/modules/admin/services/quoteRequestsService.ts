@@ -1,0 +1,41 @@
+// Staff inbox calls (INQ-05, D-14, D-18, OR-5). Types come from the generated OpenAPI types.
+import { apiClient, type HttpClient } from '@/core/api/apiClient';
+import type { components } from '@/types/api.generated';
+
+type Schemas = components['schemas'];
+
+export type QuoteRequestListResponse = Schemas['QuoteRequestListResponse'];
+export type QuoteRequestListItem = Schemas['QuoteRequestListItem'];
+export type QuoteRequestCounts = Schemas['QuoteRequestCountsResponse'];
+export type NewQuoteCountResponse = Schemas['NewQuoteCountResponse'];
+
+/** The status groups of the inbox pills; `open` is New, Contacted and Quoted (D-18). */
+export const QUOTE_STATUS_FILTERS = ['open', 'converted', 'closed', 'spam', 'all'] as const;
+export type QuoteStatusFilter = (typeof QUOTE_STATUS_FILTERS)[number];
+
+export interface QuoteRequestsListQuery {
+  status: QuoteStatusFilter;
+  q: string | null;
+  page: number;
+  size: number;
+}
+
+export interface QuoteRequestsService {
+  /** `GET /api/v1/quote-requests`: one page of a status group, newest first, with the pill counts. */
+  list(query: QuoteRequestsListQuery, signal?: AbortSignal): Promise<QuoteRequestListResponse>;
+  /** `GET /api/v1/quote-requests/new-count`: how many requests are at status New, the same for every staff member (D-14). */
+  newCount(signal?: AbortSignal): Promise<NewQuoteCountResponse>;
+}
+
+export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
+  return {
+    list: (query, signal) =>
+      client.get<QuoteRequestListResponse>('/quote-requests', {
+        params: { status: query.status, q: query.q, page: query.page, size: query.size },
+        signal,
+      }),
+    newCount: (signal) => client.get<NewQuoteCountResponse>('/quote-requests/new-count', { signal }),
+  };
+}
+
+export const quoteRequestsService: QuoteRequestsService = createQuoteRequestsService(apiClient);
