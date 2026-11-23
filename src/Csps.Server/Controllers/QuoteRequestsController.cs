@@ -11,12 +11,13 @@ namespace Csps.Server.Controllers;
 /// public controller. Never cached.
 /// </summary>
 /// <param name="list">The inbox list handler.</param>
+/// <param name="getNewCount">The shared New count handler.</param>
 [ApiController]
 [Route("api/v1/quote-requests")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class QuoteRequestsController(ListQuoteRequestsHandler list) : ControllerBase
+public sealed class QuoteRequestsController(ListQuoteRequestsHandler list, GetNewQuoteCountHandler getNewCount) : ControllerBase
 {
     /// <summary>
     /// Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
@@ -43,5 +44,21 @@ public sealed class QuoteRequestsController(ListQuoteRequestsHandler list) : Con
     {
         var result = await list.HandleAsync(new ListQuoteRequestsRequest(status, q, page, size), cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static response => TypedResults.Ok(response));
+    }
+
+    /// <summary>
+    /// Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is
+    /// kept per person.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with <c>{ "count": n }</c>, or 401 without a valid token.</returns>
+    [HttpGet("new-count")]
+    [EndpointName("GetNewQuoteCount")]
+    [ProducesResponseType<NewQuoteCountResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IResult> GetNewCount(CancellationToken cancellationToken)
+    {
+        var result = await getNewCount.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static count => TypedResults.Ok(count));
     }
 }

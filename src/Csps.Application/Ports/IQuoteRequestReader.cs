@@ -13,6 +13,11 @@ public interface IQuoteRequestReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows of the page, the count over every page and the pill counts.</returns>
     Task<QuoteRequestListPage> ListAsync(QuoteRequestListQuery query, CancellationToken cancellationToken);
+
+    /// <summary>Counts the requests at status New, for the badge (D-14). It is one number for every staff member.</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>How many requests are at status New.</returns>
+    Task<int> CountNewAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Which requests the status part of the inbox list keeps (D-18).</summary>

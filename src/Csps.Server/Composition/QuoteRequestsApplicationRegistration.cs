@@ -19,6 +19,7 @@ public static class QuoteRequestsApplicationRegistration
         services.AddScoped<GetQuoteFormTicketHandler>();
         services.AddSingleton<IValidator<ListQuoteRequestsRequest>, ListQuoteRequestsRequestValidator>();
         services.AddScoped<ListQuoteRequestsHandler>();
+        services.AddScoped<GetNewQuoteCountHandler>();
         return services;
     }
 }

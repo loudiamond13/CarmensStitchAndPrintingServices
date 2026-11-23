@@ -3211,6 +3211,24 @@
         ],
         "type": "object"
       },
+      "NewQuoteCountResponse": {
+        "description": "The number of quote requests still at status New, the same for every staff member (D-14).",
+        "properties": {
+          "count": {
+            "description": "How many requests are at status New.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
       "NextOpeningDto": {
         "description": "When the shop opens next, as facts the page turns into words (D-22).",
         "properties": {
@@ -19645,6 +19663,37 @@
           }
         },
         "summary": "Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:\nNew, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search\nand the page do not change. The email and the message are not in the list.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/new-count": {
+      "get": {
+        "operationId": "GetNewQuoteCount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewQuoteCountResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is\nkept per person.",
         "tags": [
           "QuoteRequests"
         ]

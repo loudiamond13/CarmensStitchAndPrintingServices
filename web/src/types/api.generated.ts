@@ -2269,6 +2269,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests/new-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is
+         *     kept per person.
+         */
+        get: operations["GetNewQuoteCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -4233,6 +4253,14 @@ export interface components {
         MoveTestimonialRequest: {
             /** @description "up" or "down". */
             direction: null | string;
+        };
+        /** @description The number of quote requests still at status New, the same for every staff member (D-14). */
+        NewQuoteCountResponse: {
+            /**
+             * Format: int32
+             * @description How many requests are at status New.
+             */
+            count: number | string;
         };
         /** @description When the shop opens next, as facts the page turns into words (D-22). */
         NextOpeningDto: {
@@ -14021,6 +14049,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetNewQuoteCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewQuoteCountResponse"];
                 };
             };
             /** @description Unauthorized */

@@ -50,6 +50,9 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
         return new QuoteRequestListPage(rows, total, ToCounts(byStatus.ToDictionary(static row => row.Status, static row => row.Count)));
     }
 
+    public Task<int> CountNewAsync(CancellationToken cancellationToken) =>
+        context.QuoteRequests.AsNoTracking().CountAsync(request => request.Status == QuoteRequestStatus.New, cancellationToken);
+
     private static QuoteRequestCounts ToCounts(Dictionary<QuoteRequestStatus, int> byStatus)
     {
         int Of(QuoteRequestStatus status) => byStatus.GetValueOrDefault(status);
