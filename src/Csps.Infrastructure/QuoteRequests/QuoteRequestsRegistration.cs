@@ -24,6 +24,7 @@ public static class QuoteRequestsRegistration
             .ValidateOnStart();
         services.AddSingleton(provider => provider.GetRequiredService<IOptions<QuoteRequestSettings>>().Value);
         services.AddScoped<IQuoteRequestStore, QuoteRequestStore>();
+        services.AddScoped<IQuoteRequestReader, QuoteRequestReader>();
         services.AddSingleton<IQuoteFormTickets, QuoteFormTickets>();
         services.AddSingleton<IQuoteBotCatchLog, QuoteBotCatchLog>();
         return services;

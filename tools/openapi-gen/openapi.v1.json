@@ -3211,6 +3211,24 @@
         ],
         "type": "object"
       },
+      "NewQuoteCountResponse": {
+        "description": "The number of quote requests still at status New, the same for every staff member (D-14).",
+        "properties": {
+          "count": {
+            "description": "How many requests are at status New.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
       "NextOpeningDto": {
         "description": "When the shop opens next, as facts the page turns into words (D-22).",
         "properties": {
@@ -6573,6 +6591,224 @@
         "required": [
           "slot",
           "fileName"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestCountsResponse": {
+        "description": "The number of requests behind each filter pill, over the whole table: the search and the page do not change them.",
+        "properties": {
+          "all": {
+            "description": "Every request.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "closed": {
+            "description": "Closed with no order.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "converted": {
+            "description": "Converted into an order.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "open": {
+            "description": "New, Contacted and Quoted.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "spam": {
+            "description": "Marked Spam.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "open",
+          "converted",
+          "closed",
+          "spam",
+          "all"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestListItem": {
+        "description": "One request in the staff inbox (INQ-05). It carries no email and no message.",
+        "properties": {
+          "contactNumber": {
+            "description": "The mobile number in its display form, such as `0917 123 4567`.",
+            "type": "string"
+          },
+          "customerName": {
+            "description": "The visitor's name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The request id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "photoCount": {
+            "description": "How many photos the visitor declared.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "photosRemoved": {
+            "description": "True when the stored photos were removed because the request was marked Spam.",
+            "type": "boolean"
+          },
+          "product": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestProduct",
+                "description": "What the visitor chose; null when nothing was chosen."
+              }
+            ]
+          },
+          "quantity": {
+            "description": "The estimated quantity key such as `21-50`; null when none was chosen.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedAtUtc": {
+            "description": "When the request was received, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "The status key: new, contacted, quoted, converted, closed or spam.",
+            "type": "string"
+          },
+          "storedPhotoCount": {
+            "description": "How many of the declared photos arrived.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or organization; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "receivedAtUtc",
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "product",
+          "quantity",
+          "photoCount",
+          "storedPhotoCount",
+          "photosRemoved",
+          "status"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestListResponse": {
+        "description": "One page of the staff inbox (INQ-05).",
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/QuoteRequestCountsResponse",
+            "description": "The count of each filter pill."
+          },
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "size": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many requests match the status and search, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size",
+          "counts"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestProduct": {
+        "description": "What the visitor chose in the product list (D-24).",
+        "properties": {
+          "choice": {
+            "description": "One of `line`, `custom` or `not-sure`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The line title at the moment of the request; null for another choice.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "choice",
+          "title"
         ],
         "type": "object"
       },
@@ -19345,6 +19581,124 @@
         ]
       }
     },
+    "/api/v1/quote-requests": {
+      "get": {
+        "operationId": "ListQuoteRequests",
+        "parameters": [
+          {
+            "description": "`open` (the default), `converted`, `closed`, `spam` or `all`.",
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search text for the name, the team or the digits of the phone number; up to 100 characters.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The page number, from 1 to 100000.",
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          {
+            "description": "Rows per page: 10, 20, 50 or 100; 20 when not sent.",
+            "in": "query",
+            "name": "size",
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteRequestListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:\nNew, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search\nand the page do not change. The email and the message are not in the list.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/new-count": {
+      "get": {
+        "operationId": "GetNewQuoteCount",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewQuoteCountResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is\nkept per person.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -22405,6 +22759,9 @@
     },
     {
       "name": "PublicSite"
+    },
+    {
+      "name": "QuoteRequests"
     },
     {
       "name": "Sessions"

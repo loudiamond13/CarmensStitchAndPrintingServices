@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T01:32:00-06:00
+updated: 2026-11-23T06:43:00-06:00
 ---
 
 # The quote requests API
@@ -8,7 +8,7 @@ updated: 2026-11-23T01:32:00-06:00
 This is the contract behind the "Get a Quote" form on the Contact page (INQ-01, INQ-02). Everything here is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). This page covers what exists today: the anonymous create and
-the form ticket, the photo upload and the bot guards. The staff inbox and the alert email come in later plans of Phase 13 and will be added here.
+the form ticket, the photo upload, the bot guards and the staff inbox reads. The request page, status changes and the alert email come in later plans of Phase 13 and will be added here.
 
 ## In plain words
 
@@ -204,3 +204,68 @@ email outbox and logged without the address or the content.
 - `400 quote-requests.ticket-expired` when there is no good ticket. The answer holds `replacementTicket`, a ticket to use for one resend at once, and `minimumSeconds`, how long a client waits after any ticket.
 - `409 auth.session-busy` "Something changed at the same time. Try again." when two sends collided twice, or the `quote-requests` lock was not had within 10 seconds. Nothing is saved; the visitor sends the same form again.
 - `429 rate-limited` when one address sends too many, the whole site is busy, or one sender has sent too many.
+
+## The staff inbox (INQ-05, D-13, D-14, D-18)
+
+Both reads need a signed-in Admin or Manager. An anonymous caller gets `401`. They are never cached. The two roles see the same data.
+
+| Method and path | Answers |
+|---|---|
+| `GET /quote-requests` | `200` a page of requests with the pill counts; `400 quote-requests.list-invalid` with field errors; `401` |
+| `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
+
+### The list query
+
+| Parameter | Rule | Message when it fails |
+|---|---|---|
+| `status` | `open` (the default: New, Contacted and Quoted), `converted`, `closed`, `spam` or `all`; case and spaces around it do not matter | "Choose a status." |
+| `q` | optional search text, up to 100 characters once trimmed | "Use 100 characters or fewer." |
+| `page` | from 1 to 100000; 1 when not sent | "Use a page from 1 to 100000." |
+| `size` | 10, 20, 50 or 100; 20 when not sent | "Use a page size of 10, 20, 50 or 100." |
+
+Rows come newest received first. Two requests received at the same time come by id descending, so a page never repeats or skips a row.
+
+### The search
+
+- The name and the team match anywhere in the text, ignoring case. A typed `%`, `_` or `[` is plain text, not a wildcard.
+- The phone is matched on its digits. The server keeps only the digits of `q`, drops a leading `63` or `0` when at least 3 digits are left, and looks for those digits inside the stored E.164 number. So `0917 123`, `917123` and `+63 917 123` all find `+639171234567`.
+- Fewer than 3 digits is not a phone search, so one typed digit never matches every number.
+- A search matches when the name, the team or the phone matches.
+
+### The list answer
+
+```json
+{
+  "items": [
+    {
+      "id": "...",
+      "receivedAtUtc": "2026-11-20T08:00:00+00:00",
+      "customerName": "Juan Dela Cruz",
+      "teamName": "Brgy. San Roque Ballers",
+      "contactNumber": "0917 123 4567",
+      "product": { "choice": "line", "title": "Basketball Jerseys" },
+      "quantity": "21-50",
+      "photoCount": 3,
+      "storedPhotoCount": 2,
+      "photosRemoved": false,
+      "status": "new"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 20,
+  "counts": { "open": 1, "converted": 0, "closed": 0, "spam": 0, "all": 1 }
+}
+```
+
+- `teamName`, `product` and `quantity` are `null` when the visitor gave nothing. `product.title` is `null` for `custom` and `not-sure`.
+- `contactNumber` is the display form. The email and the message are not in the list.
+- `photoCount` is how many photos the visitor named. `storedPhotoCount` is how many arrived.
+- `photosRemoved` is `false` until the Spam move exists (plan 13-16), which removes the photos.
+- `total` counts the rows behind the current `status` and `q`, across all pages.
+- `counts` is made by the server over the whole table. It ignores `q` and `page`, so a pill never changes while you type.
+- The rows and the counts are read in separate commands without a lock. While someone changes a status, a pill can differ by one from the rows. The next refresh corrects it.
+
+### The New count
+
+`GET /quote-requests/new-count` answers the number of requests at status New. It is one number for every staff member: nothing is kept per person.

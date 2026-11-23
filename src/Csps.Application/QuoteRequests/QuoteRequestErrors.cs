@@ -13,6 +13,12 @@ public static class QuoteRequestErrors
     /// <summary>The text above the field errors.</summary>
     public const string ValidationMessage = QuoteRequestRules.InvalidMessage;
 
+    /// <summary>The machine code of an inbox query with a bad status, search or page (INQ-05).</summary>
+    public const string ListValidationCode = "quote-requests.list-invalid";
+
+    /// <summary>The text above the field errors of a bad inbox query.</summary>
+    public const string ListValidationMessage = "Check the status, search and page settings.";
+
     /// <summary>The code of a request that does not exist.</summary>
     public const string NotFoundCode = "quote-requests.not-found";
 
