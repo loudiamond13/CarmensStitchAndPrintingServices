@@ -54,7 +54,8 @@ export function createSiteSettingsService(client: HttpClient): SiteSettingsServi
       });
     },
     removeSharePicture: (signal) => client.delete(SHARE_PICTURE_PATH, { signal }),
-    sendQuoteAlertTest: (idempotencyKey, signal) => client.post(QUOTE_ALERT_TEST_PATH, undefined, { idempotencyKey, signal }),
+    sendQuoteAlertTest: (idempotencyKey, signal) =>
+      client.post(QUOTE_ALERT_TEST_PATH, undefined, { idempotencyKey, signal }),
   };
 }
 
