@@ -33,8 +33,8 @@ public static class RateLimitingRegistration
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the
-    /// <c>analytics-collect</c> policy.
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy, the
+    /// <c>analytics-collect</c> policy and the <c>quote-alerts-test</c> policy (D-11).
     /// It also adds the <c>quote-create</c> policy and one site-wide limit on each of the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51)
     /// and the quote create route (<c>RateLimits:QuoteCeiling</c>, 60 an hour). Each site-wide limit runs after
     /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74). A ceiling refusal answers that the site is busy.
@@ -67,6 +67,8 @@ public static class RateLimitingRegistration
         configuration.GetSection(QuoteCreateRateLimit.SectionName).Bind(quoteCreate);
         var quoteCeiling = QuoteCeilingRateLimit.Default();
         configuration.GetSection(QuoteCeilingRateLimit.SectionName).Bind(quoteCeiling);
+        var quoteAlertTest = QuoteAlertTestRateLimit.Default();
+        configuration.GetSection(QuoteAlertTestRateLimit.SectionName).Bind(quoteAlertTest);
         var publicSlots = PublicUploadSlotRule.Default();
         configuration.GetSection(PublicUploadSlotRule.SectionName).Bind(publicSlots);
         var problems = settings.Validate()
@@ -74,6 +76,7 @@ public static class RateLimitingRegistration
             .Concat(RateLimitRule.Problems(ceiling, AnalyticsCeilingRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(quoteCreate, QuoteCreateRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(quoteCeiling, QuoteCeilingRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(quoteAlertTest, QuoteAlertTestRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(collect, AnalyticsCollectRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(maintenance, MaintenanceRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(images, ImageUploadRateLimit.SectionName))
@@ -97,6 +100,7 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.PublicRead] = publicRead.Window,
             [RateLimitPolicies.AnalyticsCollect] = collect.Window,
             [RateLimitPolicies.QuoteCreate] = quoteCreate.Window,
+            [RateLimitPolicies.QuoteAlertTest] = quoteAlertTest.Window,
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
@@ -119,6 +123,7 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.PublicRead, publicRead);
             AddPolicy(options, RateLimitPolicies.AnalyticsCollect, collect);
             AddPolicy(options, RateLimitPolicies.QuoteCreate, quoteCreate);
+            AddPolicy(options, RateLimitPolicies.QuoteAlertTest, quoteAlertTest);
         });
         return services;
     }

@@ -20323,7 +20323,7 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the\nrequest, and is recorded in the audit log as `quote-alerts.test-sent` with no address. No saved address answers 409\n`site-settings.no-quote-alerts-address` and sends nothing; an address that can never receive mail answers 422\n`site-settings.quote-alerts-address-undeliverable`. Needs an `Idempotency-Key`.",
+        "summary": "Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the\nrequest, and is recorded in the audit log as `quote-alerts.test-sent` with no address. No saved address answers 409\n`site-settings.no-quote-alerts-address` and sends nothing; an address that can never receive mail answers 422\n`site-settings.quote-alerts-address-undeliverable`. One address may send 3 tests in 10 minutes (`RateLimits:QuoteAlertTest`);\nthe next answers 429 with `Retry-After`. Needs an `Idempotency-Key`.",
         "tags": [
           "SiteSettings"
         ]

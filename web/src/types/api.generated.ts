@@ -2417,7 +2417,8 @@ export interface paths {
          * Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the
          *     request, and is recorded in the audit log as `quote-alerts.test-sent` with no address. No saved address answers 409
          *     `site-settings.no-quote-alerts-address` and sends nothing; an address that can never receive mail answers 422
-         *     `site-settings.quote-alerts-address-undeliverable`. Needs an `Idempotency-Key`.
+         *     `site-settings.quote-alerts-address-undeliverable`. One address may send 3 tests in 10 minutes (`RateLimits:QuoteAlertTest`);
+         *     the next answers 429 with `Retry-After`. Needs an `Idempotency-Key`.
          */
         post: operations["SendQuoteAlertTest"];
         delete?: never;

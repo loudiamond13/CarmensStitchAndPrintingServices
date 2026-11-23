@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-23T00:10:00-06:00
+updated: 2026-11-23T11:20:00-06:00
 ---
 
 # The site content API
@@ -29,6 +29,7 @@ line photos, testimonials and gallery routes join this page in later plans.
 | `PUT /api/v1/site-settings` | Manager | `200` the settings as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `POST /api/v1/site-settings/share-picture` | Manager | `200` the picture below; `400` no file or a file that is not a photo we can use; `401`; `403` for an Admin; `409` when two saves lost a race; `413` for a body over the limit; `429`; `503` when photo storage is not set up. Needs an `Idempotency-Key`. |
 | `DELETE /api/v1/site-settings/share-picture` | Manager | `204`; `401`; `403` for an Admin; `404` when no picture is set; `409` when two saves lost a race. |
+| `POST /api/v1/site-settings/quote-alerts/test` | Manager | `202` the test email is queued; `401`; `403` for an Admin; `409` when no Quote alerts address is saved; `422` when the saved address can never get mail; `429` after 3 tests in 10 minutes. Needs an `Idempotency-Key`. |
 | `GET /api/v1/opening-hours` | Manager | `200` the seven days below; `401`; `403` for an Admin. |
 | `PUT /api/v1/opening-hours` | Manager | `200` the hours as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `GET /api/v1/shop-closures` | Manager | `200` the upcoming closures below; `401`; `403` for an Admin. |
@@ -219,6 +220,31 @@ The 1200 x 630 and the two preview sizes are Cloudinary named sizes, created by 
 
 Each set, replace or removal writes `site-settings.share-picture-changed` in the same save. The target type is `SiteSettings` and the
 target id is `1`. The detail is `change=added`, `change=replaced` or `change=removed`. It never holds an address or a file id.
+
+## The Quote alerts test email
+
+A Manager can check that quote alerts reach the saved Quote alerts address (D-11). `POST /api/v1/site-settings/quote-alerts/test`
+takes no body and answers `202` with no body once the email is queued. The email goes to the **saved** address only, never to an
+address in the request, so a change in the form must be saved first. Its subject is "Test: quote alerts work" and it has the Quote
+alerts footer and no link.
+
+| Answer | When |
+|---|---|
+| `202` | The test email is queued. |
+| `401` | No valid token. |
+| `403` | The caller is an Admin. |
+| `409 site-settings.no-quote-alerts-address` | No address is saved. Nothing is sent. The detail is "Save an address first, then send a test." |
+| `422 site-settings.quote-alerts-address-undeliverable` | The saved address is in a domain that never gets mail (such as `.invalid`). Nothing is sent. |
+| `429 rate-limited` | One address sent 3 tests in 10 minutes. `Retry-After` says how many whole seconds to wait. Nothing is sent. |
+
+The limit is per connection address and is set in `RateLimits:QuoteAlertTest` (`PermitLimit` 3, `Window` 10 minutes). A value that is
+not usable (a limit below 1, a window under 6 seconds) stops start-up with a message that names the setting, never the value. The
+call needs an `Idempotency-Key`: a repeat with the same key answers the stored `202` and sends nothing more.
+
+### The test email audit entry
+
+Each queued test writes `quote-alerts.test-sent` in the same save as the email. The target type is `SiteSettings` and the target id
+is `1`. There is no detail, so the address is never written to the audit log or the app log (CWE-532). A refused test writes nothing.
 
 ## The opening hours
 

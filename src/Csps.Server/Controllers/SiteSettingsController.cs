@@ -1,9 +1,11 @@
 using Csps.Application.Content;
 using Csps.Application.Security;
 using Csps.Server.Http;
+using Csps.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Csps.Server.Controllers;
 
@@ -65,13 +67,15 @@ public sealed class SiteSettingsController(
     /// Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the
     /// request, and is recorded in the audit log as <c>quote-alerts.test-sent</c> with no address. No saved address answers 409
     /// <c>site-settings.no-quote-alerts-address</c> and sends nothing; an address that can never receive mail answers 422
-    /// <c>site-settings.quote-alerts-address-undeliverable</c>. Needs an <c>Idempotency-Key</c>.
+    /// <c>site-settings.quote-alerts-address-undeliverable</c>. One address may send 3 tests in 10 minutes (<c>RateLimits:QuoteAlertTest</c>);
+    /// the next answers 429 with <c>Retry-After</c>. Needs an <c>Idempotency-Key</c>.
     /// </summary>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>202 when the email is queued, 401 without a valid token, 403 for an Admin, 409 with no saved address, 422, or 429.</returns>
     [HttpPost("quote-alerts/test")]
     [Authorize(Policy = Policies.Manager)]
     [EndpointName("SendQuoteAlertTest")]
+    [EnableRateLimiting(RateLimitPolicies.QuoteAlertTest)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
