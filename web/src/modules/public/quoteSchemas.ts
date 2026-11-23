@@ -147,5 +147,9 @@ export function toCreateQuoteRequest(values: QuoteFormValues): Omit<CreateQuoteB
 
 /** The upload key of one send: 32 random bytes as base64url text, 43 characters (the server keeps only its SHA-256). */
 export function newUploadKey(): string {
-  return '';
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
 }

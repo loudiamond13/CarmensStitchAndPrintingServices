@@ -296,6 +296,7 @@ export const PUBLIC_COPY = {
       },
       submit: 'Send Inquiry',
       sending: 'Sending',
+      sendingPhotos: 'Sending your photos. This can take a minute on mobile data.',
       success: {
         title: 'Inquiry sent',
         message: "Thanks! We'll message you with a mockup and quote, usually the same day.",
@@ -338,6 +339,8 @@ export const PUBLIC_COPY = {
           `${fileName} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger.`,
         size: (fileName: string, limit: string) =>
           `${fileName} is over ${limit}. Send a smaller photo, or send it on Messenger.`,
+        pixels: (fileName: string, megapixels: number) =>
+          `${fileName} is too big. Photos can be at most ${String(megapixels)} megapixels.`,
         unreadable: (fileName: string) => `${fileName} couldn't be read. Try another photo.`,
       },
       leftOut: (max: number, count: number) =>

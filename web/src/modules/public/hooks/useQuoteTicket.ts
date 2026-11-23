@@ -44,6 +44,7 @@ export function createQuoteTicketHolder(
   clock: QuoteTicketClock = { now: () => Date.now() },
 ): QuoteTicketHolder {
   let current: Promise<HeldTicket | null> = Promise.resolve(null);
+  let photoRules: QuotePhotoLimits | undefined;
   let running: AbortController | undefined;
 
   const stop = (): void => {
@@ -58,17 +59,25 @@ export function createQuoteTicketHolder(
       const controller = new AbortController();
       running = controller;
       current = read(controller.signal).then(
-        (answer: QuoteFormTicket) => ({
-          ticket: answer.ticket,
-          issuedAt: clock.now(),
-          minimumSeconds: Number(answer.minimumSeconds),
-        }),
+        (answer: QuoteFormTicket) => {
+          photoRules = {
+            maxPhotos: Number(answer.photoRules.maxPhotos),
+            maxBytes: Number(answer.photoRules.maxBytes),
+            maxPixels: Number(answer.photoRules.maxPixels),
+          };
+          return {
+            ticket: answer.ticket,
+            issuedAt: clock.now(),
+            minimumSeconds: Number(answer.minimumSeconds),
+            photoRules,
+          };
+        },
         () => null,
       );
     },
     adopt: (ticket, minimumSeconds) => {
       stop();
-      current = Promise.resolve({ ticket, issuedAt: 0, minimumSeconds });
+      current = Promise.resolve({ ticket, issuedAt: 0, minimumSeconds, photoRules });
     },
     stop,
   };

@@ -6,6 +6,9 @@ export type QuoteFormTicket = components['schemas']['QuoteFormTicketResponse'];
 export type CreateQuoteBody = components['schemas']['CreateQuoteRequestRequest'];
 export type CreateQuoteAnswer = components['schemas']['CreateQuoteRequestResponse'];
 
+/** A photo may take a while on a slow mobile connection (D-31). */
+const UPLOAD_TIMEOUT_MS = 120_000;
+
 export interface QuoteService {
   /** `GET /api/v1/public/quote-requests/ticket`. */
   getTicket(signal?: AbortSignal): Promise<QuoteFormTicket>;
@@ -32,7 +35,17 @@ export function createQuoteService(client: HttpClient): QuoteService {
     getTicket: (signal) => client.get<QuoteFormTicket>('/public/quote-requests/ticket', { signal }),
     create: (body, idempotencyKey, signal) =>
       client.post<CreateQuoteAnswer>('/public/quote-requests', body, { idempotencyKey, signal }),
-    uploadPhoto: () => Promise.reject(new Error('not implemented')),
+    uploadPhoto: (id, slot, file, fileName, uploadKey, idempotencyKey, signal) => {
+      const form = new FormData();
+      form.append('file', file, fileName);
+      return client.post<undefined>(`/public/quote-requests/${encodeURIComponent(id)}/photos/${String(slot)}`, form, {
+        idempotencyKey,
+        signal,
+        headers: { 'X-Upload-Key': uploadKey },
+        timeoutMs: UPLOAD_TIMEOUT_MS,
+        allowEmptyBody: true,
+      });
+    },
   };
 }
 

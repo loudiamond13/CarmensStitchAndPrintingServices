@@ -11,17 +11,20 @@ import { useToast } from '@/components/feedback/ToastProvider';
 import { Field } from '@/components/forms/Field';
 import { Select, type SelectOption } from '@/components/forms/Select';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
-import { pickErrorBodyClasses, pickErrorClasses, pickErrorIconClasses } from '@/components/media/media.recipe';
 import { isHttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { useSubmission } from '@/lib/forms/useSubmission';
 import { cardHeadClasses, cardTitleClasses, formCardClasses, smallMutedClasses } from './contact.recipe';
 import { inlineLinkClasses } from './legal.recipe';
 import {
+  quoteFormAlertBodyClasses,
+  quoteFormAlertClasses,
+  quoteFormAlertIconClasses,
   quoteFormFooterClasses,
   quoteFormGridClasses,
   quoteFormMessageClasses,
   quoteFormNoticeClasses,
+  quotePhotoSlotClasses,
   quoteFormSendClasses,
   quoteFormStatusClasses,
   quoteFormStatusTextClasses,
@@ -36,7 +39,10 @@ import {
   toCreateQuoteRequest,
   type QuoteFormValues,
 } from '../quoteSchemas';
-import { quoteService, type CreateQuoteAnswer } from '../services/quoteService';
+import { quoteService, type CreateQuoteBody } from '../services/quoteService';
+import { loadQuotePhotoKit } from './lazyQuotePhotoKit';
+import type { QuotePhotoPickerHandle } from './QuotePhotoPicker';
+import { QuotePhotoSlot } from './QuotePhotoSlot';
 
 const COPY = PUBLIC_COPY.contact.form;
 
@@ -52,6 +58,21 @@ interface Resend {
   readonly ticket: string;
 }
 
+/** What one send is made of: the checked values and the photos picked. */
+interface QuoteSend {
+  readonly values: QuoteFormValues;
+  readonly photos: readonly File[];
+}
+
+/** How a send ended: the names of the photos that did not arrive. */
+interface QuoteSent {
+  readonly missing: readonly string[];
+}
+
+/** Names a send for the double-press and retry guard: the values and each photo's name, size and time. */
+const identityOf = ({ values, photos }: QuoteSend): string =>
+  JSON.stringify([values, photos.map((file) => [file.name, file.size, file.lastModified])]);
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -63,6 +84,9 @@ export function QuoteForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
   const resendRef = useRef<Resend | undefined>(undefined);
+  const uploadKeyRef = useRef<{ forKey: string; uploadKey: string } | undefined>(undefined);
+  const pickerRef = useRef<QuotePhotoPickerHandle>(null);
+  const [photos, setPhotos] = useState<File[]>([]);
   const focusNameNext = useRef(false);
   const [sent, setSent] = useState(false);
   const toast = useToast();
@@ -91,9 +115,8 @@ export function QuoteForm() {
     }
   };
 
-  // Sends the checked values with one Idempotency-Key per filled form. An expired ticket is answered once, at once, with the replacement.
-  const send = async (key: string, values: QuoteFormValues): Promise<CreateQuoteAnswer> => {
-    const body = toCreateQuoteRequest(values);
+  // Creates the request with one Idempotency-Key per filled form. An expired ticket is answered once, at once, with the replacement.
+  const create = async (key: string, body: Omit<CreateQuoteBody, 'ticket'>) => {
     const repeat = resendRef.current;
     if (repeat?.forKey === key) {
       return quoteService.create({ ...body, ticket: repeat.ticket }, repeat.key);
@@ -122,9 +145,29 @@ export function QuoteForm() {
     }
   };
 
-  const submission = useSubmission<QuoteFormValues, CreateQuoteAnswer>(send, {
+  // The text is saved first; each photo then goes to its own place, and a photo that fails is only reported (D-03).
+  const send = async (key: string, { values, photos: picked }: QuoteSend): Promise<QuoteSent> => {
+    const body = toCreateQuoteRequest(values);
+    if (picked.length === 0) {
+      await create(key, body);
+      return { missing: [] };
+    }
+    const kit = await loadQuotePhotoKit();
+    const missing = await kit.sendWithPhotos({
+      key,
+      body,
+      photos: picked,
+      held: uploadKeyRef,
+      create: (withPhotos) => create(key, withPhotos),
+    });
+    return { missing };
+  };
+
+  const submission = useSubmission<QuoteSend, QuoteSent>(send, {
+    identity: identityOf,
     onSuccess: () => {
       resendRef.current = undefined;
+      uploadKeyRef.current = undefined;
       setSent(true);
       toast.show({ tone: 'success', title: COPY.success.toastTitle, message: COPY.success.toastMessage });
     },
@@ -146,8 +189,11 @@ export function QuoteForm() {
 
   const sendAnother = (): void => {
     reset(EMPTY_QUOTE_FORM);
+    setPhotos([]);
+    pickerRef.current?.clearErrors();
     submission.reset();
     resendRef.current = undefined;
+    uploadKeyRef.current = undefined;
     tickets.refresh();
     focusNameNext.current = true;
     setSent(false);
@@ -187,7 +233,8 @@ export function QuoteForm() {
       aria-labelledby={titleId}
       onSubmit={(event: SyntheticEvent<HTMLFormElement>) => {
         void handleSubmit(async (values) => {
-          await submission.submit(values);
+          pickerRef.current?.clearErrors();
+          await submission.submit({ values, photos });
         }, onInvalid)(event);
       }}
     >
@@ -326,7 +373,15 @@ export function QuoteForm() {
             />
           )}
         />
-        {/* The reference photo picker joins the form here (plan 13-12). */}
+        <div className={quotePhotoSlotClasses}>
+          <QuotePhotoSlot
+            photos={photos}
+            onChange={setPhotos}
+            disabled={pending}
+            limits={async () => (await tickets.ready())?.photoRules}
+            handleRef={pickerRef}
+          />
+        </div>
       </div>
       {/* The honeypot (INQ-03, D-25): off-screen, never display:none, out of the Tab order and hidden from assistive technology. */}
       <div aria-hidden="true" className={srOnlyClasses}>
@@ -369,12 +424,17 @@ export function QuoteForm() {
         </Button>
       </div>
       <div className={quoteFormStatusClasses}>
+        {pending && photos.length > 0 && (
+          <p role="status" className={quoteFormStatusTextClasses}>
+            {COPY.sendingPhotos}
+          </p>
+        )}
         {submission.error !== undefined && (
-          <div className={pickErrorClasses} role="alert">
-            <span className={pickErrorIconClasses}>
+          <div className={quoteFormAlertClasses} role="alert">
+            <span className={quoteFormAlertIconClasses}>
               <Icon name="triangle-alert" size={18} />
             </span>
-            <div className={pickErrorBodyClasses}>
+            <div className={quoteFormAlertBodyClasses}>
               <p className={quoteFormStatusTextClasses}>{COPY.sendFailed}</p>
             </div>
           </div>

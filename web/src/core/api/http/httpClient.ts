@@ -357,7 +357,7 @@ function sendWithXhr(
 const noContentStatuses: ReadonlySet<number> = new Set([202, 204, 205]);
 
 /** Turns a received answer into the response data, or throws an HttpError. */
-function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean): HttpResponse {
+function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean, allowEmpty: boolean): HttpResponse {
   const { status, headers, text } = raw;
   const json = hasType(headers, jsonContentType);
   if (status < 200 || status > 299) {
@@ -371,7 +371,7 @@ function toHttpResponse(raw: RawResponse, method: HttpMethod, asCsv: boolean): H
     }
     throw new HttpError({ kind: 'http', status, problem });
   }
-  if (text === '' && (noContentStatuses.has(status) || method === 'HEAD')) {
+  if (text === '' && (noContentStatuses.has(status) || method === 'HEAD' || allowEmpty)) {
     return { status, headers, data: undefined };
   }
   // The API never redirects and answers with JSON or 204, or text/csv when asked. A followed redirect, an empty body or a
@@ -459,7 +459,12 @@ export function createHttpClient(config: HttpClientConfig = {}): HttpClient {
         onUploadProgress === undefined
           ? await sendWithFetch(fetchImpl, outgoing)
           : await sendWithXhr(createXhr, outgoing, onUploadProgress);
-      return toHttpResponse(raw, prepared.method, requestConfig.responseType === 'text');
+      return toHttpResponse(
+        raw,
+        prepared.method,
+        requestConfig.responseType === 'text',
+        requestConfig.allowEmptyBody === true,
+      );
     } catch (error) {
       throw toTransportError(error, caller, timeout.signal);
     } finally {

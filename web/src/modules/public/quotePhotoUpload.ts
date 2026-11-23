@@ -1,0 +1,92 @@
+// Sends the photos of a saved quote request (INQ-02, D-03): one call per photo, at most two at a time. A photo that fails is a
+// missing photo, never an error: the text is already saved. It loads with the picker, so the form's own piece stays small (D-43).
+import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
+import { cleanFileName } from '@/utils/images';
+import { newUploadKey } from './quoteSchemas';
+import { quoteService, type CreateQuoteAnswer, type CreateQuoteBody } from './services/quoteService';
+
+/** How many photos go up at the same time. */
+const AT_ONCE = 2;
+
+/** The names the create call declares: the file names without folders or control characters. */
+function photoNames(photos: readonly File[]): string[] {
+  return photos.map((file) => cleanFileName(file.name));
+}
+
+export interface PhotoUpload {
+  readonly requestId: string;
+  /** The place of each photo, in the order of `photos`, from the create answer. */
+  readonly slots: readonly number[];
+  readonly photos: readonly File[];
+  /** The declared names, in the same order. */
+  readonly names: readonly string[];
+  readonly uploadKey: string;
+}
+
+/** Uploads every photo and answers the names of the ones that did not arrive, in the order picked. */
+export async function uploadPhotos({ requestId, slots, photos, names, uploadKey }: PhotoUpload): Promise<string[]> {
+  const missing = new Set<number>();
+  let next = 0;
+
+  const send = async (index: number, slot: number, idempotencyKey: string): Promise<void> => {
+    const file = photos[index];
+    if (file === undefined) {
+      throw new Error('No photo at this place.');
+    }
+    await quoteService.uploadPhoto(requestId, slot, file, names[index] ?? file.name, uploadKey, idempotencyKey);
+  };
+
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = next++;
+      if (index >= photos.length) {
+        return;
+      }
+      const slot = slots[index];
+      if (slot === undefined) {
+        missing.add(index);
+        continue;
+      }
+      try {
+        await send(index, slot, newIdempotencyKey());
+      } catch {
+        missing.add(index);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(AT_ONCE, photos.length) }, worker));
+  return names.filter((_, index) => missing.has(index));
+}
+
+/** The upload key belongs to one Idempotency-Key, so a retry declares the same key and the stored answer fits. */
+export interface HeldUploadKey {
+  readonly forKey: string;
+  readonly uploadKey: string;
+}
+
+export interface PhotoSend {
+  /** The Idempotency-Key of this send. */
+  readonly key: string;
+  readonly body: Omit<CreateQuoteBody, 'ticket'>;
+  readonly photos: readonly File[];
+  /** Where the upload key is kept in memory between a send and its retry (T-13-36). */
+  readonly held: { current: HeldUploadKey | undefined };
+  /** Creates the request: the form adds the ticket and answers an expired one. */
+  readonly create: (body: Omit<CreateQuoteBody, 'ticket'>) => Promise<CreateQuoteAnswer>;
+}
+
+/** The text is saved first with the photo names and the upload key; each photo then goes to its own place (D-03). */
+export async function sendWithPhotos({ key, body, photos, held, create }: PhotoSend): Promise<string[]> {
+  const uploadKey = held.current?.forKey === key ? held.current.uploadKey : newUploadKey();
+  held.current = { forKey: key, uploadKey };
+  const names = photoNames(photos);
+  const answer = await create({ ...body, photos: names, uploadKey });
+  return uploadPhotos({
+    requestId: answer.id,
+    slots: answer.photoSlots.map((place) => Number(place.slot)),
+    photos,
+    names,
+    uploadKey,
+  });
+}

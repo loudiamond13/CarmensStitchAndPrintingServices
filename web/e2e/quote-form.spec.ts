@@ -1,6 +1,7 @@
 // Get a Quote form E2E (INQ-01, INQ-08, D-35, UI-SPEC Q1 and Q3): a visitor sends a request from the Contact page to the real API.
 // The host runs with the quote limits lifted and a one second minimum time (playwright.config.ts), so every project can send.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { drawJpeg } from './photos.ts';
 
 // A page script as text: the node program has no DOM types.
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
@@ -37,6 +38,30 @@ test('@quote a visitor sends a text-only inquiry and sees Inquiry sent', async (
   await page.getByRole('button', { name: 'Send Another' }).click();
   await expect(page.getByRole('textbox', { name: /Your name/ })).toBeFocused();
   await expect(page.getByRole('textbox', { name: /Your name/ })).toHaveValue('');
+});
+
+test('@quote a visitor sends an inquiry with a photo and the server stores it', async ({ page }) => {
+  await page.goto('/contact');
+
+  const form = page.getByRole('form', { name: 'Inquiry form' });
+  await expect(form).toBeVisible();
+  await form.getByRole('textbox', { name: /Your name/ }).fill('Juan Dela Cruz');
+  await form.getByRole('textbox', { name: /Contact number/ }).fill(freshMobile());
+  const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
+  await form.locator('input[type="file"]').setInputFiles([photo]);
+  await expect(form.getByRole('list', { name: 'Photos to send' }).getByRole('listitem')).toHaveCount(1);
+  const create = page.waitForResponse(
+    (response) => response.url().endsWith('/api/v1/public/quote-requests') && response.request().method() === 'POST',
+  );
+  const upload = page.waitForResponse((response) =>
+    /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
+  );
+  await form.getByRole('button', { name: 'Send Inquiry' }).click();
+
+  expect((await create).status()).toBe(200);
+  expect((await upload).status()).toBe(200);
+  await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeVisible();
+  await expect(page.getByText(/didn't upload/)).toHaveCount(0);
 });
 
 test('@quote at 320px the form comes first, the fields stack in one column and nothing scrolls sideways', async ({
