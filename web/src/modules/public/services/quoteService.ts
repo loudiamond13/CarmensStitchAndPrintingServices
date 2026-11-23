@@ -6,7 +6,7 @@ export type QuoteFormTicket = components['schemas']['QuoteFormTicketResponse'];
 export type CreateQuoteBody = components['schemas']['CreateQuoteRequestRequest'];
 export type CreateQuoteAnswer = components['schemas']['CreateQuoteRequestResponse'];
 
-/** A photo may take a while on a slow mobile connection (D-31). */
+/** A photo may take a while on a slow mobile connection: the same 120 s as the order photo upload (plan 13-12). */
 const UPLOAD_TIMEOUT_MS = 120_000;
 
 export interface QuoteService {
