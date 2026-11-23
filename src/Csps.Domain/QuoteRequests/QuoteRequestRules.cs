@@ -66,6 +66,18 @@ public static class QuoteRequestRules
     /// <summary>The plain-English text of that 400.</summary>
     public const string ConvertedLockedMessage = "A request that became an order can't change status.";
 
+    /// <summary>The longest internal note, in UTF-16 code units after trimming (D-17).</summary>
+    public const int NoteMaxLength = 1000;
+
+    /// <summary>The field name of a note's text.</summary>
+    public const string NoteField = "text";
+
+    /// <summary>The message for an empty note.</summary>
+    public const string NoteRequired = "Write a note first.";
+
+    /// <summary>The message for a note over the limit.</summary>
+    public const string NoteTooLong = "Keep the note to 1,000 characters or fewer.";
+
     /// <summary>The field name of the visitor name.</summary>
     public const string CustomerNameField = "customerName";
 

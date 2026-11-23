@@ -58,7 +58,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
 
     // The request and its lists are separate statements, so a status change can land between them. Every move bumps the request's row
     // version, so the version is read again after the lists; when it moved, the request is read again so the status, the photos, the
-    // history and the version come from one save. After the last attempt the latest read is returned, as the order reader does.
+    // history, the notes and the version come from one save. After the last attempt the latest read is returned, as the order reader does.
     public async Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken)
     {
         QuoteRequestDetailView? view = null;
@@ -89,8 +89,8 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
         return view;
     }
 
-    // Three commands: the request with its last changer, the photo places, and the history with each mover's current name, so a rename
-    // shows at once and a removed person keeps their name.
+    // Four commands: the request with its last changer, the photo places, the history with each mover's current name, and the notes
+    // with each author's current name, so a rename shows at once and a removed person keeps their name.
     private async Task<QuoteRequestDetailView?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
     {
         var header = await (
@@ -139,6 +139,25 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var notes = await (
+            from note in context.QuoteRequestNotes.AsNoTracking()
+            where note.QuoteRequestId == id
+            join authorUser in context.Users on note.CreatedById equals authorUser.Id into authors
+            from author in authors.DefaultIfEmpty()
+            orderby note.CreatedAtUtc descending, note.Id descending
+            select new
+            {
+                note.Id,
+                note.Text,
+                note.CreatedAtUtc,
+                AuthorId = (Guid?)author.Id,
+                AuthorFirst = (string?)author.FirstName,
+                AuthorLast = (string?)author.LastName,
+                AuthorFormer = author.DeletedAtUtc != null,
+            })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         var row = header.Request;
         return new QuoteRequestDetailView(
             row.Id,
@@ -163,6 +182,15 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                         ? new ActorRef(actorId, $"{move.ActorFirst} {move.ActorLast}", move.ActorFormer)
                         : null,
                     move.ChangedAtUtc)),
+            ],
+            [
+                .. notes.Select(note => new QuoteRequestNoteRow(
+                    note.Id,
+                    note.Text,
+                    note.AuthorId is { } authorId && note.AuthorFirst is not null
+                        ? new ActorRef(authorId, $"{note.AuthorFirst} {note.AuthorLast}", note.AuthorFormer)
+                        : null,
+                    note.CreatedAtUtc)),
             ],
             header.ChangerId is { } changerId && header.ChangerFirst is not null
                 ? new ActorRef(changerId, $"{header.ChangerFirst} {header.ChangerLast}", header.ChangerFormer)

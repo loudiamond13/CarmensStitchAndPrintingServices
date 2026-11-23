@@ -27,6 +27,13 @@ public sealed record QuoteRequestPhotoResponse(
 /// <param name="ChangedAt">When it moved.</param>
 public sealed record QuoteRequestStatusChangeResponse(string? From, string To, ActorRef? ChangedBy, DateTimeOffset ChangedAt);
 
+/// <summary>One internal staff note (D-17). The author's name is read from their own row, so it stays after the account is deleted.</summary>
+/// <param name="Id">The note id.</param>
+/// <param name="Text">The note.</param>
+/// <param name="CreatedBy">Who wrote it.</param>
+/// <param name="CreatedAtUtc">When it was written.</param>
+public sealed record QuoteRequestNoteResponse(Guid Id, string Text, ActorRef? CreatedBy, DateTimeOffset CreatedAtUtc);
+
 /// <summary>One quote request in full for staff (INQ-05, D-13).</summary>
 /// <param name="Id">The request id.</param>
 /// <param name="ReceivedAtUtc">When the request was received, in UTC.</param>
@@ -44,6 +51,7 @@ public sealed record QuoteRequestStatusChangeResponse(string? From, string To, A
 /// <param name="MissingPhotos">The file names of the photos that never arrived (D-03), in slot order.</param>
 /// <param name="PhotosRemovedAtUtc">When the photos were removed because the request was marked Spam (D-04); null while kept.</param>
 /// <param name="History">The status history, newest first, ending with the arrival.</param>
+/// <param name="Notes">The staff notes, newest first.</param>
 /// <param name="LastChangedBy">Who last changed the request; null when nobody has.</param>
 /// <param name="LastChangedAt">When the request was last changed; null when never.</param>
 /// <param name="Version">The row version to send with a status change.</param>
@@ -64,6 +72,7 @@ public sealed record QuoteRequestDetailResponse(
     IReadOnlyList<string> MissingPhotos,
     DateTimeOffset? PhotosRemovedAtUtc,
     IReadOnlyList<QuoteRequestStatusChangeResponse> History,
+    IReadOnlyList<QuoteRequestNoteResponse> Notes,
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt,
     string Version);

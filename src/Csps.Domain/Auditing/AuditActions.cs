@@ -228,6 +228,9 @@ public static class AuditActions
     /// <summary>Staff moved a quote request to another status (D-15). The detail holds the old and new status only, never customer details.</summary>
     public const string QuoteRequestStatusChanged = "quote-request.status-changed";
 
+    /// <summary>Staff added an internal note to a quote request (D-17). The detail holds the note id only, never the note text (CWE-532).</summary>
+    public const string QuoteRequestNoteAdded = "quote-request.note-added";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -658,5 +661,6 @@ public static class AuditActions
         SharePictureChanged,
         QuoteAlertsTestSent,
         QuoteRequestStatusChanged,
+        QuoteRequestNoteAdded,
     ];
 }

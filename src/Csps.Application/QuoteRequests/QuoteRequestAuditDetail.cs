@@ -18,4 +18,9 @@ public static class QuoteRequestAuditDetail
     /// <returns>For example <c>status=new&gt;contacted</c>.</returns>
     public static string StatusChanged(QuoteRequestStatus from, QuoteRequestStatus to) =>
         AuditDetailFormat.Change("status", QuoteRequestStatusNames.ToKey(from), QuoteRequestStatusNames.ToKey(to));
+
+    /// <summary>The detail of <c>quote-request.note-added</c>: the note id, never its text.</summary>
+    /// <param name="noteId">The new note.</param>
+    /// <returns>For example <c>note=0196...</c>.</returns>
+    public static string NoteAdded(Guid noteId) => AuditDetailFormat.Pair("note", noteId);
 }

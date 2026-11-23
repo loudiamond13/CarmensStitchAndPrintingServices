@@ -2310,6 +2310,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds an internal note to a quote request, for both roles. The body is `{ "text": "..." }` with 1 to 1,000 characters after
+         *     trimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote
+         *     it and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the
+         *     request's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored answer.
+         */
+        post: operations["AddQuoteRequestNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quote-requests/{id}/status": {
         parameters: {
             query?: never;
@@ -3164,6 +3187,14 @@ export interface components {
             refundedByUserId: null | string;
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
+        };
+        /**
+         * @description The Add Note action on a quote request (D-17). Any other member in the body, such as a forged `createdById`, is ignored: who
+         *     wrote the note and when come from the token and the clock (SEC-08).
+         */
+        AddQuoteRequestNoteRequest: {
+            /** @description The note, 1 to 1,000 characters after trimming. */
+            text: null | string;
         };
         /** @description One "What changed" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
@@ -5747,6 +5778,8 @@ export interface components {
             message: null | string;
             /** @description The file names of the photos that never arrived (D-03), in slot order. */
             missingPhotos: string[];
+            /** @description The staff notes, newest first. */
+            notes: components["schemas"]["QuoteRequestNoteResponse"][];
             /**
              * Format: int32
              * @description How many photo places the request holds.
@@ -5836,6 +5869,22 @@ export interface components {
              * @description How many requests match the status and search, across all pages.
              */
             total: number | string;
+        };
+        /** @description One internal staff note (D-17). The author's name is read from their own row, so it stays after the account is deleted. */
+        QuoteRequestNoteResponse: {
+            /**
+             * Format: date-time
+             * @description When it was written.
+             */
+            createdAtUtc: string;
+            createdBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The note id.
+             */
+            id: string;
+            /** @description The note. */
+            text: string;
         };
         /** @description One stored photo of a quote request (INQ-05, D-36). The addresses are built when the request is read and are never stored. */
         QuoteRequestPhotoResponse: {
@@ -14322,6 +14371,72 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddQuoteRequestNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+                "application/json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+                "text/json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

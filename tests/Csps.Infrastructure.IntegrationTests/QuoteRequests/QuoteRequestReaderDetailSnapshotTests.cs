@@ -50,8 +50,8 @@ public sealed class QuoteRequestReaderDetailSnapshotTests(CspsDatabase database)
         var detail = view.ShouldNotBeNull();
         detail.Status.ShouldBe(QuoteRequestStatus.New);
         detail.Photos.Count.ShouldBe(2);
-        // The request, the photo places, the history, then the version check.
-        counter.Count.ShouldBe(4, string.Join(Environment.NewLine, counter.Commands));
+        // The request, the photo places, the history, the notes, then the version check.
+        counter.Count.ShouldBe(5, string.Join(Environment.NewLine, counter.Commands));
     }
 
     [Fact]

@@ -54,6 +54,10 @@ public sealed class QuoteRequestNoteTests(CspsDatabase database) : IClassFixture
 
         var token = TestContext.Current.CancellationToken;
         await using var context = database.CreateContext();
+        var noteId = notes[0].GetProperty("id").GetGuid();
+        var stored = await context.QuoteRequestNotes.AsNoTracking().SingleAsync(row => row.Id == noteId, token);
+        (stored.QuoteRequestId, stored.Text, stored.CreatedById).ShouldBe((id, Note, rig.Admin.UserId));
+        stored.CreatedAtUtc.ShouldBeGreaterThan(startedAt);
         var request = await context.QuoteRequests.AsNoTracking().SingleAsync(row => row.Id == id, token);
         request.UpdatedById.ShouldBe(rig.Admin.UserId);
         request.Status.ShouldBe(QuoteRequestStatus.Contacted);

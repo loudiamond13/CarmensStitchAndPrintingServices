@@ -20,7 +20,7 @@ public interface IQuoteRequestReader
     /// <returns>How many requests are at status New.</returns>
     Task<int> CountNewAsync(CancellationToken cancellationToken);
 
-    /// <summary>Reads one request with its photo places and its status history, newest move first.</summary>
+    /// <summary>Reads one request with its photo places, its status history and its notes, newest first.</summary>
     /// <param name="id">The request id.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The request as stored, or null when there is no such request.</returns>
@@ -42,6 +42,13 @@ public sealed record QuoteRequestPhotoRow(int Slot, string FileName, string? Pub
 /// <param name="ChangedAtUtc">When it moved.</param>
 public sealed record QuoteRequestHistoryRow(QuoteRequestStatus From, QuoteRequestStatus To, ActorRef? ChangedBy, DateTimeOffset ChangedAtUtc);
 
+/// <summary>One staff note as stored, with the author's current name.</summary>
+/// <param name="Id">The note id.</param>
+/// <param name="Text">The note.</param>
+/// <param name="CreatedBy">Who wrote it; null only when the account row is gone.</param>
+/// <param name="CreatedAtUtc">When it was written.</param>
+public sealed record QuoteRequestNoteRow(Guid Id, string Text, ActorRef? CreatedBy, DateTimeOffset CreatedAtUtc);
+
 /// <summary>One request as stored. The phone is still E.164; the handler makes its display form and the photo addresses.</summary>
 /// <param name="Id">The request id.</param>
 /// <param name="ReceivedAtUtc">When it was received.</param>
@@ -58,6 +65,7 @@ public sealed record QuoteRequestHistoryRow(QuoteRequestStatus From, QuoteReques
 /// <param name="Photos">The photo places in slot order.</param>
 /// <param name="PhotosRemovedAtUtc">When the photos were removed for Spam; null while kept.</param>
 /// <param name="History">The status moves, newest first.</param>
+/// <param name="Notes">The staff notes, newest first.</param>
 /// <param name="LastChangedBy">Who last changed the request; null when nobody has.</param>
 /// <param name="LastChangedAtUtc">When it was last changed; null when never.</param>
 /// <param name="RowVersion">The row version a change must send back.</param>
@@ -77,6 +85,7 @@ public sealed record QuoteRequestDetailView(
     IReadOnlyList<QuoteRequestPhotoRow> Photos,
     DateTimeOffset? PhotosRemovedAtUtc,
     IReadOnlyList<QuoteRequestHistoryRow> History,
+    IReadOnlyList<QuoteRequestNoteRow> Notes,
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAtUtc,
     byte[] RowVersion);
