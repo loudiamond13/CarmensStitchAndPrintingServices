@@ -9,12 +9,12 @@ import { QuoteStatusFilter } from './QuoteStatusFilter';
 // The R1 status pills (UI-SPEC R1 item 2, D-18): a toolbar named "Show" with roving focus, as the Gallery pills.
 
 /** The bar between two plain buttons, so a Tab can enter and leave it. */
-function renderBar(selected: Status = 'open', counts: typeof QUOTE_COUNTS | undefined = QUOTE_COUNTS) {
+function renderBar(selected: Status = 'open', counts: typeof QUOTE_COUNTS | null = QUOTE_COUNTS) {
   const onSelect = vi.fn<(status: Status) => void>();
   const view = render(
     <>
       <button type="button">Before</button>
-      <QuoteStatusFilter selected={selected} counts={counts} onSelect={onSelect} />
+      <QuoteStatusFilter selected={selected} counts={counts ?? undefined} onSelect={onSelect} />
       <button type="button">After</button>
     </>,
   );
@@ -36,7 +36,7 @@ describe('QuoteStatusFilter', () => {
   });
 
   it('shows the pills without counts until the first answer', () => {
-    renderBar('open', undefined);
+    renderBar('open', null);
 
     expect(
       within(screen.getByRole('toolbar', { name: 'Show' }))

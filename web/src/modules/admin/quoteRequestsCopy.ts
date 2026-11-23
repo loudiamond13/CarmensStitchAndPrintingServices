@@ -43,7 +43,8 @@ export const QUOTE_REQUESTS_COPY = {
       spam: 'Spam',
       all: 'All',
     } satisfies Record<QuoteStatusFilter, string>,
-    hidden: ' requests',
+    /** After the count, visually hidden: "4 requests". */
+    hidden: 'requests',
   },
   empty: {
     titles: {

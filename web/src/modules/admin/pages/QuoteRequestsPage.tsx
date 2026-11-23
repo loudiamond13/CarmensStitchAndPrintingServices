@@ -9,10 +9,11 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
-import { Pagination } from '@/components/lists';
+import { FilterBar, FilterChip, Pagination, ResultBar, SearchBox } from '@/components/lists';
 import { useSettledListParams } from '@/lib/query/useSettledListParams';
 import { usePagedList } from '@/lib/url-state/usePagedList';
 import { QuoteRequestsTable } from '@/modules/admin/components/QuoteRequestsTable';
+import { QuoteStatusFilter } from '@/modules/admin/components/QuoteStatusFilter';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useQuoteRequestsListParams } from '@/modules/admin/hooks/useQuoteRequestsListParams';
 import { useQuoteRequestsQuery } from '@/modules/admin/hooks/useQuoteRequestsQuery';
@@ -50,6 +51,32 @@ export default function QuoteRequestsPage() {
           <p className={pageSublineClasses}>{COPY.subline}</p>
         </div>
       </div>
+      <FilterBar>
+        <SearchBox
+          value={values.q}
+          label={COPY.search.label}
+          placeholder={COPY.search.placeholder}
+          onSearch={set.setSearch}
+        />
+      </FilterBar>
+      <QuoteStatusFilter
+        selected={values.status}
+        counts={data?.counts}
+        onSelect={(status) => {
+          set.setFilter('status', status);
+        }}
+      />
+      <ResultBar count={pastTheEnd ? 0 : total} thing={COPY.thing} things={COPY.things}>
+        {values.q !== null && (
+          <FilterChip
+            label={COPY.search.chip}
+            value={values.q}
+            onClear={() => {
+              set.setSearch('', { immediate: true });
+            }}
+          />
+        )}
+      </ResultBar>
       <QuoteRequestsTable
         rows={data?.items}
         captionId={RESULTS_ID}

@@ -1,9 +1,9 @@
 // The guarded admin routes (AUTH-05, D-07, D-20 reversal; plan 04-25), over the app's real route objects with MSW
 // answering the API.
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { createMemoryRouter as createRouter, type RouteObject } from 'react-router';
+import { createBrowserRouter, createMemoryRouter as createRouter, type RouteObject } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { discoverRoutes, queryBranch, routes } from '@/core/routes/router';
@@ -568,20 +568,37 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
     const backend = quoteRequestsBackend(
       quoteRequestList([quoteRequestItem(undefined, { status: 'spam' })], { counts: QUOTE_COUNTS }),
     );
-    const router = createMemoryRouter(routes, { initialEntries: ['/admin/quote-requests?status=spam&q=juan'] });
-    render(<RouterProvider router={router} />);
-    const user = userEvent.setup();
+    // nuqs reads and writes the browser history, so this case runs in a browser router (docs/web/url-state.md).
+    window.history.replaceState(null, '', '/admin/quote-requests?status=spam&q=juan');
+    const router = createBrowserRouter(routes, { patchRoutesOnNavigation: discoverRoutes });
+    try {
+      render(<RouterProvider router={router} />);
+      const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 }));
-    await expect.poll(() => router.state.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
-    await router.navigate(-1);
+      expect(await screen.findByRole('button', { name: 'Spam 1 requests' }, { timeout: 10_000 })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+      await user.click(await screen.findByRole('link', { name: 'Juan Dela Cruz' }));
+      await waitFor(() => {
+        expect(window.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
+      });
+      act(() => {
+        window.history.back();
+      });
 
-    expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 })).toBeVisible();
-    expect(router.state.location.search).toBe('?status=spam&q=juan');
-    expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
-    expect(backend.lists.at(-1)?.searchParams.get('status')).toBe('spam');
-    expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('juan');
+      await waitFor(() => {
+        expect(window.location.search).toBe('?status=spam&q=juan');
+      });
+      expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
+      expect(backend.lists.at(-1)?.searchParams.get('status')).toBe('spam');
+      expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('juan');
+    } finally {
+      router.dispose();
+      window.history.replaceState(null, '', '/');
+    }
   }, 30_000);
 
   it('is a lazy page under the URL-state layout with no Manager-only loader', async () => {

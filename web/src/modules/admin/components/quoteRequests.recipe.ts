@@ -26,3 +26,22 @@ export const quotePhotosClasses = tw('inline-flex items-center gap-1');
 
 /** The warning icon of a request with missing photos. */
 export const quotePhotosWarningClasses = tw('inline-flex text-warning');
+
+/** The status pills row: 8px apart, wrapping at 320px and never scrolling sideways. */
+export const quotePillsClasses = tw('flex flex-wrap gap-2');
+
+/** A 44px pill (the Gallery `.s-pill` look); `relative` holds the hidden " requests" so it never widens the row. */
+export const quotePillClasses = tw(
+  'relative inline-flex min-h-11 flex-none cursor-pointer items-center gap-[6px] rounded-sm border px-4 text-14 whitespace-nowrap',
+);
+
+/** An unselected pill. */
+export const quotePillOffClasses = tw(
+  'border-line bg-surface font-semibold text-ink-muted hover:border-line-strong hover:text-ink',
+);
+
+/** The selected pill: maroon and bold, so orange is never the only cue. */
+export const quotePillOnClasses = tw('border-primary bg-primary font-bold text-on-primary');
+
+/** The pill count at full opacity. */
+export const quotePillCountClasses = tw('tabular-nums');
