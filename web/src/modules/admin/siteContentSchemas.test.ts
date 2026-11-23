@@ -26,6 +26,7 @@ import {
   HOURS_TIME_OPTIONS,
   hoursSchema,
   hoursValuesOf,
+  isContactEmail,
   isDirectionsLink,
   isFacebookLink,
   isInstagramLink,
@@ -85,6 +86,14 @@ const phoneCases = JSON.parse(
 const linkCases = JSON.parse(
   readFileSync(new URL('../../../../tests/fixtures/site-link-cases.json', import.meta.url), 'utf8'),
 ) as LinkCases;
+
+interface EmailCases {
+  contactEmail: { accept: string[]; refuse: string[] };
+}
+
+const emailCases = JSON.parse(
+  readFileSync(new URL('../../../../tests/fixtures/email-cases.json', import.meta.url), 'utf8'),
+) as EmailCases;
 
 const GOOD: BusinessInfoInput = businessInfoValuesOf(demoSiteSettings);
 
@@ -230,6 +239,33 @@ describe('the shared link cases (tests/fixtures/site-link-cases.json)', () => {
 
     expect(link).toHaveLength(300);
     expect(issues(withValue({ facebookUrl: link })).size).toBe(0);
+  });
+});
+
+describe('the shared email cases (tests/fixtures/email-cases.json, D-42)', () => {
+  it.each(emailCases.contactEmail.accept)('accepts %j', (email) => {
+    expect(isContactEmail(email)).toBe(true);
+  });
+
+  it.each(emailCases.contactEmail.refuse)('refuses %j', (email) => {
+    expect(isContactEmail(email)).toBe(false);
+  });
+
+  it.each(['contactEmail', 'quoteAlertsEmail'] as const)('gives %s the same answer in the form as the rule', (field) => {
+    for (const email of emailCases.contactEmail.accept) {
+      expect(messagesFor(withValue({ [field]: email }), field)).toEqual([]);
+    }
+    for (const email of emailCases.contactEmail.refuse.filter((text) => text.trim() === text && text !== '')) {
+      expect(messagesFor(withValue({ [field]: email }), field)).toEqual(['Enter a valid email, like name@gmail.com']);
+    }
+  });
+
+  it('refuses an email with a line break inside even after the trim', () => {
+    const email = '  a@b.com\r\nBcc: z@y.com  ';
+
+    expect(messagesFor(withValue({ quoteAlertsEmail: email }), 'quoteAlertsEmail')).toEqual([
+      'Enter a valid email, like name@gmail.com',
+    ]);
   });
 });
 

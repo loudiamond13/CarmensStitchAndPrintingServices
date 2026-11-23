@@ -1,0 +1,42 @@
+{
+  "note": "Accept and refuse cases for the two email rules. Read by the .NET domain tests and by the web zod tests. A case is the exact text, with no trimming. contactEmail is the shop email and the Quote alerts address (SiteLinks.IsContactEmail, D-42).",
+  "contactEmail": {
+    "accept": [
+      "name@gmail.com",
+      "a.b+c@shop.ph",
+      "shop@example.test",
+      "a@b.co",
+      "user@mail.example.ph",
+      "o'brien@example.ph"
+    ],
+    "refuse": [
+      "",
+      "name",
+      "a@b@c.test",
+      "@example.test",
+      "name@",
+      "a b@c.com",
+      " a@b.com",
+      "a@b.com ",
+      "a\tb@c.com",
+      "a b@c.com",
+      "a\u0000b@c.com",
+      "x@y",
+      "a@b.",
+      "a@.com",
+      "a@b..com",
+      "a,b@c.com",
+      "a;b@c.com",
+      "a>b@c.com",
+      "a\"b@c.com",
+      "a(b)@c.com",
+      "Juan<juan@gmail.com>",
+      "a@b.com\nBcc: z@y.com",
+      "a@b.com\r\nBcc: z@y.com",
+      "a\rb@c.com",
+      "[hello@yourdomain.ph]",
+      "[shop]@example.test",
+      "name@[example].ph"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-23T00:05:00-06:00
+updated: 2026-11-23T00:10:00-06:00
 ---
 
 # The site content API
@@ -138,13 +138,19 @@ keyed `phones`.
 | `facebookUrl` | Optional: https on `facebook.com`, `www.facebook.com`, `m.facebook.com` or `fb.com`. |
 | `instagramUrl` | Optional: https on `instagram.com` or `www.instagram.com`. |
 | `tiktokUrl` | Optional: https on `tiktok.com` or `www.tiktok.com`. |
-| `contactEmail` | Optional, a valid email, at most 254. |
-| `quoteAlertsEmail` | Optional, a valid email, at most 254. Over 254 answers "Keep the email to 254 characters or fewer."; a wrong shape answers "Enter a valid email, like name@gmail.com". The shop email is allowed. |
+| `contactEmail` | Optional, a valid email (the email rule below), at most 254. |
+| `quoteAlertsEmail` | Optional, a valid email (the email rule below), at most 254. Over 254 answers "Keep the email to 254 characters or fewer."; a wrong shape answers "Enter a valid email, like name@gmail.com". The shop email is allowed. |
 | `phones` | 1 to 4 numbers, exactly one main. Each is a Philippine mobile or landline number, not listed twice, with a label of at most 20. |
 
 A link must be https on its exact host, with no sign-in part, no odd port, no space and no square bracket. A `javascript:` or
 `http:` link is refused, and so is text that still holds a bracket placeholder such as `[Shop address]`. The accept and refuse cases
 for the links are in `tests/fixtures/site-link-cases.json`, which both the .NET tests and the web tests read.
+
+The email rule (D-42) is the same for the shop email and the Quote alerts address. The email must have exactly one `@` with text on
+both sides, and a dotted domain with text on both sides of every dot (`name@gmail.com`; `x@y` is refused). It may not hold a space,
+a line break or any other control character, none of `, ; < > ( ) "`, or a bracket placeholder. A name with a display part, such as
+`Juan<juan@gmail.com>`, is refused. A value already saved under the older, looser rule is left as it is and is flagged only the next
+time it is saved. The cases are in `tests/fixtures/email-cases.json`, which both the .NET tests and the web tests read.
 
 The link, postal code and email rules live in the domain (`SiteLinks`), and the request check calls the same code. So a value
 that comes from any other writer, such as a tool or an import, is refused with the same words and never reaches the public page.

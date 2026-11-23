@@ -3,10 +3,9 @@
 // checks every rule the server checks before a request is sent. Lengths count UTF-16 code units after the trim, the same unit as the
 // server. An empty optional value is "not set" and is never checked. No rule uses a regular expression that can backtrack (CWE-1333).
 // The accept and refuse cases are the files the .NET tests read too: tests/fixtures/philippine-phone-cases.json and
-// tests/fixtures/site-link-cases.json. Only what the server alone can know stays server-side.
+// tests/fixtures/site-link-cases.json and tests/fixtures/email-cases.json. Only what the server alone can know stays server-side.
 import { z } from 'zod';
 import { ENTRY_COPY } from '@/components/entry/copy';
-import { isEmailShaped } from '@/modules/admin/authSchemas';
 import type { GalleryItem, GalleryUploadRequest } from '@/modules/admin/services/galleryItemsService';
 import type { OpeningHours, UpdateOpeningHoursRequest } from '@/modules/admin/services/openingHoursService';
 import type { ProductLineDetail, ProductLineRequest } from '@/modules/admin/services/productLinesService';
@@ -236,12 +235,29 @@ const postalCodeField = z.string().superRefine((value, ctx) => {
   }
 });
 
+/** White space and control characters as .NET sees them (char.IsWhiteSpace, char.IsControl), plus `, ; < > ( ) "`. */
+// eslint-disable-next-line no-control-regex -- the control characters are what the rule refuses
+const EMAIL_REFUSED_CHARACTERS = /[\u0000-\u0020\u007f-\u009f\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000,;<>()"]/u;
+
+/** SiteLinks.IsContactEmail (D-42), the shop email and the Quote alerts address: one `@`, a dotted domain, no spaces, control characters or `, ; < > ( ) "`. */
+export function isContactEmail(value: string): boolean {
+  if (value.length > CONTACT_EMAIL_MAX || hasBracketPlaceholder(value) || EMAIL_REFUSED_CHARACTERS.test(value)) {
+    return false;
+  }
+  const at = value.indexOf('@');
+  if (at <= 0 || at >= value.length - 1 || value.slice(at + 1).includes('@')) {
+    return false;
+  }
+  const domain = value.slice(at + 1);
+  return domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.') && !domain.includes('..');
+}
+
 const emailField = z.string().superRefine((value, ctx) => {
   const text = value.trim();
   if (text === '') {
     return;
   }
-  if (text.length > CONTACT_EMAIL_MAX || !isEmailShaped(text) || hasBracketPlaceholder(text)) {
+  if (!isContactEmail(text)) {
     ctx.addIssue({ code: 'custom', message: ERRORS.email });
   }
 });
@@ -254,7 +270,7 @@ const quoteAlertsEmailField = z.string().superRefine((value, ctx) => {
   }
   if (text.length > QUOTE_ALERTS_EMAIL_MAX) {
     ctx.addIssue({ code: 'custom', message: ERRORS.quoteAlertsEmailTooLong });
-  } else if (!isEmailShaped(text) || hasBracketPlaceholder(text)) {
+  } else if (!isContactEmail(text)) {
     ctx.addIssue({ code: 'custom', message: ERRORS.email });
   }
 });
