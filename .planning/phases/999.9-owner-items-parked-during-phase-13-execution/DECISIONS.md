@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T16:15:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T17:19:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -219,6 +219,18 @@ Order calls keep their full answers the same way. They were left alone because n
 4. **Change Status while a move runs.** A: the button reads "Saving", as on the order page. B: it keeps "Change Status" with only the spinner.
 5. **Try Again while a read runs again.** A: the button stays and keeps focus but shows no spinner. B: give the shared error state a busy look.
 
+## P13-BL-21 · Choices made in the wave 8 review fixes (13-REVIEW-FIX-W8)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A unless it says otherwise.
+
+1. **What adding a note answers (settles P13-BL-19 item 1).** A, built: only the request id, the note id, the time and the version, so the 24-hour repeat-press copy holds no visitor details or note text. B: answer the whole request and say so in the Privacy Policy.
+2. **Should the Manager delete also clear saved answers (P13-BL-19 item 2)?** A, built: no, because with item 1 the saved staff answers hold only ids, statuses, times and versions. B: clear them, which needs a new indexed column (a schema change).
+3. **A photo that finishes uploading during a delete (review IN-01). Not built.** A (recommended, as for Spam in P13-BL-16): accept that it can stay in storage for about 3 days until the stray sweep removes it, and add one sentence to the API doc and the Privacy Policy text. B: lock the request in both the upload and the delete.
+4. **How a "not found" after a move is announced.** A: the "not found" heading takes focus. B: a status line reads it out with no focus move.
+5. **Which characters the email reply link encodes.** A: `%`, `?`, `#` and `&`. B: every reserved character.
+
+The delete docs no longer say a delete takes an Idempotency-Key, so that choice is closed. A retried delete after a lost answer gets "not found", which plan 13-21 treats as already deleted.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -228,3 +240,4 @@ Order calls keep their full answers the same way. They were left alone because n
 - [ ] Quote Requests list on a real phone: the cards, the filter pills and the search (plan 13-15).
 - [ ] Send a real test email from Site Content > Business info > Quote alerts and check it arrives (plan 13-13).
 - [ ] The Quote Requests count chip, the rail dot, the Quotes phone tab and the dashboard strip in Blush and Espresso, on phone and desktop (plan 13-17).
+- [ ] On a quote request page with a keyboard and a screen reader: Change Status and the Spam confirm, Load Latest after a version clash, and the "not found" page after a move on a deleted request (plan 13-19, wave 8 fixes).
