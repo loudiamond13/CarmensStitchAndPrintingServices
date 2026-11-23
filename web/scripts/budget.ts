@@ -77,7 +77,10 @@ export interface BudgetReport {
 }
 
 /** The PERF-01 limits in gzip bytes (1 KB = 1000 B). Never raise one to make a build pass (docs/web/budgets.md). */
-export const BUDGETS = Object.freeze({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
+export const BUDGETS = Object.freeze({ publicJs: 150_000, adminJs: 250_000, css: 35_000, quoteFormJs: 45_000 });
+
+/** The module whose own lazy chunk is the quote form piece (D-35). */
+export const QUOTE_FORM_CHUNK = 'src/modules/public/components/QuoteForm.tsx';
 
 /**
  * Public initial JS in the admin-included topology (the dev-route builds) above this adds a note, not an error: the

@@ -13,6 +13,7 @@ import {
   PUBLIC_FORBIDDEN_MODULE_PREFIXES,
   PUBLIC_PRELOAD_ROUTE,
   PUBLIC_ROUTES,
+  QUOTE_FORM_CHUNK,
   routeInitialSize,
   SHOWCASE_ONLY_MODULE_PREFIXES,
   SHOWCASE_PAGE,
@@ -65,6 +66,8 @@ const ADMIN_ROUTES = 'src/modules/admin/routes.tsx';
 const PREVIEW_PAGE = 'src/modules/admin/pages/AdminPreviewPage.tsx';
 const ENTRY = 'assets/index-A1.js';
 const SHARED = 'assets/shared-B2.js';
+const QUOTE_FORM_FILE = 'assets/QuoteForm-Q1.js';
+const FORM_LIBS = 'assets/form-libs-Z1.js';
 
 /**
  * A production-shaped graph: the entry, the public layout and the five public pages all import one shared chunk. Each
@@ -109,6 +112,16 @@ function productionGraph(publicBytes: number, cssBytes = 15_000, adminRouteBytes
         moduleIds: [PUBLIC_LAYOUT],
       }),
       ...pageChunks,
+      // The Contact page loads the quote form on its own after the page shows (D-35): a lazy chunk with its form libraries.
+      chunk(QUOTE_FORM_FILE, 20_000, {
+        isDynamicEntry: true,
+        facadeModuleId: QUOTE_FORM_CHUNK,
+        imports: [SHARED, FORM_LIBS],
+        moduleIds: [QUOTE_FORM_CHUNK],
+      }),
+      chunk(FORM_LIBS, 15_000, {
+        moduleIds: ['node_modules/react-hook-form/dist/index.esm.mjs', 'node_modules/zod/v4/classic/schemas.js'],
+      }),
       chunk(LOADER_CHUNK, 500, {
         isDynamicEntry: true,
         facadeModuleId: LOADER_MODULE,
@@ -207,8 +220,8 @@ const devRoutes = { build: 'dev-routes' } as const;
 const parity = { build: 'parity' } as const;
 
 describe('BUDGETS (PERF-01)', () => {
-  it('holds the three limits in bytes with 1 KB = 1000 B', () => {
-    expect(BUDGETS).toEqual({ publicJs: 150_000, adminJs: 250_000, css: 35_000 });
+  it('holds the four limits in bytes with 1 KB = 1000 B, the quote form piece at 45 KB (D-35)', () => {
+    expect(BUDGETS).toEqual({ publicJs: 150_000, adminJs: 250_000, css: 35_000, quoteFormJs: 45_000 });
   });
 
   it('names the public layout and each public page module (PUB-01, RESEARCH P-7), and the admin route modules', () => {
@@ -907,6 +920,83 @@ describe('evaluateBudgets: each public page is measured on its own (PUB-01, WEB-
     expect(PUBLIC_FORBIDDEN_MODULE_PREFIXES).toEqual(
       expect.arrayContaining(['node_modules/nuqs/', 'node_modules/@tanstack/', 'node_modules/zod/']),
     );
+  });
+});
+
+// D-35: the quote form loads as its own piece after the Contact page shows. Its row is the form chunk's static closure minus
+// what the Contact route already loads, against its own 45 KB limit; the Contact row itself never follows a dynamic import.
+describe('evaluateBudgets: the quote form piece has its own row (D-35)', () => {
+  const FORM_ROW = 'Quote form';
+
+  /** The production graph with the form chunk resized, its libraries resized, or both. */
+  function withFormSizes(formBytes: number, libBytes = 15_000) {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) => {
+      if (c.fileName === QUOTE_FORM_FILE) return { ...c, gzipSize: formBytes };
+      if (c.fileName === FORM_LIBS) return { ...c, gzipSize: libBytes };
+      return c;
+    });
+    return { ...graph, chunks };
+  }
+
+  it('names the form module, which is the facade of its own lazy chunk', () => {
+    expect(QUOTE_FORM_CHUNK).toBe('src/modules/public/components/QuoteForm.tsx');
+  });
+
+  it('adds a "Quote form" row measured from the form chunk, its libraries counted and the shared chunk the contact route already has not', () => {
+    const report = evaluateBudgets(withFormSizes(20_000), production);
+    const row = report.measurements.find((m) => m.label === FORM_ROW);
+    expect(report.errors).toEqual([]);
+    expect(row?.name).toBe('quoteFormJs');
+    expect(row?.bytes).toBe(35_000);
+    expect(row?.limit).toBe(45_000);
+    expect(row?.files).toEqual([QUOTE_FORM_FILE, FORM_LIBS]);
+    expect(report.table).toContain(FORM_ROW);
+    expect(report.table).toContain('45.00 KB');
+  });
+
+  it('passes the form piece at exactly 45.0 KB and fails it at 45.1 KB with its own error', () => {
+    expect(evaluateBudgets(withFormSizes(30_000), production).errors).toEqual([]);
+    const over = evaluateBudgets(withFormSizes(30_100), production);
+    expect(over.ok).toBe(false);
+    expect(over.errors).toEqual([expect.stringMatching(/Quote form is 45\.10 KB, over its 45\.00 KB limit/)]);
+  });
+
+  it('leaves the public rows alone: the contact figure does not follow the dynamic import of the form', () => {
+    const graph = withFormSizes(30_100);
+    const chunks = graph.chunks.map((c) =>
+      c.facadeModuleId === 'src/modules/public/pages/ContactPage.tsx' ? { ...c, dynamicImports: [QUOTE_FORM_FILE] } : c,
+    );
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.publicRoutes.contact).toBe(120_000);
+    expect(report.errors).toEqual([expect.stringMatching(/Quote form is 45\.10 KB/)]);
+  });
+
+  it('allows react-hook-form and zod in the form chunk, which no public route loads statically', () => {
+    const report = evaluateBudgets(withFormSizes(20_000), production);
+    expect(report.errors).toEqual([]);
+    expect(report.publicRoutes.contact).toBe(120_000);
+  });
+
+  it('fails a public route that loads the form libraries statically (the page chunk imports them)', () => {
+    const graph = productionGraph(120_000);
+    const chunks = graph.chunks.map((c) =>
+      c.facadeModuleId === 'src/modules/public/pages/ContactPage.tsx' ? { ...c, imports: [SHARED, FORM_LIBS] } : c,
+    );
+    const report = evaluateBudgets({ ...graph, chunks }, production);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some((error) => error.includes('node_modules/react-hook-form/'))).toBe(true);
+  });
+
+  it('measures the same in the e2e and budget builds, and fails closed when no chunk holds the form', () => {
+    const graph = devRoutesGraph(200_000, 120_000);
+    expect(evaluateBudgets(graph, devRoutes).measurements.find((m) => m.label === FORM_ROW)?.bytes).toBe(35_000);
+
+    const without = { ...graph, chunks: graph.chunks.filter((c) => c.facadeModuleId !== QUOTE_FORM_CHUNK) };
+    const report = evaluateBudgets(without, devRoutes);
+    expect(report.ok).toBe(false);
+    expect(report.errors).toEqual([expect.stringContaining(`the route module ${QUOTE_FORM_CHUNK} has no chunk`)]);
+    expect(report.measurements.find((m) => m.label === FORM_ROW)?.bytes).toBeNull();
   });
 });
 

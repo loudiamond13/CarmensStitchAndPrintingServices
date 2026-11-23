@@ -113,6 +113,13 @@ export default defineConfig({
       RateLimits__AnalyticsCollect__PermitLimit: noThrottle,
       // The one site-wide page view ceiling (600 a minute in production, D-51) is lifted too: five browser projects share one address.
       RateLimits__AnalyticsCeiling__PermitLimit: noThrottle,
+      // Every quote send of all projects comes from this one address too (5 an hour per address and 60 an hour site-wide in
+      // production, D-26). The per-sender day limit is at its top (50 a day, D-37) and the minimum time after the ticket is
+      // 1 second, so a test never waits the 3 seconds a visitor's form would (quote-requests.md).
+      RateLimits__QuoteCreate__PermitLimit: noThrottle,
+      RateLimits__QuoteCeiling__PermitLimit: noThrottle,
+      QuoteRequests__PerSenderPerDay: '50',
+      QuoteRequests__MinimumSeconds: '1',
     },
   },
 });

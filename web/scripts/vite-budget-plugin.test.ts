@@ -86,6 +86,7 @@ function publicChunks(): Rollup.OutputChunk[] {
     lazy('assets/ProductsPage-D5.js', 'src/modules/public/pages/ProductsPage.tsx'),
     lazy('assets/GalleryPage-D6.js', 'src/modules/public/pages/GalleryPage.tsx'),
     lazy('assets/ContactPage-D7.js', 'src/modules/public/pages/ContactPage.tsx'),
+    lazy('assets/QuoteForm-DE.js', 'src/modules/public/components/QuoteForm.tsx'),
     lazy('assets/legalLoaders-DD.js', 'src/modules/public/legalLoaders.ts'),
     lazy('assets/PrivacyPolicyPage-D9.js', 'src/modules/public/pages/PrivacyPolicyPage.tsx'),
     lazy('assets/TermsPage-DB.js', 'src/modules/public/pages/TermsPage.tsx'),
