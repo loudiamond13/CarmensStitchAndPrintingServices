@@ -48,6 +48,9 @@ export const quotePillCountClasses = tw('tabular-nums');
 
 // SPEC-GAP: quote request page looks (UI-SPEC R2).
 
+/** The back link over the page head (4px, as `.s-ph-title`), or over the failure banner. */
+export const quoteTopClasses = tw('flex flex-col gap-1');
+
 /** The received line and the status badge in one wrapping row. */
 export const quoteReceivedRowClasses = tw('flex flex-wrap items-center gap-x-3 gap-y-1');
 

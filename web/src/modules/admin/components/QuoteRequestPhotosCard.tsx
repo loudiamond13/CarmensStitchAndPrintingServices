@@ -1,9 +1,11 @@
 // SPEC-GAP: quote request photos card (UI-SPEC R2 item 3; D-36). The P9 readonly photo tiles with a count chip; a press opens the
-// photo viewer, whose Open Full Size is the server's 2000px address. Every address comes from the server (private delivery).
+// photo viewer, whose Open Full Size is the server's 2000px address. Every address comes from the server (private delivery). Under
+// the tiles: the names of photos that never arrived (D-03), the Spam removal note (D-04), or "No photos were sent.".
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { PhotoViewer, type PhotoTileModel, type PhotoViewerPhoto } from '@/components/media';
 import { PhotoTile } from '@/components/media/PhotoTile';
+import { Note } from '@/components/states';
 import { Badge } from '@/components/status';
 import {
   orderCardBodyClasses,
@@ -12,7 +14,7 @@ import {
   orderCardTitleClasses,
   orderCardTitleRowClasses,
 } from '@/modules/admin/components/orderPage.recipe';
-import { quotePhotoListClasses } from '@/modules/admin/components/quoteRequests.recipe';
+import { quoteMutedClasses, quotePhotoListClasses } from '@/modules/admin/components/quoteRequests.recipe';
 import { VIEWER_SIZES } from '@/modules/admin/imageSlots';
 import { QUOTE_REQUEST_COPY } from '@/modules/admin/quoteRequestsCopy';
 import type { QuoteRequestDetailResponse, QuoteRequestPhoto } from '@/modules/admin/services/quoteRequestsService';
@@ -51,7 +53,10 @@ function viewerPhoto(photo: QuoteRequestPhoto): PhotoViewerPhoto {
 const ignore = (): void => undefined;
 
 export function QuoteRequestPhotosCard({ request }: { request: QuoteRequestDetailResponse }) {
-  const photos = request.photos;
+  // Once Spam removed the photos, none show, even before the removal job has run (D-04).
+  const removed = request.photosRemovedAtUtc !== null;
+  const photos = removed ? [] : request.photos;
+  const missing = removed ? [] : request.missingPhotos;
   const viewing = photos.map(viewerPhoto);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -114,6 +119,9 @@ export function QuoteRequestPhotosCard({ request }: { request: QuoteRequestDetai
             ))}
           </ul>
         )}
+        {missing.length > 0 && <Note icon="triangle-alert">{COPY.missing(missing)}</Note>}
+        {removed && <Note icon="info">{COPY.removed}</Note>}
+        {!removed && photos.length === 0 && missing.length === 0 && <p className={quoteMutedClasses}>{COPY.none}</p>}
       </div>
       {viewerIndex !== null && (
         <PhotoViewer

@@ -95,6 +95,18 @@ export const QUOTE_REQUEST_COPY = {
     listName: 'Request photos',
     /** After the count chip, visually hidden: "3 photos". */
     countHidden: (count: number): string => (count === 1 ? 'photo' : 'photos'),
+    /** D-03: the names of the photos that never arrived. */
+    missing: (names: readonly string[]): string =>
+      `${formatCount(names.length)} ${names.length === 1 ? 'photo' : 'photos'} didn't upload: ${names.join(', ')}. Ask the customer to send them on Messenger.`,
+    /** D-04: also after the move back out of Spam, and while the removal job has not run yet. */
+    removed: 'The photos were deleted when this request was marked as spam.',
+    none: 'No photos were sent.',
+  },
+  states: {
+    loadFailed: "Couldn't load this quote request.",
+    notFound: 'Quote request not found',
+    notFoundMessage: 'It may have been deleted or cleaned up after 6 months.',
+    backToList: 'Back to Quote Requests',
   },
   history: {
     title: 'History',

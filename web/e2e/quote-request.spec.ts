@@ -4,7 +4,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
 import { drawJpeg } from './photos.ts';
 import { createQuoteRequest, createStaff, type QuoteSeedInput } from './testing-api.ts';
@@ -60,4 +61,72 @@ test('@quote staff open a request with a photo', async ({ page, request, guard }
   await expect(tile).toBeVisible();
   await expect(tile.locator('img')).toHaveJSProperty('complete', true);
   await expect(page.getByRole('region', { name: 'History' })).toContainText('Received from the website');
+});
+
+test('@quote at 320px the actions wrap under the title, 44px tall, and nothing scrolls sideways', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+  const name = uniqueName();
+  // One photo declared and never sent: the missing-photo note shows.
+  const id = await createQuoteRequest(request, {
+    customerName: name,
+    contactNumber: freshMobile(),
+    message: 'A long message that must wrap. '.repeat(20),
+    declaredPhotos: ['logo.png'],
+  });
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  await openFromInbox(page, name, id);
+  await expect(page.getByRole('region', { name: 'Photos' })).toContainText(
+    "1 photo didn't upload: logo.png. Ask the customer to send them on Messenger.",
+  );
+  const heading = await page.getByRole('heading', { level: 1, name }).boundingBox();
+  const status = await page.getByRole('button', { name: 'Change Status' }).boundingBox();
+  expect(status?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(status?.y ?? 0).toBeGreaterThan((heading?.y ?? 0) + (heading?.height ?? 0) - 1);
+  const contact = await page.getByRole('region', { name: 'Request' }).getByRole('link').first().boundingBox();
+  expect(contact?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
+
+test('@quote axe finds nothing on a New request, after Move to Spam, and the menu works by keyboard', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  await signInAs(page, request, admin);
+  const name = uniqueName();
+  const id = await createQuoteRequest(request, { customerName: name, contactNumber: freshMobile() });
+
+  await openFromInbox(page, name, id);
+  await expect(page.getByRole('region', { name: 'Photos' })).toContainText('No photos were sent.');
+  await expectNoAxeViolations(page);
+
+  const changeStatus = page.getByRole('button', { name: 'Change Status' });
+  await changeStatus.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('menuitem', { name: 'Move to Spam' })).toBeFocused();
+  const moved = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/v1/quote-requests/${id}/status` &&
+      response.request().method() === 'POST',
+  );
+  await page.keyboard.press('Enter');
+  expect((await moved).status()).toBe(200);
+
+  await expect(page.getByText('This request is now Spam.')).toBeVisible();
+  await expect(page.getByRole('main').getByText('Spam', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'History' })).toContainText('Spam ·');
+  await expect(changeStatus).toBeFocused();
+  await expectNoAxeViolations(page);
 });
