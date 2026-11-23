@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T01:34:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T06:46:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -94,6 +94,19 @@ D-42 named only the shop email and the Quote alerts address, so the fix added a 
 
 - **A (built, recommended):** keep both.
 - **B:** change either.
+
+## P13-BL-10 · Choices made in the staff alert email (plan 13-10)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+- **Email wording the UI spec did not give:** the alert heading is "New quote request" with the hidden preview "{name} sent a quote request." The overflow email heading is "More quote requests are waiting" with the preview "Open Quote Requests to see them all."
+- **Quiet skip:** with no Quote alerts address, or an address the mail queue refuses, nothing is logged and no email is sent. The request is still saved.
+- **The hourly cap of 20 counts per address:** changing the Quote alerts address mid-hour starts a fresh count.
+- **"Photos: n"** is how many photos the visitor said they would attach. The inbox shows which actually arrived.
+- **Control characters in form text:** not rejected (review W1 IN-04, optional part). The alert cleans them itself, so it is safe either way.
+
+- **A (built, recommended):** keep all of the above.
+- **B:** change any of them (say which): new wording, a log line or staff notice for a refused address, or a stricter form rule for control characters (server rule plus its browser mirror).
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
