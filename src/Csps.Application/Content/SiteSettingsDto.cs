@@ -30,6 +30,7 @@ public sealed record SitePhoneDto(string Number, string? Label, bool IsMain);
 /// <param name="InstagramUrl">The Instagram link.</param>
 /// <param name="TiktokUrl">The TikTok link.</param>
 /// <param name="ContactEmail">The shop email, for staff use only.</param>
+/// <param name="QuoteAlertsEmail">The staff inbox that gets an email for each quote request, for staff use only; null when not set.</param>
 /// <param name="Phones">The phone numbers, the main one first.</param>
 /// <param name="TimeZoneId">The business time zone id; read-only.</param>
 /// <param name="CurrencyCode">ISO 4217 currency code; read-only.</param>
@@ -54,6 +55,7 @@ public sealed record SiteSettingsDto(
     string? InstagramUrl,
     string? TiktokUrl,
     string? ContactEmail,
+    string? QuoteAlertsEmail,
     IReadOnlyList<SitePhoneDto> Phones,
     string TimeZoneId,
     string CurrencyCode,
@@ -88,6 +90,7 @@ public sealed record SiteSettingsDto(
             view.InstagramUrl,
             view.TikTokUrl,
             NullWhenEmpty(view.ContactEmail),
+            NullWhenEmpty(view.QuoteAlertsEmail),
             [.. view.Phones.Select(static phone => new SitePhoneDto(DisplayOf(phone.E164), phone.Label, phone.IsMain))],
             view.TimeZoneId,
             view.CurrencyCode,

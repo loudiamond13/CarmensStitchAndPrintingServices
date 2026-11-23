@@ -140,5 +140,6 @@ public sealed class UpdateSiteSettingsHandler(
         request.InstagramUrl,
         request.TiktokUrl,
         request.ContactEmail,
+        request.QuoteAlertsEmail,
         [.. (request.Phones ?? []).Select(static phone => new BusinessPhone(phone.Number ?? string.Empty, phone.Label, phone.IsMain))]);
 }

@@ -29,12 +29,13 @@ public static class PublicContentSeeding
         "https://www.instagram.com/cspsdemo",
         "https://www.tiktok.com/@cspsdemo",
         "shop-private@example.test",
+        null,
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
     /// <summary>Gets business info with only the required values: no address, links, about text or phone numbers.</summary>
     /// <returns>The values.</returns>
     public static BusinessInfo Bare() => new(
-        "Sample Shop", "Sample tagline", null, null, null, null, null, null, null, null, null, null, null, null, null, []);
+        "Sample Shop", "Sample tagline", null, null, null, null, null, null, null, null, null, null, null, null, null, null, []);
 
     /// <summary>Gets the demo week: Monday to Saturday 09:00 to 18:00 and Sunday closed.</summary>
     public static IReadOnlyList<(int Day, TimeOnly? Opens, TimeOnly? Closes)> DemoWeek { get; } =

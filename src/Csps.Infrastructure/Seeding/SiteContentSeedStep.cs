@@ -39,6 +39,7 @@ public sealed class SiteContentSeedStep : ISeedStep
         "https://www.instagram.com/cspsdemo",
         "https://www.tiktok.com/@cspsdemo",
         null,
+        null,
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
     private static readonly (string Key, decimal Price, decimal Minimum)[] DemoPrices =

@@ -81,6 +81,7 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
             settingsRow.InstagramUrl,
             settingsRow.TikTokUrl,
             settingsRow.ContactEmail,
+            settingsRow.QuoteAlertsEmail,
             phones,
             settingsRow.TimeZoneId,
             settingsRow.CurrencyCode,
@@ -92,6 +93,8 @@ internal sealed class SiteContentStore(CspsDbContext context) : ISiteContentStor
                 ? new SharePictureView(shareId, settingsRow.SharePictureWidth.GetValueOrDefault(), settingsRow.SharePictureHeight.GetValueOrDefault())
                 : null);
     }
+
+    public Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) => Task.FromResult(string.Empty);
 
     public async Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken)
     {

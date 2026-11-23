@@ -40,10 +40,11 @@ public sealed class SiteSettingsBusinessInfoTests
         settings.InstagramUrl.ShouldBe("https://www.instagram.com/cspsdemo");
         settings.TikTokUrl.ShouldBe("https://www.tiktok.com/@cspsdemo");
         settings.ContactEmail.ShouldBe("shop@example.test");
+        settings.QuoteAlertsEmail.ShouldBe("alerts@example.test");
         changes.ChangedFields.ShouldBe(
         [
             "businessName", "tagline", "aboutText", "turnaroundLine", "street", "townOrCity", "province", "postalCode",
-            "directionsUrl", "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "contactEmail",
+            "directionsUrl", "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "contactEmail", "quoteAlertsEmail",
         ]);
         settings.UpdatedAtUtc.ShouldBe(Now);
         settings.CreatedAtUtc.ShouldBe(CreatedAt);
@@ -69,6 +70,7 @@ public sealed class SiteSettingsBusinessInfoTests
             InstagramUrl = "",
             TikTokUrl = null,
             ContactEmail = "",
+            QuoteAlertsEmail = "",
         };
 
         var changes = settings.UpdateBusinessInfo(cleared, Now.AddMinutes(1)).Value;
@@ -80,7 +82,8 @@ public sealed class SiteSettingsBusinessInfoTests
         }.ShouldAllBe(value => value == null);
         settings.FacebookUrl.ShouldBeEmpty();
         settings.ContactEmail.ShouldBeEmpty();
-        changes.ChangedFields.Count.ShouldBe(13);
+        settings.QuoteAlertsEmail.ShouldBeEmpty();
+        changes.ChangedFields.Count.ShouldBe(14);
     }
 
     [Fact]
@@ -139,6 +142,7 @@ public sealed class SiteSettingsBusinessInfoTests
     [InlineData("instagramUrl", 300, "Keep this to 300 characters or fewer.")]
     [InlineData("tiktokUrl", 300, "Keep this to 300 characters or fewer.")]
     [InlineData("contactEmail", 254, "Keep this to 254 characters or fewer.")]
+    [InlineData("quoteAlertsEmail", 254, "Keep the email to 254 characters or fewer.")]
     public void AValueOneOverItsLimitIsRefusedAndOneAtTheLimitFits(string field, int max, string message)
     {
         var settings = SiteSettings.CreateDefault(CreatedAt);
@@ -204,6 +208,70 @@ public sealed class SiteSettingsBusinessInfoTests
         result.Error.FieldErrors.ShouldNotBeNull()["contactEmail"].ShouldBe(["Enter a valid email, like name@gmail.com"]);
     }
 
+    [Theory]
+    [InlineData("nope")]
+    [InlineData("a@b@c.ph")]
+    [InlineData("name@[example].ph")]
+    [InlineData("@example.test")]
+    [InlineData("name@")]
+    public void AQuoteAlertsEmailOfTheWrongShapeIsRefusedWithTheValidatorsWords(string email)
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { QuoteAlertsEmail = email }, Now);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["quoteAlertsEmail"].ShouldBe(["Enter a valid email, like name@gmail.com"]);
+        settings.QuoteAlertsEmail.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void AQuoteAlertsEmailWithA250LetterLocalPartIsOver254CharactersAndGetsTheLengthMessage()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { QuoteAlertsEmail = $"{new string('a', 250)}@b.ph" }, Now);
+
+        result.Error.FieldErrors.ShouldNotBeNull()["quoteAlertsEmail"].ShouldBe(["Keep the email to 254 characters or fewer."]);
+    }
+
+    [Fact]
+    public void TheShopEmailIsAValidQuoteAlertsEmailToo()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+
+        var result = settings.UpdateBusinessInfo(Valid() with { ContactEmail = "shop@example.test", QuoteAlertsEmail = "shop@example.test" }, Now);
+
+        result.IsSuccess.ShouldBeTrue();
+        settings.QuoteAlertsEmail.ShouldBe("shop@example.test");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AMissingOrBlankQuoteAlertsEmailClearsTheSavedOneAndNamesTheField(string? blank)
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+        settings.UpdateBusinessInfo(Valid(), Now).IsSuccess.ShouldBeTrue();
+
+        var changes = settings.UpdateBusinessInfo(Valid() with { QuoteAlertsEmail = blank }, Now.AddHours(1)).Value;
+
+        settings.QuoteAlertsEmail.ShouldBeEmpty();
+        changes.ChangedFields.ShouldBe(["quoteAlertsEmail"]);
+    }
+
+    [Fact]
+    public void ASavedQuoteAlertsEmailIsStoredTrimmedAndLeftAloneWhenTheSameValueIsSavedAgain()
+    {
+        var settings = SiteSettings.CreateDefault(CreatedAt);
+        settings.UpdateBusinessInfo(Valid() with { QuoteAlertsEmail = "  alerts@example.test  " }, Now).IsSuccess.ShouldBeTrue();
+
+        var again = settings.UpdateBusinessInfo(Valid(), Now.AddHours(1)).Value;
+
+        settings.QuoteAlertsEmail.ShouldBe("alerts@example.test");
+        again.ChangedFields.ShouldBeEmpty();
+    }
+
     [Fact]
     public void EveryBrokenLinkIsReportedTogetherAndNothingIsChanged()
     {
@@ -219,12 +287,13 @@ public sealed class SiteSettingsBusinessInfoTests
             TikTokUrl = "https://evil.example.test/page",
             PostalCode = "12",
             ContactEmail = "nope",
+            QuoteAlertsEmail = "nope",
         };
 
         var result = settings.UpdateBusinessInfo(values, Now);
 
         result.Error.FieldErrors.ShouldNotBeNull().Keys.ShouldBe(
-            ["directionsUrl", "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "postalCode", "contactEmail"],
+            ["directionsUrl", "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "postalCode", "contactEmail", "quoteAlertsEmail"],
             ignoreOrder: true);
         settings.BusinessName.ShouldBe(SiteSettingsDefaults.BusinessName);
         settings.UpdatedAtUtc.ShouldBeNull();
@@ -380,6 +449,7 @@ public sealed class SiteSettingsBusinessInfoTests
         "https://www.instagram.com/cspsdemo",
         "https://www.tiktok.com/@cspsdemo",
         "shop@example.test",
+        "alerts@example.test",
         [Globe]);
 
     // The longest value of the field that still passes its shape rule.
@@ -392,7 +462,7 @@ public sealed class SiteSettingsBusinessInfoTests
         "facebookUrl" => Pad("https://www.facebook.com/", max),
         "instagramUrl" => Pad("https://www.instagram.com/", max),
         "tiktokUrl" => Pad("https://www.tiktok.com/@", max),
-        "contactEmail" => new string('x', max - "@example.test".Length) + "@example.test",
+        "contactEmail" or "quoteAlertsEmail" => new string('x', max - "@example.test".Length) + "@example.test",
         _ => new string('x', max),
     };
 
@@ -415,6 +485,7 @@ public sealed class SiteSettingsBusinessInfoTests
         "instagramUrl" => Valid() with { InstagramUrl = value },
         "tiktokUrl" => Valid() with { TikTokUrl = value },
         "contactEmail" => Valid() with { ContactEmail = value },
+        "quoteAlertsEmail" => Valid() with { QuoteAlertsEmail = value },
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown field."),
     };
 }

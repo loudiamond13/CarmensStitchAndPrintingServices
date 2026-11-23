@@ -7185,6 +7185,13 @@
               "string"
             ]
           },
+          "quoteAlertsEmail": {
+            "description": "The staff inbox that gets an email for each quote request, for staff use only; null when not set.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "sharePicture": {
             "oneOf": [
               {
@@ -7268,6 +7275,7 @@
           "instagramUrl",
           "tiktokUrl",
           "contactEmail",
+          "quoteAlertsEmail",
           "phones",
           "timeZoneId",
           "currencyCode",
@@ -8241,6 +8249,13 @@
               "string"
             ]
           },
+          "quoteAlertsEmail": {
+            "description": "The staff inbox that gets an email for each quote request; at most 254 characters. Empty or missing clears it.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "street": {
             "description": "Street and barangay; required, at most 120 characters.",
             "type": [
@@ -8301,6 +8316,7 @@
           "instagramUrl",
           "tiktokUrl",
           "contactEmail",
+          "quoteAlertsEmail",
           "phones"
         ],
         "type": "object"

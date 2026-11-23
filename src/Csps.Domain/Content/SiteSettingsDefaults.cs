@@ -25,6 +25,9 @@ public static class SiteSettingsDefaults
     /// <summary>The shop email starts empty: the owner types the real one (D-25, no invented values).</summary>
     public const string ContactEmail = "";
 
+    /// <summary>The quote alerts email starts empty: no alert is sent until a Manager sets one (13 D-07).</summary>
+    public const string QuoteAlertsEmail = "";
+
     /// <summary>Placeholder contact phone (UI spec), to be filled in by the owner.</summary>
     public const string ContactPhone = "[0917 000 0000]";
 

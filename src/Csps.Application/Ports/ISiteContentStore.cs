@@ -25,6 +25,12 @@ public interface ISiteContentStore
     /// <exception cref="InvalidOperationException">The singleton row is missing (the migrations were not applied).</exception>
     Task<SiteSettingsView> GetViewAsync(CancellationToken cancellationToken);
 
+    /// <summary>Reads the staff inbox that gets quote alerts, straight from the database (13 D-07).</summary>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The saved address, or an empty string when none is set.</returns>
+    /// <exception cref="InvalidOperationException">The singleton row is missing (the migrations were not applied).</exception>
+    Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken);
+
     /// <summary>Loads the seven opening-hours rows as tracked rows, Monday first, so a change to them is saved by the unit of work.</summary>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The rows in day order, 1 for Monday to 7 for Sunday.</returns>
@@ -106,6 +112,7 @@ public sealed record SitePhoneView(string E164, string? Label, bool IsMain);
 /// <param name="InstagramUrl">The Instagram link; null when not set.</param>
 /// <param name="TikTokUrl">The TikTok link; null when not set.</param>
 /// <param name="ContactEmail">The shop email; empty when not set.</param>
+/// <param name="QuoteAlertsEmail">The staff inbox for quote alerts; empty when not set.</param>
 /// <param name="Phones">The phone rows, main number first.</param>
 /// <param name="TimeZoneId">The business time zone id.</param>
 /// <param name="CurrencyCode">The ISO 4217 currency code.</param>
@@ -130,6 +137,7 @@ public sealed record SiteSettingsView(
     string? InstagramUrl,
     string? TikTokUrl,
     string ContactEmail,
+    string QuoteAlertsEmail,
     IReadOnlyList<SitePhoneView> Phones,
     string TimeZoneId,
     string CurrencyCode,

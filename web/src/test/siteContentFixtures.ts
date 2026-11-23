@@ -28,6 +28,7 @@ export const demoSiteSettings: SiteSettingsFixture = {
   instagramUrl: 'https://www.instagram.com/cspsdemo',
   tiktokUrl: null,
   contactEmail: 'shop@example.test',
+  quoteAlertsEmail: null,
   phones: [
     { number: '0917 123 4567', label: 'Globe', isMain: true },
     { number: '02 8123 4567', label: null, isMain: false },
@@ -87,6 +88,7 @@ export function savedSettings(
     instagramUrl: body.instagramUrl,
     tiktokUrl: body.tiktokUrl,
     contactEmail: body.contactEmail,
+    quoteAlertsEmail: body.quoteAlertsEmail,
     phones: (body.phones ?? []).map((phone) => ({
       number: phone.number ?? '',
       label: phone.label,

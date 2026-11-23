@@ -3,11 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Content;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.Content;
 
@@ -214,6 +216,104 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     }
 
     [Fact]
+    public async Task AManagerSavesTheQuoteAlertsEmailAndTheStaffReadAndTheStoreReturnIt()
+    {
+        await PublicContentSeeding.SaveAsync(database, Seed());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        (await StoredAlertsEmailAsync(factory)).ShouldBeEmpty();
+        var body = WithExtras(Body(await VersionAsync(), "Sample tagline"), ("quoteAlertsEmail", " quotes@example.com "));
+
+        using var response = await PutAsync(client, manager.AccessToken, body);
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        using var saved = JsonDocument.Parse(text);
+        saved.RootElement.GetProperty("quoteAlertsEmail").GetString().ShouldBe("quotes@example.com");
+        using var read = ApiRequests.Create(HttpMethod.Get, Route, manager.AccessToken);
+        using var reread = await client.SendAsync(read, TestContext.Current.CancellationToken);
+        using var settings = JsonDocument.Parse(await reread.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        settings.RootElement.GetProperty("quoteAlertsEmail").GetString().ShouldBe("quotes@example.com");
+        (await StoredAlertsEmailAsync(factory)).ShouldBe("quotes@example.com");
+    }
+
+    [Fact]
+    public async Task AnAdminCannotSetTheQuoteAlertsEmail()
+    {
+        await PublicContentSeeding.SaveAsync(database, Seed());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var admin = await TestSessions.StartAsync(factory, Roles.Admin);
+        var body = WithExtras(Body(await VersionAsync(), "Sample tagline"), ("quoteAlertsEmail", "quotes@example.com"));
+
+        using var response = await PutAsync(client, admin.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await StoredAlertsEmailAsync(factory)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ASaveThatChangesOnlyTheQuoteAlertsEmailAuditsTheFieldNameWithoutTheAddress()
+    {
+        await PublicContentSeeding.SaveAsync(database, Seed());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var body = WithExtras(Body(await VersionAsync(), "Sample tagline"), ("quoteAlertsEmail", "quotes@example.com"));
+
+        using var response = await PutAsync(client, manager.AccessToken, body);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking().SingleAsync(row => row.ActorUserId == manager.UserId && row.Action == "site-settings.changed", TestContext.Current.CancellationToken);
+        entry.Detail.ShouldBe("fields=quoteAlertsEmail");
+    }
+
+    [Fact]
+    public async Task ABodyWithoutAQuoteAlertsEmailClearsTheSavedOneLikeEveryOtherOptionalValue()
+    {
+        await PublicContentSeeding.SaveAsync(database, Seed() with { QuoteAlertsEmail = "quotes@example.com" });
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        (await StoredAlertsEmailAsync(factory)).ShouldBe("quotes@example.com");
+
+        using var response = await PutAsync(client, manager.AccessToken, Body(await VersionAsync(), "Sample tagline"));
+
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, text);
+        (await StoredAlertsEmailAsync(factory)).ShouldBeEmpty();
+        using var saved = JsonDocument.Parse(text);
+        saved.RootElement.GetProperty("quoteAlertsEmail").ValueKind.ShouldBe(JsonValueKind.Null);
+        await using var context = database.CreateContext();
+        var entry = await context.AuditLog.AsNoTracking().SingleAsync(row => row.ActorUserId == manager.UserId && row.Action == "site-settings.changed", TestContext.Current.CancellationToken);
+        entry.Detail.ShouldBe("fields=quoteAlertsEmail");
+    }
+
+    [Fact]
+    public async Task ABadQuoteAlertsEmailIs400OnItsFieldWithTheApprovedMessageAndNothingIsStored()
+    {
+        await PublicContentSeeding.SaveAsync(database, Seed());
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var version = await VersionAsync();
+
+        using var wrongShape = await PutAsync(client, manager.AccessToken, WithExtras(Body(version, "Sample tagline"), ("quoteAlertsEmail", "a@b@c.ph")));
+        using var tooLong = await PutAsync(client, manager.AccessToken, WithExtras(Body(version, "Sample tagline"), ("quoteAlertsEmail", $"{new string('a', 250)}@b.ph")));
+
+        wrongShape.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(wrongShape, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("quoteAlertsEmail")[0].GetString()
+            .ShouldBe("Enter a valid email, like name@gmail.com");
+        tooLong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ProblemJson.ReadAsync(tooLong, TestContext.Current.CancellationToken)).GetProperty("errors").GetProperty("quoteAlertsEmail")[0].GetString()
+            .ShouldBe("Keep the email to 254 characters or fewer.");
+        (await StoredAlertsEmailAsync(factory)).ShouldBeEmpty();
+        (await VersionAsync()).ShouldBe(version);
+    }
+
+    [Fact]
     public async Task ABadFormIs400OnItsFieldsWithTheApprovedMessagesAndChangesNothing()
     {
         await PublicContentSeeding.SaveAsync(database, Seed());
@@ -305,6 +405,12 @@ public sealed partial class SiteSettingsWriteTests(CspsDatabase database) : ICla
     {
         using var response = await client.GetAsync(new Uri(PublicRoute, UriKind.Relative), TestContext.Current.CancellationToken);
         return response.Headers.ETag.ShouldNotBeNull().ToString();
+    }
+
+    private static async Task<string> StoredAlertsEmailAsync(CspsApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ISiteContentStore>().GetQuoteAlertsEmailAsync(TestContext.Current.CancellationToken);
     }
 
     private async Task<string> VersionAsync()

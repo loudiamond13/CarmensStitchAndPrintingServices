@@ -136,6 +136,7 @@ describe('saving the tagline (CONT-01, PUB-03)', () => {
       instagramUrl: 'https://www.instagram.com/cspsdemo',
       tiktokUrl: null,
       contactEmail: 'shop@example.test',
+      quoteAlertsEmail: null,
       phones: [
         { number: '0917 123 4567', label: 'Globe', isMain: true },
         { number: '02 8123 4567', label: null, isMain: false },
@@ -227,7 +228,7 @@ describe('saving the tagline (CONT-01, PUB-03)', () => {
 });
 
 describe('the cards (S1)', () => {
-  it('shows the seven cards in order, each with its hint', async () => {
+  it('shows the eight cards in order, each with its hint', async () => {
     siteSettingsBackend();
     await openTab();
 
@@ -238,6 +239,7 @@ describe('the cards (S1)', () => {
       'Phone numbers',
       'Messenger and social links',
       'Email',
+      'Quote alerts',
       'Link preview picture',
       'Time zone and money',
     ]);
@@ -246,6 +248,7 @@ describe('the cards (S1)', () => {
       'The main number is the one the Call buttons dial.',
       'Leave a link empty to hide it on the website.',
       "For staff use only. It's not shown on the website.",
+      'Where we email you when a visitor sends a quote request.',
       'Shown when someone shares a page on Facebook or Messenger.',
       'These stay fixed so every date, status and total lines up.',
     ]) {
@@ -368,6 +371,129 @@ describe('the phone numbers inside the form (D-23)', () => {
     await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
 
     expect(await screen.findByText('This number is already listed.')).toBeVisible();
+  });
+});
+
+describe('the Quote alerts card (R5, INQ-04, D-07)', () => {
+  const ALERTS_LABEL = /^Quote alerts email/;
+  const EMAIL_MESSAGE = 'Enter a valid email, like name@gmail.com';
+
+  it('sits right after the Email card with its hint and the field hint', async () => {
+    siteSettingsBackend();
+    await openTab();
+
+    const card = screen.getByRole('region', { name: 'Quote alerts' });
+    expect(within(card).getByText('Where we email you when a visitor sends a quote request.')).toBeVisible();
+    const field = within(card).getByLabelText(ALERTS_LABEL);
+    expect(field).toHaveAttribute('type', 'email');
+    expect(field).toHaveAttribute('inputmode', 'email');
+    expect(field).toHaveAccessibleDescription(
+      'Any inbox works, including the shop email. Leave it empty to get no emails; new requests still show in Quote Requests.',
+    );
+    const email = screen.getByRole('region', { name: 'Email' });
+    expect(email.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.closest('form')).toBe(email.closest('form'));
+  });
+
+  it('is empty when no address is saved and shows the saved address when there is one', async () => {
+    siteSettingsBackend();
+    const first = await openTab();
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveValue('');
+    first.unmount();
+
+    siteSettingsBackend({ ...demoSiteSettings, quoteAlertsEmail: 'quotes@example.com' });
+    queryClient.clear();
+    await openTab();
+
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveValue('quotes@example.com');
+  });
+
+  it('sends the typed address with Save Business Info and shows it after the refetch', async () => {
+    const backend = siteSettingsBackend();
+    const { user } = await openTab();
+
+    await typeInto(user, ALERTS_LABEL, 'quotes@example.com');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(1);
+    });
+    expect(backend.puts[0]?.quoteAlertsEmail).toBe('quotes@example.com');
+    expect(backend.puts[0]?.version).toBe(demoSiteSettings.version);
+    expect(await screen.findByText('Business info saved')).toBeVisible();
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveValue('quotes@example.com');
+    expect(backend.current.quoteAlertsEmail).toBe('quotes@example.com');
+  });
+
+  it('always sends the field: null when it is empty, and null again after the saved address is cleared', async () => {
+    const backend = siteSettingsBackend({ ...demoSiteSettings, quoteAlertsEmail: 'quotes@example.com' });
+    const { user } = await openTab();
+    await typeInto(user, /^Tagline/, 'Made for the whole team.');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(1);
+    });
+    expect(backend.puts[0]).toHaveProperty('quoteAlertsEmail', 'quotes@example.com');
+
+    await user.clear(screen.getByLabelText(ALERTS_LABEL));
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    await waitFor(() => {
+      expect(backend.puts).toHaveLength(2);
+    });
+    expect(backend.puts[1]).toHaveProperty('quoteAlertsEmail', null);
+    expect(backend.current.quoteAlertsEmail).toBeNull();
+  });
+
+  it('shows the email message when the person leaves a bad address and sends nothing', async () => {
+    const backend = siteSettingsBackend();
+    const { user } = await openTab();
+
+    await typeInto(user, ALERTS_LABEL, 'nope');
+    await user.tab();
+
+    expect(await screen.findByText(EMAIL_MESSAGE)).toBeVisible();
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveAttribute('aria-invalid', 'true');
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+    expect(backend.puts).toHaveLength(0);
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveFocus();
+  });
+
+  it('shows the length message for an address over 254 characters', async () => {
+    siteSettingsBackend();
+    const { user } = await openTab();
+    const field = screen.getByLabelText(ALERTS_LABEL);
+
+    fireEvent.change(field, { target: { value: `${'a'.repeat(250)}@b.ph` } });
+    await user.tab();
+
+    expect(await screen.findByText('Keep the email to 254 characters or fewer.')).toBeVisible();
+  });
+
+  it('puts the server message for the address under its field and focuses it', async () => {
+    siteSettingsBackend(demoSiteSettings, {
+      onPut: () => problemAnswer(400, { errors: { quoteAlertsEmail: ['The server did not like this address.'] } }),
+    });
+    const { user } = await openTab();
+
+    await user.click(screen.getByRole('button', { name: 'Save Business Info' }));
+
+    expect(await screen.findByText('The server did not like this address.')).toBeVisible();
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveFocus();
+  });
+
+  it('counts a typed address as an unsaved change and Undo Changes puts it back', async () => {
+    siteSettingsBackend();
+    const onDirtyChange = vi.fn<(dirty: boolean) => void>();
+    const { user } = await openTab(onDirtyChange);
+
+    await typeInto(user, ALERTS_LABEL, 'quotes@example.com');
+    await waitFor(() => {
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    });
+    await user.click(screen.getByRole('button', { name: 'Undo Changes' }));
+
+    expect(screen.getByLabelText(ALERTS_LABEL)).toHaveValue('');
   });
 });
 

@@ -31,6 +31,9 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
     /// <summary>Maximum length of <see cref="ContactEmail"/> in UTF-16 code units (RFC 5321 path limit).</summary>
     public const int ContactEmailMaxLength = 254;
 
+    /// <summary>Maximum length of <see cref="QuoteAlertsEmail"/> in UTF-16 code units (RFC 5321 path limit).</summary>
+    public const int QuoteAlertsEmailMaxLength = 254;
+
     /// <summary>Maximum length of <see cref="ContactPhone"/> in UTF-16 code units.</summary>
     public const int ContactPhoneMaxLength = 32;
 
@@ -191,6 +194,9 @@ public sealed class SiteSettings : IAttributedRecord, IPublicContentRecord
 
     /// <summary>The shop's email for staff use. It is never sent to a public page (D-25). Empty when not set.</summary>
     public string ContactEmail { get; private set; }
+
+    /// <summary>The staff inbox that gets an email for each quote request (13 D-07). It is never sent to a public page. Empty when not set.</summary>
+    public string QuoteAlertsEmail { get; private set; } = string.Empty;
 
     /// <summary>The old single contact phone. Unused since the phone list; kept so no column is dropped (D-39).</summary>
     public string ContactPhone { get; private set; }

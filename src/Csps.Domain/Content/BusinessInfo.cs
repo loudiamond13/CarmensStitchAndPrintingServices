@@ -22,6 +22,7 @@ public sealed record BusinessPhone(string Number, string? Label, bool IsMain);
 /// <param name="InstagramUrl">The Instagram link.</param>
 /// <param name="TikTokUrl">The TikTok link.</param>
 /// <param name="ContactEmail">The shop's email, for staff only.</param>
+/// <param name="QuoteAlertsEmail">The staff inbox that gets an email for each quote request, for staff only (13 D-07).</param>
 /// <param name="Phones">The phone numbers, at most <see cref="SitePhoneNumber.MaxCount"/>.</param>
 public sealed record BusinessInfo(
     string BusinessName,
@@ -39,6 +40,7 @@ public sealed record BusinessInfo(
     string? InstagramUrl,
     string? TikTokUrl,
     string? ContactEmail,
+    string? QuoteAlertsEmail,
     IReadOnlyList<BusinessPhone> Phones);
 
 /// <summary>What <see cref="SiteSettings.UpdateBusinessInfo"/> did.</summary>
@@ -93,6 +95,9 @@ public static class BusinessInfoFields
 
     /// <summary>The shop email.</summary>
     public const string ContactEmail = "contactEmail";
+
+    /// <summary>The quote alerts email.</summary>
+    public const string QuoteAlertsEmail = "quoteAlertsEmail";
 
     /// <summary>The phone list.</summary>
     public const string Phones = "phones";
