@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 12/26 plans executed
+**Plans:** 15/26 plans executed
 
 Plans:
 **Wave 1**
@@ -1443,9 +1443,9 @@ Plans:
 - [x] 13-12-PLAN.md: photos sent with the form; rate limit, failure and missing-photo states (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 13-13-PLAN.md: the Manager's Send Test Email (D-11) (wave 6)
-- [ ] 13-14-PLAN.md: Get a Quote links preselect the product (D-24) (wave 6)
-- [ ] 13-15-PLAN.md: the Quote Requests inbox with status pills and search in the URL (wave 6)
+- [x] 13-13-PLAN.md: the Manager's Send Test Email (D-11) (wave 6)
+- [x] 13-14-PLAN.md: Get a Quote links preselect the product (D-24) (wave 6)
+- [x] 13-15-PLAN.md: the Quote Requests inbox with status pills and search in the URL (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 13-16-PLAN.md: request detail, free status moves with history, Spam removes photos (wave 7)
@@ -1671,7 +1671,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 12/26 | In Progress | - |
+| 13. Quote Inquiries | 15/26 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
