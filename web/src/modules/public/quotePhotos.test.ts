@@ -176,3 +176,62 @@ describe('checkQuotePhotos: a file that cannot be read', () => {
     expect(result.refusals).toEqual(["broken.png couldn't be read. Try another photo."]);
   });
 });
+
+describe('checkQuotePhotos: the pixel limit from the ticket (D-02, OR-3)', () => {
+  /** Image parts that read the real first bytes and decode to the given size. */
+  function sized(width: number, height: number, close = vi.fn()) {
+    return {
+      readHead: async (file: Blob) => new Uint8Array(await file.slice(0, 32).arrayBuffer()),
+      decode: () => Promise.resolve({ width, height, close }),
+    };
+  }
+
+  it('refuses a photo over the pixel limit in the server words and closes what it decoded', async () => {
+    const close = vi.fn();
+
+    const result = await checkQuotePhotos([png('huge.png')], 0, QUOTE_PHOTO_RULES, sized(6000, 5000, close));
+
+    expect(result.accepted).toEqual([]);
+    expect(result.refusals).toEqual(['huge.png is too big. Photos can be at most 25 megapixels.']);
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it('takes a photo exactly at the limit', async () => {
+    const edge = png('edge.png');
+
+    const result = await checkQuotePhotos([edge], 0, QUOTE_PHOTO_RULES, sized(5000, 5000));
+
+    expect(result.accepted).toEqual([edge]);
+    expect(result.refusals).toEqual([]);
+  });
+
+  it('follows the pixel limit from the rules', async () => {
+    const rules: QuotePhotoRules = { ...QUOTE_PHOTO_RULES, maxPixels: 12_000_000 };
+
+    const result = await checkQuotePhotos([png('big.png')], 0, rules, sized(4000, 3001));
+
+    expect(result.refusals).toEqual(['big.png is too big. Photos can be at most 12 megapixels.']);
+  });
+
+  it('leaves a photo the browser cannot decode (HEIC in most browsers) to the server', async () => {
+    const heic = withHead('IMG_0001.heic', HEIC, 64, 'image/heic');
+    const parts = { ...sized(0, 0), decode: () => Promise.reject(new Error('cannot decode')) };
+
+    const result = await checkQuotePhotos([heic], 0, QUOTE_PHOTO_RULES, parts);
+
+    expect(result.accepted).toEqual([heic]);
+  });
+
+  it('does not decode a photo that is left out by the count', async () => {
+    const decode = vi.fn(() => Promise.resolve({ width: 10, height: 10, close: vi.fn() }));
+    const rules: QuotePhotoRules = { ...QUOTE_PHOTO_RULES, maxPhotos: 1 };
+
+    await checkQuotePhotos([png('a.png'), png('b.png')], 0, rules, { ...sized(10, 10), decode });
+
+    expect(decode).toHaveBeenCalledOnce();
+  });
+
+  it('uses the server pixel limit by default', () => {
+    expect(QUOTE_PHOTO_RULES.maxPixels).toBe(25_000_000);
+  });
+});
