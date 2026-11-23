@@ -243,7 +243,7 @@ public sealed record ManagerResetLinkEmail(string To, string Token, DateTimeOffs
 /// <param name="ProductTitle">The product the visitor chose, as a label; null when none.</param>
 /// <param name="QuantityLabel">The estimated quantity, such as "21-50 pcs"; null when none.</param>
 /// <param name="PhotoCount">How many photos the visitor said they would send.</param>
-/// <param name="MessageExcerpt">The first 300 characters of the message; null when none.</param>
+/// <param name="MessageExcerpt">The visitor's message as written; the email shows its first 300 characters. Null when none.</param>
 public sealed record QuoteAlertEmail(
     string To,
     Guid RequestId,
