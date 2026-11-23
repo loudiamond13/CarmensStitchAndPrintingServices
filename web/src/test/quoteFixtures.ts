@@ -17,6 +17,8 @@ export interface QuoteAnswers {
   createStatuses?: readonly number[];
   /** The replacement ticket an expired-ticket 400 carries. */
   replacementTicket?: string;
+  /** Makes a 400 create answer the expired-ticket code with no replacement ticket (a proxy or a server change dropped it). */
+  expiredWithoutReplacement?: boolean;
   /** Fails the ticket read with this status. */
   ticketStatus?: number;
   /** The minimum seconds the ticket answer and the expired-ticket 400 carry (D-41). Default: 0, so tests never wait. */
@@ -59,6 +61,17 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
       });
       if (status === 200) {
         return HttpResponse.json({ id: QUOTE_ID, photoSlots: [] });
+      }
+      if (status === 400 && answers.expiredWithoutReplacement === true) {
+        return HttpResponse.json(
+          {
+            title: 'The form timed out. Please send it again.',
+            status: 400,
+            code: 'quote-requests.ticket-expired',
+            errors: { ticket: ['The form timed out. Please send it again.'] },
+          },
+          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
+        );
       }
       if (status === 400 && answers.replacementTicket !== undefined) {
         return HttpResponse.json(

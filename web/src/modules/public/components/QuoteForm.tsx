@@ -113,6 +113,10 @@ export function QuoteForm() {
       const problem = isHttpError(error) && error.code === TICKET_EXPIRED_CODE ? error.problem : undefined;
       const replacement = problem?.replacementTicket;
       if (replacement === undefined) {
+        // No replacement came with the expired answer: the held ticket is dead, so the next send waits for a new one.
+        if (problem !== undefined) {
+          tickets.refresh();
+        }
         throw error;
       }
       tickets.adopt(replacement, problem?.minimumSeconds ?? held?.minimumSeconds ?? 0);

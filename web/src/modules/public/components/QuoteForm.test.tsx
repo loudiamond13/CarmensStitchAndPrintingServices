@@ -280,6 +280,36 @@ describe('QuoteForm keeps what was typed (D-26)', () => {
   });
 });
 
+describe('QuoteForm expired ticket without a replacement (WR-05)', () => {
+  it('reads a new ticket after the failure, so the next send uses it and not the dead one', async () => {
+    const probe = answerQuote({ createStatuses: [400, 200], expiredWithoutReplacement: true });
+    renderForm();
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't send your inquiry.");
+    await waitFor(() => {
+      expect(probe.tickets).toEqual(['ticket-1', 'ticket-2']);
+    });
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    expect(probe.creates.map((create) => create.body.ticket)).toEqual(['ticket-1', 'ticket-2']);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the values typed while the new ticket is read', async () => {
+    answerQuote({ createStatuses: [400], expiredWithoutReplacement: true });
+    renderForm();
+    await fillRequired();
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('alert');
+    expect(screen.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
+  });
+});
+
 describe('QuoteForm expired ticket (Pitfall 4, D-38)', () => {
   it('resends once, at once, with the replacement ticket and a new Idempotency-Key, and shows only the success', async () => {
     const probe = answerQuote({ createStatuses: [400, 200], replacementTicket: 'ticket-replacement' });
