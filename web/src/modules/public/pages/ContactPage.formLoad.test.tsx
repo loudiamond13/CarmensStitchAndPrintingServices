@@ -32,10 +32,9 @@ describe('ContactPage with a quote form piece that fails to load', { timeout: 20
       'href',
       'https://m.me/cspsdemo',
     );
-    expect(await within(main).findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' })).toHaveAttribute(
-      'href',
-      'tel:+639171234567',
-    );
+    expect(
+      await within(main).findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' }),
+    ).toHaveAttribute('href', 'tel:+639171234567');
     expect(within(main).getByRole('heading', { level: 2, name: 'Call or text' })).toBeInTheDocument();
     expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
   });

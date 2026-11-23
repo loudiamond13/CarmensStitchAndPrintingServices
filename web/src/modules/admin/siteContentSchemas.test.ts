@@ -251,14 +251,17 @@ describe('the shared email cases (tests/fixtures/email-cases.json, D-42)', () =>
     expect(isContactEmail(email)).toBe(false);
   });
 
-  it.each(['contactEmail', 'quoteAlertsEmail'] as const)('gives %s the same answer in the form as the rule', (field) => {
-    for (const email of emailCases.contactEmail.accept) {
-      expect(messagesFor(withValue({ [field]: email }), field)).toEqual([]);
-    }
-    for (const email of emailCases.contactEmail.refuse.filter((text) => text.trim() === text && text !== '')) {
-      expect(messagesFor(withValue({ [field]: email }), field)).toEqual(['Enter a valid email, like name@gmail.com']);
-    }
-  });
+  it.each(['contactEmail', 'quoteAlertsEmail'] as const)(
+    'gives %s the same answer in the form as the rule',
+    (field) => {
+      for (const email of emailCases.contactEmail.accept) {
+        expect(messagesFor(withValue({ [field]: email }), field)).toEqual([]);
+      }
+      for (const email of emailCases.contactEmail.refuse.filter((text) => text.trim() === text && text !== '')) {
+        expect(messagesFor(withValue({ [field]: email }), field)).toEqual(['Enter a valid email, like name@gmail.com']);
+      }
+    },
+  );
 
   it('refuses an email with a line break inside even after the trim', () => {
     const email = '  a@b.com\r\nBcc: z@y.com  ';
