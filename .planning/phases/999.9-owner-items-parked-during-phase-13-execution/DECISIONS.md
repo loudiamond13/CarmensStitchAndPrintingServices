@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T15:30:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T15:02:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -185,6 +185,17 @@ The form budget gained 0.86 KB because the form no longer loads the legal page s
 3. **Phone tab width at 320 px.** A: about 61 px each (the bar keeps its side padding; the spec says 64; every tab is still at least 44 px and no label is cut). B: drop the padding for exactly 64 px.
 4. **Dashboard strip while it re-reads after a failure.** A: the failure line stays and Try Again shows busy. B: swap to the loading look, which reads the failure out again each time.
 5. **Strip figure for large counts.** A: the exact count ("1,250"). B: "99+" like the chip.
+
+## P13-BL-18 · What a status change answers (review W7 IN-01, built in 13-REVIEW-FIX-W7)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+The answer to a status change used to carry the whole request (name, phone, email, message, photo addresses). The repeat-press guard keeps each answer as plain text for 24 hours, where the Manager delete and the 6-month purge cannot remove it.
+
+- **A (built, recommended):** the answer carries only the id, the new status, the time of the change and the new version. The request page reads the request again after a move.
+- **B:** answer the whole request, accept the 24-hour copy, and say so in the Privacy Policy.
+
+Order calls keep their full answers the same way. They were left alone because no "delete for good" is promised for orders.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
