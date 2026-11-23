@@ -26,7 +26,15 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { LINE_IDS, lineProductTypesAre, productLinesBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
-import { QUOTE_COUNTS, quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
+import {
+  QUOTE_COUNTS,
+  quoteRequestBackend,
+  quoteRequestDetail,
+  quoteRequestId,
+  quoteRequestItem,
+  quoteRequestList,
+  quoteRequestsBackend,
+} from '@/test/quoteRequestFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -568,6 +576,7 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
     const backend = quoteRequestsBackend(
       quoteRequestList([quoteRequestItem(undefined, { status: 'spam' })], { counts: QUOTE_COUNTS }),
     );
+    quoteRequestBackend(quoteRequestDetail(undefined, { status: 'spam' }));
     // nuqs reads and writes the browser history, so this case runs in a browser router (docs/web/url-state.md).
     window.history.replaceState(null, '', '/admin/quote-requests?status=spam&q=juan');
     const router = createBrowserRouter(routes, { patchRoutesOnNavigation: discoverRoutes });
@@ -583,6 +592,10 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
       await waitFor(() => {
         expect(window.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
       });
+      // The inbox link opens the request page, not the not-found screen (W6 IN-03).
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' }, { timeout: 10_000 }),
+      ).toBeVisible();
       act(() => {
         window.history.back();
       });
@@ -605,6 +618,44 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
     const { adminRoutes } = await import('@/modules/admin/routes');
     const urlState = adminRoutes[0]?.children?.[0];
     const route = urlState?.children?.find((child) => child.path === 'quote-requests');
+    expect(route?.lazy).toBeTypeOf('function');
+    expect(route?.loader).toBeUndefined();
+  });
+
+  it.each([
+    ['Manager', () => sessionResponse()],
+    ['Admin', adminSession],
+  ])(
+    'when a %s follows the inbox name link they see the request page titled "Quote Request · CSPS Admin"',
+    async (_role, session) => {
+      answerRefresh(session());
+      const id = quoteRequestId(5);
+      quoteRequestsBackend(quoteRequestList([quoteRequestItem(id)]));
+      quoteRequestBackend(quoteRequestDetail(id));
+      const router = createMemoryRouter(routes, { initialEntries: ['/admin/quote-requests'] });
+      render(<RouterProvider router={router} />);
+      const user = userEvent.setup();
+
+      const link = await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 });
+      expect(link).toHaveAttribute('href', `/admin/quote-requests/${id}`);
+      await user.click(link);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' }, { timeout: 10_000 }),
+      ).toBeVisible();
+      expect(router.state.location.pathname).toBe(`/admin/quote-requests/${id}`);
+      expect(screen.getByRole('region', { name: 'Request' })).toBeVisible();
+      await waitFor(() => {
+        expect(document.title).toBe('Quote Request · CSPS Admin');
+      });
+    },
+    30_000,
+  );
+
+  it('the request page is a lazy page under the URL-state layout with no Manager-only loader', async () => {
+    const { adminRoutes } = await import('@/modules/admin/routes');
+    const urlState = adminRoutes[0]?.children?.[0];
+    const route = urlState?.children?.find((child) => child.path === 'quote-requests/:id');
     expect(route?.lazy).toBeTypeOf('function');
     expect(route?.loader).toBeUndefined();
   });
