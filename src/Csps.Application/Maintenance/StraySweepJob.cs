@@ -4,10 +4,10 @@ namespace Csps.Application.Maintenance;
 
 /// <summary>
 /// Reconciles the photo storage with the database on every run (JOB-02, D-23, D-34): it lists this environment's own orders folder and then its
-/// own content folder (the photos of the public pages, RESEARCH P-9), and
+/// own content folder (the photos of the public pages, RESEARCH P-9) and its own quotes folder (quote request photos, INQ-07), and
 /// queues every file that no photo row and no removal row knows and that is older than 2 days, up to <see cref="MaxStraysPerRun"/> files
-/// per run for both folders together; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folders
-/// <c>{RootFolder}/orders/</c> and <c>{RootFolder}/content/</c>, and it does nothing when the storage is not set up. Lines hold counts and fixed sentences only, never a
+/// per run for all three folders together; when it finds more, it queues the first ones and the run turns red (D-52). The removal job in the same run then removes them. A photo of a soft-deleted order is known, so it is kept. The job never looks outside the folders
+/// <c>{RootFolder}/orders/</c>, <c>{RootFolder}/content/</c> and <c>{RootFolder}/quotes/</c>, and it does nothing when the storage is not set up. Lines hold counts and fixed sentences only, never a
 /// file id.
 /// </summary>
 /// <param name="storage">The photo storage.</param>
@@ -67,12 +67,17 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         var cutOff = time.GetUtcNow() - MinimumAge;
         var run = new SweepRun();
 
-        // The trailing slash keeps "csps" from matching "csps-dev" (D-07). The orders pass keeps its own place, then the content pass
-        // (the photos of the public pages) keeps its own; either stops the run when the budget is spent, the cap is passed or the storage cannot be read.
+        // The trailing slash keeps "csps" from matching "csps-dev" (D-07). Each pass keeps its own place: orders, then content (the photos of
+        // the public pages), then quotes (private quote photos); any stops the run when the budget is spent, the cap is passed or the storage cannot be read.
         await SweepFolderAsync($"{storage.RootFolder}/orders/", Name, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
         if (!run.Stopped)
         {
             await SweepFolderAsync($"{storage.RootFolder}/content/", ContentCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!run.Stopped)
+        {
+            await SweepFolderAsync($"{storage.RootFolder}/quotes/", QuotesCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
         }
 
         var lines = new List<MaintenanceLine> { new(StrayLabel, run.Queued, false, null) };

@@ -1,6 +1,6 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-22T16:10:00-06:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-22T19:15:00-06:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
 Actions workflow `.github/workflows/maintenance.yml` makes the call every day (D-34). That workflow also has a manual "Run now" button. Nobody else uses it, and
@@ -16,6 +16,7 @@ One run does every job once, in this order. The number is the job's place in the
 | Order | Job | What it reports |
 |---|---|---|
 | 10 | Purge of expired records | One count per purge rule (see the table below) |
+| 12 | Old quote requests | How many quote requests it removed (see "What the quote request purge removes" below). It runs before the photo removals, so the photos leave in the same run |
 | 20 | Stray file sweep | How many stray files it queued for removal |
 | 30 | Photo removals | How many photos it removed from storage, how many are still failing, and how many need attention |
 | 40 | Usage report | Storage and credit use against the free plan. It reports on the first run of each business month and adds no line on the other days (see "The usage check" below) |
@@ -43,16 +44,31 @@ The request keys and the claims share one line, so five lines come back in all. 
 
 Each run has a time budget of 90 seconds. A job that runs out of time stops cleanly and says there is more to do.
 
+## What the quote request purge removes
+
+Quote requests from the Contact page are kept for 6 calendar months (INQ-07). The purge job removes every request that
+never became an order and was received before the cut: the start of the business day (Asia/Manila) 6 months before
+today. A request received exactly at the cut stays. Status does not matter, so old New, Contacted, Quoted, Closed and
+Spam requests all go. A request that was **converted** into an order is never removed by age, and neither are its photos.
+
+For each batch of 200 requests the job first queues every stored photo for removal (reason "quote purged"), then
+deletes the requests and their photo places in the same database transaction. If the delete fails, nothing is queued and
+nothing is removed, and the line turns red with "The old quote requests could not be removed." The photo removals job
+then takes the queued files out of Cloudinary in the same run. The line "Old quote requests removed: n" holds a count
+only, never a name, number or file id. When the 90 second budget is spent the job stops and says there is more, and the
+next run carries on.
+
 ## What the photo jobs do
 
 Deleting a photo, or deleting an order for good, never calls Cloudinary while staff wait. It adds a row to a removal queue
-in the database. Two jobs in the daily run look after the files (JOB-02). Both only touch this site's own orders folder
-(for example `csps/orders/` on the live site, with the trailing slash, so `csps` never matches another environment's
-folder).
+in the database. Two jobs in the daily run look after the files (JOB-02). Both only touch this site's own folders: orders,
+content (the photos of the public pages) and quotes (the photos visitors attach to a quote request). For example
+`csps/orders/`, `csps/content/` and `csps/quotes/` on the live site, each with the trailing slash, so `csps` never
+matches another environment's folder and `csps/quotes-old/` is never matched.
 
 | Job | What it does |
 |---|---|
-| Stray file sweep (20) | Lists the orders folder, 500 files at a time. A file is **kept** when a photo row names it (this includes photos of orders that are only soft-deleted, because those orders can be restored), when it is already in the removal queue, or when it is less than 2 days old (an upload may still be saving). Every other file is queued as a stray, but at most 50 files per run (D-52). If it finds more than 50, it queues the first 50 and the run turns red, so you can check before more photos are removed (for example after an older backup was restored) |
+| Stray file sweep (20) | Lists the orders folder, then the content folder, then the quotes folder, 500 files at a time. A file is **kept** when a photo row names it (this includes photos of orders that are only soft-deleted, because those orders can be restored, and every stored quote request photo), when it is already in the removal queue, or when it is less than 2 days old (an upload may still be saving). A quote photo whose upload never got its row saved is therefore queued as a stray after 2 days. Every other file is queued as a stray, but at most 50 files per run (D-52). If it finds more than 50, it queues the first 50 and the run turns red, so you can check before more photos are removed (for example after an older backup was restored) |
 | Photo removals (30) | Takes up to 25 due queue rows at a time and holds each for 5 minutes, so two runs never work on the same row. It asks Cloudinary to remove the file and its cached copies, then deletes the row. A file Cloudinary no longer has counts as removed. When Cloudinary is busy it tries again up to 3 times in all, after 2 and then 8 seconds. A row that still fails stays in the queue with one more attempt and its failure code, and the next run tries it again. A row that has failed 5 times (D-55) no longer turns the run red: it is tried again every run, but only counted on the "needing attention" line |
 
 The sweep runs first, so the strays it queues are removed in the same run. A queued file that a photo row still names is
@@ -60,7 +76,7 @@ The sweep runs first, so the strays it queues are removed in the same run. A que
 saved. A file outside the site's own orders folder is never removed either.
 
 Each job stops when the 90 second budget is spent and says there is more. The next call carries on from the database.
-The sweep keeps its place in the listing in a small table (`MaintenanceCursors`, one row for the sweep, D-54). The next
+The sweep keeps its place in the listing in a small table (`MaintenanceCursors`, one row for each of its three folders, D-54). The next
 call resumes from that page, so a large folder is finished over several calls. The row is cleared when a pass reaches the
 last page, and the next pass starts again from the first page. If the sweep stops at the 50 file limit, the row keeps the
 page it was on, so that page is read again. If Cloudinary refuses the saved place, the sweep clears it and starts over next
