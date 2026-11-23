@@ -246,6 +246,11 @@ export const PUBLIC_COPY = {
       newTab: ' (opens in a new tab)',
     },
     bar: { messenger: 'Messenger', call: 'Call us' },
+    // SPEC-GAP: what takes the form's place when its piece cannot load (a weak connection, or a deploy that replaced the piece).
+    formLoadFailed: {
+      title: "Couldn't load the inquiry form.",
+      body: 'Check your internet connection and try again. You can also message or call us.',
+    },
     // The Get a Quote form (UI-SPEC Q1 and Q3; D-31 words). The error words are the server's own (QuoteRequestRules, OR-3).
     form: {
       title: 'Inquiry form',
