@@ -1,14 +1,19 @@
 using System.Net;
+using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.QuoteRequests;
+using Csps.Infrastructure.Images;
 using Csps.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Csps.Server.IntegrationTests.QuoteRequests;
 
 /// <summary>
 /// INQ-05, D-14, D-15, SEC-07, SEC-08: staff move a request freely between the five hand-set statuses with its row version; each move is
-/// one history row and one audit entry, Converted is never set or left by hand, and a stale version is a 409.
+/// one history row and one audit entry, Converted is never set or left by hand, and a stale version is a 409. Spam removes the photos
+/// for good through the removal queue (D-04).
 /// </summary>
 public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -134,10 +139,109 @@ public sealed class QuoteRequestStatusTests(CspsDatabase database) : IClassFixtu
         (await rig.ReadAsync(id)).GetProperty("status").GetString().ShouldBe("new");
     }
 
+    [Fact]
+    public async Task MovingToSpamQueuesEachStoredPhotoRemovesThePlacesAndSetsTheRemovalTime()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed("Spam Sid", QuoteRequestStatus.New, Received, PhotoNames: ["a.jpg", "b.jpg", "c.heic"], StoredSlots: [0, 1]));
+        var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
+
+        using var response = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "spam", version });
+        var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
+
+        body.GetProperty("status").GetString().ShouldBe("spam");
+        body.GetProperty("photos").GetArrayLength().ShouldBe(0);
+        body.GetProperty("missingPhotos").GetArrayLength().ShouldBe(0);
+        body.GetProperty("photoCount").GetInt32().ShouldBe(0);
+        var removedAt = body.GetProperty("photosRemovedAtUtc").GetDateTimeOffset();
+        var token = TestContext.Current.CancellationToken;
+        await using (var context = database.CreateContext())
+        {
+            (await context.QuoteRequestPhotos.CountAsync(photo => photo.QuoteRequestId == id, token)).ShouldBe(0);
+            var queued = await context.Set<ImageDeletion>().AsNoTracking().ToListAsync(token);
+            queued.Select(row => row.PublicId).ShouldBe([QuoteRequestStaffRig.PublicIdOf(id, 0), QuoteRequestStaffRig.PublicIdOf(id, 1)], ignoreOrder: true);
+            queued.ShouldAllBe(row => row.Reason == ImageDeletionReason.QuoteSpam);
+        }
+
+        using var list = await rig.GetAsync(rig.Admin.AccessToken, $"{QuoteRequestStaffRig.Route}?status=spam");
+        var row = (await QuoteRequestStaffRig.BodyAsync(list, HttpStatusCode.OK)).GetProperty("items")[0];
+        row.GetProperty("photosRemoved").GetBoolean().ShouldBeTrue();
+
+        // Moving back out of Spam keeps the photos gone and the removal time.
+        var spamVersion = body.GetProperty("version").GetString();
+        using var back = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "new", version = spamVersion });
+        var after = await QuoteRequestStaffRig.BodyAsync(back, HttpStatusCode.OK);
+        after.GetProperty("status").GetString().ShouldBe("new");
+        after.GetProperty("photos").GetArrayLength().ShouldBe(0);
+        after.GetProperty("photosRemovedAtUtc").GetDateTimeOffset().ShouldBe(removedAt);
+        using var openList = await rig.GetAsync(rig.Admin.AccessToken, QuoteRequestStaffRig.Route);
+        (await QuoteRequestStaffRig.BodyAsync(openList, HttpStatusCode.OK)).GetProperty("items")[0].GetProperty("photosRemoved").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task SpamWithNoPhotosQueuesNothingAndSetsNoRemovalTime()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed("Spam Sid", QuoteRequestStatus.Contacted, Received));
+        var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
+
+        using var response = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "spam", version });
+        var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
+
+        body.GetProperty("photosRemovedAtUtc").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+        await using var context = database.CreateContext();
+        (await context.Set<ImageDeletion>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AFailureBeforeTheSaveLeavesThePhotosTheStatusAndTheQueueUnchanged()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database, factory => factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+            {
+                var original = services.Single(descriptor => descriptor.ServiceType == typeof(IAuditTrail));
+                var implementation = original.ImplementationType.ShouldNotBeNull();
+                services.Remove(original);
+                services.AddScoped(implementation);
+                services.AddScoped<IAuditTrail>(provider => new FailingStatusAudit((IAuditTrail)provider.GetRequiredService(implementation)));
+            })));
+        var id = await rig.SeedAsync(new QuoteSeed("Spam Sid", QuoteRequestStatus.New, Received, PhotoNames: ["a.jpg", "b.jpg"], StoredSlots: [0, 1]));
+        var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
+
+        using var response = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "spam", version });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
+        var token = TestContext.Current.CancellationToken;
+        await using var context = database.CreateContext();
+        var stored = await context.QuoteRequests.AsNoTracking().SingleAsync(request => request.Id == id, token);
+        stored.Status.ShouldBe(QuoteRequestStatus.New);
+        stored.PhotosRemovedAtUtc.ShouldBeNull();
+        (await context.QuoteRequestPhotos.CountAsync(photo => photo.QuoteRequestId == id && photo.PublicId != null, token)).ShouldBe(2);
+        (await context.QuoteRequestStatusChanges.CountAsync(change => change.QuoteRequestId == id, token)).ShouldBe(0);
+        (await context.Set<ImageDeletion>().CountAsync(token)).ShouldBe(0);
+    }
+
     private static async Task<int> NewCountAsync(QuoteRequestStaffRig rig)
     {
         using var response = await rig.GetAsync(rig.Admin.AccessToken, $"{QuoteRequestStaffRig.Route}/new-count");
         var body = await QuoteRequestStaffRig.BodyAsync(response, HttpStatusCode.OK);
         return body.GetProperty("count").GetInt32();
+    }
+
+    // Fails the status entry after the photos were queued and before the save, to prove they share one transaction.
+    private sealed class FailingStatusAudit(IAuditTrail inner) : IAuditTrail
+    {
+        public void Record(string action, string? targetType, string? targetId, string? detail)
+        {
+            if (action == "quote-request.status-changed")
+            {
+                throw new InvalidOperationException("The test audit trail failed.");
+            }
+
+            inner.Record(action, targetType, targetId, detail);
+        }
+
+        public ValueTask RecordIndependentlyAsync(string action, string? targetType, string? targetId, string? detail, CancellationToken cancellationToken) =>
+            inner.RecordIndependentlyAsync(action, targetType, targetId, detail, cancellationToken);
     }
 }

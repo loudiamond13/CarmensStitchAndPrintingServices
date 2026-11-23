@@ -112,6 +112,57 @@ public sealed class QuoteRequestTests
     }
 
     [Fact]
+    public void EnteringSpamReturnsEveryStoredPhotoIdRemovesEveryPlaceAndKeepsTheTime()
+    {
+        var request = WithPhotos(("front.jpg", "quotes/a/front"), ("back.png", "quotes/a/back"), ("sketch.heic", null));
+
+        var result = request.ChangeStatus(QuoteRequestStatus.Spam, StaffId, Later);
+
+        result.Value.ShouldBe(["quotes/a/front", "quotes/a/back"]);
+        request.Photos.ShouldBeEmpty();
+        request.PhotosRemovedAtUtc.ShouldBe(Later);
+        request.Status.ShouldBe(QuoteRequestStatus.Spam);
+    }
+
+    [Fact]
+    public void LeavingSpamNeverBringsThePhotosBackAndKeepsTheRemovalTime()
+    {
+        var request = WithPhotos(("front.jpg", "quotes/a/front"));
+        request.ChangeStatus(QuoteRequestStatus.Spam, StaffId, Later).IsSuccess.ShouldBeTrue();
+
+        var back = request.ChangeStatus(QuoteRequestStatus.New, StaffId, Later.AddHours(1));
+        var again = request.ChangeStatus(QuoteRequestStatus.Spam, StaffId, Later.AddHours(2));
+
+        back.Value.ShouldBeEmpty();
+        again.Value.ShouldBeEmpty();
+        request.Photos.ShouldBeEmpty();
+        request.PhotosRemovedAtUtc.ShouldBe(Later);
+    }
+
+    [Fact]
+    public void SpamWithNoPhotosRemovesNothingAndSetsNoRemovalTime()
+    {
+        var request = Received();
+
+        var result = request.ChangeStatus(QuoteRequestStatus.Spam, StaffId, Later);
+
+        result.Value.ShouldBeEmpty();
+        request.PhotosRemovedAtUtc.ShouldBeNull();
+    }
+
+    [Fact]
+    public void SpamWithOnlyMissingPlacesRemovesThePlacesAndQueuesNoFile()
+    {
+        var request = WithPhotos(("sketch.heic", null));
+
+        var result = request.ChangeStatus(QuoteRequestStatus.Spam, StaffId, Later);
+
+        result.Value.ShouldBeEmpty();
+        request.Photos.ShouldBeEmpty();
+        request.PhotosRemovedAtUtc.ShouldBe(Later);
+    }
+
+    [Fact]
     public void AMoveOutsideSpamRemovesNoPhotoAndReturnsNoIds()
     {
         var request = Received();
@@ -383,6 +434,19 @@ public sealed class QuoteRequestTests
         "Need 15 jerseys by Dec 12.");
 
     private static QuoteRequest Received() => QuoteRequest.Receive(LineId, Full(), Now).Value;
+
+    // Declares the places, then fills the stored ones the way the upload's conditional update does in the database.
+    private static QuoteRequest WithPhotos(params (string Name, string? PublicId)[] places)
+    {
+        var request = Received();
+        request.DeclarePhotos([.. places.Select(place => place.Name)], new byte[QuoteRequestRules.UploadKeyHashLength], Now.AddHours(2)).IsSuccess.ShouldBeTrue();
+        for (var slot = 0; slot < places.Length; slot++)
+        {
+            typeof(QuoteRequestPhoto).GetProperty(nameof(QuoteRequestPhoto.PublicId))!.SetValue(request.Photos[slot], places[slot].PublicId);
+        }
+
+        return request;
+    }
 
     // A received request moved to the status by hand first, unless it is New.
     private static QuoteRequest At(QuoteRequestStatus status)

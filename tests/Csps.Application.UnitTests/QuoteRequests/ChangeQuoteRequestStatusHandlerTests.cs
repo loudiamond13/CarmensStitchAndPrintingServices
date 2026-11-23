@@ -46,6 +46,33 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
     }
 
     [Fact]
+    public async Task SpamQueuesEachStoredPhotoAsQuoteSpamInsideTheTransactionBeforeTheOneSave()
+    {
+        var harness = new Harness(["front.jpg", "sketch.heic", "back.png"]);
+        harness.Fill(0, "quotes/a/front");
+        harness.Fill(2, "quotes/a/back");
+        var queued = new List<(string Id, ImageDeletionReason Reason, bool InTransaction, int SavesBefore)>();
+        harness.Deletions
+            .When(queue => queue.Enqueue(Arg.Any<string>(), Arg.Any<ImageDeletionReason>()))
+            .Do(call => queued.Add((call.ArgAt<string>(0), call.ArgAt<ImageDeletionReason>(1), harness.Unit.InTransaction, harness.Unit.Saves)));
+
+        var result = await harness.Handler.HandleAsync(harness.Request.Id, new ChangeQuoteRequestStatusRequest("spam", Version), Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        queued.ShouldBe(
+        [
+            ("quotes/a/front", ImageDeletionReason.QuoteSpam, true, 0),
+            ("quotes/a/back", ImageDeletionReason.QuoteSpam, true, 0),
+        ]);
+        harness.Request.Photos.ShouldBeEmpty();
+        harness.Request.PhotosRemovedAtUtc.ShouldBe(Now);
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("status=new>spam");
+        harness.Unit.Saves.ShouldBe(1);
+        await harness.Deletions.DidNotReceive().EnqueueNowAsync(Arg.Any<string>(), Arg.Any<ImageDeletionReason>(), Arg.Any<CancellationToken>());
+        await harness.Deletions.DidNotReceive().EnqueueManyNowAsync(Arg.Any<IReadOnlyCollection<string>>(), Arg.Any<ImageDeletionReason>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task NoUsableAccountIs401AndNothingIsRead()
     {
         var harness = new Harness(noCaller: true);
@@ -161,11 +188,21 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
     private sealed class Harness
     {
         public Harness(bool noCaller = false)
+            : this([], noCaller)
+        {
+        }
+
+        public Harness(IReadOnlyList<string> photoNames, bool noCaller = false)
         {
             Request = QuoteRequest.Receive(
                 Guid.CreateVersion7(Received),
                 new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null),
                 Received).Value;
+            if (photoNames.Count > 0)
+            {
+                Request.DeclarePhotos(photoNames, new byte[QuoteRequestRules.UploadKeyHashLength], Received.AddHours(2)).IsSuccess.ShouldBeTrue();
+            }
+
             typeof(QuoteRequest).GetProperty(nameof(QuoteRequest.RowVersion), BindingFlags.Public | BindingFlags.Instance)!.SetValue(Request, StoredVersion.ToArray());
             Store.FindAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<QuoteRequest?>(Request));
             Reader.GetDetailAsync(Request.Id, Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult<QuoteRequestDetailView?>(View(Request)));
@@ -184,6 +221,10 @@ public sealed class ChangeQuoteRequestStatusHandlerTests
         }
 
         public QuoteRequest Request { get; }
+
+        // Fills a place the way the upload's conditional update does in the database.
+        public void Fill(int slot, string publicId) =>
+            typeof(QuoteRequestPhoto).GetProperty(nameof(QuoteRequestPhoto.PublicId))!.SetValue(Request.Photos[slot], publicId);
 
         public IQuoteRequestStore Store { get; } = Substitute.For<IQuoteRequestStore>();
 
