@@ -1,5 +1,5 @@
-import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { focusManager, QueryClientProvider, type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
@@ -9,7 +9,13 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import QuoteRequestsPage from '@/modules/admin/pages/QuoteRequestsPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
-import { quoteRequestId, quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
+import {
+  quoteProblem,
+  quoteRequestId,
+  quoteRequestItem,
+  quoteRequestList,
+  quoteRequestsBackend,
+} from '@/test/quoteRequestFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
 
@@ -288,6 +294,185 @@ describe('the status pills and the search filter the inbox, and the URL keeps th
     const { container } = renderPage('?q=juan');
 
     await rowOf('Juan Dela Cruz');
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('the Photos column (UI-SPEC R1 item 4)', () => {
+  it('shows the count, the missing-photo mark, the empty value and Removed', async () => {
+    quoteRequestsBackend(
+      quoteRequestList([
+        quoteRequestItem(quoteRequestId(1), { customerName: 'All Arrived' }),
+        quoteRequestItem(quoteRequestId(2), { customerName: 'Some Missing', storedPhotoCount: 2 }),
+        quoteRequestItem(quoteRequestId(3), { customerName: 'No Photos', photoCount: 0, storedPhotoCount: 0 }),
+        quoteRequestItem(quoteRequestId(4), {
+          customerName: 'Marked Spam',
+          status: 'spam',
+          storedPhotoCount: 0,
+          photosRemoved: true,
+        }),
+      ]),
+    );
+    renderPage();
+
+    const photos = async (name: string) => within(await rowOf(name)).getAllByRole('cell')[5];
+    expect((await photos('All Arrived'))?.textContent).toBe('3');
+    const missing = await photos('Some Missing');
+    expect(missing?.textContent).toBe('2 of 3 photos arrived');
+    expect(missing?.querySelector('svg')).not.toBeNull();
+    expect(within(missing as HTMLElement).getByText('photos arrived', { exact: false })).toHaveClass('sr-only');
+    expect(await photos('No Photos')).toHaveTextContent('Not set');
+    expect((await photos('Marked Spam'))?.textContent).toBe('Removed');
+  });
+});
+
+describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', () => {
+  it('Open with no requests shows the inbox empty state with no button', async () => {
+    quoteRequestsBackend(quoteRequestList([], { counts: { open: 0, converted: 0, closed: 0, spam: 0, all: 0 } }));
+    renderPage();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'No open quote requests' })).toBeVisible();
+    expect(screen.getByText("New requests from the website's Get a Quote form show here.")).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Clear/ })).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it.each([
+    ['converted', 'No converted requests', 'Requests show here when their status changes.'],
+    ['closed', 'No closed requests', 'Requests show here when their status changes.'],
+    ['spam', 'No spam requests', 'Requests show here when their status changes.'],
+    ['all', 'No quote requests yet', "Requests from the website's Get a Quote form show here."],
+  ])('the %s pill with no requests says "%s"', async (status, title, message) => {
+    quoteRequestsBackend(quoteRequestList([]));
+    renderPage(`?status=${status}`);
+
+    expect(await screen.findByRole('heading', { level: 2, name: title })).toBeVisible();
+    expect(screen.getByText(message)).toBeVisible();
+  });
+
+  it('a search with no match names the search and Clear Search removes it', async () => {
+    quoteRequestsBackend(quoteRequestList([]));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?q=zzz', onUrlUpdate);
+    const user = userEvent.setup();
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'No requests match "zzz"' })).toBeVisible();
+    expect(screen.getByText('Check the spelling, or search by phone number.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Clear Search' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    });
+  });
+
+  it('the first load shows 5 skeleton rows in a busy region and the pills without counts', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    quoteRequestsBackend(async () => {
+      await held;
+      return quoteRequestList(ROWS);
+    });
+    renderPage();
+
+    const region = await screen.findByText('Loading the quote requests…');
+    expect(region).toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"]')?.querySelectorAll('tbody tr')).toHaveLength(5);
+    expect(screen.getByRole('button', { name: 'Open' })).toHaveAttribute('aria-pressed', 'true');
+    release();
+    expect(await screen.findByRole('button', { name: 'Open 4 requests' })).toBeVisible();
+  });
+
+  it('a failed load shows the error with Try Again, which reads again', async () => {
+    let fail = true;
+    quoteRequestsBackend(() => (fail ? quoteProblem(500) : quoteRequestList(ROWS)));
+    renderPage();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText("Couldn't load the quote requests.")).toBeVisible();
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Try Again' }));
+
+    expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' })).toBeVisible();
+    expect(screen.queryByText("Couldn't load the quote requests.")).toBeNull();
+  });
+
+  it('a failed later refresh keeps the rows and shows the stale line', async () => {
+    let fail = false;
+    quoteRequestsBackend(() => (fail ? quoteProblem(500) : quoteRequestList(ROWS)));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+
+    fail = true;
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: ['quote-requests'] });
+    });
+
+    expect(await screen.findByText(/^Showing figures from .+\. Couldn't refresh\.$/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Juan Dela Cruz' })).toBeVisible();
+    expect(screen.queryByText("Couldn't load the quote requests.")).toBeNull();
+  });
+
+  it('reads again every 60 seconds while visible and whenever the window regains focus', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+
+    const options = queryClient.getQueryCache().find({ queryKey: ['quote-requests', 'list'] })?.options;
+    expect(options?.refetchInterval).toBe(60_000);
+    expect(options?.refetchIntervalInBackground).toBe(false);
+    expect(options?.refetchOnWindowFocus).toBe('always');
+  });
+
+  it('a refresh that brings a new request says so politely and never moves focus', async () => {
+    let rows = ROWS;
+    const backend = quoteRequestsBackend(() => quoteRequestList(rows));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+    const search = screen.getByRole('searchbox', { name: 'Search requests' });
+    search.focus();
+    expect(screen.queryByText(/new quote request/)).toBeNull();
+
+    rows = [quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva' }), ...ROWS];
+    const before = backend.lists.length;
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+
+    expect(await screen.findByRole('link', { name: 'Mark Villanueva' })).toBeVisible();
+    expect(backend.lists.length).toBeGreaterThan(before);
+    await waitFor(() => {
+      expect(screen.getByText('1 new quote request.')).toBeInTheDocument();
+    });
+    expect(search).toHaveFocus();
+    act(() => {
+      focusManager.setFocused(undefined);
+    });
+  });
+
+  it('a filter change is not news: no new-request line', async () => {
+    quoteRequestsBackend((url) =>
+      url.searchParams.get('status') === 'all'
+        ? quoteRequestList([quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva' }), ...ROWS])
+        : quoteRequestList(ROWS),
+    );
+    renderPage();
+    const user = userEvent.setup();
+    await rowOf('Juan Dela Cruz');
+
+    await user.click(screen.getByRole('button', { name: 'All 20 requests' }));
+
+    expect(await screen.findByRole('link', { name: 'Mark Villanueva' })).toBeVisible();
+    expect(screen.queryByText(/new quote request/)).toBeNull();
+  });
+
+  it('has no axe violations in the empty state', async () => {
+    quoteRequestsBackend(quoteRequestList([]));
+    const { container } = renderPage();
+
+    await screen.findByRole('heading', { level: 2, name: 'No open quote requests' });
     await expectNoAxeViolations(container);
   });
 });

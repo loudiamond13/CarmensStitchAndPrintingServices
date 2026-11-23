@@ -4,7 +4,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, test } from './fixtures.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createQuoteRequest, createStaff } from './testing-api.ts';
 
 interface InboxRow {
@@ -83,4 +84,40 @@ test('@quote staff see a new request in Quote Requests', async ({ page, request,
   await expect(page.getByRole('row').filter({ has: link })).toContainText('New');
   // The name is personal data: it never reaches the document title (T-13-44).
   await expect(page).not.toHaveTitle(new RegExp(name));
+});
+
+test('@quote at 320px the inbox shows cards, nothing scrolls sideways and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+  const name = uniqueName();
+  // One photo declared and never sent, so the card shows the missing-photo mark.
+  await createQuoteRequest(request, {
+    customerName: name,
+    contactNumber: freshMobile(),
+    productChoice: 'not-sure',
+    quantity: '21-50',
+    declaredPhotos: ['logo.png'],
+  });
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  // Searched by the unique name, so the request is listed however many others the shared database holds.
+  const rows = await openInbox(page, `/admin/quote-requests?q=${encodeURIComponent(name)}`);
+  expect(rows.map((row) => row.customerName)).toEqual([name]);
+  const link = page.getByRole('link', { name });
+  await expect(link).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Quote requests' }).locator('thead')).toBeHidden();
+  const card = page.getByRole('row').filter({ has: link });
+  await expect(card).toContainText('Not sure yet');
+  await expect(card).toContainText('21-50 pcs');
+  await expect(card).toContainText('0 of 1');
+  await expect(page.getByRole('toolbar', { name: 'Show' }).getByRole('button')).toHaveCount(5);
+  await expect(page.getByText(`Search: ${name}`)).toBeVisible();
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
 });
