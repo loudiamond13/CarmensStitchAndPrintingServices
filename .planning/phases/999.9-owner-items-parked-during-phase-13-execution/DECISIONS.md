@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T08:05:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T10:05:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -120,10 +120,22 @@ D-42 named only the shop email and the Quote alerts address, so the fix added a 
 6. **Dropdowns while sending.** A: they stay disabled (as in 13-09). B: keep them enabled and ignore changes.
 7. **The Email placeholder "you@gmail.com"** (from the UI spec) was flagged by the build test that looks for email addresses in the public showcase files. A: add it to that test's list of allowed made-up addresses, which already has "name@gmail.com". B: change the placeholder to "you@example.com".
 
-The form file now has only 0.02 KB of its 45 KB budget left.
+The form file had only 0.02 KB of its 45 KB budget left. After the wave 5 fixes it is 44.23 KB (see P13-BL-12).
+
+## P13-BL-12 · Choices made in the wave 5 review fixes (13-REVIEW-FIX-W5)
+
+**Status:** open · **Blocks:** nothing. Built as A in items 1 to 3. Item 4 is unchanged.
+
+1. **A photo dropped while the inquiry is sending.** A: refuse it with "Photos can't be added while your inquiry is sending." B: other wording.
+2. **Phone search floor.** A: the search drops a leading 0 or 63 first, then needs 3 digits, so "0917" and "+63 917" find each other and "091" or "639" alone find nothing. B: the old rule, where "639" matches every number.
+3. **While Send waits for photos still being prepared.** A: the "Sending" label and spinner stand in. B: add a "Getting your photos ready" line (new copy, about 0.05 KB of the form budget).
+4. **The "maybe sent" message (review W5 IN-01).** It says "You won't send it twice", which is only true if the visitor changes nothing before pressing Send again. A: keep it. B: new wording, for example "If you send it again unchanged, we won't get it twice."
+
+The form budget gained 0.86 KB because the form no longer loads the legal page styles. The form file is now 44.23 KB of its 45 KB budget. No limit changed.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
 - [ ] Contact page layout on a real phone (form first, then Messenger, Call, hours, phones, map).
 - [ ] The Quote alerts card in Site Content > Business info, in Blush and Espresso, on phone and desktop.
+- [ ] Quote form on a real phone: pick a photo and press Send at once. The photo must arrive, and Send shows Sending until it does (13-REVIEW-FIX-W5 CR-01).

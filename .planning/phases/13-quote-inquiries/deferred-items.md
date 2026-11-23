@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T08:40:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T10:08:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -15,6 +15,7 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, 13-11 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` | Same 500 on `POST /api/testing/site-content` while other agents used LocalDB | passed on re-run and in two later runs |
 | 2026-11-23, 13-12 | `PublicLayout.test.tsx` | Failed under full web-suite load in the executor's worktree | 48 of 48 passed alone; passed in the wave 5 gate |
 | 2026-11-23, wave 5 gate | `CompanyExpenseCheckTests.TheLegacyHolderCannotPay` (LegacyFitCheck) | LocalDB connection error during the full .NET suite | LegacyFitCheck alone: 275 passed, 1 skipped |
+| 2026-11-23, W5 fixes | `GalleryPage.test.tsx` "puts focus back on the tile..." | failed once in a run of all `modules/public` tests | alone: passed twice |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
@@ -25,3 +26,7 @@ The LocalDB login timeouts are the recurring pattern: the full .NET suite opens 
 ## Stale build hid a failing check (wave 5)
 
 `build-output.node.test.ts` reads the built site in `src/Csps.Server/wwwroot` and only rebuilds when it is missing. The main checkout had a build from 2026-11-21, so the full suite passed while a fresh build failed on the 13-09 placeholder `you@gmail.com` (fixed in f1fd0076, owner item P13-BL-11 item 7). Later gates should rebuild the web app first.
+
+## Webkit e2e failure handed to plan 13-24 (W5 fixes)
+
+"@quote the rate limit keeps what the visitor typed" fails its "Send is focused" check on webkit. It fails the same way with the code from before the W5 fixes, so the fixes did not cause it. The `@quote` cases had run only on chromium; plan 13-24 runs them on every browser and must fix or record this one.
