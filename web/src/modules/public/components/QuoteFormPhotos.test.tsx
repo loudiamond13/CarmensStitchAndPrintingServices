@@ -7,7 +7,9 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { ToastProvider } from '@/components/feedback/ToastProvider';
 import { expectNoAxeViolations } from '@/test/axe';
-import { pngFile } from '@/test/quotePhotoFixtures';
+import { server } from '@/test/msw';
+import { siteFailureHandler } from '@/test/publicFixtures';
+import { answerPhotos, pngFile } from '@/test/quotePhotoFixtures';
 import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
 import { quoteService, type QuoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
@@ -266,6 +268,91 @@ describe('QuoteForm while it sends (Q3 loading)', () => {
     expect(await screen.findByRole('button', { name: 'Sending' })).toBeInTheDocument();
     expect(screen.queryByText(/Sending your photos/)).not.toBeInTheDocument();
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+  });
+});
+
+describe('QuoteForm when photos do not upload (Q3 partial, D-03)', () => {
+  async function sendWith(files: File[]) {
+    const { container } = renderForm();
+    await pickPhotos(container, files);
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+    return container;
+  }
+
+  it('retries a failed photo once with the same key, then names it with the Messenger button', async () => {
+    answerQuote();
+    const calls = answerPhotos({ 1: [503, 503] });
+
+    await sendWith([pngFile('logo.png'), pngFile('sketch.heic', 128)]);
+
+    expect(
+      await screen.findByText(
+        "We got your request, but 1 of your photos didn't upload: sketch.heic. Please send it to us on Messenger.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Message Us on Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
+    const slotOne = calls.filter((call) => call.slot === 1);
+    expect(slotOne).toHaveLength(2);
+    expect(slotOne[0]?.key).toBe(slotOne[1]?.key);
+    expect(calls.filter((call) => call.slot === 0)).toHaveLength(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows no missing photo when the retry arrives', async () => {
+    answerQuote();
+    const calls = answerPhotos({ 0: ['network', 200] });
+
+    await sendWith([pngFile('logo.png')]);
+
+    expect(calls).toHaveLength(2);
+    expect(screen.queryByText(/didn't upload/)).not.toBeInTheDocument();
+  });
+
+  it('uses the all-failed sentence when no photo arrived', async () => {
+    answerQuote();
+    answerPhotos({ 0: [500], 1: ['network'] });
+
+    await sendWith([pngFile('logo.png'), pngFile('sketch.png', 128)]);
+
+    expect(
+      await screen.findByText(
+        "We got your request, but your photos didn't upload. Please send them to us on Messenger.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('counts a refused photo (422) as missing, without a retry and without an error box', async () => {
+    answerQuote();
+    const calls = answerPhotos({ 0: [422] });
+
+    await sendWith([pngFile('logo.png'), pngFile('sketch.png', 128)]);
+
+    expect(await screen.findByText(/1 of your photos didn't upload: logo\.png\./)).toBeInTheDocument();
+    expect(calls.filter((call) => call.slot === 0)).toHaveLength(1);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('leaves the Messenger button out when the shop facts failed to load', async () => {
+    server.use(siteFailureHandler());
+    answerQuote();
+    answerPhotos({ 0: [503] });
+
+    await sendWith([pngFile('logo.png'), pngFile('sketch.png', 128)]);
+
+    expect(await screen.findByText(/1 of your photos didn't upload/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Message Us on Messenger' })).not.toBeInTheDocument();
+  });
+
+  it('has no axe violations with a photo missing', async () => {
+    answerQuote();
+    answerPhotos({ 0: [503] });
+
+    const container = await sendWith([pngFile('logo.png'), pngFile('sketch.png', 128)]);
+
+    await screen.findByText(/1 of your photos didn't upload/);
+    await expectNoAxeViolations(container);
   });
 });
 
