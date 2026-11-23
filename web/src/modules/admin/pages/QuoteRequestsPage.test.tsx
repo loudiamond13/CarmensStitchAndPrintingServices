@@ -557,7 +557,10 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
     search.focus();
     expect(screen.queryByText(/new quote request/)).toBeNull();
 
-    rows = [quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva' }), ...ROWS];
+    rows = [
+      quoteRequestItem(quoteRequestId(9), { customerName: 'Mark Villanueva', receivedAtUtc: '2026-11-22T01:00:00Z' }),
+      ...ROWS,
+    ];
     const before = backend.lists.length;
     act(() => {
       focusManager.setFocused(false);
@@ -651,6 +654,54 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
       expect(screen.getByRole('button', { name: 'All 20 requests' })).toHaveAttribute('aria-pressed', 'true');
     });
     expect(line.textContent).toBe('');
+  });
+
+  it('an older New request that slides onto the page is not news', async () => {
+    let rows = ROWS;
+    quoteRequestsBackend(() => quoteRequestList(rows));
+    renderPage();
+    await rowOf('Juan Dela Cruz');
+
+    // A colleague closed Ana's request, so an older New one moves up from page 2.
+    rows = [
+      quoteRequestItem(FIRST),
+      quoteRequestItem(quoteRequestId(7), { customerName: 'Pedro Santos', receivedAtUtc: '2026-11-19T02:00:00Z' }),
+    ];
+    refocusWindow();
+
+    expect(await screen.findByRole('link', { name: 'Pedro Santos' })).toBeVisible();
+    expect(screen.queryByText(/new quote request/)).toBeNull();
+  });
+
+  it('a request seen earlier in this visit and moved back to New is not news', async () => {
+    const moved = quoteRequestId(8);
+    let open = ROWS;
+    quoteRequestsBackend((url) =>
+      url.searchParams.get('status') === 'spam'
+        ? quoteRequestList([
+            quoteRequestItem(moved, {
+              customerName: 'Rosa Mendoza',
+              receivedAtUtc: '2026-11-22T03:00:00Z',
+              status: 'spam',
+            }),
+          ])
+        : quoteRequestList(open),
+    );
+    renderPage('?status=spam');
+    await rowOf('Rosa Mendoza');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Open 4 requests' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: 'Rosa Mendoza' })).toBeNull();
+    });
+    await rowOf('Juan Dela Cruz');
+
+    // A colleague moves Rosa's request from Spam back to New.
+    open = [quoteRequestItem(moved, { customerName: 'Rosa Mendoza', receivedAtUtc: '2026-11-22T03:00:00Z' }), ...ROWS];
+    refocusWindow();
+
+    expect(await screen.findByRole('link', { name: 'Rosa Mendoza' })).toBeVisible();
+    expect(screen.queryByText(/new quote request/)).toBeNull();
   });
 
   it('a filter change is not news: no new-request line', async () => {

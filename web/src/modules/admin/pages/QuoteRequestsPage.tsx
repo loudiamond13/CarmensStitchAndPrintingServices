@@ -6,7 +6,7 @@
 //   - Empty: each pill has its own words; a search with no match offers Clear Search.
 //   - A failed first load is an ErrorState with Try Again; a failed later refresh keeps the rows and shows the stale line.
 //   - The list reads again every 60 seconds and on focus, but not after a failed read. New rows never move focus; a hidden polite line says how many New
-//     requests arrived since the last answer for the same view. The line clears after 5 seconds and on a view change, so
+//     requests arrived: ids no answer in this visit held, received after the newest one seen. The line clears after 5 seconds and on a view change, so
 //     the next arrival changes the text and is read out.
 // The document title never holds a name (T-13-44).
 import { useEffect, useState } from 'react';
@@ -39,16 +39,33 @@ const RESULTS_ID = 'quote-requests-results';
 /** How long the hidden new-request line stays before it clears. */
 const ARRIVED_CLEAR_MS = 5_000;
 
-/** The ids of the New requests in an answer. */
-function newIds(data: QuoteRequestListResponse): readonly string[] {
-  return data.items.filter((item) => item.status === 'new').map((item) => item.id);
-}
-
-/** The last answer seen for one view (status, search, page and size), to tell a refresh's new requests from a view change. */
+/** The last answer seen and its view (status, search, page and size), to tell a refresh's new requests from a view change. */
 interface Seen {
   readonly view: string;
   readonly data: QuoteRequestListResponse;
-  readonly ids: readonly string[];
+  /** Every id any answer in this visit held, in any view. */
+  readonly ids: ReadonlySet<string>;
+  /** The latest received time any answer in this visit held, in ms. */
+  readonly newest: number;
+}
+
+/** The New requests in `data` that arrived since `seen`: never seen in this visit and received after the newest seen. */
+function arrivals(data: QuoteRequestListResponse, seen: Seen): number {
+  return data.items.filter(
+    (item) => item.status === 'new' && !seen.ids.has(item.id) && Date.parse(item.receivedAtUtc) > seen.newest,
+  ).length;
+}
+
+/** `seen` with the answer added. */
+function remember(seen: Seen | null, view: string, data: QuoteRequestListResponse): Seen {
+  const ids = new Set(seen?.ids);
+  let newest = seen?.newest ?? Number.NEGATIVE_INFINITY;
+  for (const item of data.items) {
+    ids.add(item.id);
+    const at = Date.parse(item.receivedAtUtc);
+    if (!Number.isNaN(at)) newest = Math.max(newest, at);
+  }
+  return { view, data, ids, newest };
 }
 
 /** The New requests a refresh brought, for the view they arrived in. */
@@ -71,7 +88,7 @@ export default function QuoteRequestsPage() {
   const total = Number(data?.total ?? 0);
   const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
 
-  // Adjust during render: a fresh answer for the same view that holds New requests the last one did not is news.
+  // Adjust during render: a fresh answer for the same view that holds New requests not seen before is news.
   const view = `${params.status}|${params.q ?? ''}|${String(params.page)}|${String(params.size)}`;
   const [seen, setSeen] = useState<Seen | null>(null);
   const [arrived, setArrived] = useState<Arrived | null>(null);
@@ -79,15 +96,14 @@ export default function QuoteRequestsPage() {
     setArrived(null);
   }
   if (data !== undefined && !query.isPlaceholderData && seen?.data !== data) {
-    const ids = newIds(data);
     if (seen !== null && seen.view === view) {
-      const added = ids.filter((id) => !seen.ids.includes(id)).length;
+      const added = arrivals(data, seen);
       if (added > 0) {
         // A line still showing adds up, so the text always changes.
         setArrived({ view, count: (arrived?.view === view ? arrived.count : 0) + added });
       }
     }
-    setSeen({ view, data, ids });
+    setSeen(remember(seen, view, data));
   }
 
   useEffect(() => {
