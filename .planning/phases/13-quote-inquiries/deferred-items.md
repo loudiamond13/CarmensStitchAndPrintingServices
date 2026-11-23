@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T10:08:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T10:45:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -16,6 +16,8 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, 13-12 | `PublicLayout.test.tsx` | Failed under full web-suite load in the executor's worktree | 48 of 48 passed alone; passed in the wave 5 gate |
 | 2026-11-23, wave 5 gate | `CompanyExpenseCheckTests.TheLegacyHolderCannotPay` (LegacyFitCheck) | LocalDB connection error during the full .NET suite | LegacyFitCheck alone: 275 passed, 1 skipped |
 | 2026-11-23, W5 fixes | `GalleryPage.test.tsx` "puts focus back on the tile..." | failed once in a run of all `modules/public` tests | alone: passed twice |
+| 2026-11-23, W5 post-fix gate | `GalleryPage.test.tsx` "puts focus back on the tile..." (second time, recurring under load) | failed in the full vitest run | alone: 28 passed, three runs in a row |
+| 2026-11-23, W5 post-fix gate | `ManagerRosterLockTests`, `OrderListStoreTests` (PaymentMethod rename), `OrderDiscountsMigrationTests` | LocalDB connection error (SNI) during the full .NET suite | Infrastructure tests alone: 1329 passed, 0 failed |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
