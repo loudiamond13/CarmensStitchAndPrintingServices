@@ -250,6 +250,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(tabs.flatMap((nav) => [...nav.querySelectorAll('a')].map((link) => link.getAttribute('href')))).toEqual([
       '/admin',
       '/admin/orders',
+      '/admin/quote-requests',
       '/admin/expenses',
       '/admin/profile',
     ]);
@@ -563,9 +564,9 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
     );
   });
 
-  it('shows only on phones: hidden by default, a 4-column grid in the phone container', async () => {
+  it('shows only on phones: hidden by default, a 5-column grid in the phone container (D-30)', async () => {
     await renderAt('/admin');
-    expect(tabBar().className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'pg-phone:grid', 'grid-cols-4']));
+    expect(tabBar().className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'pg-phone:grid', 'grid-cols-5']));
   });
 
   it('takes the visitor to the section of a tab', async () => {
@@ -1201,6 +1202,42 @@ describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
       'href',
       '/admin/quote-requests',
     );
+  });
+
+  it('shows the same count in the phone drawer and on the Quotes tab', async () => {
+    countReads(3);
+    await renderSignedIn();
+
+    const tabs = [...document.querySelectorAll<HTMLElement>('nav[aria-label="Admin"]')].find(
+      (nav) => nav.closest('aside') === null,
+    );
+    if (tabs === undefined) {
+      throw new Error('No tab bar.');
+    }
+    expect(await within(tabs).findByRole('link', { name: 'Quotes, 3 new' })).toHaveAttribute(
+      'href',
+      '/admin/quote-requests',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(within(drawer).getByRole('link', { name: 'Quote Requests, 3 new' })).toBeInTheDocument();
+  });
+
+  it('marks Quote Requests and the Quotes tab current for the quotes section', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="quotes" user={{ name: 'Lito Santos', role: 'admin' }} theme="light" withQuoteRequests>
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    expect(sidebarLink('Quote Requests')).toHaveAttribute('aria-current', 'page');
+    expect(tabBar().querySelector('[aria-current="page"]')?.textContent).toBe('Quotes');
   });
 
   it('shows no chip and no shell error when the count read fails', async () => {

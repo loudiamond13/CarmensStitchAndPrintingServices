@@ -51,6 +51,9 @@ export const tabItemClasses = tw(
 /** `.s-tab-i.is-on .csp-icon`: the current tab's icon in the accent ink. */
 export const tabIconClasses = tw('group-aria-[current=page]/tab:text-accent-ink');
 
+// RED stub.
+export const tabBarCountClasses = '';
+
 // ── Route-chunk skeleton (UI-SPEC UI Considerations: loading, route chunks) ──
 
 /** The skeleton page head's two lines sit in the `.s-ph-title` column, so the page head lands in the same place. */

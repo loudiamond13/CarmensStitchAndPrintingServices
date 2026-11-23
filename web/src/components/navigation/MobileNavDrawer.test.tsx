@@ -33,10 +33,11 @@ interface HarnessProps {
   readonly initialOpen?: boolean;
   readonly onClose?: () => void;
   readonly withAuditLog?: boolean;
+  readonly counts?: { quotes?: number };
 }
 
 /** The menu button and the drawer as the admin shell wires them, in a router with the admin paths. */
-function Harness({ initialOpen = false, onClose, withAuditLog = false }: HarnessProps) {
+function Harness({ initialOpen = false, onClose, withAuditLog = false, counts }: HarnessProps) {
   const [open, setOpen] = useState(initialOpen);
   return (
     <>
@@ -59,7 +60,14 @@ function Harness({ initialOpen = false, onClose, withAuditLog = false }: Harness
           setOpen(false);
         }}
       >
-        <Sidebar active="dashboard" role={MANAGER} user={CARMEN} withAuditLog={withAuditLog} />
+        <Sidebar
+          active="dashboard"
+          role={MANAGER}
+          user={CARMEN}
+          withAuditLog={withAuditLog}
+          withQuoteRequests={counts !== undefined}
+          counts={counts}
+        />
       </MobileNavDrawer>
     </>
   );
@@ -510,5 +518,35 @@ describe('MobileNavDrawer closing animation (D-34, D-38)', () => {
     expect(panel.parentElement).not.toHaveAttribute('inert');
     expect(panel.contains(document.activeElement)).toBe(true);
     expect(document.body.classList.contains(bodyScrollLockClass)).toBe(true);
+  });
+});
+
+// SPEC-DEVIATION: D-19 the drawer's Sidebar carries Quote Requests and its New count, as the side column does (D-14; UI-SPEC R4).
+describe('MobileNavDrawer Quote Requests count (D-14, D-19)', () => {
+  it('lists Quote Requests right after Orders, named with its count', () => {
+    renderHarness({ initialOpen: true, counts: { quotes: 3 } });
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    const names = within(drawer)
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'));
+
+    expect(names.slice(0, 3)).toEqual(['/admin', '/admin/orders', '/admin/quote-requests']);
+    expect(within(drawer).getByRole('link', { name: 'Quote Requests, 3 new' })).toBeInTheDocument();
+    expect(within(drawer).getByText('3')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('shows no chip and no hidden text at 0', () => {
+    renderHarness({ initialOpen: true, counts: { quotes: 0 } });
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+
+    expect(within(drawer).getByRole('link', { name: 'Quote Requests' }).textContent).toBe('Quote Requests');
+  });
+
+  it.each<[string, { quotes: number }]>([
+    ['with a count', { quotes: 3 }],
+    ['with no count', { quotes: 0 }],
+  ])('has no axe violations %s', async (_case, counts) => {
+    const { container } = renderHarness({ initialOpen: true, counts });
+    await expectNoAxeViolations(container);
   });
 });
