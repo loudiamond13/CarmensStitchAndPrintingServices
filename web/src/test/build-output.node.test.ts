@@ -235,6 +235,7 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     'liza.mercado@example.com',
     'maria.concepcion.villanueva.dela.cruz.j@barangay-sanroque.gov.ph',
     'name@gmail.com',
+    'you@gmail.com',
     'carmen@x.ph',
     'hello@yourdomain.ph',
   ]);
