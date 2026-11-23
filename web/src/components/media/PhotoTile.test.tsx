@@ -69,6 +69,13 @@ describe('PhotoTile saved photo (D-25)', () => {
     expect(container.querySelector('li > div')?.innerHTML).toContain('accent-line');
   });
 
+  it('has no Cover mark on photo 1 of a list without a cover (quote request photos)', () => {
+    const { container } = renderTile({ position: 1, mode: 'readonly', hasCover: false });
+    expect(screen.queryByText('Cover')).toBeNull();
+    expect(container.querySelector('li > div')?.innerHTML).not.toContain('accent-line');
+    expect(screen.getByText('Photo 1 of 3')).toBeDefined();
+  });
+
   it('puts the D-05 reveal on the decorative grip only, and hides the grip where hover is none', () => {
     const { container } = renderTile();
     const tokens = (element: Element) =>

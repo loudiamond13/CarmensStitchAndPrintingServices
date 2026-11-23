@@ -76,10 +76,116 @@ export function newQuoteCountHandler(count: number | { readonly failWith: number
   );
 }
 
-/** A problem+json answer with a status. */
-export function quoteProblem(status: number): Response {
-  return new HttpResponse(JSON.stringify({ title: 'x', status }), {
+/** A problem+json answer with a status, and optionally its machine code and server sentence. */
+export function quoteProblem(status: number, extra: { code?: string; detail?: string } = {}): Response {
+  return new HttpResponse(JSON.stringify({ title: 'x', status, ...extra }), {
     status,
     headers: { 'Content-Type': 'application/problem+json' },
   });
+}
+
+export type QuoteRequestDetailFixture = Schemas['QuoteRequestDetailResponse'];
+export type QuoteRequestPhotoFixture = Schemas['QuoteRequestPhotoResponse'];
+export type QuoteStatusChangedFixture = Schemas['QuoteRequestStatusChangedResponse'];
+
+/** A made-up staff member who changed a request. */
+export const MARIA = { id: '00000000-0000-4000-8000-0000000000a1', name: 'Maria Santos', formerStaff: false } as const;
+
+/** A stored photo at `slot` with fake delivery addresses. */
+export function quoteRequestPhoto(slot: number, fileName = `photo-${String(slot + 1)}.jpg`): QuoteRequestPhotoFixture {
+  const base = `https://images.example.test/quote/${String(slot)}`;
+  return {
+    slot,
+    fileName,
+    width: 4000,
+    height: 3000,
+    thumb: { src: `${base}/thumb.jpg`, srcSet: `${base}/thumb.jpg 1x, ${base}/thumb-2x.jpg 2x` },
+    viewer: { src: `${base}/viewer.jpg`, srcSet: `${base}/v640.jpg 640w, ${base}/v960.jpg 960w` },
+    fullSize: `${base}/full-2000.jpg`,
+  };
+}
+
+/** One request in full: Juan Dela Cruz, a New request received Nov 21, 2026 at 3:42 PM Manila time, with 3 stored photos. */
+export function quoteRequestDetail(
+  id: string = quoteRequestId(1),
+  overrides: Partial<QuoteRequestDetailFixture> = {},
+): QuoteRequestDetailFixture {
+  return {
+    id,
+    receivedAtUtc: '2026-11-21T07:42:00Z',
+    customerName: 'Juan Dela Cruz',
+    teamName: 'Brgy. San Roque Ballers',
+    contactNumber: '0917 555 0101',
+    email: 'juan@example.test',
+    product: { choice: 'line', title: 'Basketball Jerseys' },
+    quantity: '21-50',
+    message: 'Twelve jerseys, numbers 1 to 12.',
+    status: 'new',
+    statusChangedAtUtc: '2026-11-21T07:42:00Z',
+    photoCount: 3,
+    photos: [quoteRequestPhoto(0, 'front.jpg'), quoteRequestPhoto(1, 'back.jpg'), quoteRequestPhoto(2, 'logo.jpg')],
+    missingPhotos: [],
+    photosRemovedAtUtc: null,
+    history: [{ from: null, to: 'new', changedBy: null, changedAt: '2026-11-21T07:42:00Z' }],
+    lastChangedBy: null,
+    lastChangedAt: null,
+    version: 'AAAAAAAAB9E=',
+    ...overrides,
+  };
+}
+
+/** What the fake detail API recorded. */
+export interface QuoteRequestDetailBackend {
+  /** The id of every GET /quote-requests/{id}. */
+  reads: string[];
+  /** Every POST /quote-requests/{id}/status: the id, the body and the Idempotency-Key. */
+  moves: { id: string; body: { status: string; version: string }; key: string | null }[];
+}
+
+export type QuoteDetailResult = QuoteRequestDetailFixture | Response | Promise<QuoteRequestDetailFixture | Response>;
+export type QuoteMoveResult = QuoteStatusChangedFixture | Response | Promise<QuoteStatusChangedFixture | Response>;
+
+const DETAIL_PATH = /\/api\/v1\/quote-requests\/([0-9a-f-]{36})$/;
+const STATUS_PATH = /\/api\/v1\/quote-requests\/([0-9a-f-]{36})\/status$/;
+
+function isMoveBody(value: unknown): value is { status: string; version: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'status' in value &&
+    typeof value.status === 'string' &&
+    'version' in value &&
+    typeof value.version === 'string'
+  );
+}
+
+/**
+ * Answers GET /api/v1/quote-requests/{id} with a request, or with a function of the read number (from 1); and
+ * POST /api/v1/quote-requests/{id}/status with `move`, by default the new status with a new version.
+ */
+export function quoteRequestBackend(
+  detail: QuoteRequestDetailFixture | ((read: number, id: string) => QuoteDetailResult),
+  move?: (body: { status: string; version: string }, id: string) => QuoteMoveResult,
+): QuoteRequestDetailBackend {
+  const backend: QuoteRequestDetailBackend = { reads: [], moves: [] };
+  server.use(
+    http.get(DETAIL_PATH, async ({ request }) => {
+      const id = DETAIL_PATH.exec(new URL(request.url).pathname)?.[1] ?? '';
+      backend.reads.push(id);
+      const body = typeof detail === 'function' ? await detail(backend.reads.length, id) : detail;
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+    http.post(STATUS_PATH, async ({ request }) => {
+      const id = STATUS_PATH.exec(new URL(request.url).pathname)?.[1] ?? '';
+      const raw: unknown = await request.json();
+      const body = isMoveBody(raw) ? raw : { status: '', version: '' };
+      backend.moves.push({ id, body, key: request.headers.get('Idempotency-Key') });
+      const answer =
+        move === undefined
+          ? { id, status: body.status, statusChangedAtUtc: '2026-11-21T08:05:00Z', version: 'AAAAAAAAB9I=' }
+          : await move(body, id);
+      return answer instanceof Response ? answer : HttpResponse.json(answer);
+    }),
+  );
+  return backend;
 }

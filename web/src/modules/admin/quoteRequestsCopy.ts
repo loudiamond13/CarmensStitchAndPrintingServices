@@ -71,3 +71,65 @@ export const QUOTE_REQUESTS_COPY = {
   /** The hidden polite line when a refresh brings new requests: "1 new quote request." */
   arrived: (count: number): string => `${formatCount(count)} new ${count === 1 ? 'quote request' : 'quote requests'}.`,
 } as const;
+
+// SPEC-GAP: quote request page copy (UI-SPEC R2 and Copywriting "R2 head" to "Not found").
+export const QUOTE_REQUEST_COPY = {
+  /** Shown as "Quote Request · CSPS Admin": the visitor's name never reaches the title (CWE-598). */
+  documentTitle: 'Quote Request',
+  /** The loading noun: "Loading the quote request…". */
+  loadingThing: 'the quote request',
+  back: 'Quote Requests',
+  received: (when: string): string => `Received ${when} from the website`,
+  details: {
+    title: 'Request',
+    team: 'Team / organization',
+    phone: 'Contact number',
+    email: 'Email',
+    product: 'Product type',
+    quantity: 'Quantity (estimate)',
+    message: 'Message',
+  },
+  photos: {
+    title: 'Photos',
+    /** The name of the tile list and the viewer. */
+    listName: 'Request photos',
+    /** After the count chip, visually hidden: "3 photos". */
+    countHidden: (count: number): string => (count === 1 ? 'photo' : 'photos'),
+    /** D-03: the names of the photos that never arrived. */
+    missing: (names: readonly string[]): string =>
+      `${formatCount(names.length)} ${names.length === 1 ? 'photo' : 'photos'} didn't upload: ${names.join(', ')}. Ask the customer to send them on Messenger.`,
+    /** D-04: also after the move back out of Spam, and while the removal job has not run yet. */
+    removed: 'The photos were deleted when this request was marked as spam.',
+    none: 'No photos were sent.',
+  },
+  states: {
+    loadFailed: "Couldn't load this quote request.",
+    notFound: 'Quote request not found',
+    notFoundMessage: 'It may have been deleted or cleaned up after 6 months.',
+    backToList: 'Back to Quote Requests',
+  },
+  history: {
+    title: 'History',
+    separator: ' · ',
+    received: 'Received from the website',
+  },
+  status: {
+    menu: 'Change Status',
+    /** The button while a move runs, as OrderStatusMenu. */
+    saving: 'Saving',
+    moveTo: (label: string): string => `Move to ${label}`,
+    moved: { title: 'Status changed', message: (label: string): string => `This request is now ${label}.` },
+    failed: "Couldn't change the status",
+  },
+  /** The D-04 confirm before a Spam move deletes photos. */
+  spam: {
+    title: 'Mark this request as spam?',
+    message: (photos: number): string =>
+      `Its ${formatCount(photos)} ${photos === 1 ? 'photo' : 'photos'} will be deleted within a day and can't be brought back. The request text stays until it's cleaned up after 6 months.`,
+    confirm: 'Mark as Spam',
+    pending: 'Marking',
+    cancel: 'Cancel',
+  },
+  /** The ConflictBanner lines after a 409. */
+  conflict: { title: 'Someone else changed this request.', body: 'Load the latest to see it.' },
+} as const;

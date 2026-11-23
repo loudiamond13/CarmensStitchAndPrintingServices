@@ -25,6 +25,21 @@ describe('ConflictBanner', () => {
     expect(within(alert).getByRole('button', { name: 'Load Latest' })).toBeInTheDocument();
   });
 
+  it("takes a screen's own two lines in place of the shared ones", () => {
+    render(
+      <ConflictBanner
+        onLoadLatest={() => undefined}
+        title="Someone else changed this request."
+        body="Load the latest to see it."
+      />,
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(within(alert).getByText('Someone else changed this request.').tagName).toBe('STRONG');
+    expect(within(alert).getByText('Load the latest to see it.')).toBeInTheDocument();
+    expect(within(alert).queryByText('This was changed by someone else.')).toBeNull();
+  });
+
   it('puts focus on Load Latest when it appears', () => {
     render(<ConflictBanner onLoadLatest={() => undefined} />);
 

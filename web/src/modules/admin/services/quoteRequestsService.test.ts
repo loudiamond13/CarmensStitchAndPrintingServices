@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpClient } from '@/core/api/apiClient';
 import { createFakeFetch } from '@/test/fakeFetch';
-import { quoteRequestItem, quoteRequestList } from '@/test/quoteRequestFixtures';
+import { quoteRequestDetail, quoteRequestId, quoteRequestItem, quoteRequestList } from '@/test/quoteRequestFixtures';
 import { createQuoteRequestsService } from './quoteRequestsService';
 
 // The staff inbox calls (INQ-05, D-14, D-18): typed, over the one HTTP client.
@@ -52,6 +52,53 @@ describe('quoteRequestsService.list', () => {
     controller.abort();
 
     expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('quoteRequestsService.get', () => {
+  it('calls GET /api/v1/quote-requests/{id} and resolves the request in full', async () => {
+    const detail = quoteRequestDetail(quoteRequestId(7));
+    const { fake, service } = serviceWith([{ body: detail }]);
+
+    await expect(service.get(quoteRequestId(7))).resolves.toEqual(detail);
+
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}`);
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.get(quoteRequestId(1), controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
+describe('quoteRequestsService.changeStatus', () => {
+  it('posts the status and the version with the Idempotency-Key and resolves the slim answer', async () => {
+    const answer = {
+      id: quoteRequestId(7),
+      status: 'quoted',
+      statusChangedAtUtc: '2026-11-21T08:05:00Z',
+      version: 'AAAAAAAAB9I=',
+    };
+    const { fake, service } = serviceWith([{ body: answer }]);
+
+    await expect(service.changeStatus(quoteRequestId(7), 'quoted', 'AAAAAAAAB9E=', 'key-1')).resolves.toEqual(answer);
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}/status`);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ status: 'quoted', version: 'AAAAAAAAB9E=' });
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
   });
 });
 
