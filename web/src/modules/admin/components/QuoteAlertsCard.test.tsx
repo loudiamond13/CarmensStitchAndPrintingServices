@@ -220,6 +220,58 @@ describe('QuoteAlertsCard', () => {
     });
   });
 
+  it('a failed test keeps its key for the same address, and a newly saved address gets a new key and its own toast', async () => {
+    let calls = 0;
+    const keys = testSendBackend(() => {
+      calls += 1;
+      return calls <= 2 ? problemAnswer(500) : new HttpResponse(null, { status: 202 });
+    });
+    const user = userEvent.setup();
+    const { rerender } = render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+    expect(await screen.findByText("Couldn't send the test email.")).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Send Test Email' }));
+    await vi.waitFor(() => {
+      expect(keys).toHaveLength(2);
+    });
+    expect(keys[1]).toBe(keys[0]);
+
+    // Another address is saved: the next test is a new one, so a stored answer for the old address is never replayed.
+    rerender(<CardInForm address="quotes@example.com" saved="new.quotes@example.com" />);
+    const field = screen.getByLabelText('Quote alerts email');
+    await user.clear(field);
+    await user.type(field, 'new.quotes@example.com');
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    expect(
+      await screen.findByText(
+        'It should reach new.quotes@example.com within a few minutes. Check the spam folder too.',
+      ),
+    ).toBeVisible();
+    expect(keys).toHaveLength(3);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
+  it('names the address saved when the test was sent, even if another is saved while it sends', async () => {
+    const gate = createDeferred<undefined>();
+    testSendBackend(async () => {
+      await gate.promise;
+      return new HttpResponse(null, { status: 202 });
+    });
+    const user = userEvent.setup();
+    const { rerender } = render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+    await screen.findByRole('button', { name: 'Sending' });
+    rerender(<CardInForm address="quotes@example.com" saved="new.quotes@example.com" />);
+    gate.resolve(undefined);
+
+    expect(
+      await screen.findByText('It should reach quotes@example.com within a few minutes. Check the spam folder too.'),
+    ).toBeVisible();
+  });
+
   it('wraps a long saved address in the success toast (R5 long-text)', async () => {
     testSendBackend();
     const long = `${'quote.alerts.for.the.shop'.repeat(8)}@example.com`;

@@ -28,7 +28,8 @@ export function QuoteAlertsCard({ control, savedAddress }: QuoteAlertsCardProps)
   const toast = useToast();
   const reasonId = useId();
   const typed = useWatch({ control, name: 'quoteAlertsEmail' });
-  const test = useSubmission<undefined, unknown>((key) => siteSettingsService.sendQuoteAlertTest(key));
+  // The saved address is the submission's data, so a newly saved address is a new test with a new key.
+  const test = useSubmission<string, unknown>((key) => siteSettingsService.sendQuoteAlertTest(key));
 
   // Why the button waits: nothing saved yet, or the field holds an unsaved change (R5 empty and partial).
   const saved = savedAddress.trim();
@@ -40,9 +41,10 @@ export function QuoteAlertsCard({ control, savedAddress }: QuoteAlertsCardProps)
   }
 
   const sendTest = async (): Promise<void> => {
-    const outcome = await test.submit();
+    const address = saved;
+    const outcome = await test.submit(address);
     if (outcome.ok) {
-      toast.show({ title: TEST.sent.title, message: TEST.sent.message(saved) });
+      toast.show({ title: TEST.sent.title, message: TEST.sent.message(address) });
       // A sent test is done, so the next press is a new test with its own request key. A failed one keeps its key for a retry.
       test.reset();
       return;
