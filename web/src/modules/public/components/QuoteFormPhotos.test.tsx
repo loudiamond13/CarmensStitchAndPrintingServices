@@ -292,7 +292,10 @@ describe('QuoteForm when photos do not upload (Q3 partial, D-03)', () => {
         "We got your request, but 1 of your photos didn't upload: sketch.heic. Please send it to us on Messenger.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Message Us on Messenger' })).toHaveAttribute('href', 'https://m.me/cspsdemo');
+    expect(screen.getByRole('link', { name: 'Message Us on Messenger' })).toHaveAttribute(
+      'href',
+      'https://m.me/cspsdemo',
+    );
     const slotOne = calls.filter((call) => call.slot === 1);
     expect(slotOne).toHaveLength(2);
     expect(slotOne[0]?.key).toBe(slotOne[1]?.key);

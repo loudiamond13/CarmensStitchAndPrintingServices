@@ -1,18 +1,27 @@
 // The Get a Quote result (UI-SPEC Q3, D-03): success, and success with photos that did not upload, named with where to send them.
+// QuoteMissingPhotos loads with the photo piece; QuoteSentResult is in the form's own piece.
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { QuoteSentResult } from './QuoteFormResult';
+import { QuoteMissingPhotos, type QuoteMissingPhotosProps } from './QuoteMissingPhotos';
 
 const MESSENGER = 'https://m.me/cspsdemo';
 
-function renderSent(props: Partial<Parameters<typeof QuoteSentResult>[0]> = {}) {
+/** The result as the form shows it: the missing photos note only when a photo did not upload. */
+function renderSent(props: Partial<QuoteMissingPhotosProps> = {}) {
   const onSendAnother = vi.fn();
+  const { missing = [], total = 0, messengerUrl = MESSENGER } = props;
   const view = render(
     <MemoryRouter>
-      <QuoteSentResult missing={[]} total={0} messengerUrl={MESSENGER} onSendAnother={onSendAnother} {...props} />
+      <QuoteSentResult
+        onSendAnother={onSendAnother}
+        photosNote={
+          missing.length > 0 && <QuoteMissingPhotos missing={missing} total={total} messengerUrl={messengerUrl} />
+        }
+      />
     </MemoryRouter>,
   );
   return { ...view, onSendAnother };
@@ -23,7 +32,9 @@ describe('QuoteSentResult: everything arrived', () => {
     const { onSendAnother } = renderSent({ total: 2 });
 
     expect(screen.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeInTheDocument();
-    expect(screen.getByText("Thanks! We'll message you with a mockup and quote, usually the same day.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Thanks! We'll message you with a mockup and quote, usually the same day."),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/didn't upload/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Message Us on Messenger' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Send Another' }));

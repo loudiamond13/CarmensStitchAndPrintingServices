@@ -6,7 +6,6 @@ import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { Icon } from '@/components/brand/Icon';
-import { EmptyState } from '@/components/feedback/EmptyState';
 import { useToast } from '@/components/feedback/ToastProvider';
 import { Field } from '@/components/forms/Field';
 import { Select, type SelectOption } from '@/components/forms/Select';
@@ -32,6 +31,7 @@ import {
 import { PUBLIC_COPY } from '../copy';
 import { useProductLinesQuery } from '../hooks/useProductLinesQuery';
 import { useQuoteTicket } from '../hooks/useQuoteTicket';
+import { useSiteQuery } from '../hooks/useSiteQuery';
 import {
   EMPTY_QUOTE_FORM,
   QUOTE_QUANTITIES,
@@ -40,7 +40,8 @@ import {
   type QuoteFormValues,
 } from '../quoteSchemas';
 import { quoteService, type CreateQuoteBody } from '../services/quoteService';
-import { loadQuotePhotoKit } from './lazyQuotePhotoKit';
+import { loadQuotePhotoKit, type QuotePhotoKit } from './lazyQuotePhotoKit';
+import { QuoteSentResult } from './QuoteFormResult';
 import type { QuotePhotoPickerHandle } from './QuotePhotoPicker';
 import { QuotePhotoSlot } from './QuotePhotoSlot';
 
@@ -64,9 +65,11 @@ interface QuoteSend {
   readonly photos: readonly File[];
 }
 
-/** How a send ended: the names of the photos that did not arrive. */
+/** How a send ended: the names of the photos that did not arrive, of how many sent, and the photo piece's note for them. */
 interface QuoteSent {
   readonly missing: readonly string[];
+  readonly total: number;
+  readonly MissingPhotos?: QuotePhotoKit['QuoteMissingPhotos'];
 }
 
 /** Names a send for the double-press and retry guard: the values and each photo's name, size and time. */
@@ -88,9 +91,11 @@ export function QuoteForm() {
   const pickerRef = useRef<QuotePhotoPickerHandle>(null);
   const [photos, setPhotos] = useState<File[]>([]);
   const focusNameNext = useRef(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<QuoteSent | null>(null);
   const toast = useToast();
   const tickets = useQuoteTicket();
+  const site = useSiteQuery();
+  const messengerUrl = site.status === 'success' ? site.data.messengerUrl : null;
   const lines = useProductLinesQuery();
   // The visible lines in the Products page order, then the two fixed choices. Until the lines arrive, or when the read fails,
   // only the two fixed choices show and no message is shown (D-24).
@@ -150,7 +155,7 @@ export function QuoteForm() {
     const body = toCreateQuoteRequest(values);
     if (picked.length === 0) {
       await create(key, body);
-      return { missing: [] };
+      return { missing: [], total: 0 };
     }
     const kit = await loadQuotePhotoKit();
     const missing = await kit.sendWithPhotos({
@@ -160,22 +165,22 @@ export function QuoteForm() {
       held: uploadKeyRef,
       create: (withPhotos) => create(key, withPhotos),
     });
-    return { missing };
+    return { missing, total: picked.length, MissingPhotos: kit.QuoteMissingPhotos };
   };
 
   const submission = useSubmission<QuoteSend, QuoteSent>(send, {
     identity: identityOf,
-    onSuccess: () => {
+    onSuccess: (result) => {
       resendRef.current = undefined;
       uploadKeyRef.current = undefined;
-      setSent(true);
+      setSent(result);
       toast.show({ tone: 'success', title: COPY.success.toastTitle, message: COPY.success.toastMessage });
     },
   });
 
   // The success heading takes focus, so a screen reader hears it (UI-SPEC Q3); Send Another puts focus back on the first field.
   useEffect(() => {
-    if (sent) {
+    if (sent !== null) {
       const heading = successRef.current?.querySelector('h2');
       if (heading instanceof HTMLElement) {
         heading.tabIndex = -1;
@@ -196,7 +201,7 @@ export function QuoteForm() {
     uploadKeyRef.current = undefined;
     tickets.refresh();
     focusNameNext.current = true;
-    setSent(false);
+    setSent(null);
   };
 
   const onInvalid = (errors: FieldErrors<QuoteFormValues>): void => {
@@ -206,18 +211,17 @@ export function QuoteForm() {
     }
   };
 
-  if (sent) {
+  if (sent !== null) {
+    const { MissingPhotos } = sent;
     return (
       <div ref={successRef} className={formCardClasses}>
-        <EmptyState
-          icon="circle-check"
-          level={2}
-          title={COPY.success.title}
-          message={COPY.success.message}
-          action={
-            <Button variant="secondary" onClick={sendAnother}>
-              {COPY.success.another}
-            </Button>
+        <QuoteSentResult
+          onSendAnother={sendAnother}
+          photosNote={
+            MissingPhotos !== undefined &&
+            sent.missing.length > 0 && (
+              <MissingPhotos missing={sent.missing} total={sent.total} messengerUrl={messengerUrl} />
+            )
           }
         />
       </div>

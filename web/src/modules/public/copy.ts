@@ -303,6 +303,13 @@ export const PUBLIC_COPY = {
         another: 'Send Another',
         toastTitle: 'Inquiry sent',
         toastMessage: "We'll message you soon.",
+        // Some photos did not upload (D-03): the names are joined by ", ".
+        photosMissing: (count: number, names: string) =>
+          count === 1
+            ? `We got your request, but 1 of your photos didn't upload: ${names}. Please send it to us on Messenger.`
+            : `We got your request, but ${String(count)} of your photos didn't upload: ${names}. Please send them to us on Messenger.`,
+        photosAllMissing: "We got your request, but your photos didn't upload. Please send them to us on Messenger.",
+        messenger: 'Message Us on Messenger',
       },
       sendFailed:
         "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",

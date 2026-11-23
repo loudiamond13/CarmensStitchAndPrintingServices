@@ -2,6 +2,7 @@
 import type { QuotePhotoLimits } from './hooks/useQuoteTicket';
 import { QUOTE_PHOTO_RULES, type QuotePhotoRules } from './quotePhotos';
 
+export { QuoteMissingPhotos } from './components/QuoteMissingPhotos';
 export { QuotePhotoPicker } from './components/QuotePhotoPicker';
 export { sendWithPhotos, type HeldUploadKey } from './quotePhotoUpload';
 

@@ -1,5 +1,6 @@
 // Sends the photos of a saved quote request (INQ-02, D-03): one call per photo, at most two at a time. A photo that fails is a
 // missing photo, never an error: the text is already saved. It loads with the picker, so the form's own piece stays small (D-43).
+import { isHttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { cleanFileName } from '@/utils/images';
 import { newUploadKey } from './quoteSchemas';
@@ -11,6 +12,14 @@ const AT_ONCE = 2;
 /** The names the create call declares: the file names without folders or control characters. */
 function photoNames(photos: readonly File[]): string[] {
   return photos.map((file) => cleanFileName(file.name));
+}
+
+/** A failure that a second try with the same key may fix: no answer, a busy server or a busy photo pool. A refusal is final. */
+function worthRetrying(error: unknown): boolean {
+  if (!isHttpError(error) || error.kind !== 'http') {
+    return true;
+  }
+  return error.status === 408 || error.status === 409 || error.status === 429 || error.status >= 500;
 }
 
 export interface PhotoUpload {
@@ -47,10 +56,19 @@ export async function uploadPhotos({ requestId, slots, photos, names, uploadKey 
         missing.add(index);
         continue;
       }
+      // One key per photo, kept for its one retry, so a photo that did arrive is not stored twice.
+      const key = newIdempotencyKey();
       try {
-        await send(index, slot, newIdempotencyKey());
-      } catch {
-        missing.add(index);
+        await send(index, slot, key);
+      } catch (first: unknown) {
+        try {
+          if (!worthRetrying(first)) {
+            throw first;
+          }
+          await send(index, slot, key);
+        } catch {
+          missing.add(index);
+        }
       }
     }
   };
