@@ -26,7 +26,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { order0148, orderId, useOrderHandlers } from '@/test/orderFixtures';
 import { listBackend, PRODUCT_TYPES } from '@/test/orderListFixtures';
 import { LINE_IDS, lineProductTypesAre, productLinesBackend, siteSettingsBackend } from '@/test/siteContentFixtures';
-import { quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
+import { QUOTE_COUNTS, quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // The first render of a lazy route is slow while many workers start at once (a cold start of the lazy route chunks), so this file waits longer than
@@ -562,6 +562,27 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
     },
     30_000,
   );
+
+  it('list to request to Back restores the pill, the search and the rows (WEB-10)', async () => {
+    answerRefresh(sessionResponse());
+    const backend = quoteRequestsBackend(
+      quoteRequestList([quoteRequestItem(undefined, { status: 'spam' })], { counts: QUOTE_COUNTS }),
+    );
+    const router = createMemoryRouter(routes, { initialEntries: ['/admin/quote-requests?status=spam&q=juan'] });
+    render(<RouterProvider router={router} />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 }));
+    await expect.poll(() => router.state.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
+    await router.navigate(-1);
+
+    expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 })).toBeVisible();
+    expect(router.state.location.search).toBe('?status=spam&q=juan');
+    expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
+    expect(backend.lists.at(-1)?.searchParams.get('status')).toBe('spam');
+    expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('juan');
+  }, 30_000);
 
   it('is a lazy page under the URL-state layout with no Manager-only loader', async () => {
     const { adminRoutes } = await import('@/modules/admin/routes');

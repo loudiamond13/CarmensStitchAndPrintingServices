@@ -1,14 +1,16 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import { NuqsTestingAdapter, type OnUrlUpdateFunction } from 'nuqs/adapters/testing';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { NuqsTestingAdapter, type OnUrlUpdateFunction, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { orderSearchParams, URL_STATE_DEFAULTS } from '@/lib/url-state/defaultOptions';
 import QuoteRequestsPage from '@/modules/admin/pages/QuoteRequestsPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { quoteRequestId, quoteRequestItem, quoteRequestList, quoteRequestsBackend } from '@/test/quoteRequestFixtures';
+import { expectNoAxeViolations } from '@/test/axe';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // R1 Quote Requests inbox, /admin/quote-requests (INQ-05, D-13, D-18; plan 13-15).
@@ -63,6 +65,14 @@ const ROWS = [
     status: 'contacted',
   }),
 ];
+
+/** The URL writes nuqs made, as history mode and query string. */
+function updates(spy: ReturnType<typeof vi.fn<OnUrlUpdateFunction>>): { history: string; query: string }[] {
+  return spy.mock.calls.map(([event]: [UrlUpdateEvent]) => ({
+    history: event.options.history,
+    query: event.queryString,
+  }));
+}
 
 /** The body row whose name link is `name`. */
 async function rowOf(name: string): Promise<HTMLElement> {
@@ -147,5 +157,137 @@ describe('the inbox opens on the open requests, newest first (INQ-05, D-18)', ()
 
     expect(within(await rowOf('Juan Dela Cruz')).getAllByRole('cell')[3]).toHaveTextContent('Custom design');
     expect(within(await rowOf('Ana Lopez')).getAllByRole('cell')[3]).toHaveTextContent('Not sure yet');
+  });
+});
+
+describe('the status pills and the search filter the inbox, and the URL keeps them (WEB-10, D-18)', () => {
+  it('shows the five pills with the server counts, Open pressed by default', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS));
+    renderPage();
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Show' });
+    expect(await within(toolbar).findByRole('button', { name: 'Open 4 requests' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(within(toolbar).getAllByRole('button')).toHaveLength(5);
+  });
+
+  it('choosing Spam replaces the URL with status=spam and page 1, and asks the server for the spam group', async () => {
+    const backend = quoteRequestsBackend(quoteRequestList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?page=2', onUrlUpdate);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Spam 1 requests' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '?status=spam' });
+    });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.get('status')).toBe('spam');
+    });
+    expect(backend.lists.at(-1)?.searchParams.get('page')).toBe('1');
+    expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('choosing Open removes the status from the URL', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?status=closed', onUrlUpdate);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Open 4 requests' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    });
+  });
+
+  it('a search waits 300 ms, then writes q with one replace, shows its chip and "Showing 1 request"', async () => {
+    const backend = quoteRequestsBackend((url) =>
+      url.searchParams.get('q') === 'juan' ? quoteRequestList([quoteRequestItem(FIRST)]) : quoteRequestList(ROWS),
+    );
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('', onUrlUpdate);
+    await rowOf('Ana Lopez');
+
+    const search = screen.getByRole('searchbox', { name: 'Search requests' });
+    expect(search).toHaveAttribute('placeholder', 'Name, team or phone');
+    expect(search).toHaveAttribute('maxlength', '100');
+    for (const text of ['j', 'ju', 'jua', 'juan']) {
+      fireEvent.change(search, { target: { value: text } });
+    }
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '?q=juan' }]);
+    });
+    await waitFor(() => {
+      expect(backend.lists.at(-1)?.searchParams.get('q')).toBe('juan');
+    });
+    expect(await screen.findByText('Search: juan')).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByText(/^Showing/).textContent).toBe('Showing 1 request');
+    });
+    expect(screen.queryByRole('link', { name: 'Ana Lopez' })).toBeNull();
+  });
+
+  it('shows "Showing 4 requests" for four rows', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS, { total: 4 }));
+    renderPage();
+
+    await rowOf('Juan Dela Cruz');
+    expect(screen.getByText(/^Showing/).textContent).toBe('Showing 4 requests');
+  });
+
+  it("the search chip's clear button removes q from the URL and empties the box", async () => {
+    quoteRequestsBackend(quoteRequestList([quoteRequestItem(FIRST)]));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?q=juan', onUrlUpdate);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Clear search filter' }));
+
+    await waitFor(() => {
+      expect(updates(onUrlUpdate).at(-1)).toEqual({ history: 'replace', query: '' });
+    });
+    expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('');
+    expect(screen.queryByText('Search: juan')).toBeNull();
+  });
+
+  it('removes a status off the allow-list with one replace and asks for the open group', async () => {
+    const backend = quoteRequestsBackend(quoteRequestList(ROWS));
+    const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();
+    renderPage('?status=pending', onUrlUpdate);
+
+    await rowOf('Juan Dela Cruz');
+    await waitFor(() => {
+      expect(updates(onUrlUpdate)).toEqual([{ history: 'replace', query: '' }]);
+    });
+    expect(backend.lists.every((url) => url.searchParams.get('status') === 'open')).toBe(true);
+  });
+
+  it('opens on the pill and search from the URL', async () => {
+    const backend = quoteRequestsBackend(quoteRequestList([quoteRequestItem(FIRST, { status: 'spam' })]));
+    renderPage('?status=spam&q=juan');
+
+    await rowOf('Juan Dela Cruz');
+    expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
+    expect(Object.fromEntries(backend.lists[0]?.searchParams ?? [])).toEqual({
+      status: 'spam',
+      q: 'juan',
+      page: '1',
+      size: '20',
+    });
+  });
+
+  it('has no axe violations with the pills, the search and its chip', async () => {
+    quoteRequestsBackend(quoteRequestList([quoteRequestItem(FIRST)]));
+    const { container } = renderPage('?q=juan');
+
+    await rowOf('Juan Dela Cruz');
+    await expectNoAxeViolations(container);
   });
 });
