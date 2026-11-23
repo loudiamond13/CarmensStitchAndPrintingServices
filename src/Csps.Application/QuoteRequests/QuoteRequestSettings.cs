@@ -36,6 +36,9 @@ public sealed class QuoteRequestSettings
     /// <summary>Gets or sets how many requests one mobile number or one email may send in 24 hours; from 1 to 50 (D-37).</summary>
     public int PerSenderPerDay { get; set; } = 3;
 
+    /// <summary>Gets or sets how many staff alert emails are sent in one business hour (D-09).</summary>
+    public int AlertsPerHour { get; set; } = 20;
+
     /// <summary>Gets or sets how long a form ticket stays good; from 1 to 72 hours. An older ticket is a 400 so a real visitor can send again.</summary>
     public TimeSpan TicketLifetime { get; set; } = TimeSpan.FromHours(24);
 

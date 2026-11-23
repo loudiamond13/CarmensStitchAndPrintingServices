@@ -15,6 +15,7 @@ public sealed class QuoteRequestSettingsTests
         settings.MinimumSeconds.ShouldBe(3);
         settings.TicketLifetime.ShouldBe(TimeSpan.FromHours(24));
         settings.PerSenderPerDay.ShouldBe(3);
+        settings.AlertsPerHour.ShouldBe(20);
         QuoteRequestSettings.SenderWindow.ShouldBe(TimeSpan.FromHours(24));
         QuoteRequestSettings.SectionName.ShouldBe("QuoteRequests");
     }
@@ -67,6 +68,23 @@ public sealed class QuoteRequestSettingsTests
     public void APerSenderLimitJustOutsideTheRangeIsRefused(int perDay)
     {
         new QuoteRequestSettings { PerSenderPerDay = perDay }.Validate().ShouldBe("QuoteRequests:PerSenderPerDay must be from 1 to 50.");
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(200)]
+    public void AnAlertsPerHourAtEitherEdgeIsAccepted(int perHour)
+    {
+        new QuoteRequestSettings { AlertsPerHour = perHour }.Validate().ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(201)]
+    public void AnAlertsPerHourJustOutsideTheRangeIsRefused(int perHour)
+    {
+        new QuoteRequestSettings { AlertsPerHour = perHour }.Validate().ShouldBe("QuoteRequests:AlertsPerHour must be from 1 to 200.");
     }
 
     [Theory]
