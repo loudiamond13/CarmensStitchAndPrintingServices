@@ -1,9 +1,5 @@
-// SPEC-GAP: quote form (UI-SPEC Q1 and Q3; INQ-01, INQ-03, D-26, D-31, D-35, D-38). The Get a Quote form of the Contact page: zod
-// speaks first (every server rule runs here with the server's words), one Idempotency-Key per filled form, and nothing a visitor
-// typed is cleared by a failure; only a success and Send Another clear it. It loads as its own piece after the page shows (D-35),
-// so react-hook-form and zod never sit in the Contact page's first download.
-// The ticket (Pitfall 4): the form waits out the server's minimum time after it gets the ticket, and an expired-ticket answer is
-// resent once, at once, with the replacement ticket the server hands back (D-38) and a new Idempotency-Key.
+// The Get a Quote form of the Contact page (UI-SPEC Q1 and Q3). It checks every field with the server's rules before sending,
+// waits the server's minimum time after it gets a ticket, and keeps what the visitor typed when a send fails.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
 import { Controller, useForm, type FieldErrors } from 'react-hook-form';
@@ -95,7 +91,7 @@ export function QuoteForm() {
     }
   };
 
-  // Sends the checked values, one Idempotency-Key per filled form (WEB-09), and answers an expired ticket once with its replacement.
+  // Sends the checked values with one Idempotency-Key per filled form. An expired ticket is answered once, at once, with the replacement.
   const send = async (key: string, values: QuoteFormValues): Promise<CreateQuoteAnswer> => {
     const body = toCreateQuoteRequest(values);
     const repeat = resendRef.current;
