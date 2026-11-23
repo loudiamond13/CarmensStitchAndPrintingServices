@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T08:52:00-06:00
+updated: 2026-11-23T13:25:00-06:00
 ---
 
 # The quote requests API
@@ -8,7 +8,7 @@ updated: 2026-11-23T08:52:00-06:00
 This is the contract behind the "Get a Quote" form on the Contact page (INQ-01, INQ-02). Everything here is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). This page covers what exists today: the anonymous create and
-the form ticket, the photo upload, the bot guards and the staff inbox reads. The request page, status changes and the alert email come in later plans of Phase 13 and will be added here.
+the form ticket, the photo upload, the bot guards, the staff inbox, one request in full and its status changes. Notes, the Manager delete and turning a request into an order come in later plans of Phase 13 and will be added here.
 
 ## In plain words
 
@@ -207,12 +207,14 @@ email outbox and logged without the address or the content.
 
 ## The staff inbox (INQ-05, D-13, D-14, D-18)
 
-Both reads need a signed-in Admin or Manager. An anonymous caller gets `401`. They are never cached. The two roles see the same data.
+Every staff call needs a signed-in Admin or Manager. An anonymous caller gets `401`. They are never cached. The two roles see the same data and may do the same things.
 
 | Method and path | Answers |
 |---|---|
 | `GET /quote-requests` | `200` a page of requests with the pill counts; `400 quote-requests.list-invalid` with field errors; `401` |
 | `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
+| `GET /quote-requests/{id}` | `200` the request in full; `401`; `404 quote-requests.not-found` |
+| `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the request as saved; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 
 ### The list query
 
@@ -261,7 +263,7 @@ Rows come newest received first. Two requests received at the same time come by 
 - `teamName`, `product` and `quantity` are `null` when the visitor gave nothing. `product.title` is `null` for `custom` and `not-sure`.
 - `contactNumber` is the display form. The email and the message are not in the list.
 - `photoCount` is how many photos the visitor named. `storedPhotoCount` is how many arrived.
-- `photosRemoved` is `false` until the Spam move exists (plan 13-16), which removes the photos.
+- `photosRemoved` is `true` once the photos were removed because the request was marked Spam. It stays `true` after the request leaves Spam.
 - `total` counts the rows behind the current `status` and `q`, across all pages.
 - `counts` is made by the server over the whole table. It ignores `q` and `page`, so a pill never changes while you type.
 - The rows and the counts are read in separate commands without a lock. While someone changes a status, a pill can differ by one from the rows. The next refresh corrects it.
@@ -269,3 +271,88 @@ Rows come newest received first. Two requests received at the same time come by 
 ### The New count
 
 `GET /quote-requests/new-count` answers the number of requests at status New. It is one number for every staff member: nothing is kept per person.
+
+## One request (INQ-05, D-13, D-36)
+
+`GET /quote-requests/{id}` answers every field of the request:
+
+```json
+{
+  "id": "...",
+  "receivedAtUtc": "2026-11-21T07:42:00+00:00",
+  "customerName": "Juan Dela Cruz",
+  "teamName": "Brgy. San Roque Ballers",
+  "contactNumber": "0917 123 4567",
+  "email": "juan@example.test",
+  "product": { "choice": "line", "title": "Basketball Jerseys" },
+  "quantity": "21-50",
+  "message": "Twelve jerseys, numbers 1 to 12.",
+  "status": "contacted",
+  "statusChangedAtUtc": "2026-11-21T08:05:00+00:00",
+  "photoCount": 3,
+  "photos": [
+    {
+      "slot": 0,
+      "fileName": "front.jpg",
+      "width": 4000,
+      "height": 3000,
+      "thumb": { "src": "...", "srcSet": "... 1x, ... 2x" },
+      "viewer": { "src": "...", "srcSet": "... 640w, ... 960w, ..." },
+      "fullSize": "..."
+    }
+  ],
+  "missingPhotos": ["sketch.heic"],
+  "photosRemovedAtUtc": null,
+  "history": [
+    { "from": "new", "to": "contacted", "changedBy": { "id": "...", "name": "Maria Santos", "formerStaff": false }, "changedAt": "2026-11-21T08:05:00+00:00" },
+    { "from": null, "to": "new", "changedBy": null, "changedAt": "2026-11-21T07:42:00+00:00" }
+  ],
+  "lastChangedBy": { "id": "...", "name": "Maria Santos", "formerStaff": false },
+  "lastChangedAt": "2026-11-21T08:05:00+00:00",
+  "version": "AAAAAAAAB9E="
+}
+```
+
+- Empty fields are `null`. `contactNumber` is the display form.
+- `photos` holds the photos that arrived, in slot order. Every address is built by the server through the private delivery (P9): the
+  88 px thumb, the viewer sizes and `fullSize`, the existing 2000 px size behind "Open Full Size" (D-36). The storage id is never sent.
+- `missingPhotos` lists the names of the photos the visitor named that never arrived (D-03).
+- `photoCount` is the number of photo places the request still holds; it is `0` after a Spam move.
+- `history` is newest first. The last row is always the arrival: from `null` to `new`, by nobody (SEC-08). A person who later left
+  the staff keeps their name, with `formerStaff: true`.
+- `lastChangedBy` and `lastChangedAt` are `null` until someone changes the request.
+- `version` is the row version to send with a status change.
+
+## Changing the status (D-14, D-15)
+
+`POST /quote-requests/{id}/status` with `{ "status": "quoted", "version": "AAAAAAAAB9E=" }`.
+
+- `status` is `new`, `contacted`, `quoted`, `closed` or `spam`, ignoring case and spaces around it. Moves among these five are free in
+  any direction, including back out of Spam or Closed.
+- **Converted** is set only by turning the request into an order. It is refused as a target (`400 quote-requests.validation`,
+  "Choose a status."), and a Converted request cannot change status by hand (`400 quote-requests.converted-locked`, "A request that
+  became an order can't change status.").
+- A move to the status the request already has is `400 quote-requests.validation` ("This request is already Quoted.").
+- `version` must be the one from the last read. Another staff member's change in between gives `409 quote-requests.conflict` ("This
+  was changed by someone else. Reload and try again."); nothing changes.
+- A bad or missing field is `400 quote-requests.validation` with field errors on `status` and `version` ("Reload the form and try
+  again.").
+- Each move adds one history row (from, to, who, when) and one audit entry `quote-request.status-changed` with the detail
+  `status=new>quoted`, in the same save. The audit entry never names the visitor.
+- Who moved it and when come from the token and the clock. `updatedById`, `updatedAtUtc` or any other member in the body is ignored.
+- Leaving New takes the request off the New count for every staff member at once (D-14).
+- The answer is the request as saved, the same shape as `GET /quote-requests/{id}`.
+
+### Spam removes the photos (D-04)
+
+- Moving a request to Spam queues every stored photo for removal (reason `QuoteSpam`), removes its photo places and sets
+  `photosRemovedAtUtc`, all in the same save as the move. If any part fails, nothing changes.
+- The request never deletes a file itself. The daily maintenance run (D-34) deletes the queued files, so they are gone within a day.
+- Moving the request back out of Spam does not restore the photos, and `photosRemovedAtUtc` stays. The text of the request stays
+  until the 6-month purge.
+- A request with no photos keeps `photosRemovedAtUtc` as `null`.
+- A photo upload that arrives after the move finds no place and is refused. A file it had already stored by then is queued for removal.
+
+## Retention
+
+The 6-month purge removes a request together with its photo places and its status history (cascade).

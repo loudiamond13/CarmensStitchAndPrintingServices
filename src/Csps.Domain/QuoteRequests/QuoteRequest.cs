@@ -157,7 +157,8 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
     /// <summary>
     /// Moves the request to another status by hand (D-15). Moves among New, Contacted, Quoted, Closed and Spam are free in any direction.
     /// Converted is set only by turning the request into an order, and a Converted request keeps its status. Each move adds a history
-    /// row with who and when and gives the request a new edit version, so the save stamps who last changed it.
+    /// row with who and when and gives the request a new edit version, so the save stamps who last changed it. Entering Spam removes
+    /// every photo place and returns the stored files for the caller to queue (D-04).
     /// </summary>
     /// <param name="to">The new status.</param>
     /// <param name="by">The staff member who moved it.</param>
@@ -191,7 +192,21 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         Status = to;
         StatusChangedAtUtc = now;
         EditVersion = Guid.CreateVersion7(now);
-        return Result.Success<IReadOnlyList<string>>([]);
+        return Result.Success<IReadOnlyList<string>>(to == QuoteRequestStatus.Spam ? RemovePhotos(now) : []);
+    }
+
+    // Spam drops every photo place for good (D-04); the caller queues the stored files. Leaving Spam never brings them back.
+    private List<string> RemovePhotos(DateTimeOffset now)
+    {
+        if (_photos.Count == 0)
+        {
+            return [];
+        }
+
+        List<string> stored = [.. _photos.Select(static photo => photo.PublicId).OfType<string>()];
+        _photos.Clear();
+        PhotosRemovedAtUtc = now;
+        return stored;
     }
 
     /// <summary>Makes a new request at status New, checking every field rule again so no caller can skip one.</summary>

@@ -37,7 +37,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                 request.QuantityRange,
                 request.Photos.Count,
                 request.Photos.Count(photo => photo.PublicId != null),
-                false, // Nothing removes photos until the Spam move (plan 13-16) adds the column this reads.
+                request.PhotosRemovedAtUtc != null,
                 request.Status))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
