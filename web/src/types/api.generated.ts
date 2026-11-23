@@ -2248,6 +2248,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the quote requests that are still open: New, Contacted and Quoted, newest received first. Both roles read every request. */
+        get: operations["ListQuoteRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions": {
         parameters: {
             query?: never;
@@ -5561,6 +5578,69 @@ export interface components {
              * @description The place, from 0 to 4; the photo is sent to `/photos/{slot}`.
              */
             slot: number | string;
+        };
+        /** @description One request in the staff inbox (INQ-05). It carries no email and no message. */
+        QuoteRequestListItem: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: int32
+             * @description How many photos the visitor declared.
+             */
+            photoCount: number | string;
+            /** @description True when the stored photos were removed because the request was marked Spam. */
+            photosRemoved: boolean;
+            product: null | components["schemas"]["QuoteRequestProduct"];
+            /** @description The estimated quantity key such as `21-50`; null when none was chosen. */
+            quantity: null | string;
+            /**
+             * Format: date-time
+             * @description When the request was received, in UTC.
+             */
+            receivedAtUtc: string;
+            /** @description The status key: new, contacted, quoted, converted, closed or spam. */
+            status: string;
+            /**
+             * Format: int32
+             * @description How many of the declared photos arrived.
+             */
+            storedPhotoCount: number | string;
+            /** @description The team or organization; null when none. */
+            teamName: null | string;
+        };
+        /** @description One page of the staff inbox (INQ-05). */
+        QuoteRequestListResponse: {
+            /** @description The rows of this page. */
+            items: components["schemas"]["QuoteRequestListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            size: number | string;
+            /**
+             * Format: int32
+             * @description How many requests match, across all pages.
+             */
+            total: number | string;
+        };
+        /** @description What the visitor chose in the product list (D-24). */
+        QuoteRequestProduct: {
+            /** @description One of `line`, `custom` or `not-sure`. */
+            choice: string;
+            /** @description The line title at the moment of the request; null for another choice. */
+            title: null | string;
         };
         /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
@@ -13864,6 +13944,35 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListQuoteRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestListResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

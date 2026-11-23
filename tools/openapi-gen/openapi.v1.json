@@ -6576,6 +6576,161 @@
         ],
         "type": "object"
       },
+      "QuoteRequestListItem": {
+        "description": "One request in the staff inbox (INQ-05). It carries no email and no message.",
+        "properties": {
+          "contactNumber": {
+            "description": "The mobile number in its display form, such as `0917 123 4567`.",
+            "type": "string"
+          },
+          "customerName": {
+            "description": "The visitor's name.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The request id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "photoCount": {
+            "description": "How many photos the visitor declared.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "photosRemoved": {
+            "description": "True when the stored photos were removed because the request was marked Spam.",
+            "type": "boolean"
+          },
+          "product": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/QuoteRequestProduct",
+                "description": "What the visitor chose; null when nothing was chosen."
+              }
+            ]
+          },
+          "quantity": {
+            "description": "The estimated quantity key such as `21-50`; null when none was chosen.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receivedAtUtc": {
+            "description": "When the request was received, in UTC.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "The status key: new, contacted, quoted, converted, closed or spam.",
+            "type": "string"
+          },
+          "storedPhotoCount": {
+            "description": "How many of the declared photos arrived.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "teamName": {
+            "description": "The team or organization; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "receivedAtUtc",
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "product",
+          "quantity",
+          "photoCount",
+          "storedPhotoCount",
+          "photosRemoved",
+          "status"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestListResponse": {
+        "description": "One page of the staff inbox (INQ-05).",
+        "properties": {
+          "items": {
+            "description": "The rows of this page.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestListItem"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "The page number asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "size": {
+            "description": "The page size asked for.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "total": {
+            "description": "How many requests match, across all pages.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestProduct": {
+        "description": "What the visitor chose in the product list (D-24).",
+        "properties": {
+          "choice": {
+            "description": "One of `line`, `custom` or `not-sure`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "The line title at the moment of the request; null for another choice.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "choice",
+          "title"
+        ],
+        "type": "object"
+      },
       "RankedItemDto": {
         "description": "One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share.",
         "properties": {
@@ -19345,6 +19500,37 @@
         ]
       }
     },
+    "/api/v1/quote-requests": {
+      "get": {
+        "operationId": "ListQuoteRequests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteRequestListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          }
+        },
+        "summary": "Lists the quote requests that are still open: New, Contacted and Quoted, newest received first. Both roles read every request.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "operationId": "ListSessions",
@@ -22405,6 +22591,9 @@
     },
     {
       "name": "PublicSite"
+    },
+    {
+      "name": "QuoteRequests"
     },
     {
       "name": "Sessions"
