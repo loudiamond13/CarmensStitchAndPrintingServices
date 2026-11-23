@@ -1,6 +1,6 @@
 # The order photos API
 
-*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-04T00:50:00-06:00*
+*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-22T23:30:00-06:00*
 
 This is the contract for the photos on an order, and the one a future Android app will use. Everything is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
@@ -97,7 +97,8 @@ photo is held in memory only, never in a temp file.
 
 **Note on the pace.** One address may upload 30 times in 10 minutes. The whole server works on two photo uploads at a time (order photos,
 gallery photos, product line photos and the share picture count together) and lets up
-to four more wait their turn. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
+to four more wait their turn. Photos that visitors send with a quote request have their own separate pool (`UploadSlots:Public`, 2 at a
+time with 4 waiting by default) and never take these places. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
 that long, then send the same request again with the same `Idempotency-Key`.
 
 ### The Idempotency-Key

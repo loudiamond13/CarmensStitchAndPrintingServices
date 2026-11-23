@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-15T11:08:17-06:00
+updated: 2026-11-22T23:30:00-06:00
 ---
 
 # The site content API
@@ -502,7 +502,7 @@ Every public fill size cuts from the centre of the photo (D-130). The 44 px list
   lock, so an upload and a delete of the same line at the same moment end as a `422` for the delete or a `404` for the upload, never a
   `500`. A file uploaded just before the line vanished is queued for removal.
 - Every upload is rate limited with the same cap as the order photo upload (30 in 10 minutes for one address), shares its server-wide
-  limit of two uploads at a time (four more wait, then `429`), and is bounded by the same body limit.
+  limit of two uploads at a time (four more wait, then `429`; visitors' quote photos have a separate pool and never use it), and is bounded by the same body limit.
 - Photo addresses are never written to the audit log or the server log.
 
 ### The photo audit entry

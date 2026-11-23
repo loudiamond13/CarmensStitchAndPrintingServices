@@ -38,7 +38,8 @@ public static class RateLimitingRegistration
     /// It also adds the <c>quote-create</c> policy and one site-wide limit on each of the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51)
     /// and the quote create route (<c>RateLimits:QuoteCeiling</c>, 60 an hour). Each site-wide limit runs after
     /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74). A ceiling refusal answers that the site is busy.
-    /// The slot limiter behind the app-wide cap of two uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>).
+    /// The slot limiter behind the app-wide cap of two staff uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>), with the
+    /// separate pool of anonymous quote photo uploads (<c>UploadSlots:Public</c>, D-39).
     /// The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting record proves the proxy topology
     /// (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
@@ -66,7 +67,10 @@ public static class RateLimitingRegistration
         configuration.GetSection(QuoteCreateRateLimit.SectionName).Bind(quoteCreate);
         var quoteCeiling = QuoteCeilingRateLimit.Default();
         configuration.GetSection(QuoteCeilingRateLimit.SectionName).Bind(quoteCeiling);
+        var publicSlots = PublicUploadSlotRule.Default();
+        configuration.GetSection(PublicUploadSlotRule.SectionName).Bind(publicSlots);
         var problems = settings.Validate()
+            .Concat(PublicUploadSlotRule.Problems(publicSlots))
             .Concat(RateLimitRule.Problems(ceiling, AnalyticsCeilingRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(quoteCreate, QuoteCreateRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(quoteCeiling, QuoteCeilingRateLimit.SectionName))
@@ -96,6 +100,7 @@ public static class RateLimitingRegistration
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
+        services.AddSingleton(_ => PublicUploadSlots.Create(publicSlots));
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;

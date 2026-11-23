@@ -93,7 +93,7 @@ public sealed class PublicQuoteRequestsController(
     [HttpPost("{id:guid}/photos/{slot:int}")]
     [EndpointName("UploadQuotePhoto")]
     [EnableRateLimiting(RateLimitPolicies.ImageUpload)]
-    [UploadSlot]
+    [UploadSlot(Pool = UploadSlotPool.Public)]
     [RequestSizeLimitMetadata(ImageUploadLimits.BodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = ImageUploadLimits.BodyBytes, MemoryBufferThreshold = ImageUploadLimits.BodyBytes + 1)]
     [ProducesResponseType(StatusCodes.Status200OK)]

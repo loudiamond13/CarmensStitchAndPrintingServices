@@ -89,8 +89,14 @@ the photo has no creator and no audit entry is written (SEC-08).
 | `404 quote-requests.photo-not-found` | a wrong key, no key, a wrong or unknown request id, an expired key, a place that is already filled, a place that was not declared (including 5 and -1), or a request marked Spam |
 | `413` | the file is over 10,485,760 bytes (one byte more than the limit) |
 | `422 quote-requests.photo-refused` | the file is not a photo we can take: "{file name} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger."; or it is over 25 megapixels: "{file name} is too big. Photos can be at most 25 megapixels." |
-| `429` | too many uploads from one address, or the whole server is busy with uploads |
+| `429` | too many uploads from one address, or the public photo pool is busy (see below) |
 | `503 images.storage-failed` / `503 images.not-configured` | the photo storage did not take the file, or is not set up |
+
+A visitor's photos have their own pool of upload places, apart from the places staff use for order and product photos (D-39).
+By default 2 run at a time and 4 wait (`UploadSlots:Public:AtOnce`, 1 to 8, and `UploadSlots:Public:Waiting`, 0 to 20; a bad value
+stops the start and the message names the setting, never the value). The next one at that moment gets `429 rate-limited` with
+`Retry-After: 60`, and the visitor sends it again. However many visitors upload, staff photo uploads keep their own places. The place is
+taken before the key is checked, which is why this pool is small.
 
 Every `404` has the same body, so a caller cannot tell which part was wrong (CWE-639, CWE-203). Two photos for different places can
 upload at the same time. Two photos for the same place give one `200` and one `404`; the second file is queued for removal.
