@@ -29,7 +29,7 @@ the form ticket, the photo upload and the bot guards. The staff inbox and the al
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
 | `GET /public/quote-requests/ticket` | Anyone | none | `200` `{ "ticket": "...", "photoRules": { "maxPhotos": 5, "maxBytes": 10485760, "maxPixels": 25000000 } }`, never cached; `429` |
-| `POST /public/quote-requests` | Anyone | the form below, with an `Idempotency-Key` and the `ticket` | `200` `{ "id": "...", "photoSlots": [...] }`; `400 quote-requests.validation` with field errors; `400 quote-requests.ticket-expired`; `429 rate-limited` |
+| `POST /public/quote-requests` | Anyone | the form below, with an `Idempotency-Key` and the `ticket` | `200` `{ "id": "...", "photoSlots": [...] }`; `400 quote-requests.validation` with field errors; `400 quote-requests.ticket-expired`; `409 auth.session-busy`; `429 rate-limited` |
 | `POST /public/quote-requests/{id}/photos/{slot}` | Anyone with the request's upload key | one multipart form with the file in the `file` part; headers `Idempotency-Key` and `X-Upload-Key` | `200` with no body; `400`; `404 quote-requests.photo-not-found`; `413`; `422 quote-requests.photo-refused`; `429`; `503` |
 
 ## The form
@@ -178,4 +178,5 @@ answer and is not counted again.
 - `400 quote-requests.validation` with an `errors` object: one array of messages for each field that failed, with the field names
   above. An empty or unreadable body lists the two required fields (after the ticket is checked).
 - `400 quote-requests.ticket-expired` when there is no good ticket. The answer holds `replacementTicket`, a ticket to use for one resend at once.
+- `409 auth.session-busy` "Something changed at the same time. Try again." when two sends collided twice, or the `quote-requests` lock was not had within 10 seconds. Nothing is saved; the visitor sends the same form again.
 - `429 rate-limited` when one address sends too many, the whole site is busy, or one sender has sent too many.

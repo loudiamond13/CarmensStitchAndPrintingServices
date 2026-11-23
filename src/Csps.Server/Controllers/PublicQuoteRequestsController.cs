@@ -60,12 +60,13 @@ public sealed class PublicQuoteRequestsController(
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>200 with the id of the new request and its photo slots, 400 for field errors, or 429 when the address sends too many.</returns>
+    /// <returns>200 with the id of the new request and its photo slots, 400 for field errors, 409 when the server was busy and the visitor should send again, or 429 when the address sends too many.</returns>
     [HttpPost]
     [EndpointName(RateLimitingRegistration.QuoteCreateEndpointName)]
     [EnableRateLimiting(RateLimitPolicies.QuoteCreate)]
     [ProducesResponseType<CreateQuoteRequestResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IResult> Create(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CreateQuoteRequestRequest? body,

@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Common;
@@ -36,7 +37,7 @@ public sealed class CreateQuoteRequestHandler(
     /// </summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new id, or a 400 listing every field that failed or naming the ticket.</returns>
+    /// <returns>The new id, a 400 listing every field that failed or naming the ticket, a 429 for a sender over the limit, or the 409 busy answer when the lock was not had in time.</returns>
     public async Task<Result<CreateQuoteRequestResponse>> HandleAsync(CreateQuoteRequestRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -98,27 +99,34 @@ public sealed class CreateQuoteRequestHandler(
         }
 
         // The count and the insert run under one lock, so two sends at once from one sender never pass the limit (D-37, CWE-362).
-        var wait = await unitOfWork.InTransactionAsync(
-            async token =>
-            {
-                await store.LockAsync(token).ConfigureAwait(false);
-                var recent = await store.CountRecentFromSenderAsync(saved.ContactNumberE164, saved.Email, clock.UtcNow - QuoteRequestSettings.SenderWindow, token).ConfigureAwait(false);
-                if (recent.Count >= settings.PerSenderPerDay)
-                {
-                    // The sender may send again once enough of the counted requests have left the window.
-                    return (TimeSpan?)(recent.Times[recent.Count - settings.PerSenderPerDay] + QuoteRequestSettings.SenderWindow - clock.UtcNow);
-                }
-
-                store.Add(saved);
-                await unitOfWork.SaveChangesAsync(token).ConfigureAwait(false);
-                return null;
-            },
-            cancellationToken).ConfigureAwait(false);
-        if (wait is { } retryAfter)
+        // A lost race is run once more; a lock not had in time, or a second lost race, is the shared busy answer.
+        try
         {
-            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.SenderLimit(retryAfter));
+            return await ConflictRetry
+                .RunAsync(
+                    () => unitOfWork.InTransactionAsync(token => SaveUnderLockAsync(saved, clock.UtcNow, token), cancellationToken),
+                    Result.Failure<CreateQuoteRequestResponse>(AuthErrors.SessionBusy))
+                .ConfigureAwait(false);
+        }
+        catch (QuoteRequestsBusyException)
+        {
+            return Result.Failure<CreateQuoteRequestResponse>(AuthErrors.SessionBusy);
+        }
+    }
+
+    private async Task<Result<CreateQuoteRequestResponse>> SaveUnderLockAsync(QuoteRequest saved, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        await store.LockAsync(cancellationToken).ConfigureAwait(false);
+        var recent = await store.CountRecentFromSenderAsync(saved.ContactNumberE164, saved.Email, now - QuoteRequestSettings.SenderWindow, cancellationToken).ConfigureAwait(false);
+        if (recent.Count >= settings.PerSenderPerDay)
+        {
+            // The sender may send again once enough of the counted requests have left the window.
+            var wait = recent.Times[recent.Count - settings.PerSenderPerDay] + QuoteRequestSettings.SenderWindow - now;
+            return Result.Failure<CreateQuoteRequestResponse>(QuoteRequestErrors.SenderLimit(wait));
         }
 
+        store.Add(saved);
+        await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return Result.Success(new CreateQuoteRequestResponse(saved.Id, [.. saved.Photos.Select(static photo => new QuotePhotoSlotResponse(photo.Slot, photo.FileName))]));
     }
 

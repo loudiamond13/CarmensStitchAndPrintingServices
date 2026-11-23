@@ -1,3 +1,4 @@
+using Csps.Application.Auth;
 using Csps.Application.Ports;
 using Csps.Application.QuoteRequests;
 using Csps.Application.UnitTests.Auth;
@@ -225,6 +226,37 @@ public sealed class CreateQuoteRequestHandlerTests
     }
 
     [Fact]
+    public async Task ALockThatIsNotHadInTimeIsTheBusyTryAgainAnswerAndNothingIsSaved()
+    {
+        var harness = new Harness { LockFailure = new QuoteRequestsBusyException() };
+
+        var result = await harness.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.ShouldBeSameAs(AuthErrors.SessionBusy);
+        result.Error.Kind.ShouldBe(Csps.Domain.Common.ErrorKind.Conflict);
+        harness.Added.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ARaceLostOnceIsRunAgainAndSavedAndLostTwiceIsTheBusyAnswer()
+    {
+        var once = new Harness();
+        once.Unit.FailFirstSaveWithConflict();
+        var twice = new Harness();
+        twice.Unit.FailEverySaveWithConflict();
+
+        var retried = await once.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+        var busy = await twice.Handler.HandleAsync(Request(), TestContext.Current.CancellationToken);
+
+        retried.IsSuccess.ShouldBeTrue();
+        once.Unit.Saves.ShouldBe(2);
+        busy.IsFailure.ShouldBeTrue();
+        busy.Error.ShouldBeSameAs(AuthErrors.SessionBusy);
+    }
+
+    [Fact]
     public async Task ASenderAtTheLimitIsRefusedWithAWaitUntilTheOldestRequestLeavesTheWindowAndNothingIsSaved()
     {
         var harness = new Harness(perSenderPerDay: 3)
@@ -332,7 +364,7 @@ public sealed class CreateQuoteRequestHandlerTests
             Store.LockAsync(Arg.Any<CancellationToken>()).Returns(_ =>
             {
                 Order.Add("lock");
-                return Task.CompletedTask;
+                return LockFailure is null ? Task.CompletedTask : Task.FromException(LockFailure);
             });
             Store.CountRecentFromSenderAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
@@ -370,6 +402,8 @@ public sealed class CreateQuoteRequestHandlerTests
         public List<string> Caught { get; } = [];
 
         public List<DateTimeOffset> IssuedAt { get; } = [];
+
+        public Exception? LockFailure { get; set; }
 
         public IQuoteRequestStore Store { get; }
 

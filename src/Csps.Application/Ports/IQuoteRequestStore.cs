@@ -15,6 +15,8 @@ public interface IQuoteRequestStore
     /// </summary>
     /// <param name="cancellationToken">Cancels the wait.</param>
     /// <returns>A task that completes when the lock is held.</returns>
+    /// <exception cref="QuoteRequestsBusyException">The lock could not be had in time.</exception>
+    /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">The wait was a deadlock victim.</exception>
     Task LockAsync(CancellationToken cancellationToken);
 
     /// <summary>Lists the requests a sender saved after a time. A sender is the same mobile number, or the same email ignoring case when one is given.</summary>

@@ -1,15 +1,29 @@
+using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Csps.Infrastructure.QuoteRequests;
 
-/// <summary><see cref="IQuoteRequestStore"/> over EF: tracked rows, saved by the unit of work.</summary>
-internal sealed class QuoteRequestStore(CspsDbContext context, TimeProvider time) : IQuoteRequestStore
+/// <summary>
+/// <see cref="IQuoteRequestStore"/> over EF: tracked rows, saved by the unit of work. The lock is the update of the standing
+/// <c>quote-requests</c> row. A lost deadlock is a lost race and a timeout is busy, the same as the staff money lock.
+/// </summary>
+/// <param name="context">The request's database context.</param>
+/// <param name="time">The clock.</param>
+/// <param name="logger">The logger.</param>
+/// <param name="wait">How long the lock may be waited for; only tests shorten it.</param>
+internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvider time, ILogger<QuoteRequestStore> logger, TimeSpan wait) : IQuoteRequestStore
 {
     private const string EmailCollation = "Latin1_General_100_CI_AS";
+
+    public QuoteRequestStore(CspsDbContext context, TimeProvider time, ILogger<QuoteRequestStore> logger)
+        : this(context, time, logger, DatabaseLocks.DefaultWait)
+    {
+    }
 
     public void Add(QuoteRequest request)
     {
@@ -17,14 +31,34 @@ internal sealed class QuoteRequestStore(CspsDbContext context, TimeProvider time
         context.QuoteRequests.Add(request);
     }
 
-    public Task LockAsync(CancellationToken cancellationToken) =>
-        DatabaseLocks.TakeAsync(
-            context,
-            DatabaseLocks.QuoteRequests,
-            time.GetUtcNow(),
-            DatabaseLocks.DefaultWait,
-            "The quote request lock was not had in time.",
-            cancellationToken);
+    public async Task LockAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await DatabaseLocks.TakeAsync(
+                    context,
+                    DatabaseLocks.QuoteRequests,
+                    time.GetUtcNow(),
+                    wait,
+                    "The quote request lock was not had in time.",
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (DatabaseLockTimeoutException error) when (SqlErrors.Has(error, SqlErrors.DeadlockVictim))
+        {
+            // A lost deadlock is a lost race, as in a save: the unit of work marks an outer transaction ended, or the caller retries.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+        catch (DatabaseLockTimeoutException error)
+        {
+            LogBusy(logger, error, DatabaseLocks.QuoteRequests, (int)Math.Ceiling(wait.TotalSeconds));
+            throw new QuoteRequestsBusyException(error);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "The lock {LockName} was not had within {WaitSeconds} seconds; the quote send answers busy.")]
+    private static partial void LogBusy(ILogger logger, Exception exception, string lockName, int waitSeconds);
 
     public async Task<QuoteSenderRecent> CountRecentFromSenderAsync(
         string contactNumberE164, string? email, DateTimeOffset since, CancellationToken cancellationToken)
