@@ -15,6 +15,7 @@ public static class QuoteRequestsApplicationRegistration
 
         services.AddSingleton<IValidator<CreateQuoteRequestRequest>, CreateQuoteRequestRequestValidator>();
         services.AddScoped<CreateQuoteRequestHandler>();
+        services.AddScoped<UploadQuotePhotoHandler>();
         return services;
     }
 }

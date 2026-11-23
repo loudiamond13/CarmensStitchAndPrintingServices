@@ -94,7 +94,7 @@ public static class DependencyInjection
         services.AddCspsIdentity();
         services.AddCspsExpenses();
         services.AddCspsOrders();
-        services.AddCspsQuoteRequests();
+        services.AddCspsQuoteRequests(configuration);
         services.AddCspsDashboard();
         services.AddCspsMoney();
         services.AddCspsIdempotency();

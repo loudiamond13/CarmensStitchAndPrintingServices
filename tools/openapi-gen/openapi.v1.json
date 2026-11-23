@@ -1331,6 +1331,16 @@
               "string"
             ]
           },
+          "photos": {
+            "description": "The file names of up to 5 photos the visitor will send next, one call each; none when null or empty.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
           "productChoice": {
             "description": "`line`, `custom` or `not-sure`; empty when nothing was chosen.",
             "type": [
@@ -1358,6 +1368,13 @@
               "null",
               "string"
             ]
+          },
+          "uploadKey": {
+            "description": "A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos.",
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "required": [
@@ -1373,16 +1390,24 @@
         "type": "object"
       },
       "CreateQuoteRequestResponse": {
-        "description": "The answer to a saved quote request. It names the request so the next steps (photos) can refer to it, and nothing more.",
+        "description": "The answer to a saved quote request. It names the request and the photo places the visitor declared, so each photo can be sent\nto its own place, and nothing more. It holds no secret: the upload key is never sent back.",
         "properties": {
           "id": {
             "description": "The id of the new request.",
             "format": "uuid",
             "type": "string"
+          },
+          "photoSlots": {
+            "description": "One entry per declared photo, in slot order; empty when none were declared.",
+            "items": {
+              "$ref": "#/components/schemas/QuotePhotoSlotResponse"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "id"
+          "id",
+          "photoSlots"
         ],
         "type": "object"
       },
@@ -6445,6 +6470,29 @@
           "name",
           "teamOrRole",
           "stars"
+        ],
+        "type": "object"
+      },
+      "QuotePhotoSlotResponse": {
+        "description": "One declared photo place.",
+        "properties": {
+          "fileName": {
+            "description": "The cleaned file name the visitor declared.",
+            "type": "string"
+          },
+          "slot": {
+            "description": "The place, from 0 to 4; the photo is sent to `/photos/{slot}`.",
+            "format": "int32",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "slot",
+          "fileName"
         ],
         "type": "object"
       },
@@ -18998,7 +19046,126 @@
             "description": "Too Many Requests"
           }
         },
-        "summary": "Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is\nsaved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body\nis ignored. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves nothing more.",
+        "summary": "Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is\nsaved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body\nis ignored. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made\n(32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one `photoSlots` entry per\nfile and never echoes the key. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves\nnothing more.",
+        "tags": [
+          "PublicQuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/public/quote-requests/{id}/photos/{slot}": {
+      "post": {
+        "operationId": "UploadQuotePhoto",
+        "parameters": [
+          {
+            "description": "The quote request id from the create answer.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The place from the create answer, from 0 to 4.",
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Upload-Key",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Cancels the request.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Payload Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Sends one photo to a place the request declared, as a multipart form with the file in the `file` part. The header\n`X-Upload-Key` must carry the key sent when the request was saved. The type is read from the first bytes of the file\n(JPG, PNG, WEBP or HEIC), never from its name or content type; the photo's location and camera data is removed and the file\nis kept as sent otherwise, in private storage under the quotes folder. A wrong key, a wrong id, an expired key, a place that\nis outside the declared ones or already filled, and a request marked Spam all answer the same 404, so nothing tells which part\nwas wrong. When photo storage fails the request stays saved and the place stays empty. A retry with the same\n`Idempotency-Key` and body answers with the stored answer and stores nothing more.",
         "tags": [
           "PublicQuoteRequests"
         ]

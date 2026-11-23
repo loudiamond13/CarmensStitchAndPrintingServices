@@ -42,6 +42,13 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.Property(request => request.CreatedAtUtc).IsRequired();
         builder.Property(request => request.RowVersion).IsRowVersion();
 
+        // Only the SHA-256 of the visitor's upload key is stored, never the key (CWE-639).
+        builder.Property(request => request.UploadKeyHash).HasColumnType("varbinary(32)");
+
+        // The photo places leave with their request.
+        builder.HasMany(request => request.Photos).WithOne().HasForeignKey(photo => photo.QuoteRequestId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(request => request.Photos).UsePropertyAccessMode(PropertyAccessMode.Field);
+
         // NO ACTION on the staff links, so removing a user never rewrites history (SEC-08). A visitor has no user, so CreatedById stays null.
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.CreatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.UpdatedById).OnDelete(DeleteBehavior.NoAction);

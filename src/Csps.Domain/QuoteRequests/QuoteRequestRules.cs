@@ -33,6 +33,18 @@ public static class QuoteRequestRules
     /// <summary>The longest stored product title: the product line title limit.</summary>
     public const int ProductTitleMaxLength = ProductLine.TitleMaxLength;
 
+    /// <summary>The most photos one request may declare (D-02).</summary>
+    public const int MaxPhotos = 5;
+
+    /// <summary>The longest photo file name a visitor may declare.</summary>
+    public const int PhotoNameMaxLength = 255;
+
+    /// <summary>The size of an upload key in bytes before it is written as base64url text.</summary>
+    public const int UploadKeyBytes = 32;
+
+    /// <summary>The size of the stored SHA-256 of an upload key in bytes.</summary>
+    public const int UploadKeyHashLength = 32;
+
     /// <summary>The machine code of a quote form that breaks field rules.</summary>
     public const string InvalidCode = "quote-requests.validation";
 
@@ -63,6 +75,12 @@ public static class QuoteRequestRules
     /// <summary>The field name of the message.</summary>
     public const string MessageField = "message";
 
+    /// <summary>The field name of the declared photo file names.</summary>
+    public const string PhotosField = "photos";
+
+    /// <summary>The field name of the upload key.</summary>
+    public const string UploadKeyField = "uploadKey";
+
     /// <summary>The message for a missing name.</summary>
     public const string CustomerNameRequired = "Enter your name.";
 
@@ -89,6 +107,43 @@ public static class QuoteRequestRules
 
     /// <summary>The message for a message over the limit.</summary>
     public const string MessageTooLong = "Keep your message to 2,000 characters or fewer.";
+
+    /// <summary>The message for more photos than the limit (UI-SPEC Validation).</summary>
+    public const string PhotosTooMany = "You can send up to 5 photos.";
+
+    /// <summary>The message for a photo list that cannot be declared: empty, or declared a second time.</summary>
+    public const string PhotosInvalid = "Photos could not be attached. Try sending them again.";
+
+    /// <summary>The message for a photo file name over the limit.</summary>
+    public const string PhotoNameTooLong = "Keep each photo file name to 255 characters or fewer.";
+
+    /// <summary>The machine code of a photo the server refuses by its content (UI-SPEC Validation).</summary>
+    public const string PhotoRefusedCode = "quote-requests.photo-refused";
+
+    /// <summary>The message for a file that is not a photo we can take; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTypeFormat = "{0} isn't a photo we can take. Use JPG, PNG, WebP or HEIC, or send it on Messenger.";
+
+    /// <summary>The message for a file over 10 MB; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTooLargeFormat = "{0} is over 10 MB. Send a smaller photo, or send it on Messenger.";
+
+    /// <summary>The message for a photo over the pixel or side limit; <c>{0}</c> is the cleaned file name.</summary>
+    public const string PhotoTooBigFormat = "{0} is too big. Photos can be at most 25 megapixels.";
+
+    /// <summary>The message for a missing or malformed upload key.</summary>
+    public const string UploadKeyInvalid = "Photos could not be attached. Try sending them again.";
+
+    /// <summary>Cleans a photo file name the visitor declared: no folders, no control characters, trimmed.</summary>
+    /// <param name="fileName">The name as the browser reported it.</param>
+    /// <param name="slot">The place of the photo, used to name a photo whose name is empty once cleaned.</param>
+    /// <returns>The cleaned name, or <c>Photo {n}</c> when nothing is left.</returns>
+    public static string CleanPhotoName(string fileName, int slot)
+    {
+        ArgumentNullException.ThrowIfNull(fileName);
+        var cut = fileName.LastIndexOfAny(['/', '\\']);
+        var leaf = cut >= 0 ? fileName[(cut + 1)..] : fileName;
+        var cleaned = new string([.. leaf.Where(static character => !char.IsControl(character))]).Trim();
+        return cleaned.Length == 0 ? $"Photo {slot + 1}" : cleaned;
+    }
 
     /// <summary>Tells whether text is a Philippine mobile number within the length cap.</summary>
     /// <param name="text">The text as typed, trimmed.</param>
@@ -178,6 +233,13 @@ public static class QuoteRequestRules
     /// <returns>A failed result.</returns>
     public static Result<T> Reject<T>(string field, string message) =>
         Result.Failure<T>(Error.Validation(InvalidCode, InvalidMessage, new Dictionary<string, string[]> { [field] = [message] }));
+
+    /// <summary>Builds a validation error for one field, for a use case that returns no value.</summary>
+    /// <param name="field">The field name.</param>
+    /// <param name="message">The plain-English message.</param>
+    /// <returns>A failed result.</returns>
+    public static Result Reject(string field, string message) =>
+        Result.Failure(Error.Validation(InvalidCode, InvalidMessage, new Dictionary<string, string[]> { [field] = [message] }));
 
     // A line choice needs a line and its title; any other choice, or none, carries neither. Returns the cleaned title.
     private static Result<string?> CheckProduct(QuoteRequestInput input)
