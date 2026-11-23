@@ -57,6 +57,9 @@ internal sealed class RealLimitsFactory : CspsApiFactory
         builder.UseSetting("RateLimits:AnalyticsCollect:PermitLimit", AnalyticsCollectRateLimit.Default().PermitLimit.ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.UseSetting("RateLimits:AnalyticsCeiling:PermitLimit", AnalyticsCeilingRateLimit.Default().PermitLimit.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
+        builder.UseSetting("RateLimits:QuoteCreate:PermitLimit", "5");
+        builder.UseSetting("RateLimits:QuoteCeiling:PermitLimit", "60");
+
         if (RemoteIpFromHeader)
         {
             builder.ConfigureTestServices(services => services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>());
