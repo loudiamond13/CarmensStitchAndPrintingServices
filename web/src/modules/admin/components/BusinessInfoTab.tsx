@@ -476,7 +476,7 @@ function BusinessInfoForm({ settings, onDirtyChange, reload }: BusinessInfoFormP
             />
           </Card>
           {/* SPEC-GAP: quote alerts card. Inside the form, so one Save Business Info saves it (13 D-07). */}
-          <QuoteAlertsCard control={control} />
+          <QuoteAlertsCard control={control} savedAddress={baseline.quoteAlertsEmail} />
         </form>
         {/* SPEC-GAP: business info. Card 6 sits outside the form element: the picture saves on its own (D-26). */}
         <SharePictureCard picture={settings.sharePicture} onSettingsChange={takePictureVersion} />

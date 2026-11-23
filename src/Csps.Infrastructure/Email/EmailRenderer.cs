@@ -61,6 +61,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             ManagerResetLinkEmail link => ManagerResetLink(link),
             QuoteAlertEmail alert => QuoteAlert(alert),
             QuoteAlertsOverflowEmail => QuoteAlertsOverflow(),
+            QuoteAlertTestEmail => QuoteAlertTest(),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -161,6 +162,16 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             Heading: "More quote requests are waiting",
             Blocks: [new ParagraphBlock("More quote requests came in this hour than we email about. Open Quote Requests to see them all.")],
             Button: new EmailButton("Open Quote Requests", links.Value.QuoteRequestsPage()),
+            Reason: EmailHtmlLayout.QuoteAlertsFooterReason);
+
+    // The test carries no link: it only proves that mail reaches the address (D-11).
+    private static EmailContent QuoteAlertTest() =>
+        new(
+            Subject: "Test: quote alerts work",
+            Preheader: "Quote alerts reach this address.",
+            Heading: "Quote alerts work",
+            Blocks: [new ParagraphBlock("This is a test from your website. When a visitor sends a quote request, an email like this one tells you about it.")],
+            Button: null,
             Reason: EmailHtmlLayout.QuoteAlertsFooterReason);
 
     private static void AddField(List<EmailBlock> blocks, string label, string? value)

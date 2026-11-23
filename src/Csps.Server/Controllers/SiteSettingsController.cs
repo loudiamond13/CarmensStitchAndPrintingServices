@@ -10,12 +10,14 @@ namespace Csps.Server.Controllers;
 /// <summary>Staff API for the site settings (D-29, CONT-01): staff read them, and only Managers save the business info.</summary>
 /// <param name="handler">The read handler.</param>
 /// <param name="update">The save handler (Managers only).</param>
+/// <param name="quoteAlertTest">The Quote alerts test email handler (Managers only).</param>
 [ApiController]
 [Route("api/v1/site-settings")]
 [Authorize(Policy = Policies.Staff)]
 [Produces("application/json")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-public sealed class SiteSettingsController(GetSiteSettingsHandler handler, UpdateSiteSettingsHandler update) : ControllerBase
+public sealed class SiteSettingsController(
+    GetSiteSettingsHandler handler, UpdateSiteSettingsHandler update, SendQuoteAlertTestHandler quoteAlertTest) : ControllerBase
 {
     /// <summary>
     /// Returns every Business Info field, the shop email (staff only), the phones with the main one first, the version a save must
@@ -57,5 +59,28 @@ public sealed class SiteSettingsController(GetSiteSettingsHandler handler, Updat
     {
         var result = await update.HandleAsync(body ?? UpdateSiteSettingsRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static saved => TypedResults.Ok(saved));
+    }
+
+    /// <summary>
+    /// Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the
+    /// request, and is recorded in the audit log as <c>quote-alerts.test-sent</c> with no address. No saved address answers 409
+    /// <c>site-settings.no-quote-alerts-address</c> and sends nothing; an address that can never receive mail answers 422
+    /// <c>site-settings.quote-alerts-address-undeliverable</c>. Needs an <c>Idempotency-Key</c>.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>202 when the email is queued, 401 without a valid token, 403 for an Admin, 409 with no saved address, 422, or 429.</returns>
+    [HttpPost("quote-alerts/test")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("SendQuoteAlertTest")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IResult> SendQuoteAlertTest(CancellationToken cancellationToken)
+    {
+        var result = await quoteAlertTest.HandleAsync(cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.Accepted((string?)null));
     }
 }

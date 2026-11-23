@@ -47,6 +47,24 @@ public static class SiteContentErrors
     /// <summary>Gets the 404 for a link preview picture removal when no picture is set.</summary>
     public static Error SharePictureNotFound { get; } = Error.NotFound(SharePictureNotFoundCode, SharePictureNotFoundMessage);
 
+    /// <summary>The machine code of a Quote alerts test with no saved address.</summary>
+    public const string NoQuoteAlertsAddressCode = "site-settings.no-quote-alerts-address";
+
+    /// <summary>The plain-English text for a Quote alerts test with no saved address.</summary>
+    public const string NoQuoteAlertsAddressMessage = "Save an address first, then send a test.";
+
+    /// <summary>Gets the 409 for a Quote alerts test with no saved address (D-11).</summary>
+    public static Error NoQuoteAlertsAddress { get; } = Error.Conflict(NoQuoteAlertsAddressCode, NoQuoteAlertsAddressMessage);
+
+    /// <summary>The machine code of a Quote alerts test to an address that can never receive mail.</summary>
+    public const string QuoteAlertsAddressUndeliverableCode = "site-settings.quote-alerts-address-undeliverable";
+
+    /// <summary>The plain-English text for a Quote alerts test to an address that can never receive mail.</summary>
+    public const string QuoteAlertsAddressUndeliverableMessage = "This address can't get email. Save a different address, then send a test.";
+
+    /// <summary>Gets the 422 for a Quote alerts test to an address that can never receive mail, such as one in a reserved domain.</summary>
+    public static Error QuoteAlertsAddressUndeliverable { get; } = Error.BusinessRule(QuoteAlertsAddressUndeliverableCode, QuoteAlertsAddressUndeliverableMessage);
+
     /// <summary>The machine code of a gallery item that does not exist, or is not an upload where an upload is needed.</summary>
     public const string GalleryItemNotFoundCode = "gallery-items.not-found";
 

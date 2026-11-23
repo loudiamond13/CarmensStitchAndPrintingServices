@@ -222,6 +222,9 @@ public static class AuditActions
     /// <summary>A Manager added, replaced or removed the default link preview picture; the detail holds the change and never the address (D-26).</summary>
     public const string SharePictureChanged = "site-settings.share-picture-changed";
 
+    /// <summary>A Manager sent a test email to the Quote alerts address (D-11). No detail: the address is never written (CWE-532).</summary>
+    public const string QuoteAlertsTestSent = "quote-alerts.test-sent";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -650,5 +653,6 @@ public static class AuditActions
         GalleryPhotoDeleted,
         GalleryItemMoved,
         SharePictureChanged,
+        QuoteAlertsTestSent,
     ];
 }

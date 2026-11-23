@@ -149,6 +149,7 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'money-transfer.handed-over', label: 'Money handed over', group: STAFF_MONEY },
   { code: 'site-settings.changed', label: 'Site settings changed', group: SITE_CONTENT },
   { code: 'site-settings.share-picture-changed', label: 'Link preview picture changed', group: SITE_CONTENT },
+  { code: 'quote-alerts.test-sent', label: 'Quote alerts test email sent', group: SITE_CONTENT },
   { code: 'opening-hours.changed', label: 'Opening hours changed', group: SITE_CONTENT },
   { code: 'shop-closure.added', label: 'Closure added', group: SITE_CONTENT },
   { code: 'shop-closure.changed', label: 'Closure changed', group: SITE_CONTENT },
