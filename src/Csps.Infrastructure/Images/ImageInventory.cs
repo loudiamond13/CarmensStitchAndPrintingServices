@@ -7,7 +7,8 @@ namespace Csps.Infrastructure.Images;
 
 /// <summary>
 /// Reads which stored photo files the database knows (JOB-02, D-23). The photo query lifts the named SoftDelete filter, so a photo of a
-/// soft-deleted order still counts: the order can be restored and a Cloudinary removal cannot be undone.
+/// soft-deleted order still counts: the order can be restored and a Cloudinary removal cannot be undone. A stored QuoteRequestPhotos id counts
+/// too, so the sweep never queues a live quote photo (INQ-07).
 /// </summary>
 /// <param name="context">The database context.</param>
 internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
@@ -53,7 +54,7 @@ internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
             return found;
         }
 
-        // Order photos, product line photos, gallery uploads and the share picture in one command: a row of any of the four names its file.
+        // Order photos, product line photos, gallery uploads, the share picture and quote request photos in one command: a row of any of the five names its file.
         var photos = await context.Set<OrderImage>()
             .IgnoreQueryFilters([SoftDeleteFilter])
             .AsNoTracking()
@@ -62,6 +63,7 @@ internal sealed class ImageInventory(CspsDbContext context) : IImageInventory
             .Union(context.ProductLinePhotos.AsNoTracking().Where(photo => wanted.Contains(photo.PublicId)).Select(photo => photo.PublicId))
             .Union(context.GalleryEntries.AsNoTracking().Where(entry => entry.PublicId != null && wanted.Contains(entry.PublicId)).Select(entry => entry.PublicId!))
             .Union(context.SiteSettings.AsNoTracking().Where(settings => settings.SharePicturePublicId != null && wanted.Contains(settings.SharePicturePublicId)).Select(settings => settings.SharePicturePublicId!))
+            .Union(context.QuoteRequestPhotos.AsNoTracking().Where(photo => photo.PublicId != null && wanted.Contains(photo.PublicId)).Select(photo => photo.PublicId!))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         found.UnionWith(photos);

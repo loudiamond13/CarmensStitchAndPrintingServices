@@ -19,6 +19,15 @@ public enum ImageDeletionReason
 
     /// <summary>A Manager put a new file in the place of a content photo, so the old file is no longer named by any row.</summary>
     PhotoReplaced = 5,
+
+    /// <summary>A quote request was marked as spam, so its photos are no longer kept.</summary>
+    QuoteSpam = 6,
+
+    /// <summary>A Manager deleted a quote request for good.</summary>
+    QuoteDeleted = 7,
+
+    /// <summary>The 6-month purge removed an unconverted quote request.</summary>
+    QuotePurged = 8,
 }
 
 /// <summary>One queued removal that a run now holds the lease on. The public id is the file's key, so it is never logged.</summary>
