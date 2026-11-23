@@ -127,6 +127,7 @@ export function quoteRequestDetail(
     missingPhotos: [],
     photosRemovedAtUtc: null,
     history: [{ from: null, to: 'new', changedBy: null, changedAt: '2026-11-21T07:42:00Z' }],
+    notes: [],
     lastChangedBy: null,
     lastChangedAt: null,
     version: 'AAAAAAAAB9E=',
