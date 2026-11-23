@@ -23,7 +23,7 @@ interface HarnessProps {
   items?: readonly PublicGalleryItemFixture[];
   start?: number;
   onClose?: () => void;
-  onQuote?: () => void;
+  onQuote?: (to: string) => void;
 }
 
 function Harness({
@@ -378,14 +378,25 @@ describe('GalleryLightbox caption, announcements and photos (D-13)', () => {
     expect(within(dialog()).getByRole('img', { name: 'Lone Rangers, Basketball work' })).toBeInTheDocument();
   });
 
-  it('closes and hands over to the page when "Get a quote for something like this" is pressed', async () => {
+  it('hands /contact?product={item line key} to the page when "Get a quote for something like this" is pressed (Q4)', async () => {
     const user = userEvent.setup();
     const onQuote = vi.fn();
     render(<Harness onQuote={onQuote} />);
     const link = screen.getByRole('link', { name: 'Get a quote for something like this' });
-    expect(link).toHaveAttribute('href', '/contact');
+    expect(link).toHaveAttribute('href', '/contact?product=basketball');
     await user.click(link);
     expect(onQuote).toHaveBeenCalledTimes(1);
+    expect(onQuote).toHaveBeenCalledWith('/contact?product=basketball');
+  });
+
+  it('links an item whose line key fails the allow-list to plain /contact', async () => {
+    const user = userEvent.setup();
+    const onQuote = vi.fn();
+    render(<Harness items={[makeGalleryItem({ team: 'Odd Key FC', lineKey: '../../admin' })]} onQuote={onQuote} />);
+    const link = screen.getByRole('link', { name: 'Get a quote for something like this' });
+    expect(link).toHaveAttribute('href', '/contact');
+    await user.click(link);
+    expect(onQuote).toHaveBeenCalledWith('/contact');
   });
 
   it('has no axe violations with four photos, with no photo, with one item and on a failed photo', async () => {

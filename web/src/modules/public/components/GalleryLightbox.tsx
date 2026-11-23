@@ -24,6 +24,7 @@ import { useInertOutside } from '@/components/overlays/useInertOutside';
 import { LazyImage } from '@/components/states/LazyImage';
 import { PUBLIC_COPY } from '../copy';
 import { useSwipe } from '../hooks/useSwipe';
+import { isLineKey } from '../lineKey';
 import type { PublicGalleryItem } from '../services/contentService';
 import { artFor, JerseyArt } from './JerseyArt';
 import {
@@ -63,8 +64,8 @@ export interface GalleryLightboxProps {
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
-  /** Called when "Get a quote for something like this" is pressed; the page closes the viewer and goes to /contact. */
-  onQuote: () => void;
+  /** Called with the quote address when "Get a quote for something like this" is pressed; the page closes the viewer and goes there. */
+  onQuote: (to: string) => void;
 }
 
 /** The photo chosen with a thumbnail, and the item it was chosen on: another item shows its cover again. */
@@ -162,6 +163,8 @@ export function GalleryLightbox({ items, index, onIndexChange, onClose, onQuote 
       ? COPY.altPhoto(item.team, item.lineShortName, photoIndex + 1, photoCount)
       : COPY.alt(item.team, item.lineShortName);
   const art = artFor(item.placeholderArt);
+  // Only a key that passes the allow-list rides in ?product= (T-11-44, Q4).
+  const quoteTo = isLineKey(item.lineKey) ? `/contact?product=${item.lineKey}` : '/contact';
   const choosePhoto = (position: number) => {
     setChosen({ itemId: item.id, photo: position });
     setAnnouncement(COPY.announcePhoto(position + 1, photoCount));
@@ -285,14 +288,14 @@ export function GalleryLightbox({ items, index, onIndexChange, onClose, onQuote 
           {COPY.meta(item.lineShortName, item.pieces === null ? null : Number(item.pieces), item.note)}
         </p>
         <UiLink
-          to="/contact"
+          to={quoteTo}
           className={quoteClasses}
           onClick={(event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
               return;
             }
             event.preventDefault();
-            onQuote();
+            onQuote(quoteTo);
           }}
         >
           {COPY.getQuote}

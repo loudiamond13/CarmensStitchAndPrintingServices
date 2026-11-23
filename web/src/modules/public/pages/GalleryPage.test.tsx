@@ -480,6 +480,7 @@ describe(
       await waitFor(() => {
         expect(router.state.location.pathname).toBe('/contact');
       });
+      expect(router.state.location.search).toBe('?product=basketball');
       await waitFor(() => {
         expect(screen.queryByRole('dialog', { name: 'Gallery image viewer' })).toBeNull();
       });

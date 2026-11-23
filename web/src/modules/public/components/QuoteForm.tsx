@@ -2,7 +2,7 @@
 // waits the server's minimum time after it gets a ticket, and keeps what the visitor typed when a send fails.
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
-import { Controller, useForm, type FieldErrors } from 'react-hook-form';
+import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/actions/Button';
 import { UiLink } from '@/components/actions/UiLink';
 import { useToast } from '@/components/feedback/ToastProvider';
@@ -27,6 +27,7 @@ import {
 } from './quoteForm.recipe';
 import { PUBLIC_COPY } from '../copy';
 import { useProductLinesQuery } from '../hooks/useProductLinesQuery';
+import { useQuoteProductPreselect } from '../hooks/useQuoteProductPreselect';
 import { useQuoteTicket } from '../hooks/useQuoteTicket';
 import { useSiteQuery } from '../hooks/useSiteQuery';
 import {
@@ -105,12 +106,22 @@ export function QuoteForm() {
     { value: 'custom', label: COPY.product.custom },
     { value: 'not-sure', label: COPY.product.notSure },
   ];
-  const { control, handleSubmit, reset, setError } = useForm<QuoteFormValues>({
+  const { control, handleSubmit, reset, setError, setValue } = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteFormSchema),
     mode: 'onBlur',
     shouldFocusError: false,
     defaultValues: EMPTY_QUOTE_FORM,
   });
+  // A ?product= line is chosen once its line arrives, unless the visitor chose first (Q4).
+  const preselect = useQuoteProductPreselect(
+    lines.status === 'success' ? lines.data.lines : null,
+    useWatch({ control, name: 'product' }),
+  );
+  useEffect(() => {
+    if (preselect !== null) {
+      setValue('product', `line:${preselect}`);
+    }
+  }, [preselect, setValue]);
 
   const focusField = (name: QuoteField): void => {
     const element = formRef.current?.elements.namedItem(name);
