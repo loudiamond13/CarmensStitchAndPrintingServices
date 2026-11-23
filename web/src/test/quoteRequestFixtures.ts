@@ -69,6 +69,13 @@ export function quoteRequestsBackend(
   return backend;
 }
 
+/** Answers GET /api/v1/quote-requests/new-count with `count`, or with a problem of that status. The setup gives every test 0. */
+export function newQuoteCountHandler(count: number | { readonly failWith: number } = 0) {
+  return http.get('*/api/v1/quote-requests/new-count', () =>
+    typeof count === 'number' ? HttpResponse.json({ count }) : quoteProblem(count.failWith),
+  );
+}
+
 /** A problem+json answer with a status. */
 export function quoteProblem(status: number): Response {
   return new HttpResponse(JSON.stringify({ title: 'x', status }), {

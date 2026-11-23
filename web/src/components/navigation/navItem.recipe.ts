@@ -47,3 +47,22 @@ export const navLabelHiddenClasses = tw('hidden');
 
 /** `.s-admin-side .csp-nav-label { display: none }` on the tablet rail: the label stays the item's accessible name. */
 export const navLabelRailClasses = tw('pg-tablet:in-data-[ui=s-admin-side]:hidden');
+
+// SPEC-GAP: NavCount (UI-SPEC R4). The New count on an item: a chip at the row's end with the `tabCountClasses` geometry, and a dot
+// at the icon's top right where the label is hidden (the collapsed sidebar and the tablet rail).
+
+/** The chip: 20px tall, at least 22px wide, 12/20 tabular, 600, accent ground. Hidden on the tablet rail, where the dot shows. */
+export const navCountClasses = tw(
+  'ml-auto h-5 min-w-[22px] shrink-0 rounded-xs bg-accent px-1.5 text-center text-[12px] leading-5 font-semibold text-on-accent tabular-nums pg-tablet:in-data-[ui=s-admin-side]:hidden',
+);
+
+/** The icon's box, so the dot can sit at its top right. */
+export const navIconBoxClasses = tw('relative inline-flex shrink-0');
+
+/** The 10px dot with a 2px nav-ground ring: always on the collapsed sidebar, only on the tablet rail otherwise. */
+export const navCountDotClasses = {
+  expanded: tw(
+    'absolute -top-1 -right-1 hidden size-2.5 rounded-pill bg-accent ring-2 ring-nav-bg pg-tablet:in-data-[ui=s-admin-side]:block',
+  ),
+  collapsed: tw('absolute -top-1 -right-1 size-2.5 rounded-pill bg-accent ring-2 ring-nav-bg'),
+} as const;

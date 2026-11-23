@@ -26,7 +26,7 @@ import { Outlet, useLoaderData, useLocation, useNavigate, useNavigation } from '
 import { SkipLink } from '@/components/entry';
 import { Skeleton, ToastProvider, useToast } from '@/components/feedback';
 import { pageRootClasses } from '@/components/layout/layout.recipe';
-import { MobileNavDrawer, Sidebar, Topbar, type AdminSection } from '@/components/navigation';
+import { MobileNavDrawer, Sidebar, Topbar, type AdminSection, type SidebarProps } from '@/components/navigation';
 import {
   adminBodyClasses,
   adminClasses,
@@ -41,6 +41,7 @@ import { usePostSignInToast } from '@/modules/admin/hooks/usePostSignInToast';
 import { useThemeState, type AdminThemeContext } from '@/modules/admin/hooks/useAdminTheme';
 import { useSession } from '@/modules/admin/hooks/useSession';
 import { useSessionCapWarning } from '@/modules/admin/hooks/useSessionCapWarning';
+import { shownNewQuoteCount, useNewQuoteCountQuery } from '@/modules/admin/hooks/useNewQuoteCountQuery';
 import { refreshAfterSignedOutOthers } from '@/modules/admin/hooks/useSessionsQuery';
 import { setNavigator, signOut, type SessionUser } from '@/modules/admin/services/session';
 import { TabBar } from '@/modules/admin/components/TabBar';
@@ -79,6 +80,10 @@ export interface AdminFrameProps {
   withAuditLog?: boolean | undefined;
   /** Adds the My Money item after Company Expenses to the sidebar and the drawer (D-39); the real shell sets it, the dev scenarios do not. */
   withMoney?: boolean | undefined;
+  /** Adds the Quote Requests item after Orders to the sidebar and the drawer (D-19) and the Quotes tab (D-30); the real shell sets it, the dev scenarios do not. */
+  withQuoteRequests?: boolean | undefined;
+  /** The New counts per section (D-14): the Quote Requests item shows its count. */
+  counts?: SidebarProps['counts'];
   children?: ReactNode;
 }
 
@@ -98,6 +103,8 @@ export function AdminFrame({
   loading = false,
   withAuditLog = false,
   withMoney = false,
+  withQuoteRequests = false,
+  counts,
   children,
 }: AdminFrameProps) {
   const [navOpen, setNavOpen] = useState(false);
@@ -113,6 +120,8 @@ export function AdminFrame({
             onLogout={onLogout}
             withAuditLog={withAuditLog}
             withMoney={withMoney}
+            withQuoteRequests={withQuoteRequests}
+            counts={counts}
           />
         </div>
         <div data-ui="s-admin-main" className={adminMainClasses}>
@@ -134,7 +143,7 @@ export function AdminFrame({
           <main id="main" tabIndex={-1} aria-busy={loading ? true : undefined} className={adminBodyClasses}>
             {loading ? <SkeletonPageHead /> : children}
           </main>
-          <TabBar active={section} />
+          <TabBar active={section} withQuotes={withQuoteRequests} counts={counts} />
         </div>
       </div>
       <MobileNavDrawer
@@ -151,6 +160,8 @@ export function AdminFrame({
           onLogout={onLogout}
           withAuditLog={withAuditLog}
           withMoney={withMoney}
+          withQuoteRequests={withQuoteRequests}
+          counts={counts}
         />
       </MobileNavDrawer>
     </>
@@ -186,6 +197,8 @@ function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
   const loaderUser: unknown = useLoaderData();
   const { user: sessionUser } = useSession();
   const user = currentShellUser(loaderUser, sessionUser);
+  // The dev routes have no one signed in, so they ask for no count.
+  const newCount = shownNewQuoteCount(useNewQuoteCountQuery({ enabled: sessionUser !== null }));
   // The session module navigates (a session that ended in this or another tab) without importing the router.
   useEffect(() => {
     setNavigator((to) => {
@@ -235,6 +248,8 @@ function AdminShell({ themeContext }: { themeContext: AdminThemeContext }) {
         loading={loading}
         withAuditLog
         withMoney
+        withQuoteRequests
+        counts={newCount === undefined ? undefined : { quotes: newCount }}
       >
         <Outlet context={themeContext} />
       </AdminFrame>

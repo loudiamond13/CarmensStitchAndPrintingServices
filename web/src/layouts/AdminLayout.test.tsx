@@ -20,7 +20,6 @@ import UrlStateLayout from '@/lib/url-state/UrlStateLayout';
 import { DEV_USER } from '@/modules/admin/sections';
 import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
-
 /**
  * The dev previews these layout tests render in the shell: the placeholder-user /admin entry that plan 10-07 took out of
  * devRoutes (the real dashboard replaced it) and the /admin/orders one that plan 08-06 took out. The layout tests still need
@@ -219,6 +218,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(labels).toEqual([
       'Dashboard',
       'Orders',
+      'Quote Requests',
       'Company Expenses',
       'My Money',
       'Users',
@@ -250,6 +250,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(tabs.flatMap((nav) => [...nav.querySelectorAll('a')].map((link) => link.getAttribute('href')))).toEqual([
       '/admin',
       '/admin/orders',
+      '/admin/quote-requests',
       '/admin/expenses',
       '/admin/profile',
     ]);
@@ -498,13 +499,14 @@ describe('AdminLayout theme (D-13)', () => {
 });
 
 describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
-  it('lists Dashboard, Orders, Expenses and Profile, with their paths', async () => {
+  it('lists Dashboard, Orders, Quotes (D-30), Expenses and Profile, with their paths', async () => {
     await renderAt('/admin');
     const links = within(tabBar()).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual(['Dashboard', 'Orders', 'Expenses', 'Profile']);
+    expect(links.map((link) => link.textContent)).toEqual(['Dashboard', 'Orders', 'Quotes', 'Expenses', 'Profile']);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/admin',
       '/admin/orders',
+      '/admin/quote-requests',
       '/admin/expenses',
       '/admin/profile',
     ]);
@@ -563,9 +565,9 @@ describe('AdminLayout phone tab bar (App. E.6 `.s-tabbar`, D-03)', () => {
     );
   });
 
-  it('shows only on phones: hidden by default, a 4-column grid in the phone container', async () => {
+  it('shows only on phones: hidden by default, a 5-column grid in the phone container (D-30)', async () => {
     await renderAt('/admin');
-    expect(tabBar().className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'pg-phone:grid', 'grid-cols-4']));
+    expect(tabBar().className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'pg-phone:grid', 'grid-cols-5']));
   });
 
   it('takes the visitor to the section of a tab', async () => {
@@ -1155,5 +1157,107 @@ describe('AdminLayout topbar search (ORD-02, D-53)', () => {
 
     expect(router.state.location.pathname).toBe('/admin');
     expect(router.state.location.search).toBe('');
+  });
+});
+
+// SPEC-DEVIATION: D-19 the shell shows Quote Requests with the server's New count (D-14, INQ-05; UI-SPEC R4).
+describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
+  afterEach(() => {
+    clearSession();
+  });
+
+  /** The admin tree as production has it, at `path`: the layout loader gives the session user. */
+  async function renderSignedIn(path = '/admin') {
+    acceptSession(sessionResponse());
+    const router = createMemoryRouter(adminTree({ layout: { loader: () => getSessionUser() } }), {
+      initialEntries: [path],
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
+    return router;
+  }
+
+  /** Counts the New count reads, answering each with `count`. */
+  function countReads(count: number | { readonly failWith: number }): { reads: number } {
+    const probe = { reads: 0 };
+    server.use(
+      http.get('*/api/v1/quote-requests/new-count', () => {
+        probe.reads += 1;
+        return typeof count === 'number'
+          ? HttpResponse.json({ count })
+          : HttpResponse.json({ title: 'x', status: count.failWith }, { status: count.failWith });
+      }),
+    );
+    return probe;
+  }
+
+  it('shows Quote Requests right after Orders in the sidebar, with the New count in its name', async () => {
+    countReads(3);
+    await renderSignedIn();
+
+    const names = within(sidebarNav())
+      .getAllByRole('link')
+      .map((item) => item.textContent);
+    expect(names.slice(0, 3)).toEqual(['Dashboard', 'Orders', expect.stringMatching(/^Quote Requests/)]);
+    expect(await within(sidebarNav()).findByRole('link', { name: 'Quote Requests, 3 new' })).toHaveAttribute(
+      'href',
+      '/admin/quote-requests',
+    );
+  });
+
+  it('shows the same count in the phone drawer and on the Quotes tab', async () => {
+    countReads(3);
+    await renderSignedIn();
+
+    const tabs = [...document.querySelectorAll<HTMLElement>('nav[aria-label="Admin"]')].find(
+      (nav) => nav.closest('aside') === null,
+    );
+    if (tabs === undefined) {
+      throw new Error('No tab bar.');
+    }
+    expect(await within(tabs).findByRole('link', { name: 'Quotes, 3 new' })).toHaveAttribute(
+      'href',
+      '/admin/quote-requests',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = screen.getByRole('dialog', { name: 'Navigation' });
+    expect(within(drawer).getByRole('link', { name: 'Quote Requests, 3 new' })).toBeInTheDocument();
+  });
+
+  it('marks Quote Requests and the Quotes tab current for the quotes section', () => {
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="quotes" user={{ name: 'Lito Santos', role: 'admin' }} theme="light" withQuoteRequests>
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    expect(sidebarLink('Quote Requests')).toHaveAttribute('aria-current', 'page');
+    expect(tabBar().querySelector('[aria-current="page"]')?.textContent).toBe('Quotes');
+  });
+
+  it('shows no chip and no shell error when the count read fails', async () => {
+    const probe = countReads({ failWith: 500 });
+    await renderSignedIn();
+
+    await waitFor(() => {
+      expect(probe.reads).toBeGreaterThan(0);
+    });
+    expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('reads no count on the dev routes, where no one is signed in', async () => {
+    const probe = countReads(3);
+    await renderAt('/admin');
+
+    expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(probe.reads).toBe(0);
   });
 });

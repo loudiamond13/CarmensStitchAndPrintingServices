@@ -22,6 +22,8 @@ import { myMoneyBackend, myMoneyNegativeFixture } from '@/test/moneyFixtures';
 import { orderId } from '@/test/orderFixtures';
 import { problemResponse } from '@/test/expenseFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
+import { newQuoteCountHandler } from '@/test/quoteRequestFixtures';
 
 // D1 Dashboard header, /admin (DASH-01, DASH-06, D-13): the greeting, the business date and the two actions, all from the
 // server's summary, never the device clock.
@@ -556,6 +558,37 @@ describe('when a later refresh fails (D-111, P10-BL-04)', () => {
 
     await expectNoAxeViolations(container);
   });
+});
+
+describe('the quote requests strip on the page (D-19, UI-SPEC R4)', () => {
+  it('sits directly under the money strip and before the KPI row, with the server count and the inbox link', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend();
+    server.use(newQuoteCountHandler(3));
+    renderPage();
+
+    const strip = await screen.findByRole('region', { name: 'New quote requests' });
+    expect(await within(strip).findByText('3')).toBeVisible();
+    const money = await screen.findByRole('region', { name: 'Your money on hand' });
+    const kpi = await screen.findByText('Active orders');
+    expect(money.nextElementSibling).toBe(strip);
+    expect(strip.compareDocumentPosition(kpi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(strip).getByRole('link', { name: 'Open Quote Requests' })).toHaveAttribute(
+      'href',
+      '/admin/quote-requests',
+    );
+  });
+
+  it('keeps the rest of the dashboard when the count fails', async () => {
+    dashboardBackend(dashboardNovemberSummary());
+    myMoneyBackend();
+    server.use(newQuoteCountHandler({ failWith: 500 }));
+    renderPage();
+
+    expect(await screen.findByText("Couldn't load the new requests.", {}, { timeout: 5000 })).toBeVisible();
+    expect(await screen.findByText('₱8,450.00')).toBeVisible();
+    expect(await screen.findByText('5 due this week · 2 overdue')).toBeVisible();
+  }, 10_000);
 });
 
 describe('the money strip on the page (MONEY-02, D-46, plan 10-13)', () => {
