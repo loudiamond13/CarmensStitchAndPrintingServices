@@ -9,7 +9,14 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import QuoteRequestPage from '@/modules/admin/pages/QuoteRequestPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
-import { MARIA, quoteRequestBackend, quoteRequestDetail, quoteRequestId } from '@/test/quoteRequestFixtures';
+import { NEW_QUOTE_COUNT_KEY } from '@/modules/admin/hooks/useNewQuoteCountQuery';
+import {
+  MARIA,
+  quoteProblem,
+  quoteRequestBackend,
+  quoteRequestDetail,
+  quoteRequestId,
+} from '@/test/quoteRequestFixtures';
 import { sessionResponse } from '@/test/sessionFixtures';
 
 // R2 Quote request, /admin/quote-requests/:id (INQ-05, D-13, D-15, D-36; plan 13-19).
@@ -204,5 +211,95 @@ describe('the back link', () => {
       'href',
       '/admin/quote-requests',
     );
+  });
+});
+
+describe('Change Status on the page (D-15, D-14)', () => {
+  const LIST_KEY = ['quote-requests', 'list', { status: 'open', q: null, page: 1, size: 20 }] as const;
+
+  it('updates the badge, reads the request again for the history, and marks the inbox lists and the New count stale', async () => {
+    const quoted = quoteRequestDetail(ID, {
+      status: 'quoted',
+      version: 'AAAAAAAAB9I=',
+      history: [
+        { from: 'new', to: 'quoted', changedBy: MARIA, changedAt: '2026-11-21T08:05:00Z' },
+        { from: null, to: 'new', changedBy: null, changedAt: '2026-11-21T07:42:00Z' },
+      ],
+    });
+    const backend = quoteRequestBackend((read) => (read === 1 ? quoteRequestDetail(ID) : quoted));
+    queryClient.setQueryData(NEW_QUOTE_COUNT_KEY, 4);
+    queryClient.setQueryData(LIST_KEY, { items: [] });
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Quoted' }));
+
+    expect(await screen.findByText('This request is now Quoted.')).toBeVisible();
+    const history = screen.getByRole('region', { name: 'History' });
+    expect(await within(history).findByText(/^Quoted · Maria Santos/)).toBeVisible();
+    expect(backend.reads).toHaveLength(2);
+    expect(screen.getByText('Quoted', { selector: '*:not(li)' })).toBeVisible();
+    expect(queryClient.getQueryState(NEW_QUOTE_COUNT_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(LIST_KEY)?.isInvalidated).toBe(true);
+    expect(screen.getByRole('button', { name: 'Change Status' })).toHaveFocus();
+  });
+
+  it('uses the version of the answer for the next move', async () => {
+    const backend = quoteRequestBackend(quoteRequestDetail(ID), (body, id) => ({
+      id,
+      status: body.status,
+      statusChangedAtUtc: '2026-11-21T08:05:00Z',
+      version: body.version === 'AAAAAAAAB9E=' ? 'AAAAAAAAB9I=' : 'AAAAAAAAB9J=',
+    }));
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Contacted' }));
+    await screen.findByText('This request is now Contacted.');
+    await user.click(screen.getByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(2);
+    });
+    expect(backend.moves[1]?.body).toEqual({ status: 'closed', version: 'AAAAAAAAB9I=' });
+    expect(backend.moves[1]?.key).not.toBe(backend.moves[0]?.key);
+  });
+
+  it('shows the ConflictBanner on a 409, and Load Latest reads the request again', async () => {
+    const backend = quoteRequestBackend(
+      (read) =>
+        read === 1 ? quoteRequestDetail(ID) : quoteRequestDetail(ID, { status: 'contacted', version: 'AAAAAAAAB9K=' }),
+      () => quoteProblem(409, { code: 'quote-requests.conflict' }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Someone else changed this request. Load the latest to see it.');
+    const loadLatest = within(banner).getByRole('button', { name: 'Load Latest' });
+    expect(loadLatest).toHaveFocus();
+    await user.click(loadLatest);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    expect(backend.reads.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText('Contacted', { selector: '*:not(li)' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toHaveFocus();
+  });
+
+  it('shows no status menu on a Converted request', async () => {
+    quoteRequestBackend(quoteRequestDetail(ID, { status: 'converted' }));
+    renderPage();
+
+    await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' });
+    expect(screen.getByText('Converted')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
   });
 });

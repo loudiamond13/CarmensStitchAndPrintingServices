@@ -83,6 +83,25 @@ describe('quoteRequestsService.get', () => {
   });
 });
 
+describe('quoteRequestsService.changeStatus', () => {
+  it('posts the status and the version with the Idempotency-Key and resolves the slim answer', async () => {
+    const answer = {
+      id: quoteRequestId(7),
+      status: 'quoted',
+      statusChangedAtUtc: '2026-11-21T08:05:00Z',
+      version: 'AAAAAAAAB9I=',
+    };
+    const { fake, service } = serviceWith([{ body: answer }]);
+
+    await expect(service.changeStatus(quoteRequestId(7), 'quoted', 'AAAAAAAAB9E=', 'key-1')).resolves.toEqual(answer);
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}/status`);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ status: 'quoted', version: 'AAAAAAAAB9E=' });
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+  });
+});
+
 describe('quoteRequestsService.newCount', () => {
   it('calls GET /api/v1/quote-requests/new-count and resolves the count', async () => {
     const { fake, service } = serviceWith([{ body: { count: 3 } }]);
