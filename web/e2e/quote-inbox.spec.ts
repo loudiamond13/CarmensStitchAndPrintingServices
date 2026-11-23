@@ -4,8 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
-import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { expect, test } from './fixtures.ts';
 import { createQuoteRequest, createStaff } from './testing-api.ts';
 
 interface InboxRow {
@@ -41,7 +40,8 @@ function uniqueName(): string {
 /** Opens an inbox URL and returns the rows the list call answered. */
 async function openInbox(page: Page, path: string): Promise<InboxRow[]> {
   const listed = page.waitForResponse(
-    (response) => new URL(response.url()).pathname === '/api/v1/quote-requests' && response.request().method() === 'GET',
+    (response) =>
+      new URL(response.url()).pathname === '/api/v1/quote-requests' && response.request().method() === 'GET',
   );
   await page.goto(path);
   const body: unknown = await (await listed).json();
@@ -59,7 +59,11 @@ test('@quote staff see a new request in Quote Requests', async ({ page, request,
   const admin = await createStaff(request, 'Admin');
   await signInAs(page, request, admin);
   const name = uniqueName();
-  const id = await createQuoteRequest(request, { customerName: name, contactNumber: freshMobile(), teamName: 'E2E Riders' });
+  const id = await createQuoteRequest(request, {
+    customerName: name,
+    contactNumber: freshMobile(),
+    teamName: 'E2E Riders',
+  });
 
   const rows = await openInbox(page, '/admin/quote-requests');
   await expect(page.getByRole('heading', { level: 1, name: 'Quote Requests' })).toBeVisible();

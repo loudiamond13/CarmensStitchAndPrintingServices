@@ -21,14 +21,20 @@ export interface QuoteRequestsListQuery {
 }
 
 export interface QuoteRequestsService {
+  /** `GET /api/v1/quote-requests`: one page of a status group, newest first, with the pill counts. */
   list(query: QuoteRequestsListQuery, signal?: AbortSignal): Promise<QuoteRequestListResponse>;
+  /** `GET /api/v1/quote-requests/new-count`: how many requests are at status New, the same for every staff member (D-14). */
   newCount(signal?: AbortSignal): Promise<NewQuoteCountResponse>;
 }
 
-export function createQuoteRequestsService(_client: HttpClient): QuoteRequestsService {
+export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
   return {
-    list: () => Promise.reject(new Error('not built')),
-    newCount: () => Promise.reject(new Error('not built')),
+    list: (query, signal) =>
+      client.get<QuoteRequestListResponse>('/quote-requests', {
+        params: { status: query.status, q: query.q, page: query.page, size: query.size },
+        signal,
+      }),
+    newCount: (signal) => client.get<NewQuoteCountResponse>('/quote-requests/new-count', { signal }),
   };
 }
 

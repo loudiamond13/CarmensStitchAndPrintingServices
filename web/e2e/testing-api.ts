@@ -242,10 +242,12 @@ export async function createQuoteRequest(request: APIRequestContext, input: Quot
   const ticketResponse = await request.get('/api/v1/public/quote-requests/ticket');
   expect(ticketResponse.status(), 'GET /api/v1/public/quote-requests/ticket').toBe(200);
   const ticketBody: unknown = await ticketResponse.json();
-  if (!isRecord(ticketBody) || typeof ticketBody.ticket !== 'string' || typeof ticketBody.minimumSeconds !== 'number') {
+  const ticket = isRecord(ticketBody) ? ticketBody.ticket : null;
+  const minimumSeconds = isRecord(ticketBody) ? ticketBody.minimumSeconds : null;
+  if (typeof ticket !== 'string' || typeof minimumSeconds !== 'number') {
     throw new Error('GET /api/v1/public/quote-requests/ticket returned an unexpected body.');
   }
-  await new Promise((resolve) => setTimeout(resolve, ticketBody.minimumSeconds * 1000 + 300));
+  await new Promise((resolve) => setTimeout(resolve, minimumSeconds * 1000 + 300));
 
   const photoNames = input.declaredPhotos ?? input.photos?.map((photo) => photo.name) ?? [];
   const uploadKey = photoNames.length > 0 ? randomBytes(32).toString('base64url') : null;
@@ -262,7 +264,7 @@ export async function createQuoteRequest(request: APIRequestContext, input: Quot
       message: input.message ?? null,
       photos: photoNames,
       uploadKey,
-      ticket: ticketBody.ticket,
+      ticket,
     },
   });
   expect(created.status(), 'POST /api/v1/public/quote-requests').toBe(200);
