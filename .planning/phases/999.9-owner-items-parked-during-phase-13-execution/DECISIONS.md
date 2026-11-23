@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-22T23:50:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T01:34:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -84,6 +84,16 @@ D-42 named only the shop email and the Quote alerts address, so the fix added a 
 
 - **A (built, recommended):** keep the sign-in and profile check as it is; staff emails are already checked by the server's own rules.
 - **B:** use the stricter rule for the sign-in and profile emails too.
+
+## P13-BL-09 · Staff inbox list: wording and the phone search floor (plan 13-11)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+- A bad list query (status, search, page) answers "Check the status, search and page settings." A bad page size answers "Use a page size of 10, 20, 50 or 100."
+- A search with fewer than 3 digits does not search phone numbers (the plan said "at least 3 digits remain"; the same floor applies to the search itself). Names and team names are still searched.
+
+- **A (built, recommended):** keep both.
+- **B:** change either.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
