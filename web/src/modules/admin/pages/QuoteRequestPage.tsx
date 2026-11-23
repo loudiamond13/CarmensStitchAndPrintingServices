@@ -152,12 +152,18 @@ function QuoteRequestSkeleton() {
 }
 
 /** A request that is gone (deleted or purged) or an address that is not a request id. */
-function QuoteRequestNotFound() {
+function QuoteRequestNotFound({ focus }: { focus: boolean }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (focus) headingRef.current?.focus();
+  }, [focus]);
   return (
     <>
       <div className={pageHeadClasses}>
         <div className={pageHeadTitleClasses}>
-          <h1 className={pageTitleClasses}>{COPY.states.notFound}</h1>
+          <h1 ref={headingRef} tabIndex={-1} className={pageTitleClasses}>
+            {COPY.states.notFound}
+          </h1>
           <p className={pageSublineClasses}>{COPY.states.notFoundMessage}</p>
         </div>
       </div>
@@ -222,10 +228,15 @@ export default function QuoteRequestPage() {
   const failed = validId && request === undefined && (query.isError || query.errorUpdatedAt > query.dataUpdatedAt);
   const notFound = !validId || (failed && isHttpError(lastError) && lastError.status === 404);
   const loading = validId && request === undefined && !failed;
+  // Not found that replaces a loading or loaded page takes focus, so it is announced and focus is not lost.
+  const [hadPage, setHadPage] = useState(false);
+  if (!notFound && !hadPage) {
+    setHadPage(true);
+  }
   if (notFound) {
     return (
       <div className={orderPageClasses}>
-        <QuoteRequestNotFound />
+        <QuoteRequestNotFound focus={hadPage} />
       </div>
     );
   }

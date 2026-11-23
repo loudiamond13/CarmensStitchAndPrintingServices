@@ -422,7 +422,40 @@ describe('loading, failure and not found (UI-SPEC R2 States)', () => {
     await user.click(await screen.findByRole('button', { name: 'Change Status' }));
     await user.click(screen.getByRole('menuitem', { name: 'Move to Closed' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Quote request not found' })).toBeVisible();
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Quote request not found' });
+    expect(heading).toBeVisible();
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+  });
+
+  it('puts focus on not found when the Spam confirm finds the request gone', async () => {
+    quoteRequestBackend(
+      (read) => (read === 1 ? quoteRequestDetail(ID) : quoteProblem(404, { code: 'quote-requests.not-found' })),
+      () => quoteProblem(404, { code: 'quote-requests.not-found' }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Spam' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mark this request as spam?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Mark as Spam' }));
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Quote request not found' });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+  });
+
+  it('puts focus on not found when the first read finds the request gone', async () => {
+    quoteRequestBackend(() => quoteProblem(404, { code: 'quote-requests.not-found' }));
+    renderPage();
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Quote request not found' });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
   });
 
   it('has no axe violations in the error and not-found states', async () => {
