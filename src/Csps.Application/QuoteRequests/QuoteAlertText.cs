@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace Csps.Application.QuoteRequests;
@@ -24,7 +25,10 @@ public static class QuoteAlertText
     /// <returns>The short name.</returns>
     public static string ShortName(string customerName) => Cut(OneLine(customerName), SubjectNameLimit);
 
-    /// <summary>Puts a visitor's text on one line: every run of line breaks, control characters and spaces becomes one space.</summary>
+    /// <summary>
+    /// Puts a visitor's text on one line: every run of line breaks, control characters and spaces becomes one space, and format
+    /// characters (bidi marks and overrides, zero-width characters) are dropped, so they cannot reorder the subject.
+    /// </summary>
     /// <param name="value">The visitor's text.</param>
     /// <returns>The text on one line.</returns>
     public static string OneLine(string value)
@@ -35,6 +39,11 @@ public static class QuoteAlertText
         var gap = false;
         foreach (var character in value)
         {
+            if (char.GetUnicodeCategory(character) == UnicodeCategory.Format)
+            {
+                continue;
+            }
+
             if (char.IsControl(character) || char.IsWhiteSpace(character))
             {
                 gap = line.Length > 0;

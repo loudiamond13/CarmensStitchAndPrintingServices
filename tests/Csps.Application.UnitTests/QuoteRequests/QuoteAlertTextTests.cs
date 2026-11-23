@@ -1,3 +1,4 @@
+using System.Globalization;
 using Csps.Application.QuoteRequests;
 
 namespace Csps.Application.UnitTests.QuoteRequests;
@@ -58,6 +59,19 @@ public sealed class QuoteAlertTextTests
         subject.ShouldNotContain("\r");
         subject.ShouldNotContain("\n");
         subject.Any(char.IsControl).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("Juan‮txt", "Juantxt")]
+    [InlineData("Juan​Cruz", "JuanCruz")]
+    [InlineData("‎Juan ⁦Cruz⁩﻿", "Juan Cruz")]
+    [InlineData("Juan­Cruz", "JuanCruz")]
+    public void BidiAndZeroWidthCharactersAreDroppedFromTheSubject(string name, string expected)
+    {
+        var subject = QuoteAlertText.Subject(name);
+
+        subject.ShouldBe(Prefix + expected);
+        subject.Any(character => char.GetUnicodeCategory(character) == UnicodeCategory.Format).ShouldBeFalse();
     }
 
     [Fact]
