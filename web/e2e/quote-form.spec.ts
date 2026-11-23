@@ -2,6 +2,8 @@
 // The host runs with the quote limits lifted and a one second minimum time (playwright.config.ts), so every project can send.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { drawJpeg } from './photos.ts';
+import { withSiteContentLock } from './site-content-lock.ts';
+import { seedDemoSiteContent } from './testing-api.ts';
 
 // A page script as text: the node program has no DOM types.
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
@@ -204,4 +206,28 @@ test('@quote a send with a bad number shows the server words before any request 
   await expect(form.getByRole('textbox', { name: /Contact number/ })).toBeFocused();
   await expect(form.getByRole('textbox', { name: /Your name/ })).toHaveValue('Juan Dela Cruz');
   expect(sent).toBe(false);
+});
+
+// UI-SPEC Q4 (D-24): the line rides in ?product= and the form chooses it; the page-view beacon still sends the path only (ANL-05).
+// The six lines are shared by every project, so this runs under the site content lock with the demo lines reset.
+test('@quote Get a Quote on a product line preselects it', async ({ page, request }) => {
+  test.setTimeout(480_000);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const views: string[] = [];
+    page.on('request', (seen) => {
+      if (seen.method() === 'POST' && seen.url().includes('/api/v1/analytics/page-views')) {
+        views.push(seen.postData() ?? '');
+      }
+    });
+    await page.goto('/products');
+
+    const quote = page.getByRole('article', { name: 'Basketball Jerseys' }).getByRole('link', { name: 'Get a Quote' });
+    await expect(quote).toHaveAttribute('href', '/contact?product=basketball');
+    await quote.click();
+
+    await expect(page).toHaveURL(/\/contact\?product=basketball$/);
+    await expect(page.getByRole('combobox', { name: 'Product type' })).toHaveValue('line:basketball');
+    expect(views.join(' ')).not.toContain('product');
+  });
 });

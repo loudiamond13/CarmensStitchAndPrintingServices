@@ -16,9 +16,9 @@ import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
 import { quoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
 
-function renderForm() {
+function renderForm(address = '/contact') {
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[address]}>
       <ToastProvider>{children}</ToastProvider>
     </MemoryRouter>
   );
@@ -789,5 +789,24 @@ describe('QuoteForm honeypot and notice (INQ-03, INQ-08, D-25, D-27)', () => {
     await screen.findByText('Enter your name.');
 
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('QuoteForm product preselect (Q4, D-24)', () => {
+  it('chooses no product with no param', async () => {
+    answerQuote();
+    renderForm();
+    await screen.findByRole('option', { name: 'Basketball Jerseys' });
+
+    expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('');
+  });
+
+  it('chooses the line named by ?product= once the lines arrive', async () => {
+    answerQuote();
+    renderForm('/contact?product=volleyball');
+
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Product type' })).toHaveValue('line:volleyball');
+    });
   });
 });
