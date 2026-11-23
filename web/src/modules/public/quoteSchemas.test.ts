@@ -4,7 +4,13 @@
 // gives the same message here, at the same edge. A mobile from the shared phone cases passes and a landline fails.
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { QUOTE_QUANTITIES, quoteFormSchema, toCreateQuoteRequest, type QuoteFormValues } from './quoteSchemas';
+import {
+  isPlainEmail,
+  QUOTE_QUANTITIES,
+  quoteFormSchema,
+  toCreateQuoteRequest,
+  type QuoteFormValues,
+} from './quoteSchemas';
 
 interface PhoneCases {
   accept: { input: string; e164: string }[];
@@ -14,6 +20,14 @@ interface PhoneCases {
 const phoneCases = JSON.parse(
   readFileSync(new URL('../../../../tests/fixtures/philippine-phone-cases.json', import.meta.url), 'utf8'),
 ) as PhoneCases;
+
+interface EmailCases {
+  quoteEmail: { accept: string[]; refuse: string[]; browserOnlyRefuse: string[] };
+}
+
+const emailCases = JSON.parse(
+  readFileSync(new URL('../../../../tests/fixtures/email-cases.json', import.meta.url), 'utf8'),
+) as EmailCases;
 
 function valid(overrides: Partial<QuoteFormValues> = {}): QuoteFormValues {
   return {
@@ -139,11 +153,44 @@ describe('quoteFormSchema: the email', () => {
     one(valid({ email }), 'email', 'Enter a valid email, like name@gmail.com');
   });
 
+  it.each(['a<b@c.com', 'a(b)@c.com', 'a,b@c.com', 'a;b@c.com', 'a:b@c.com', 'a"b@c.com', 'a[b]@c.com', 'a\b@c.com'])(
+    'refuses %j, a character the server refuses',
+    (email) => {
+      one(valid({ email }), 'email', 'Enter a valid email, like name@gmail.com');
+    },
+  );
+
   it('limits the email to 254 characters, and says the length first', () => {
     const domain = `${'b'.repeat(60)}.`.repeat(4) + 'com';
     expect(fields(valid({ email: `${'x'.repeat(6)}@${domain}` }))).toEqual({});
     one(valid({ email: `${'x'.repeat(7)}@${domain}` }), 'email', 'Keep the email to 254 characters or fewer.');
     one(valid({ email: 'x'.repeat(300) }), 'email', 'Keep the email to 254 characters or fewer.');
+  });
+});
+
+describe('the shared quote email cases (tests/fixtures/email-cases.json)', () => {
+  const { accept, refuse, browserOnlyRefuse } = emailCases.quoteEmail;
+  const typed = (text: string) => text.trim() === text && text !== '';
+
+  it.each(accept)('accepts %j, as the server does', (email) => {
+    expect(isPlainEmail(email)).toBe(true);
+  });
+
+  it.each(refuse)('refuses %j, as the server does', (email) => {
+    expect(isPlainEmail(email)).toBe(false);
+  });
+
+  it.each(browserOnlyRefuse)('refuses %j, which the server allows (the browser is stricter on purpose)', (email) => {
+    expect(isPlainEmail(email)).toBe(false);
+  });
+
+  it('gives the form the same answer as the rule for every case', () => {
+    for (const email of accept.filter(typed)) {
+      expect(fields(valid({ email }))).toEqual({});
+    }
+    for (const email of [...refuse, ...browserOnlyRefuse].filter(typed)) {
+      one(valid({ email }), 'email', 'Enter a valid email, like name@gmail.com');
+    }
   });
 });
 
