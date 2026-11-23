@@ -328,6 +328,8 @@ public static class AuthorizationMatrix
         new("GET", "/api/v1/quote-requests", "/api/v1/quote-requests", Anonymous: 401, Admin: 200, Manager: 200),
         // The shared New count for the badge (D-14): the same number for both roles.
         new("GET", "/api/v1/quote-requests/new-count", "/api/v1/quote-requests/new-count", Anonymous: 401, Admin: 200, Manager: 200),
+        // Reading one quote request (INQ-05, D-13): both roles. A fresh random id is no request, so both meet 404 quote-requests.not-found.
+        new("GET", "/api/v1/quote-requests/{id:guid}", "/api/v1/quote-requests/6e2b9d40-5c17-4a83-9f61-0d4c8a7e3b25", Anonymous: 401, Admin: 404, Manager: 404),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
         new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
