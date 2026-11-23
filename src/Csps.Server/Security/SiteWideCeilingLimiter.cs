@@ -3,8 +3,9 @@ using System.Threading.RateLimiting;
 namespace Csps.Server.Security;
 
 /// <summary>
-/// Wraps the site-wide page view limiter and marks the request it refuses, so the 429 can say the site is busy rather than
-/// blame the visitor's address. Permits and windows are the inner limiter's own.
+/// Wraps the site-wide limiter of the page view and quote create routes (each route has its own shared window inside it) and marks the
+/// request it refuses, so the 429 can say the site is busy rather than blame the visitor's address. Permits and windows are the inner
+/// limiter's own.
 /// </summary>
 internal sealed class SiteWideCeilingLimiter(PartitionedRateLimiter<HttpContext> inner) : PartitionedRateLimiter<HttpContext>
 {

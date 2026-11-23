@@ -62,7 +62,8 @@ public sealed class PublicQuoteRequestsController(
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>200 with the id of the new request and its photo slots, 400 for field errors, or 429 when the address sends too many.</returns>
     [HttpPost]
-    [EndpointName("CreateQuoteRequest")]
+    [EndpointName(RateLimitingRegistration.QuoteCreateEndpointName)]
+    [EnableRateLimiting(RateLimitPolicies.QuoteCreate)]
     [ProducesResponseType<CreateQuoteRequestResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]

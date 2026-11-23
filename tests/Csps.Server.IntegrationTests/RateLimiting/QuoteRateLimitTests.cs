@@ -5,6 +5,7 @@ using Csps.Server.IntegrationTests.Analytics;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.IntegrationTests.QuoteRequests;
+using Csps.Server.Security;
 using Csps.Testing;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
@@ -187,6 +188,22 @@ public sealed class QuoteRateLimitTests(CspsDatabase database) : IClassFixture<C
 
         failure.Message.ShouldContain(message);
         failure.Message.ShouldNotContain($"={value}");
+    }
+
+    [Fact]
+    public void TheDefaultsAre5AnHourPerAddressAnd60AnHourSiteWideInTheirOwnSections()
+    {
+        var perAddress = QuoteCreateRateLimit.Default();
+        var ceiling = QuoteCeilingRateLimit.Default();
+
+        (perAddress.PermitLimit, perAddress.Window).ShouldBe((5, TimeSpan.FromHours(1)));
+        (ceiling.PermitLimit, ceiling.Window).ShouldBe((60, TimeSpan.FromHours(1)));
+        RateLimitRule.Problems(perAddress, QuoteCreateRateLimit.SectionName).ShouldBeEmpty();
+        RateLimitRule.Problems(ceiling, QuoteCeilingRateLimit.SectionName).ShouldBeEmpty();
+        QuoteCreateRateLimit.SectionName.ShouldBe("RateLimits:QuoteCreate");
+        QuoteCeilingRateLimit.SectionName.ShouldBe("RateLimits:QuoteCeiling");
+        RateLimitPolicies.QuoteCreate.ShouldBe("quote-create");
+        RateLimitingRegistration.QuoteCreateEndpointName.ShouldBe("CreateQuoteRequest");
     }
 
     private static async Task<HttpResponseMessage> PostCreateAsync(HttpClient client, string address, string ticket, int number)
