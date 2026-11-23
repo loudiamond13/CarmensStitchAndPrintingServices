@@ -62,10 +62,10 @@ public sealed class QuoteAlertTextTests
     }
 
     [Theory]
-    [InlineData("Juan‮txt", "Juantxt")]
-    [InlineData("Juan​Cruz", "JuanCruz")]
-    [InlineData("‎Juan ⁦Cruz⁩﻿", "Juan Cruz")]
-    [InlineData("Juan­Cruz", "JuanCruz")]
+    [InlineData("Juan\u202Etxt", "Juantxt")]
+    [InlineData("Juan\u200BCruz", "JuanCruz")]
+    [InlineData("\u200EJuan \u2066Cruz\u2069\uFEFF", "Juan Cruz")]
+    [InlineData("Juan\u00ADCruz", "JuanCruz")]
     public void BidiAndZeroWidthCharactersAreDroppedFromTheSubject(string name, string expected)
     {
         var subject = QuoteAlertText.Subject(name);

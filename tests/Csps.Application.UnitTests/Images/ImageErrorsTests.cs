@@ -41,8 +41,8 @@ public sealed class ImageErrorsTests
     [Fact]
     public void TheCutNeverKeepsHalfAnEmojiAndALoneHalfIsDropped()
     {
-        ImageErrors.CleanName(new string('a', 79) + "😀b.jpg").ShouldBe(new string('a', 79));
-        ImageErrors.CleanName(new string('a', 78) + "😀b.jpg").ShouldBe(new string('a', 78) + "😀");
+        ImageErrors.CleanName(new string('a', 79) + "\ud83d\ude00b.jpg").ShouldBe(new string('a', 79));
+        ImageErrors.CleanName(new string('a', 78) + "\ud83d\ude00b.jpg").ShouldBe(new string('a', 78) + "\ud83d\ude00");
         ImageErrors.CleanName("x\ud83d.jpg").ShouldBe("x.jpg");
         ImageErrors.CleanName("x\ude00.jpg").ShouldBe("x.jpg");
     }
