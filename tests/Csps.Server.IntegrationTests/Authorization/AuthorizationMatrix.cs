@@ -96,6 +96,8 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 400),
         // Removing it: a Manager meets 404 when no picture is set. The Testing seed row in the same run can put a demo picture in place, and then the first removal answers 204.
         new("DELETE", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 404, ManagerAlso: 204),
+        // The Quote alerts test email (D-11): Manager only. The matrix database has no saved Quote alerts address, so a Manager meets 409 site-settings.no-quote-alerts-address.
+        new("POST", "/api/v1/site-settings/quote-alerts/test", "/api/v1/site-settings/quote-alerts/test", Anonymous: 401, Admin: 403, Manager: 409),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/privacy-contact", "/api/v1/public/privacy-contact", Anonymous: 200, Admin: 200, Manager: 200),

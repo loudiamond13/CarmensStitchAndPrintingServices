@@ -1,27 +1,59 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { useForm } from 'react-hook-form';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '@/components/feedback';
 import { QuoteAlertsCard } from '@/modules/admin/components/QuoteAlertsCard';
+import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { businessInfoSchema, businessInfoValuesOf, type BusinessInfoInput } from '@/modules/admin/siteContentSchemas';
 import { expectNoAxeViolations } from '@/test/axe';
+import { createDeferred } from '@/test/fakeFetch';
+import { server } from '@/test/msw';
+import { sessionResponse } from '@/test/sessionFixtures';
 import { demoSiteSettings } from '@/test/siteContentFixtures';
 
 // R5 Quote alerts card (INQ-04, D-07, OR-3; plan 13-07): the card on its own, in a form made from the Business Info schema.
 
-function CardInForm({ address }: { address: string }) {
+const TEST_ROUTE = '*/api/v1/site-settings/quote-alerts/test';
+
+beforeEach(() => {
+  clearSession();
+  acceptSession(sessionResponse());
+});
+
+afterEach(() => {
+  clearSession();
+});
+
+/** The card in a form made from the schema; `saved` is the address the server holds (the field's starting value by default). */
+function CardInForm({ address, saved = address }: { address: string; saved?: string }) {
   const form = useForm<BusinessInfoInput>({
     resolver: zodResolver(businessInfoSchema),
     mode: 'onBlur',
     defaultValues: { ...businessInfoValuesOf(demoSiteSettings), quoteAlertsEmail: address },
   });
   return (
-    <form noValidate>
-      <QuoteAlertsCard control={form.control} />
-      <button type="submit">Save</button>
-    </form>
+    <ToastProvider>
+      <form noValidate>
+        <QuoteAlertsCard control={form.control} savedAddress={saved} />
+        <button type="submit">Save</button>
+      </form>
+    </ToastProvider>
   );
+}
+
+/** Answers the test send with `answer` and records each request's Idempotency-Key. */
+function testSendBackend(answer: () => Response | Promise<Response> = () => new HttpResponse(null, { status: 202 })) {
+  const keys: (string | null)[] = [];
+  server.use(
+    http.post(TEST_ROUTE, ({ request }) => {
+      keys.push(request.headers.get('Idempotency-Key'));
+      return answer();
+    }),
+  );
+  return keys;
 }
 
 describe('QuoteAlertsCard', () => {
@@ -68,5 +100,46 @@ describe('QuoteAlertsCard', () => {
     await user.tab();
     await screen.findByText('Enter a valid email, like name@gmail.com');
     await expectNoAxeViolations(container);
+  });
+
+  it('sends a test to the saved address with a request key, shows Sending, then the success toast naming the address (R5)', async () => {
+    const gate = createDeferred<undefined>();
+    const keys = testSendBackend(async () => {
+      await gate.promise;
+      return new HttpResponse(null, { status: 202 });
+    });
+    const user = userEvent.setup();
+    render(<CardInForm address="quotes@example.com" />);
+
+    const send = screen.getByRole('button', { name: 'Send Test Email' });
+    expect(send).toHaveAttribute('type', 'button');
+    expect(send).not.toHaveAttribute('aria-disabled');
+    await user.click(send);
+
+    expect(await screen.findByRole('button', { name: 'Sending' })).toHaveAttribute('aria-busy', 'true');
+    gate.resolve(undefined);
+
+    expect(await screen.findByText('Test email on its way')).toBeVisible();
+    expect(
+      screen.getByText('It should reach quotes@example.com within a few minutes. Check the spam folder too.'),
+    ).toBeVisible();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(screen.getByRole('button', { name: 'Send Test Email' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('sends again with a new key when pressed a second time', async () => {
+    const keys = testSendBackend();
+    const user = userEvent.setup();
+    render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+    await screen.findByText('Test email on its way');
+    await user.click(await screen.findByRole('button', { name: 'Send Test Email' }));
+
+    await vi.waitFor(() => {
+      expect(keys).toHaveLength(2);
+    });
+    expect(keys[0]).not.toBe(keys[1]);
   });
 });
