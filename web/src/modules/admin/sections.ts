@@ -1,11 +1,12 @@
 // The admin section of a path (plan 02-31): the shell marks it current in the sidebar and the tab bar, and the preview
-// page takes its label and icon from it. Paths come from ADMIN_NAV (App. D.3), the Audit Log item (OQ-2), the Settings item (OQ-3), the Site Content item (D-27), the Visitor Stats item (D-23) and the My Money item (D-39), so the shell and the nav never disagree.
+// page takes its label and icon from it. Paths come from ADMIN_NAV (App. D.3), the Audit Log item (OQ-2), the Settings item (OQ-3), the Site Content item (D-27), the Visitor Stats item (D-23), the My Money item (D-39) and the Quote Requests item (D-19), so the shell and the nav never disagree.
 import type { Role } from '@/utils/csps';
 import {
   ADMIN_NAV,
   AUDIT_NAV_ITEM,
   CONTENT_NAV_ITEM,
   MONEY_NAV_ITEM,
+  QUOTE_REQUESTS_NAV_ITEM,
   SETTINGS_NAV_ITEM,
   VISITOR_STATS_NAV_ITEM,
   type AdminNavItem,
@@ -19,9 +20,11 @@ const SECTION_CHILDREN: Readonly<Record<string, string>> = {
 
 /**
  * Pages under a section whose address has a dynamic part: a path that starts with the key marks the item at the value. One person's money
- * (`/admin/money/staff/{id}`) sits under My Money (D-42), and a product line page (`/admin/site-content/products/{id}`) under Site Content (D-27). The id must be there, so the bare `/admin/money/staff` is no section.
+ * (`/admin/money/staff/{id}`) sits under My Money (D-42), a product line page (`/admin/site-content/products/{id}`) under Site Content (D-27),
+ * and a quote request (`/admin/quote-requests/{id}`) under Quote Requests (D-19). The id must be there, so the bare `/admin/money/staff` is no section.
  */
 const SECTION_PREFIXES: readonly (readonly [prefix: string, section: string])[] = [
+  ['/admin/quote-requests/', '/admin/quote-requests'],
   ['/admin/money/staff/', '/admin/money'],
   ['/admin/site-content/products/', '/admin/site-content'],
 ];
@@ -33,6 +36,7 @@ export function adminNavItemForPath(pathname: string): AdminNavItem | undefined 
   const section = SECTION_CHILDREN[path] ?? prefixed ?? path;
   return [
     ...ADMIN_NAV,
+    QUOTE_REQUESTS_NAV_ITEM,
     MONEY_NAV_ITEM,
     AUDIT_NAV_ITEM,
     SETTINGS_NAV_ITEM,

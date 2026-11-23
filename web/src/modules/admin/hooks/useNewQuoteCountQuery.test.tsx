@@ -72,15 +72,19 @@ describe('useNewQuoteCountQuery', () => {
   it('drops the last good count when a later read fails (no stale number)', async () => {
     countBackend(2, quoteProblem(500));
     const { result } = renderHook(() => useNewQuoteCountQuery(), { wrapper });
+    // Read as the shell reads it (data and isError), so the hook re-renders on either change.
     await waitFor(() => {
-      expect(result.current.data).toBe(2);
+      expect(shownNewQuoteCount(result.current)).toBe(2);
     });
 
     await act(async () => {
       await result.current.refetch();
     });
 
-    expect(result.current.isError).toBe(true);
+    await waitFor(() => {
+      expect(result.current.isError).toBe(true);
+    });
+    expect(result.current.data).toBe(2);
     expect(shownNewQuoteCount(result.current)).toBeUndefined();
   });
 

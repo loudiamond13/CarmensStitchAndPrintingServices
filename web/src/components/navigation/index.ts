@@ -4,6 +4,8 @@ export {
   ADMIN_NAV,
   AUDIT_NAV_ITEM,
   CONTENT_NAV_ITEM,
+  formatNavCount,
+  navCountHiddenText,
   MONEY_NAV_ITEM,
   QUOTE_REQUESTS_NAV_ITEM,
   SETTINGS_NAV_ITEM,

@@ -218,6 +218,7 @@ describe('AdminLayout sections (D-20, A11Y-04)', () => {
     expect(labels).toEqual([
       'Dashboard',
       'Orders',
+      'Quote Requests',
       'Company Expenses',
       'My Money',
       'Users',
