@@ -8,13 +8,16 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace Csps.Server.Controllers;
 
 /// <summary>
-/// The staff side of the quote requests (INQ-05, D-13): staff of either role read the inbox, open a request and change its status.
+/// The staff side of the quote requests (INQ-05, D-13): staff of either role read the inbox, open a request, change its status and add
+/// notes; a Manager may delete a request for good (D-16).
 /// The visitor's own sends are on the public controller. Never cached.
 /// </summary>
 /// <param name="list">The inbox list handler.</param>
 /// <param name="getNewCount">The shared New count handler.</param>
 /// <param name="get">The one-request read handler.</param>
 /// <param name="changeStatus">The change-status handler.</param>
+/// <param name="addNote">The add-note handler.</param>
+/// <param name="delete">The Manager delete handler.</param>
 [ApiController]
 [Route("api/v1/quote-requests")]
 [Authorize(Policy = Policies.Staff)]
@@ -24,7 +27,9 @@ public sealed class QuoteRequestsController(
     ListQuoteRequestsHandler list,
     GetNewQuoteCountHandler getNewCount,
     GetQuoteRequestHandler get,
-    ChangeQuoteRequestStatusHandler changeStatus) : ControllerBase
+    ChangeQuoteRequestStatusHandler changeStatus,
+    AddQuoteRequestNoteHandler addNote,
+    DeleteQuoteRequestHandler delete) : ControllerBase
 {
     /// <summary>
     /// Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
@@ -119,5 +124,61 @@ public sealed class QuoteRequestsController(
     {
         var result = await changeStatus.HandleAsync(id, body ?? ChangeQuoteRequestStatusRequest.Empty, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static changed => TypedResults.Ok(changed));
+    }
+
+    /// <summary>
+    /// Adds an internal note to a quote request, for both roles. The body is <c>{ "text": "..." }</c> with 1 to 1,000 characters after
+    /// trimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote
+    /// it and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the
+    /// request's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A
+    /// retry with the same <c>Idempotency-Key</c> and body answers with the stored answer.
+    /// </summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="body">The note; a null or unreadable body is reported as a field error.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the request and its notes newest first, 400 on the text, 401 without a valid token, 404 when there is no such request, or 409 when two saves lost a race twice.</returns>
+    [HttpPost("{id:guid}/notes")]
+    [EndpointName("AddQuoteRequestNote")]
+    [ProducesResponseType<QuoteRequestDetailResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> AddNote(
+        Guid id,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] AddQuoteRequestNoteRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var result = await addNote.HandleAsync(id, body ?? AddQuoteRequestNoteRequest.Empty, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static request => TypedResults.Ok(request));
+    }
+
+    /// <summary>
+    /// Deletes a quote request for good, Managers only (D-16), for example on a visitor's data-removal request. The <c>version</c> query
+    /// parameter is the request's version as the Manager last saw it. The request goes with its photo places, notes and history, and
+    /// each stored photo is queued for the daily maintenance run, which deletes the files. A request that became an order cannot be
+    /// deleted this way (400 <c>quote-requests.converted-locked</c>). The audit log records who and when with the status and the photo
+    /// count, never the visitor's details. This cannot be undone.
+    /// </summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="version">The version text the Manager last saw; required.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>
+    /// 204 when deleted, 400 under <c>version</c> when it is missing or malformed or 400 when the request became an order, 401 without a
+    /// valid token, 403 for an Admin, 404 when there is no such request, or 409 when the version is out of date.
+    /// </returns>
+    [HttpDelete("{id:guid}")]
+    [Authorize(Policy = Policies.Manager)]
+    [EndpointName("DeleteQuoteRequest")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IResult> Delete(Guid id, [FromQuery] string? version, CancellationToken cancellationToken)
+    {
+        var result = await delete.HandleAsync(id, version, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static () => TypedResults.NoContent());
     }
 }

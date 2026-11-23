@@ -124,6 +124,36 @@ internal sealed class QuoteRequestStaffRig : IAsyncDisposable
         return await Client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
+    /// <summary>Posts a note with a fresh Idempotency-Key.</summary>
+    /// <param name="token">The bearer token; none when null.</param>
+    /// <param name="id">The request id.</param>
+    /// <param name="body">The body; none when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public async Task<HttpResponseMessage> PostNoteAsync(string? token, Guid id, object? body)
+    {
+        using var request = ApiRequests.Create(HttpMethod.Post, $"{Route}/{id:D}/notes", token);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        if (body is not null)
+        {
+            request.Content = JsonContent.Create(body);
+        }
+
+        return await Client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>Deletes a request with a fresh Idempotency-Key.</summary>
+    /// <param name="token">The bearer token; none when null.</param>
+    /// <param name="id">The request id.</param>
+    /// <param name="version">The version text; no query when null.</param>
+    /// <returns>The response. The caller disposes it.</returns>
+    public async Task<HttpResponseMessage> DeleteAsync(string? token, Guid id, string? version)
+    {
+        var path = version is null ? $"{Route}/{id:D}" : $"{Route}/{id:D}?version={Uri.EscapeDataString(version)}";
+        using var request = ApiRequests.Create(HttpMethod.Delete, path, token);
+        request.Headers.Add(AuthClient.IdempotencyKeyHeader, Guid.NewGuid().ToString("D"));
+        return await Client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>Checks the status code and returns the parsed body.</summary>
     /// <param name="response">The response.</param>
     /// <param name="expected">The status the test expects.</param>

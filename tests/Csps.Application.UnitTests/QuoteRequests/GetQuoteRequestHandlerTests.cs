@@ -108,6 +108,7 @@ public sealed class GetQuoteRequestHandlerTests
         photos,
         null,
         history,
+        [],
         history.Count > 0 ? history[0].ChangedBy : null,
         history.Count > 0 ? history[0].ChangedAtUtc : null,
         [0, 0, 0, 0, 0, 0, 7, 209]);

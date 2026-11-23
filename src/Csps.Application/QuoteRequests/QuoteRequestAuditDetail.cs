@@ -1,3 +1,4 @@
+using System.Globalization;
 using Csps.Application.Common;
 using Csps.Domain.QuoteRequests;
 
@@ -18,4 +19,17 @@ public static class QuoteRequestAuditDetail
     /// <returns>For example <c>status=new&gt;contacted</c>.</returns>
     public static string StatusChanged(QuoteRequestStatus from, QuoteRequestStatus to) =>
         AuditDetailFormat.Change("status", QuoteRequestStatusNames.ToKey(from), QuoteRequestStatusNames.ToKey(to));
+
+    /// <summary>The detail of <c>quote-request.note-added</c>: the note id, never its text.</summary>
+    /// <param name="noteId">The new note.</param>
+    /// <returns>For example <c>note=0196...</c>.</returns>
+    public static string NoteAdded(Guid noteId) => AuditDetailFormat.Pair("note", noteId);
+
+    /// <summary>The detail of <c>quote-request.deleted</c>: the status and how many stored photos were queued for removal.</summary>
+    /// <param name="status">The status the request had.</param>
+    /// <param name="photos">How many stored photos were queued.</param>
+    /// <returns>For example <c>status=contacted;photos=2</c>.</returns>
+    public static string Deleted(QuoteRequestStatus status, int photos) => AuditDetailFormat.Join(
+        AuditDetailFormat.Pair("status", QuoteRequestStatusNames.ToKey(status)),
+        AuditDetailFormat.Pair("photos", photos.ToString(CultureInfo.InvariantCulture)));
 }

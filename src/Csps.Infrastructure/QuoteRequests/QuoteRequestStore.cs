@@ -36,6 +36,12 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
         context.QuoteRequests.Add(request);
     }
 
+    public void Remove(QuoteRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        context.QuoteRequests.Remove(request);
+    }
+
     public async Task LockAsync(CancellationToken cancellationToken)
     {
         try

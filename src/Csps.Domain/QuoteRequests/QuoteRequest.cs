@@ -11,6 +11,7 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 {
     private readonly List<QuoteRequestPhoto> _photos = [];
     private readonly List<QuoteRequestStatusChange> _statusChanges = [];
+    private readonly List<QuoteRequestNote> _notes = [];
 
     // Used by EF Core (constructor binding) and by Receive.
     private QuoteRequest(
@@ -110,6 +111,38 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
 
     /// <summary>Gets the status moves staff made, oldest first.</summary>
     public IReadOnlyList<QuoteRequestStatusChange> StatusChanges => _statusChanges;
+
+    /// <summary>Gets the internal staff notes, oldest first. Only the notes added in this unit of work are loaded for a change.</summary>
+    public IReadOnlyList<QuoteRequestNote> Notes => _notes;
+
+    /// <summary>
+    /// Adds an internal staff note (D-17). Notes only append: nothing changes or removes one. The note gives the request a new edit
+    /// version, so the save stamps who last changed it and moves the row version.
+    /// </summary>
+    /// <param name="text">The note as typed; trimmed, 1 to <see cref="QuoteRequestRules.NoteMaxLength"/> characters.</param>
+    /// <param name="by">The staff member who wrote it.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>The new note, or a 400 on <c>text</c>; nothing changes on a failure.</returns>
+    public Result<QuoteRequestNote> AddNote(string text, Guid by, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0)
+        {
+            return QuoteRequestRules.Reject<QuoteRequestNote>(QuoteRequestRules.NoteField, QuoteRequestRules.NoteRequired);
+        }
+
+        if (trimmed.Length > QuoteRequestRules.NoteMaxLength)
+        {
+            return QuoteRequestRules.Reject<QuoteRequestNote>(QuoteRequestRules.NoteField, QuoteRequestRules.NoteTooLong);
+        }
+
+        var note = new QuoteRequestNote(Guid.CreateVersion7(now), Id, trimmed, by, now);
+        _notes.Add(note);
+        EditVersion = Guid.CreateVersion7(now);
+        return Result.Success(note);
+    }
 
     /// <summary>
     /// Declares the photos the visitor is about to send, one empty place per file name in the order given, and keeps the hash and the

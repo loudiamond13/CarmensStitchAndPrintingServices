@@ -28,13 +28,13 @@ public sealed class GetQuoteRequestHandler(IQuoteRequestReader reader, IImageDel
         return await ReadAsync(reader, imageDelivery, id, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Reads and maps one request.</summary>
+    /// <summary>Reads and maps one request; the note handler answers with it too.</summary>
     /// <param name="reader">The reader.</param>
     /// <param name="imageDelivery">The photo address builder.</param>
     /// <param name="id">The request id.</param>
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The request, or a 404 when it is gone.</returns>
-    private static async Task<Result<QuoteRequestDetailResponse>> ReadAsync(
+    internal static async Task<Result<QuoteRequestDetailResponse>> ReadAsync(
         IQuoteRequestReader reader, IImageDelivery imageDelivery, Guid id, CancellationToken cancellationToken)
     {
         var view = await reader.GetDetailAsync(id, cancellationToken).ConfigureAwait(false);
@@ -94,6 +94,7 @@ public sealed class GetQuoteRequestHandler(IQuoteRequestReader reader, IImageDel
             missing,
             view.PhotosRemovedAtUtc,
             history,
+            [.. view.Notes.Select(static note => new QuoteRequestNoteResponse(note.Id, note.Text, note.CreatedBy, note.CreatedAtUtc))],
             view.LastChangedBy,
             view.LastChangedAtUtc,
             RowVersions.ToText(view.RowVersion));

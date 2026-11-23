@@ -32,6 +32,18 @@ public static class QuoteRequestErrors
     /// <summary>The code of a status change on a request that became an order (D-15).</summary>
     public const string ConvertedLockedCode = QuoteRequestRules.ConvertedLockedCode;
 
+    /// <summary>The field the version error of a delete is listed on.</summary>
+    public const string VersionField = "version";
+
+    /// <summary>The plain-English text of a delete refused because the request became an order (D-16).</summary>
+    public const string ConvertedDeleteLockedMessage = "A request that became an order can't be deleted.";
+
+    /// <summary>Gets the 400 for a delete of a request that became an order, listed on the status as for a status change.</summary>
+    public static Error ConvertedDeleteLocked { get; } = Error.Validation(
+        ConvertedLockedCode,
+        ConvertedDeleteLockedMessage,
+        new Dictionary<string, string[]> { [QuoteRequestRules.StatusField] = [ConvertedDeleteLockedMessage] });
+
     /// <summary>Gets the 409 for a change made from an out-of-date copy of the request.</summary>
     public static Error Conflict { get; } = Error.Conflict(ConflictCode, EditErrors.StaleMessage);
 

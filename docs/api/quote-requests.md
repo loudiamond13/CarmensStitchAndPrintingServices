@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T14:39:00-06:00
+updated: 2026-11-23T15:53:00-06:00
 ---
 
 # The quote requests API
@@ -8,7 +8,8 @@ updated: 2026-11-23T14:39:00-06:00
 This is the contract behind the "Get a Quote" form on the Contact page (INQ-01, INQ-02). Everything here is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
 app's types are generated from it (`web/src/types/api.generated.ts`). This page covers what exists today: the anonymous create and
-the form ticket, the photo upload, the bot guards, the staff inbox, one request in full and its status changes. Notes, the Manager delete and turning a request into an order come in later plans of Phase 13 and will be added here.
+the form ticket, the photo upload, the bot guards, the staff inbox, one request in full, its status changes, its internal notes and
+the Manager delete. Turning a request into an order comes in a later plan of Phase 13 and will be added here.
 
 ## In plain words
 
@@ -207,7 +208,8 @@ email outbox and logged without the address or the content.
 
 ## The staff inbox (INQ-05, D-13, D-14, D-18)
 
-Every staff call needs a signed-in Admin or Manager. An anonymous caller gets `401`. They are never cached. The two roles see the same data and may do the same things.
+Every staff call needs a signed-in Admin or Manager. An anonymous caller gets `401`. They are never cached. The two roles see the same
+data and may do the same things, except the delete, which is for a Manager only.
 
 | Method and path | Answers |
 |---|---|
@@ -215,6 +217,8 @@ Every staff call needs a signed-in Admin or Manager. An anonymous caller gets `4
 | `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
 | `GET /quote-requests/{id}` | `200` the request in full; `401`; `404 quote-requests.not-found` |
 | `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the new status and version; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
+| `POST /quote-requests/{id}/notes` | with an `Idempotency-Key`: `200` the request in full with the new note first; `400 quote-requests.validation`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
+| `DELETE /quote-requests/{id}?version=...` | Manager only, with an `Idempotency-Key`: `204`; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `403` for an Admin; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 
 ### The list query
 
@@ -307,6 +311,9 @@ Rows come newest received first. Two requests received at the same time come by 
     { "from": "new", "to": "contacted", "changedBy": { "id": "...", "name": "Maria Santos", "formerStaff": false }, "changedAt": "2026-11-21T08:05:00+00:00" },
     { "from": null, "to": "new", "changedBy": null, "changedAt": "2026-11-21T07:42:00+00:00" }
   ],
+  "notes": [
+    { "id": "...", "text": "Called, will send mockup Friday.", "createdBy": { "id": "...", "name": "Maria Santos", "formerStaff": false }, "createdAtUtc": "2026-11-21T08:10:00+00:00" }
+  ],
   "lastChangedBy": { "id": "...", "name": "Maria Santos", "formerStaff": false },
   "lastChangedAt": "2026-11-21T08:05:00+00:00",
   "version": "AAAAAAAAB9E="
@@ -320,11 +327,13 @@ Rows come newest received first. Two requests received at the same time come by 
 - `photoCount` is the number of photo places the request still holds; it is `0` after a Spam move.
 - `history` is newest first. The last row is always the arrival: from `null` to `new`, by nobody (SEC-08). A person who later left
   the staff keeps their name, with `formerStaff: true`.
-- `lastChangedBy` and `lastChangedAt` are `null` until someone changes the request.
+- `notes` is newest first and empty when there are none. A person who later left the staff keeps their name, with
+  `formerStaff: true`.
+- `lastChangedBy` and `lastChangedAt` are `null` until someone changes the request. A note counts as a change.
 - `version` is the row version to send with a status change.
-- The request, its photos and its history are read in separate commands. The row version is checked again at the end, and when a
-  status change landed in between, the request is read again, so the status, the photos, the history and `version` always come from
-  one save.
+- The request, its photos, its history and its notes are read in separate commands. The row version is checked again at the end,
+  and when a status change or a note landed in between, the request is read again, so the status, the photos, the history, the
+  notes and `version` always come from one save.
 
 ## Changing the status (D-14, D-15)
 
@@ -364,6 +373,39 @@ Rows come newest received first. Two requests received at the same time come by 
 - A request with no photos keeps `photosRemovedAtUtc` as `null`.
 - A photo upload that arrives after the move finds no place and is refused. A file it had already stored by then is queued for removal.
 
+## Internal notes (INQ-05, D-17)
+
+`POST /quote-requests/{id}/notes` with `{ "text": "Called, will send mockup Friday." }`.
+
+- Staff of either role may add a note. Only staff ever see notes.
+- `text` is required and holds 1 to 1,000 characters after trimming. An empty or blank note is `400 quote-requests.validation` with
+  "Write a note first." on `text`; a longer one gets "Keep the note to 1,000 characters or fewer.". Line breaks inside the note are
+  kept.
+- Notes only append. There is no call to change or remove a single note. A note leaves only with its request (the 6-month purge or
+  the Manager delete).
+- Who wrote it and when come from the token and the clock. `createdById`, `createdAtUtc` or any other member in the body is ignored.
+- No version is sent. A note does move the request's `version`, so a status change sent with the version from before the note gets
+  `409 quote-requests.conflict`; read the request again and retry.
+- Each note adds one audit entry `quote-request.note-added` with the detail `note=<note id>`. The note text is never in the audit log.
+- The answer is the request in full, as `GET /quote-requests/{id}` gives it, with the new note first. The idempotency gate keeps that
+  answer for 24 hours.
+
+## Deleting a request (D-16)
+
+`DELETE /quote-requests/{id}?version=AAAAAAAAB9E=`, for a Manager only, for example on a visitor's data-removal request.
+
+- An Admin gets `403`. Only a Manager may delete.
+- `version` must be the one from the last read. A missing or malformed one is `400 quote-requests.validation` on `version`; an old
+  one is `409 quote-requests.conflict` and nothing is removed.
+- A request that became an order cannot be deleted this way: `400 quote-requests.converted-locked`, "A request that became an order
+  can't be deleted."
+- The request goes for good, with its photo places, its notes and its history, in one save. This cannot be undone.
+- Each stored photo is queued for removal (reason `QuoteDeleted`) in the same save. The daily maintenance run (D-34) deletes the
+  files. If any part fails, nothing is removed and nothing is queued.
+- One audit entry `quote-request.deleted` records who and when, with the detail `status=contacted;photos=2` (the status it had and how
+  many stored photos were queued). It never holds the visitor's name, phone, email, team, message or notes.
+- The answer is `204` with no body.
+
 ## Retention
 
-The 6-month purge removes a request together with its photo places and its status history (cascade).
+The 6-month purge removes a request together with its photo places, its status history and its notes (cascade).

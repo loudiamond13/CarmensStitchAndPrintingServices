@@ -126,6 +126,8 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order.taken-off-website', label: 'Order taken off the website', group: ORDERS },
   { code: 'order.public-details-changed', label: 'Order public details changed', group: ORDERS },
   { code: 'quote-request.status-changed', label: 'Quote request status changed', group: ORDERS },
+  { code: 'quote-request.note-added', label: 'Quote request note added', group: ORDERS },
+  { code: 'quote-request.deleted', label: 'Quote request deleted', group: ORDERS },
   { code: 'product-type.added', label: 'Product type added', group: ORDER_LISTS },
   { code: 'product-type.renamed', label: 'Product type renamed', group: ORDER_LISTS },
   { code: 'product-type.recolored', label: 'Product type color changed', group: ORDER_LISTS },

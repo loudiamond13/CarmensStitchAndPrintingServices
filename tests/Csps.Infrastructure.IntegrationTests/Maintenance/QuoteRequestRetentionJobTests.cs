@@ -192,6 +192,34 @@ public sealed class QuoteRequestRetentionJobTests(CspsDatabase database) : IClas
         (await context.QuoteRequestStatusChanges.CountAsync(change => change.QuoteRequestId == kept, TestContext.Current.CancellationToken)).ShouldBe(2);
     }
 
+    [Fact]
+    public async Task APurgedRequestTakesItsNotesWithIt()
+    {
+        await database.ResetAsync();
+        var staff = await OrderSeeding.AddStaffAsync(database, "Mina", Now);
+        var purged = await AddRequestAsync(Cut.AddTicks(-1), QuoteRequestStatus.Contacted, 0);
+        var kept = await AddRequestAsync(Cut, QuoteRequestStatus.Contacted, 0);
+        await AddNotesAsync(purged, staff);
+        await AddNotesAsync(kept, staff);
+
+        var report = await RunAsync(new FakeTimeProvider(Now));
+
+        Line(report, RemovedLabel).Value.ShouldBe(1);
+        await using var context = database.CreateContext();
+        (await context.QuoteRequestNotes.CountAsync(note => note.QuoteRequestId == purged, TestContext.Current.CancellationToken)).ShouldBe(0);
+        (await context.QuoteRequestNotes.CountAsync(note => note.QuoteRequestId == kept, TestContext.Current.CancellationToken)).ShouldBe(2);
+    }
+
+    // Two staff notes; the received time stays as seeded.
+    private async Task AddNotesAsync(Guid id, Guid staff)
+    {
+        await using var context = database.CreateContext();
+        var request = await context.QuoteRequests.SingleAsync(row => row.Id == id, TestContext.Current.CancellationToken);
+        request.AddNote("Called, no answer.", staff, Now.AddDays(-1)).IsSuccess.ShouldBeTrue();
+        request.AddNote("Called again.", staff, Now.AddDays(-1).AddMinutes(1)).IsSuccess.ShouldBeTrue();
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     // Two staff moves, so the request has history rows; the received time stays as seeded.
     private async Task MoveAsync(Guid id, Guid staff)
     {

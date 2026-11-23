@@ -337,6 +337,22 @@
         ],
         "type": "object"
       },
+      "AddQuoteRequestNoteRequest": {
+        "description": "The Add Note action on a quote request (D-17). Any other member in the body, such as a forged `createdById`, is ignored: who\nwrote the note and when come from the token and the clock (SEC-08).",
+        "properties": {
+          "text": {
+            "description": "The note, 1 to 1,000 characters after trimming.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
       "AuditChangeLine": {
         "description": "One \"What changed\" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed.",
         "properties": {
@@ -6739,6 +6755,13 @@
             },
             "type": "array"
           },
+          "notes": {
+            "description": "The staff notes, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/QuoteRequestNoteResponse"
+            },
+            "type": "array"
+          },
           "photoCount": {
             "description": "How many photo places the request holds.",
             "format": "int32",
@@ -6824,6 +6847,7 @@
           "missingPhotos",
           "photosRemovedAtUtc",
           "history",
+          "notes",
           "lastChangedBy",
           "lastChangedAt",
           "version"
@@ -6966,6 +6990,43 @@
           "page",
           "size",
           "counts"
+        ],
+        "type": "object"
+      },
+      "QuoteRequestNoteResponse": {
+        "description": "One internal staff note (D-17). The author's name is read from their own row, so it stays after the account is deleted.",
+        "properties": {
+          "createdAtUtc": {
+            "description": "When it was written.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ActorRef",
+                "description": "Who wrote it."
+              }
+            ]
+          },
+          "id": {
+            "description": "The note id.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "text": {
+            "description": "The note.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "createdBy",
+          "createdAtUtc"
         ],
         "type": "object"
       },
@@ -20005,6 +20066,91 @@
       }
     },
     "/api/v1/quote-requests/{id}": {
+      "delete": {
+        "operationId": "DeleteQuoteRequest",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The version text the Manager last saw; required.",
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "No Content"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Deletes a quote request for good, Managers only (D-16), for example on a visitor's data-removal request. The `version` query\nparameter is the request's version as the Manager last saw it. The request goes with its photo places, notes and history, and\neach stored photo is queued for the daily maintenance run, which deletes the files. A request that became an order cannot be\ndeleted this way (400 `quote-requests.converted-locked`). The audit log records who and when with the status and the photo\ncount, never the visitor's details. This cannot be undone.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      },
       "get": {
         "operationId": "GetQuoteRequest",
         "parameters": [
@@ -20052,6 +20198,120 @@
           }
         },
         "summary": "Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer\nand the 2000 px \"Open Full Size\"), the names of the photos that never arrived, when the photos were removed for Spam, the status\nhistory newest first ending with the arrival, who last changed it, and the row version a status change must send back.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/{id}/notes": {
+      "post": {
+        "operationId": "AddQuoteRequestNote",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddQuoteRequestNoteRequest"
+                  }
+                ]
+              }
+            },
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddQuoteRequestNoteRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AddQuoteRequestNoteRequest"
+                  }
+                ]
+              }
+            }
+          },
+          "description": "Cancels the request."
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteRequestDetailResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          }
+        },
+        "summary": "Adds an internal note to a quote request, for both roles. The body is `{ \"text\": \"...\" }` with 1 to 1,000 characters after\ntrimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote\nit and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the\nrequest's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A\nretry with the same `Idempotency-Key` and body answers with the stored answer.",
         "tags": [
           "QuoteRequests"
         ]

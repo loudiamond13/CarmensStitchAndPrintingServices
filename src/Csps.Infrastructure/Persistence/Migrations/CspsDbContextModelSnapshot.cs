@@ -2597,6 +2597,36 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_QuoteRequestNotes_CreatedById");
+
+                    b.HasIndex("QuoteRequestId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequestNotes_QuoteRequestId_CreatedAtUtc");
+
+                    b.ToTable("QuoteRequestNotes", (string)null);
+                });
+
             modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
                 {
                     b.Property<Guid>("QuoteRequestId")
@@ -3945,6 +3975,21 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestNote", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("Notes")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
                 {
                     b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
@@ -4061,6 +4106,8 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
                 {
+                    b.Navigation("Notes");
+
                     b.Navigation("Photos");
 
                     b.Navigation("StatusChanges");
