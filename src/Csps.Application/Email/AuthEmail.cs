@@ -43,6 +43,9 @@ public enum AuthEmailKind
 
     /// <summary>The one staff email an hour that says more quote requests are waiting (D-09).</summary>
     QuoteAlertsOverflow = 13,
+
+    /// <summary>The test a Manager sends to the Quote alerts address to check that alerts arrive (D-11).</summary>
+    QuoteAlertTest = 14,
 }
 
 /// <summary>What was guessed wrong often enough to lock the account.</summary>
@@ -268,6 +271,17 @@ public sealed record QuoteAlertsOverflowEmail(string To) : AuthEmail(To)
 {
     /// <inheritdoc />
     public override AuthEmailKind Kind => AuthEmailKind.QuoteAlertsOverflow;
+
+    /// <inheritdoc />
+    public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);
+}
+
+/// <summary>The test a Manager sends to the saved Quote alerts address to check that alerts arrive (D-11).</summary>
+/// <param name="To">The Quote alerts address.</param>
+public sealed record QuoteAlertTestEmail(string To) : AuthEmail(To)
+{
+    /// <inheritdoc />
+    public override AuthEmailKind Kind => AuthEmailKind.QuoteAlertTest;
 
     /// <inheritdoc />
     public override DateTimeOffset NotAfter(DateTimeOffset createdAt) => NoticeNotAfter(createdAt);

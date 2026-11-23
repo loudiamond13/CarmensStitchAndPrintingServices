@@ -35,6 +35,20 @@ public static class RateLimitPolicies
 
     /// <summary>The anonymous page view beacon (ANL-06, T-12-28): a per-address window so the counts cannot be inflated by one address.</summary>
     public const string AnalyticsCollect = "analytics-collect";
+
+    /// <summary>The Manager's Quote alerts test email (D-11, T-13-40): a per-address window so the button cannot flood the inbox.</summary>
+    public const string QuoteAlertTest = "quote-alerts-test";
+}
+
+/// <summary>The per-address limit on the Quote alerts test email, read from <c>RateLimits:QuoteAlertTest</c>: 3 in 10 minutes by default (D-11).</summary>
+public static class QuoteAlertTestRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteAlertTest";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 3, Window = TimeSpan.FromMinutes(10) };
 }
 
 /// <summary>The per-address limit on page view beacons, read from <c>RateLimits:AnalyticsCollect</c>: 120 a minute by default.</summary>

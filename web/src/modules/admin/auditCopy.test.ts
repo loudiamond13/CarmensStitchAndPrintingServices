@@ -150,6 +150,7 @@ const API_ACTIONS = [
   'gallery-photo.deleted',
   'gallery-item.moved',
   'site-settings.share-picture-changed',
+  'quote-alerts.test-sent',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -173,8 +174,13 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors every code of the API', () => {
-    expect(API_ACTIONS).toHaveLength(132);
-    expect(AUDIT_ACTION_CODES).toHaveLength(132);
+    expect(API_ACTIONS).toHaveLength(133);
+    expect(AUDIT_ACTION_CODES).toHaveLength(133);
+  });
+
+  it('reads the Quote alerts test email under Site content (D-11)', () => {
+    expect(auditActionLabel('quote-alerts.test-sent')).toBe('Quote alerts test email sent');
+    expect(auditActionGroup('quote-alerts.test-sent')).toBe('Site content');
   });
 
   it('reads the four money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {

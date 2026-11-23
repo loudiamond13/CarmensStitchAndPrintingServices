@@ -39,6 +39,7 @@ public sealed class EmailRendererTests
         new ManagerResetLinkEmail("paolo.garcia@gmail.com", Token, At.AddMinutes(30), At, "Carmen Reyes"),
         new QuoteAlertEmail("quotes@example.com", RequestId, "Juan Dela Cruz", "Riverside Riders", "0917 123 4567", "Basketball Jerseys", "21-50 pcs", 3, "We need 30 jerseys."),
         new QuoteAlertsOverflowEmail("quotes@example.com"),
+        new QuoteAlertTestEmail("quotes@example.com"),
     ];
 
     [Theory]
@@ -623,6 +624,21 @@ public sealed class EmailRendererTests
         rendered.Html.ShouldContain("Open Quote Requests</a>");
         rendered.Text.ShouldContain(QuoteFooter);
         rendered.Html.ShouldContain(QuoteFooter);
+    }
+
+    [Fact]
+    public async Task TheTestEmailHasTheUiSpecSubjectAndBodyTheQuoteFooterAndNoLink()
+    {
+        var rendered = await RenderAsync(new QuoteAlertTestEmail("quotes@example.com"));
+
+        const string body = "This is a test from your website. When a visitor sends a quote request, an email like this one tells you about it.";
+        rendered.Subject.ShouldBe("Test: quote alerts work");
+        rendered.Text.ShouldContain(body);
+        Normalise(rendered.Html).ShouldContain(body);
+        rendered.Text.ShouldContain(QuoteFooter);
+        rendered.Html.ShouldContain(QuoteFooter);
+        rendered.Text.ShouldNotContain(BaseUrl);
+        rendered.Html.ShouldNotContain($"href=\"{BaseUrl}");
     }
 
     [Fact]

@@ -20262,6 +20262,73 @@
         ]
       }
     },
+    "/api/v1/site-settings/quote-alerts/test": {
+      "post": {
+        "operationId": "SendQuoteAlertTest",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {}
+            },
+            "description": "Accepted"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the\nrequest, and is recorded in the audit log as `quote-alerts.test-sent` with no address. No saved address answers 409\n`site-settings.no-quote-alerts-address` and sends nothing; an address that can never receive mail answers 422\n`site-settings.quote-alerts-address-undeliverable`. One address may send 3 tests in 10 minutes (`RateLimits:QuoteAlertTest`);\nthe next answers 429 with `Retry-After`. Needs an `Idempotency-Key`.",
+        "tags": [
+          "SiteSettings"
+        ]
+      }
+    },
     "/api/v1/site-settings/share-picture": {
       "delete": {
         "operationId": "RemoveSharePicture",

@@ -73,6 +73,19 @@ export const SITE_CONTENT_COPY = {
         hint: 'Any inbox works, including the shop email. Leave it empty to get no emails; new requests still show in Quote Requests.',
       },
     },
+    /** R5 Send Test Email (D-11): it sends to the saved Quote alerts address only. */
+    quoteAlertTest: {
+      action: 'Send Test Email',
+      pending: 'Sending',
+      noAddress: 'Save an address first, then send a test.',
+      unsaved: 'Save your change first, then send a test.',
+      sent: {
+        title: 'Test email on its way',
+        message: (address: string) => `It should reach ${address} within a few minutes. Check the spam folder too.`,
+      },
+      limited: { title: 'Too many test emails.', message: 'Wait a few minutes and try again.' },
+      failed: { title: "Couldn't send the test email.", message: 'Check your internet connection and try again.' },
+    },
     /** The read-only rows of the Time zone and money card (OQ-6 A, D-35). */
     zone: {
       timeZone: { label: 'Time zone', value: 'Asia/Manila (Philippine time)' },
