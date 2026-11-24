@@ -1,6 +1,6 @@
 // SPEC-GAP: quote request page (UI-SPEC R2; INQ-05, D-13, D-15, D-16, D-17, D-36). /admin/quote-requests/:id for both roles: the
-// back link, the visitor's name, when it arrived, the status badge, Change Status and, for a Manager, Delete Request, then the
-// Request and Photos cards beside the Notes and History cards. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change
+// back link, the visitor's name, when it arrived, the status badge, Turn into Order (Open Order once Converted, D-20, D-21), Change
+// Status and, for a Manager, Delete Request, then the Request and Photos cards beside the Notes and History cards. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change
 // and a note answer only the new version (and status), so the page reads the request again for its history and notes. The first
 // load shows skeletons, a failed load an ErrorState with Try Again, and a gone request or an address that is not a request id the
 // not-found state.
@@ -224,6 +224,11 @@ function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRe
   // Hiding the button is not the control: the server's Manager policy decides (T-13-62).
   const isManager = user?.role === 'manager';
   const showMenu = request.status !== 'converted';
+  // A Converted request offers its order instead of Turn into Order (D-21, D-23).
+  const order =
+    !showMenu && request.orderId !== null && request.orderNumber !== null
+      ? { id: request.orderId, number: request.orderNumber }
+      : null;
   return (
     <>
       <div className={pageHeadClasses}>
@@ -238,7 +243,7 @@ function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRe
             <QuoteStatusBadge status={request.status} />
           </div>
         </div>
-        {(showMenu || isManager) && (
+        {(showMenu || order !== null || isManager) && (
           <div className={quoteActionsClasses}>
             {showMenu && (
               <ButtonLink
@@ -247,6 +252,11 @@ function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRe
                 to={`${ORDERS_PATH}/new?fromRequest=${encodeURIComponent(request.id)}`}
               >
                 {COPY.convert.action}
+              </ButtonLink>
+            )}
+            {order !== null && (
+              <ButtonLink variant="secondary" to={`${ORDERS_PATH}/${encodeURIComponent(order.id)}`}>
+                {COPY.convert.openOrder(order.number)}
               </ButtonLink>
             )}
             {showMenu && <QuoteStatusMenu request={request} onMoved={onMoved} onConflict={onConflict} />}
@@ -261,7 +271,7 @@ function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRe
         </div>
         <div className={quoteColumnClasses}>
           <QuoteNotesCard request={request} onAdded={onNoteAdded} onConflict={onConflict} />
-          <QuoteHistoryCard history={request.history} />
+          <QuoteHistoryCard history={request.history} order={order} />
         </div>
       </div>
     </>
