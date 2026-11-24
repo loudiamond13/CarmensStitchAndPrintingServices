@@ -48,6 +48,22 @@ test('@quote staff turn a request into an order', async ({ page, request, guard 
   await page.getByRole('button', { name: 'Save Order' }).click();
 
   await expect(page).toHaveURL(/\/admin\/orders\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole('heading', { level: 1, name: /^ORD-\d{4}-\d{4,}$/ })).toBeVisible();
+  const orderUrl = page.url();
+  const heading = page.getByRole('heading', { level: 1, name: /^ORD-\d{4}-\d{4,}$/ });
+  await expect(heading).toBeVisible();
+  const number = (await heading.textContent()) ?? '';
   await expect(page.getByText('The quote request is now Converted.')).toBeVisible();
+
+  // D-21: the order points at its request, and the request at its order.
+  const customer = page.getByRole('region', { name: 'Customer' });
+  await expect(customer.getByText('From quote request')).toBeVisible();
+  await customer.getByRole('link', { name: 'View Request' }).click();
+  await expect(page).toHaveURL(new RegExp(`/admin/quote-requests/${id}$`));
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  const open = page.getByRole('link', { name: `Open Order ${number}` });
+  await expect(open).toHaveAttribute('href', new URL(orderUrl).pathname);
+  await expect(page.getByRole('link', { name: 'Turn into Order' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Change Status' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'History' })).toContainText(`Converted to order ${number}`);
+  await expectNoAxeViolations(page);
 });
