@@ -1763,7 +1763,10 @@ describe('Turn into Order: the prefill (INQ-06, D-20, UI-SPEC R3)', () => {
     expect(backend.writes).toHaveLength(1);
     expect(backend.writes[0]?.body).toEqual({ ...PREFILLED_BODY, quoteRequestId: REQUEST_ID });
     expect(await screen.findByText('Order saved')).toBeVisible();
-    expect(screen.getByText('The quote request is now Converted.')).toBeVisible();
+    const line = screen.getByText('The quote request is now Converted.');
+    expect(line).toBeVisible();
+    // The two lines read as two sentences when copied or read out (W10 IN-04).
+    expect(line.parentElement?.textContent).toBe('ORD-2026-0900 · Test Hawks The quote request is now Converted.');
     // The prefix covers the request page, the inbox lists and the New count (13-17, D-14).
     expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
   });

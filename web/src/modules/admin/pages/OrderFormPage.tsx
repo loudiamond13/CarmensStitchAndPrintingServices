@@ -387,8 +387,7 @@ function CreateOrderForm({ today, prefill, requestMissing = false, converted = n
           void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
           message = (
             <>
-              {saved}
-              <span className={orderFormToastLineClasses}>{COPY.toast.converted}</span>
+              {saved} <span className={orderFormToastLineClasses}>{COPY.toast.converted}</span>
             </>
           );
         }
