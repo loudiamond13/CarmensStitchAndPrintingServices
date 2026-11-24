@@ -8,8 +8,9 @@
 //   - The list reads again every 60 seconds and on focus, but not after a failed read. New rows never move focus; a hidden polite line says how many New
 //     requests arrived: ids no answer in this visit held, received after the newest one seen. The line clears after 5 seconds and on a view change, so
 //     the next arrival changes the text and is read out.
-// The document title never holds a name (T-13-44).
-import { useEffect, useState } from 'react';
+// The document title never holds a name (T-13-44). Arriving from a deleted request, the h1 takes focus (D-16).
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router';
 import { Button, hitAreaClasses } from '@/components/actions';
 import { EmptyState } from '@/components/feedback';
 import {
@@ -29,6 +30,7 @@ import { QuoteStatusFilter } from '@/modules/admin/components/QuoteStatusFilter'
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useQuoteRequestsListParams } from '@/modules/admin/hooks/useQuoteRequestsListParams';
 import { useQuoteRequestsQuery } from '@/modules/admin/hooks/useQuoteRequestsQuery';
+import { wantsHeadingFocus } from '@/modules/admin/quoteRequestNavigation';
 import { QUOTE_REQUESTS_COPY } from '@/modules/admin/quoteRequestsCopy';
 import type { QuoteRequestListResponse } from '@/modules/admin/services/quoteRequestsService';
 import { formatBusinessTime } from '@/utils/format';
@@ -84,6 +86,13 @@ export default function QuoteRequestsPage() {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
 
+  const location = useLocation();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeading = wantsHeadingFocus(location.state);
+  useEffect(() => {
+    if (focusHeading) headingRef.current?.focus();
+  }, [focusHeading]);
+
   const data = query.data;
   const total = Number(data?.total ?? 0);
   const { pastTheEnd, pageCount, showPager } = usePagedList(query, total, values.size, set.clampPage);
@@ -134,7 +143,7 @@ export default function QuoteRequestsPage() {
     <>
       <div className={pageHeadClasses}>
         <div className={pageHeadTitleClasses}>
-          <h1 tabIndex={-1} className={pageTitleClasses}>
+          <h1 ref={headingRef} tabIndex={-1} className={pageTitleClasses}>
             {COPY.title}
           </h1>
           <p className={pageSublineClasses}>{COPY.subline}</p>

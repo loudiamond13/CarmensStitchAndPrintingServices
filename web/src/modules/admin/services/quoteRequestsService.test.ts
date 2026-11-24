@@ -132,7 +132,7 @@ describe('quoteRequestsService.remove', () => {
     const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
     expect(url.pathname).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}`);
     expect(Object.fromEntries(url.searchParams)).toEqual({ version: 'AAAAAAAAB9E=' });
-    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.body ?? null).toBeNull();
     expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
   });
 });

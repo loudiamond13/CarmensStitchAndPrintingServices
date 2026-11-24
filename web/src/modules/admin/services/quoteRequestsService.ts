@@ -49,6 +49,12 @@ export interface QuoteRequestsService {
    * the request again for the note.
    */
   addNote(id: string, text: string, idempotencyKey: string, signal?: AbortSignal): Promise<QuoteRequestNoteAdded>;
+  /**
+   * `DELETE /api/v1/quote-requests/{id}?version=` (D-16, Manager only): the request and its photos go for good. It sends no
+   * Idempotency-Key, so a repeat after a lost 204 answers `404 quote-requests.not-found`. `400 quote-requests.converted-locked`
+   * for a Converted request, `409 quote-requests.conflict` when someone else changed it.
+   */
+  remove(id: string, version: string, signal?: AbortSignal): Promise<void>;
 }
 
 export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
@@ -73,6 +79,8 @@ export function createQuoteRequestsService(client: HttpClient): QuoteRequestsSer
         { text },
         { idempotencyKey, signal },
       ),
+    remove: (id, version, signal) =>
+      client.delete(`/quote-requests/${encodeURIComponent(id)}`, { params: { version }, signal }),
   };
 }
 

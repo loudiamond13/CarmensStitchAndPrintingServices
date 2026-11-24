@@ -105,3 +105,6 @@ export const quoteNoteListClasses = tw('m-0 flex list-none flex-col gap-4 p-0');
 
 /** A note's author: Label (14px, 600). */
 export const quoteNoteAuthorClasses = tw('m-0 text-[14px] leading-5 font-semibold text-ink');
+
+/** Delete Request with its Small muted reason under it when it cannot be used. */
+export const quoteDeleteClasses = tw('flex flex-col items-start gap-1');
