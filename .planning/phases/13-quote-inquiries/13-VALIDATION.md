@@ -6,7 +6,7 @@ status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-21T20:34:24-06:00"
-updated: "2026-11-24T04:15:21-06:00"
+updated: "2026-11-24T07:28:18-06:00"
 ---
 
 # Phase 13: Validation Strategy
@@ -38,7 +38,7 @@ updated: "2026-11-24T04:15:21-06:00"
 
 ## Per-Task Verification Map
 
-Task IDs are filled in by the planner and executor. The requirement map below is the contract each task must hit. Statuses audited 2026-11-24 by `/gsd-validate-phase 13` (targeted runs: Domain 116/116, Application 316/316, web 1407/1407 in 70 files, Server integration 740/740 in 17 classes, Infrastructure integration 37/37).
+Task IDs are filled in by the planner and executor. The requirement map below is the contract each task must hit. Statuses audited 2026-11-24 by `/gsd-validate-phase 13` (targeted runs: Domain 116/116, Application 316/316, web 1407/1407 in 70 files, Server integration 740/740 in 17 classes, Infrastructure integration 37/37). Re-audited the same day after the UI review fixes: only `quoteRequests.recipe.ts` changed, and its new `quoteRequests.recipe.node.test.ts` plus `QuoteRequestsPage.test.tsx` and `no-long-dash.node.test.ts` pass, 44/44 in 3 files.
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
