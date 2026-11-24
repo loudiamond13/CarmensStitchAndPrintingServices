@@ -450,19 +450,75 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     expect(await frame.findByRole('menu')).toBeInTheDocument();
   });
 
-  it.each(['quote-form-field-errors', 'quote-form-sent', 'quote-form-sent-photos-missing'])(
+  it.each(['quote-form-field-errors', 'quote-form-sent', 'quote-form-sent-photos-missing'] as const)(
     'shows %s only on request, because the form moves focus when it gets there',
     async (id) => {
       const user = userEvent.setup();
-      renderShowcase();
-      const frame = within(caseFrame(id));
-      expect(frame.queryByRole('form')).toBeNull();
+      renderQuoteSection();
+      const frame = caseFrame(id);
+      expect(within(frame).queryByRole('form')).toBeNull();
 
-      await user.click(frame.getByRole('button', { name: 'Show this example' }));
-      expect(await frame.findByRole('heading', { level: 2 }, { timeout: 10_000 })).toBeInTheDocument();
+      await user.click(within(frame).getByRole('button', { name: 'Show this example' }));
+      await QUOTE_READY[id](frame);
+
+      await waitFor(() => {
+        expect(frame).toContainElement(document.activeElement as HTMLElement | null);
+      });
     },
   );
+
+  it('leaves focus alone while the quote cases shown on load reach their states', async () => {
+    renderQuoteSection();
+    const eager = QUOTE_CASES.filter(
+      (id) => within(caseFrame(id)).queryByRole('button', { name: 'Show this example' }) === null,
+    );
+    expect(eager.length).toBeGreaterThan(0);
+
+    for (const id of eager) {
+      await QUOTE_READY[id](caseFrame(id));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(document.activeElement).toBe(document.body);
+  });
 });
+
+const QUOTE_CASES = [
+  'quote-form-empty',
+  'quote-form-field-errors',
+  'quote-form-photos-refused',
+  'quote-form-sending',
+  'quote-form-sent',
+  'quote-form-sent-photos-missing',
+  'quote-form-rate-limited',
+  'quote-form-send-failed',
+] as const;
+
+/** What each quote case shows once it has reached its own state (the form's title alone is not enough). */
+const QUOTE_READY: Readonly<Record<(typeof QUOTE_CASES)[number], (frame: HTMLElement) => Promise<unknown>>> = {
+  'quote-form-empty': (frame) => within(frame).findByRole('form', { name: 'Inquiry form' }, { timeout: 10_000 }),
+  'quote-form-field-errors': (frame) => within(frame).findByText('Enter your name.', {}, { timeout: 10_000 }),
+  'quote-form-photos-refused': (frame) =>
+    within(frame).findByText(/isn't a photo we can take/, {}, { timeout: 10_000 }),
+  'quote-form-sending': (frame) =>
+    within(frame).findByText('Sending your photos. This can take a minute on mobile data.', {}, { timeout: 10_000 }),
+  'quote-form-sent': (frame) =>
+    within(frame).findByRole('heading', { level: 2, name: 'Inquiry sent' }, { timeout: 10_000 }),
+  'quote-form-sent-photos-missing': (frame) => within(frame).findByText(/didn't upload/, {}, { timeout: 10_000 }),
+  'quote-form-rate-limited': (frame) => within(frame).findByText(/You've sent a few requests/, {}, { timeout: 10_000 }),
+  'quote-form-send-failed': (frame) => within(frame).findByText(/Couldn't send your inquiry/, {}, { timeout: 10_000 }),
+};
+
+/** The Quote requests section alone, as the showcase renders it. */
+function renderQuoteSection() {
+  return render(
+    <MemoryRouter>
+      <ToastProvider>
+        <ShowcaseSection id="quotes" title="Quote requests" />
+      </ToastProvider>
+    </MemoryRouter>,
+  );
+}
 
 /** Some showcase sections at /admin/components, with every other path showing "Left the showcase". */
 function renderAtShowcase(...ids: ShowcaseSectionId[]) {
