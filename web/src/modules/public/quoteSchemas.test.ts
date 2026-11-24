@@ -4,8 +4,8 @@
 // gives the same message here, at the same edge. A mobile from the shared phone cases passes and a landline fails.
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { isPlainEmail } from '@/utils/email';
 import {
-  isPlainEmail,
   newUploadKey,
   QUOTE_QUANTITIES,
   quoteFormSchema,

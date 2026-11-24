@@ -7,6 +7,7 @@ import type { Control } from 'react-hook-form';
 import { z } from 'zod';
 import { moneyInputError } from '@/components/entry';
 import { isCalendarDate } from '@/lib/url-state/parsers';
+import { isPlainEmail } from '@/utils/email';
 import { isMoneyText, moneyTextToCentavos } from '@/utils/format';
 import type { CreateOrderRequest, UpdateOrderDetailsRequest } from '@/modules/admin/services/ordersService';
 import { ORDER_FORM_COPY } from './orderFormCopy';
@@ -40,11 +41,6 @@ export const CREATE_STATUSES = ['pending', 'mockup', 'production', 'ready', 'del
 
 /** Digits, spaces and + - ( ) only (OrderRules.IsValidContactNumber). */
 const CONTACT_NUMBER = /^[0-9 +\-()]*$/;
-/**
- * A plain address with a dotted domain and no spaces (OrderRules.IsValidEmail); the server makes the final check. It is
- * deliberately stricter than the server on quoted local parts: `"a b"@example.com` is refused here.
- */
-const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 /** An optional text: trimmed, at most `max`, and null when empty. */
 function optionalText(max: number, tooLong: string) {
@@ -130,7 +126,7 @@ const detailsShape = {
     .string()
     .trim()
     .max(EMAIL_MAX, COPY.emailTooLong)
-    .refine((text) => text === '' || EMAIL.test(text), COPY.emailInvalid)
+    .refine((text) => text === '' || isPlainEmail(text), COPY.emailInvalid)
     .transform((text) => (text === '' ? null : text)),
   address: optionalText(ADDRESS_MAX, COPY.addressTooLong),
   orderDate: dateField(COPY.orderDateRequired),

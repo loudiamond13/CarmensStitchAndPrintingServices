@@ -1781,6 +1781,22 @@ describe('Turn into Order: the prefill (INQ-06, D-20, UI-SPEC R3)', () => {
     expect(invalidatedRoots(invalidate)).not.toContainEqual(['quote-requests']);
   });
 
+  it('saves a prefilled email that ends in one dot, which the server and the quote form accept (OR-3)', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    usePrefill(() => orderPrefill({ email: 'juan@example.com.' }));
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes[0]?.body).toEqual({
+      ...PREFILLED_BODY,
+      email: 'juan@example.com.',
+      quoteRequestId: REQUEST_ID,
+    });
+  });
+
   it('has no axe violations with the prefill note', async () => {
     useOrderHandlers();
     usePrefill();

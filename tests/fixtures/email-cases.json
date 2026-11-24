@@ -40,7 +40,7 @@
     ]
   },
   "quoteEmail": {
-    "note": "The email on the public quote form. The server rule is OrderRules.IsValidEmail (a plain address with a dotted domain, no display name). accept and refuse hold for the server and the browser. browserOnlyRefuse is text the server allows but the browser refuses: a quoted local part, an IP address as the domain, and a domain that ends in a lone dot. No visitor types these. Rare characters that .NET rewrites (some combining marks and compatibility letters) are left to the server.",
+    "note": "The email on the public quote form and the order forms (both use web/src/utils/email.ts). The server rule is OrderRules.IsValidEmail (a plain address with a dotted domain, no display name). accept and refuse hold for the server and the browser. browserOnlyRefuse is text the server allows but the browser refuses: a quoted local part, an IP address as the domain, and a domain that ends in a lone dot. No visitor types these. Rare characters that .NET rewrites (some combining marks and compatibility letters) are left to the server.",
     "accept": [
       "name@gmail.com",
       "juan.dc@example.com",

@@ -1,3 +1,6 @@
+// @vitest-environment node
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   blankOrderItem,
@@ -15,6 +18,15 @@ import {
 
 const PRODUCT_TYPE = '01a17fce-7800-7f5d-bc6c-5d14ceeca0c6';
 const LINE_ID = '8c1f4a20-0000-4000-8000-000000000001';
+
+interface EmailCases {
+  quoteEmail: { accept: string[]; refuse: string[]; browserOnlyRefuse: string[] };
+}
+
+/** The same cases the quote form runs: both forms mirror OrderRules.IsValidEmail. */
+const emailCases = JSON.parse(
+  readFileSync(new URL('../../../../tests/fixtures/email-cases.json', import.meta.url), 'utf8'),
+) as EmailCases;
 
 /** The public website values of a card nobody touched. */
 const NO_PUBLIC = { customerConsent: false, showOnWebsite: false, productLineId: '', publicName: '' };
@@ -107,6 +119,24 @@ describe('customer details', () => {
       expect(result.data.email).toBeNull();
       expect(result.data.address).toBeNull();
     }
+  });
+});
+
+describe('the shared email cases (tests/fixtures/email-cases.json, OR-3)', () => {
+  const { accept, refuse, browserOnlyRefuse } = emailCases.quoteEmail;
+  // The form trims the email first, so only the cases with no space at either end are read as typed.
+  const typed = (text: string) => text.trim() === text && text !== '';
+  const { customerName, teamName, contactNumber, address, orderDate, dueDate, notes } = order();
+  const details = { customerName, teamName, contactNumber, address, orderDate, dueDate, notes, ...NO_PUBLIC };
+
+  it.each(accept.filter(typed))('accepts %j, as the server and the quote form do', (email) => {
+    expect(messageAt(order({ email }), 'email')).toBeUndefined();
+    expect(updateOrderDetailsSchema.safeParse({ ...details, email }).success).toBe(true);
+  });
+
+  it.each([...refuse, ...browserOnlyRefuse].filter(typed))('refuses %j, as the quote form does', (email) => {
+    expect(messageAt(order({ email }), 'email')).toBe('Enter a valid email address.');
+    expect(updateOrderDetailsSchema.safeParse({ ...details, email }).success).toBe(false);
   });
 });
 
