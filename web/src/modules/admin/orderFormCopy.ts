@@ -97,6 +97,14 @@ export const ORDER_FORM_COPY = {
   toast: {
     title: 'Order saved',
     message: (number: string, who: string): string => `${number} · ${who}`,
+    /** The added line after a save made from a quote request (D-20). */
+    converted: 'The quote request is now Converted.',
+  },
+  /** The form opened from a quote request, /admin/orders/new?fromRequest={id} (UI-SPEC R3). */
+  fromRequest: {
+    note: (name: string, receivedOn: string): string =>
+      `Filled in from the quote request from ${name}, received ${receivedOn}. Add the items and prices, then save.`,
+    viewRequest: 'View Request',
   },
   /** The Edit Order form (UI-SPEC F2; plan 08-15). */
   edit: {

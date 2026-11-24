@@ -130,6 +130,11 @@ export const QUOTE_REQUEST_COPY = {
     pending: 'Marking',
     cancel: 'Cancel',
   },
+  /** Turn into Order (D-20) and, once Converted, the way to its order (D-21). */
+  convert: {
+    action: 'Turn into Order',
+    openOrder: (number: string): string => `Open Order ${number}`,
+  },
   /** The ConflictBanner lines after a 409. */
   conflict: { title: 'Someone else changed this request.', body: 'Load the latest to see it.' },
   /** The Manager's Delete Request and its confirm (D-16). */

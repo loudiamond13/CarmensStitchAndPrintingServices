@@ -49,6 +49,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { isQuoteRequestId, quoteRequestKey, useQuoteRequestQuery } from '@/modules/admin/hooks/useQuoteRequestQuery';
 import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
 import { useSession } from '@/modules/admin/hooks/useSession';
+import { ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { INBOX_HEADING_FOCUS, QUOTE_REQUESTS_PATH, quoteBackTarget } from '@/modules/admin/quoteRequestNavigation';
 import { QUOTE_REQUEST_COPY } from '@/modules/admin/quoteRequestsCopy';
 import {
@@ -239,6 +240,15 @@ function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRe
         </div>
         {(showMenu || isManager) && (
           <div className={quoteActionsClasses}>
+            {showMenu && (
+              <ButtonLink
+                variant="primary"
+                icon="clipboard-list"
+                to={`${ORDERS_PATH}/new?fromRequest=${encodeURIComponent(request.id)}`}
+              >
+                {COPY.convert.action}
+              </ButtonLink>
+            )}
             {showMenu && <QuoteStatusMenu request={request} onMoved={onMoved} onConflict={onConflict} />}
             {isManager && <DeleteRequest request={request} onConflict={onConflict} />}
           </div>

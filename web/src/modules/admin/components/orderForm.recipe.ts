@@ -60,6 +60,9 @@ export const orderFormSpacerClasses = tw('pg-phone:hidden');
 /** The banner above the first card (409 orders.busy, or a 400 no field shows). */
 export const orderFormBannerClasses = tw('flex flex-col');
 
+/** A second line in the saved toast ("The quote request is now Converted."). */
+export const orderFormToastLineClasses = tw('block');
+
 // ── The item grid ──
 // SPEC-DEVIATION: the grid follows the width of the Items card, not the page. At the page widths the spec names (1024 to 1440), the
 // card sits beside the 320px aside and the 248px sidebar, so it is only 580 to 780px wide, too narrow for seven columns: the

@@ -14,6 +14,7 @@ export type QuoteRequestStatusChange = Schemas['QuoteRequestStatusChangeResponse
 export type QuoteRequestStatusChanged = Schemas['QuoteRequestStatusChangedResponse'];
 export type QuoteRequestNote = Schemas['QuoteRequestNoteResponse'];
 export type QuoteRequestNoteAdded = Schemas['QuoteRequestNoteAddedResponse'];
+export type OrderPrefill = Schemas['OrderPrefillResponse'];
 
 /** The status groups of the inbox pills; `open` is New, Contacted and Quoted (D-18). */
 export const QUOTE_STATUS_FILTERS = ['open', 'converted', 'closed', 'spam', 'all'] as const;
@@ -55,6 +56,11 @@ export interface QuoteRequestsService {
    * for a Converted request, `409 quote-requests.conflict` when someone else changed it.
    */
   remove(id: string, version: string, signal?: AbortSignal): Promise<void>;
+  /**
+   * `GET /api/v1/quote-requests/{id}/order-prefill` (D-20): what the New Order form starts with. Nothing is saved; the order is
+   * saved with `quoteRequestId` to convert the request. `404 quote-requests.not-found` when it is gone.
+   */
+  getOrderPrefill(id: string, signal?: AbortSignal): Promise<OrderPrefill>;
 }
 
 export function createQuoteRequestsService(client: HttpClient): QuoteRequestsService {
@@ -81,6 +87,8 @@ export function createQuoteRequestsService(client: HttpClient): QuoteRequestsSer
       ),
     remove: (id, version, signal) =>
       client.delete(`/quote-requests/${encodeURIComponent(id)}`, { params: { version }, signal }),
+    getOrderPrefill: (id, signal) =>
+      client.get<OrderPrefill>(`/quote-requests/${encodeURIComponent(id)}/order-prefill`, { signal }),
   };
 }
 

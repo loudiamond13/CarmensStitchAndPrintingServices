@@ -3,13 +3,14 @@
 // the form; once the order exists they go to its upload queue and the order page shows them uploading. Every server rule is
 // checked in the browser first with the server's own words (OR-3). One Idempotency-Key covers a submission and its retries (SEC-06). The order date starts at the
 // server's business today; the device clock is never read (D-59). F1 and F2 also carry the Public website card (plan 11-35): its four
-// values live in this form and save with the order.
+// values live in this form and save with the order. With `?fromRequest={id}` the form starts from that quote request and the save
+// converts it (UI-SPEC R3, D-20).
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { useEffect, useId, useRef, useState, type SyntheticEvent } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Select } from '@/components/forms';
@@ -23,7 +24,7 @@ import {
   srOnlyClasses,
 } from '@/components/layout/layout.recipe';
 import { ConfirmDialog } from '@/components/overlays';
-import { ConflictBanner, ErrorState, LoadingRegion, SkeletonCard, SkeletonText } from '@/components/states';
+import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonCard, SkeletonText } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
@@ -56,12 +57,15 @@ import {
   orderFormColClasses,
   orderFormLayoutClasses,
   orderFormPageClasses,
+  orderFormToastLineClasses,
 } from '@/modules/admin/components/orderForm.recipe';
 import { orderBackRowClasses } from '@/modules/admin/components/orderPage.recipe';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { photoUploadQueue, type UploadDeps } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { isQuoteRequestId } from '@/modules/admin/hooks/useQuoteRequestQuery';
+import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
 import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
 import { useUnsavedChangesGuard } from '@/modules/admin/hooks/useUnsavedChangesGuard';
@@ -83,11 +87,14 @@ import { backTarget, ORDERS_PATH } from '@/modules/admin/orderNavigation';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import { isLocked } from '@/modules/admin/orderRules';
+import { QUOTE_REQUESTS_PATH } from '@/modules/admin/quoteRequestNavigation';
 import { blankPublicWebsite, publicWebsiteValuesOf } from '@/modules/admin/publicWebsiteSchemas';
 import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
+import { quoteRequestsService, type OrderPrefill } from '@/modules/admin/services/quoteRequestsService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
+import { formatCalendarDate } from '@/utils/format';
 import { isCalendarDate } from '@/lib/url-state/parsers';
 
 const COPY = ORDER_FORM_COPY;
@@ -181,9 +188,17 @@ interface Banner {
 interface CreateOrderFormProps {
   /** The server's business today: the order date starts here (D-59). */
   today: string;
+  /** The quote request the form was opened from (D-20): its values are the form's starting point. */
+  prefill?: OrderPrefill | undefined;
 }
 
-function CreateOrderForm({ today }: CreateOrderFormProps) {
+/** One save: the checked values and the quote request it converts, or null for a plain order. */
+interface CreateSubmission {
+  values: CreateOrderFormValues;
+  quoteRequestId: string | null;
+}
+
+function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
@@ -201,6 +216,8 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   const pickerRef = useRef<OrderPhotoPickerHandle>(null);
   // The draft whose description window is open.
   const [describing, setDescribing] = useState<string | null>(null);
+  // The quote request a save converts (D-20).
+  const [linkedRequest] = useState<string | null>(prefill?.quoteRequestId ?? null);
 
   const {
     control,
@@ -212,17 +229,18 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
   } = useForm<CreateOrderFormInput, unknown, CreateOrderFormValues>({
     resolver: zodResolver(createOrderSchema),
     mode: 'onBlur',
+    // A prefill is the starting point, so an untouched prefilled form is not dirty (UI-SPEC R3).
     defaultValues: {
-      customerName: '',
-      teamName: '',
-      contactNumber: '',
-      email: '',
+      customerName: prefill?.customerName ?? '',
+      teamName: prefill?.teamName ?? '',
+      contactNumber: prefill?.contactNumber ?? '',
+      email: prefill?.email ?? '',
       address: '',
       orderDate: today,
       dueDate: '',
       status: 'pending',
-      notes: '',
-      items: [blankOrderItem()],
+      notes: prefill?.notes ?? '',
+      items: [{ ...blankOrderItem(), productTypeId: prefill?.productTypeId ?? '' }],
       ...blankPublicWebsite(),
     },
   });
@@ -299,10 +317,14 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     },
   });
 
-  const submission = useSubmission<CreateOrderFormValues, OrderDetailResponse>(
-    (key, values) => ordersService.create(toCreateOrderRequest(values), key),
+  const submission = useSubmission<CreateSubmission, OrderDetailResponse>(
+    (key, { values, quoteRequestId }) =>
+      ordersService.create(
+        quoteRequestId === null ? toCreateOrderRequest(values) : { ...toCreateOrderRequest(values), quoteRequestId },
+        key,
+      ),
     {
-      onSuccess: (order) => {
+      onSuccess: (order, { quoteRequestId }) => {
         applyOrder(order);
         // The order exists, so its photos go to its queue in their draft order, keyed by the new id (T-09-50, D-28).
         photoUploadQueue.enqueue(
@@ -320,7 +342,19 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
         guard.allowLeave();
         void navigate(`/admin/orders/${order.id}`);
         const who = order.teamName !== null && order.teamName !== '' ? order.teamName : order.customerName;
-        toast.show({ title: COPY.toast.title, message: COPY.toast.message(order.number, who) });
+        const saved = COPY.toast.message(order.number, who);
+        let message: ReactNode = saved;
+        if (quoteRequestId !== null) {
+          // The request is Converted now: its page, the inbox lists and the New count read again (D-14).
+          void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
+          message = (
+            <>
+              {saved}
+              <span className={orderFormToastLineClasses}>{COPY.toast.converted}</span>
+            </>
+          );
+        }
+        toast.show({ title: COPY.toast.title, message });
       },
       onFailure: (copy, error) => {
         showFailure(error, copy);
@@ -333,7 +367,7 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
     setBanner(null);
     // A photo still being prepared joins the order first.
     await pickerRef.current?.settled();
-    await submission.submit(values);
+    await submission.submit({ values, quoteRequestId: linkedRequest });
   };
 
   const onInvalid = (): void => {
@@ -368,6 +402,17 @@ function CreateOrderForm({ today }: CreateOrderFormProps) {
         }}
       >
         <div className={orderFormColClasses}>
+          {prefill !== undefined && (
+            <Note icon="info">
+              {COPY.fromRequest.note(
+                prefill.customerName,
+                formatCalendarDate(prefill.receivedOn) ?? prefill.receivedOn,
+              )}{' '}
+              <UiLink to={`${QUOTE_REQUESTS_PATH}/${encodeURIComponent(prefill.quoteRequestId)}`}>
+                {COPY.fromRequest.viewRequest}
+              </UiLink>
+            </Note>
+          )}
           {banner !== null && (
             <div className={orderFormBannerClasses}>
               <ErrorState title={banner.title} message={banner.message} align="start" />
@@ -780,33 +825,78 @@ function EditOrderPage({ id }: { id: string }) {
   );
 }
 
-/** The New Order route: waits for the server's business date, then opens the form on it. */
+/** The values a New Order form opened with; set once, so the form is never replaced while it is being filled in. */
+interface OpenedForm {
+  today: string;
+  prefill: OrderPrefill | undefined;
+}
+
+/**
+ * The New Order route: waits for the server's business date and, with `?fromRequest={id}`, for the request's prefill (UI-SPEC R3),
+ * then opens the form on them. A `fromRequest` that is not a request id is dropped with one replace (T-13-64).
+ */
 function NewOrderPage() {
   const state = useBusinessTodayState();
-  // The day the form opened on; set once, so the form is never replaced while it is being filled in.
-  const [opened, setOpened] = useState<string | null>(null);
-  if (opened === null && state.today !== null) {
-    setOpened(state.today);
+  const [params, setParams] = useSearchParams();
+  // Read once, so a later change of the address never refills the form.
+  const [fromRequest] = useState(() => params.get('fromRequest'));
+  const requestId = fromRequest !== null && isQuoteRequestId(fromRequest) ? fromRequest : null;
+  const dropped = useRef(false);
+  useEffect(() => {
+    if (requestId === null && params.has('fromRequest') && !dropped.current) {
+      dropped.current = true;
+      setParams(
+        (next) => {
+          next.delete('fromRequest');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [params, requestId, setParams]);
+  const prefill = useQuery({
+    queryKey: [...quoteRequestsKey, 'order-prefill', requestId],
+    queryFn: ({ signal }) => quoteRequestsService.getOrderPrefill(requestId ?? '', signal),
+    enabled: requestId !== null,
+    // Read afresh each time the form opens; the form fills once.
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+  });
+  // A read again with no data clears the error, so a failure counts until a read succeeds and the alert stays (W7 WR-01).
+  const prefillFailed =
+    requestId !== null && prefill.data === undefined && prefill.errorUpdatedAt > prefill.dataUpdatedAt;
+  const prefillReady = requestId === null || prefill.data !== undefined;
+  const [heldError, setHeldError] = useState<unknown>(null);
+  if (prefill.error !== null && prefill.error !== heldError) {
+    setHeldError(prefill.error);
+  }
+  const prefillError = prefill.error ?? heldError;
+
+  const [opened, setOpened] = useState<OpenedForm | null>(null);
+  if (opened === null && state.today !== null && prefillReady) {
+    setOpened({ today: state.today, prefill: prefill.data });
   }
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
   if (opened !== null) {
-    return <CreateOrderForm today={opened} />;
+    return <CreateOrderForm today={opened.today} prefill={opened.prefill} />;
   }
+  const failed = state.isError || prefillFailed;
   return (
     <div className={orderFormPageClasses}>
-      {state.isError && (
+      {failed && (
         <ErrorState
           title={COPY.loadFailed}
-          error={state.error}
+          error={state.isError ? state.error : prefillError}
           onRetry={() => {
-            state.refetch();
+            if (state.isError) state.refetch();
+            if (prefillFailed) void prefill.refetch();
           }}
         />
       )}
-      <LoadingRegion loading={!state.isError} failed={state.isError} things={COPY.things}>
-        {!state.isError && <SkeletonCard />}
+      <LoadingRegion loading={!failed} failed={failed} things={COPY.things}>
+        {!failed && <SkeletonCard />}
       </LoadingRegion>
     </div>
   );
