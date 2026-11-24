@@ -1,6 +1,6 @@
 ---
 created: 2026-11-24T00:04:37-06:00
-updated: 2026-11-24T00:04:37-06:00
+updated: 2026-11-24T00:44:00-06:00
 phase: 13-quote-inquiries
 plan: 23
 subsystem: component-showcase
@@ -13,7 +13,7 @@ requires:
 provides:
   - "A 'Quote requests' section at the end of the Component Showcase: the eight QuoteForm scenarios, then the Phase 13 admin demos on request"
   - "Phase13Demos: status pills with and without counts, the six badges in Blush and Espresso, NavCount 0, 1, 99+ and collapsed, the strip at 0, 3, loading and failed"
-  - "The quote scenario group (web/src/dev/scenarios/groups/quote.ts) and the dev-only QuoteFormDemo preview, also shown on the parity page"
+  - "The quote scenario group (web/src/dev/scenarios/groups/quote.ts) and the QuoteFormDemo preview (dev and Manager showcase only), also shown on the parity page"
   - "QuoteForm takes an optional `service` (ticket, create, photo uploads); useQuoteTicket and sendWithPhotos take it too, default the real service"
 affects: [13-24, 13-26]
 
@@ -107,9 +107,9 @@ completed: 2026-11-24
 
 # Phase 13 Plan 23: Component Showcase additions Summary
 
-*Created: 2026-11-24T00:04:37-06:00 · Updated: 2026-11-24T00:04:37-06:00*
+*Created: 2026-11-24T00:04:37-06:00 · Updated: 2026-11-24T00:44:00-06:00*
 
-**A new "Quote requests" section in the Component Showcase shows the real Get a Quote form in all eight states (reached by a dev-only driver against a demo service, so nothing is sent) and, on request, the status pills, the six badges in both themes, the NavCount chip and the dashboard strip in every state.**
+**A new "Quote requests" section in the Component Showcase shows the real Get a Quote form in all eight states (reached by a driver against a demo service, so nothing is sent) and, on request, the status pills, the six badges in both themes, the NavCount chip and the dashboard strip in every state.**
 
 ## Performance
 
@@ -135,7 +135,7 @@ completed: 2026-11-24
 ## Files Created/Modified
 
 - `web/src/modules/admin/components/showcase/Phase13Demos.tsx` - the 12 admin cases
-- `web/src/dev/previews/QuoteFormDemo.tsx` - dev only: the real form, a demo service, primed stores and the visitor's steps per state
+- `web/src/dev/previews/QuoteFormDemo.tsx` - dev and Manager showcase only (it ships in the showcase chunk, never in a public chunk): the real form, a demo service, fixed demo data and the visitor's steps per state
 - `web/src/dev/scenarios/groups/quote.ts` - the eight scenarios
 - `ShowcaseDemos.tsx`, `showcaseSections.ts`, `showcaseCopy.ts` - the section, its on-request trigger and its label
 - `ComponentShowcasePage.tsx` - three quote states that move focus join the on-request list
@@ -206,7 +206,7 @@ None.
 
 ## Threat Flags
 
-None. T-13-66: all new code under `web/src/dev` stays dev-only (the existing D-20 guard; build-output tests pass), and all demo data is made up. T-13-SC: no package added or bumped.
+T-13-66 (corrected after review W11, WR-02): the new code under `web/src/dev` is not dev-only. `ComponentShowcasePage` imports `@/dev/kit`, which loads every `dev/previews/*.tsx`, and the showcase ships to Managers in production (D-20 reversed, plan 04-25). So `QuoteFormDemo`, its demo service and its demo values are in the production showcase chunks, and those static chunks can be downloaded without signing in (T-05-96). They hold made-up data only, and they are never in a public page's chunks. The dev routes and the scenario pages (`/dev/*`, the parity page) stay out of production (the D-20 build guard). T-13-SC: no package added or bumped.
 
 ## User Setup Required
 
