@@ -383,6 +383,21 @@ describe('Change Status on the page (D-15, D-14)', () => {
   });
 });
 
+describe('Turn into Order on the page (INQ-06, D-20, UI-SPEC R2)', () => {
+  it.each(['new', 'contacted', 'quoted', 'closed', 'spam'])(
+    'offers Turn into Order first in the actions on a %s request, to the prefilled New Order form',
+    async (status) => {
+      quoteRequestBackend(quoteRequestDetail(ID, { status }));
+      renderPage();
+
+      const turn = await screen.findByRole('link', { name: 'Turn into Order' });
+      expect(turn).toHaveAttribute('href', `/admin/orders/new?fromRequest=${ID}`);
+      const menu = screen.getByRole('button', { name: 'Change Status' });
+      expect(turn.compareDocumentPosition(menu) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
+});
+
 /** A gate a fake answer waits on until the test lets it go. */
 function gate(): { wait: Promise<void>; open: () => void } {
   let open: () => void = () => undefined;
