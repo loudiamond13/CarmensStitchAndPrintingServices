@@ -81,7 +81,7 @@ function wait(ms: number): Promise<void> {
 }
 
 export interface QuoteFormProps {
-  /** The ticket, create and photo calls; the showcase passes demo ones, so nothing is sent. */
+  /** The ticket, create and photo calls; the showcase passes demo ones, so nothing is sent. Read once, on the first render. */
   service?: QuoteService;
 }
 
@@ -98,7 +98,9 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
   const [answers, setAnswers] = useState<QuoteSendAnswers | 'failed' | null>(null);
   const [sent, setSent] = useState<QuoteSent | null>(null);
   const toast = useToast();
-  const tickets = useQuoteTicket(service);
+  // Read once: the ticket and the sends must use the same service.
+  const [api] = useState(() => service);
+  const tickets = useQuoteTicket(api);
   const site = useSiteQuery();
   const messengerUrl = site.status === 'success' ? site.data.messengerUrl : null;
   const lines = useProductLinesQuery();
@@ -139,7 +141,7 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
   const create = async (key: string, body: Omit<CreateQuoteBody, 'ticket'>) => {
     const repeat = resendRef.current;
     if (repeat?.forKey === key) {
-      return service.create({ ...body, ticket: repeat.ticket }, repeat.key);
+      return api.create({ ...body, ticket: repeat.ticket }, repeat.key);
     }
     const held = await tickets.ready();
     const remaining = held === null ? 0 : held.issuedAt + held.minimumSeconds * 1000 - Date.now();
@@ -147,7 +149,7 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
       await wait(remaining);
     }
     try {
-      return await service.create({ ...body, ticket: held?.ticket ?? null }, key);
+      return await api.create({ ...body, ticket: held?.ticket ?? null }, key);
     } catch (error: unknown) {
       const problem = isHttpError(error) && error.code === TICKET_EXPIRED_CODE ? error.problem : undefined;
       const replacement = problem?.replacementTicket;
@@ -161,7 +163,7 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
       tickets.adopt(replacement, problem?.minimumSeconds ?? held?.minimumSeconds ?? 0);
       const resend: Resend = { forKey: key, key: newIdempotencyKey(), ticket: replacement };
       resendRef.current = resend;
-      return service.create({ ...body, ticket: replacement }, resend.key);
+      return api.create({ ...body, ticket: replacement }, resend.key);
     }
   };
 
@@ -179,7 +181,7 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
       photos: picked,
       held: uploadKeyRef,
       create: (withPhotos) => create(key, withPhotos),
-      service,
+      service: api,
     });
     return { missing, total: picked.length, MissingPhotos: kit.QuoteMissingPhotos };
   };
