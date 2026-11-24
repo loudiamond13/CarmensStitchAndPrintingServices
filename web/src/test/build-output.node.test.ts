@@ -256,6 +256,16 @@ describe('production build output in src/Csps.Server/wwwroot', () => {
     expect([...found].filter((address) => !DEMO_ADDRESSES.has(address) && !RESERVED_DOMAIN.test(address))).toEqual([]);
   });
 
+  // The quote demo (dev/previews) ships with the Manager showcase, so it must stay out of every other chunk (T-13-66).
+  it('carries the quote demo only in the showcase chunks (T-13-66)', () => {
+    const carriers = list(assetsDir).filter(
+      (name) => name.endsWith('.js') && readText(join(assetsDir, name)).includes('demo-ticket'),
+    );
+    expect(carriers.length).toBeGreaterThan(0);
+    const allowed = new Set(showcaseChunks());
+    expect(carriers.filter((name) => !allowed.has(name))).toEqual([]);
+  });
+
   it('keeps the admin initial JS within 250 KB gzip with the showcase in the build (PERF-01)', () => {
     const report: unknown = JSON.parse(readText(budgetReport) || '{}');
     const adminJs = typeof report === 'object' && report !== null && 'adminJs' in report ? report.adminJs : null;

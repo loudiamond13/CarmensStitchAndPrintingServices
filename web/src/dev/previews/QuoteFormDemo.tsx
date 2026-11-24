@@ -1,7 +1,8 @@
-// Dev-only scenario wrapper (plan 13-23; never shipped, D-20): the real Get a Quote form in one of its eight states, for the owner's
-// review. It hands the form a demo service, fills the fields with made-up values and presses Send the way a visitor would, so each
-// state is the form's own drawing. Nothing is sent: the ticket, the create and the photo uploads are answered here, and the shop facts
-// and product lines are made-up ones from a PublicDataScope, so the app's shared stores are left alone. The form loads as its own
+// Scenario wrapper (plan 13-23) for the dev pages and the Manager showcase: it ships in the showcase chunks, never in a public
+// chunk, so it holds made-up data only. The real Get a Quote form in one of its eight states, for the owner's review. It hands
+// the form a demo service, fills the fields with made-up values and presses Send the way a visitor would, so each state is the
+// form's own drawing. Nothing is sent: the ticket, the create and the photo uploads are answered here, and the shop facts and
+// product lines are made-up ones from a PublicDataScope, so the app's shared stores are left alone. The form loads as its own
 // piece, as on the Contact page.
 import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { HttpError } from '@/core/api/errors';

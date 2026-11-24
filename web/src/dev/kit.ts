@@ -1,8 +1,8 @@
-// The implementation kit (WEB-02, D-33; dev only, never shipped, D-20): every component the `@/components` area barrels
-// export (`src/components/<area>/index.ts`), plus the dev-only previews in ./previews (impl-only wrappers a scenario may need;
-// the folder may be empty). The parity page renders the shared scenario list with it, and the reference app renders the
-// same list with the frozen App. D.3 kit (web/visual/reference/kit.ts), so both sides look up components by the same
-// App. D.3 names.
+// The implementation kit (WEB-02, D-33; ships only in the Manager showcase chunks, T-05-96): every component the `@/components`
+// area barrels export (`src/components/<area>/index.ts`), plus the previews in ./previews (impl-only wrappers a scenario may
+// need; the folder may be empty). The parity page renders the shared scenario list with it, and the reference app renders the
+// same list with the frozen App. D.3 kit (web/visual/reference/kit.ts), so both sides look up components by the same App. D.3
+// names.
 import type { ComponentType } from 'react';
 import type { Kit } from './renderScenario';
 
