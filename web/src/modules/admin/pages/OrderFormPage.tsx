@@ -933,7 +933,8 @@ function NewOrderPage() {
     }
   }, [params, requestId, setParams]);
   const prefill = useQuery({
-    queryKey: [...quoteRequestsKey, 'order-prefill', requestId],
+    // Outside `['quote-requests']`, so the form's own invalidations never read it again (W10 IN-01).
+    queryKey: ['order-prefill', requestId],
     queryFn: ({ signal }) => quoteRequestsService.getOrderPrefill(requestId ?? '', signal),
     enabled: requestId !== null,
     // Read afresh each time the form opens; the form fills once.

@@ -1975,6 +1975,26 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it.each([
+    ['a 409 already-converted', () => alreadyConverted()],
+    ['a save-time 404', () => orderProblem(404, 'quote-requests.not-found')],
+  ])('reads the prefill only once when %s reads the quote requests again (W10 IN-01)', async (_case, reply) => {
+    useOrderHandlers({ reply });
+    const reads = usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByRole('alert');
+    expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
+    await waitFor(() => {
+      expect(queryClient.isFetching()).toBe(0);
+    });
+    expect(reads).toEqual([REQUEST_ID]);
+  });
+
   it('opens a blank form with the info note when the request is not found', async () => {
     const backend = useOrderHandlers({ detail: created });
     usePrefill(() => orderProblem(404, 'quote-requests.not-found'));
