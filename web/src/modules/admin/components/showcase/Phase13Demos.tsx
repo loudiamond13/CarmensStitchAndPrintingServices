@@ -26,9 +26,10 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-function Still({ children }: { children: ReactNode }) {
+/** `inert` also keeps a picture out of focus and the accessibility tree, so a sidebar demo adds no Admin nav or current page. */
+function Still({ children, inert = false }: { children: ReactNode; inert?: boolean }) {
   return (
-    <div className={stillClasses} onClickCapture={swallow}>
+    <div className={stillClasses} onClickCapture={swallow} inert={inert}>
       {children}
     </div>
   );
@@ -69,7 +70,7 @@ interface NavDemoProps {
 
 function NavDemo({ count, active = null, collapsed = false }: NavDemoProps) {
   return (
-    <Still>
+    <Still inert>
       <Sidebar active={active} collapsed={collapsed} withQuoteRequests counts={{ quotes: count }} />
     </Still>
   );

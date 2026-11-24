@@ -177,6 +177,18 @@ describe('Phase13Demos: the NavCount chip', () => {
   });
 });
 
+describe('Phase13Demos: the sidebar pictures (IN-07)', () => {
+  it('are inert, so the page keeps one Admin nav and one current page for assistive technology', () => {
+    renderDemos();
+
+    for (const id of ['nav-count-0', 'nav-count-1', 'nav-count-99-plus', 'nav-count-collapsed']) {
+      const nav = caseFrame(id).querySelector('nav[aria-label="Admin"]');
+      expect(nav, id).not.toBeNull();
+      expect(nav?.closest('[inert]'), id).not.toBeNull();
+    }
+  });
+});
+
 describe('Phase13Demos: QuoteRequestsStrip', () => {
   function strip(id: string) {
     return within(within(caseFrame(id)).getByRole('region', { name: 'New quote requests' }));
