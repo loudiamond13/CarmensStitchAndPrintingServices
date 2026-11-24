@@ -11,7 +11,7 @@ import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
-import { ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
+import { Button, ButtonLink, UiLink, hitAreaClasses } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Select } from '@/components/forms';
 import { useToast } from '@/components/feedback';
@@ -25,6 +25,7 @@ import {
 } from '@/components/layout/layout.recipe';
 import { ConfirmDialog } from '@/components/overlays';
 import { ConflictBanner, ErrorState, LoadingRegion, Note, SkeletonCard, SkeletonText } from '@/components/states';
+import { bannerStartClasses, bannerTextClasses } from '@/components/states/states.recipe';
 import { isHttpError } from '@/core/api/errors';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { focusFirstInvalid } from '@/lib/forms/focusFirstInvalid';
@@ -55,6 +56,7 @@ import {
   orderFormCardHintClasses,
   orderFormCardTitleClasses,
   orderFormColClasses,
+  orderFormConvertedClasses,
   orderFormLayoutClasses,
   orderFormPageClasses,
   orderFormToastLineClasses,
@@ -102,6 +104,10 @@ const PHOTOS = ORDER_PHOTOS_COPY;
 
 /** The server's code for "saving is busy, nothing was saved". */
 const ORDERS_BUSY = 'orders.busy';
+
+/** The server's codes for a quote request a save cannot convert: gone, or already an order (D-23). */
+const REQUEST_NOT_FOUND = 'quote-requests.not-found';
+const ALREADY_CONVERTED = 'quote-requests.already-converted';
 
 /** The server's code for "someone saved this order since the form opened" (05 D-20). */
 const EDIT_STALE = 'edit.stale';
@@ -190,6 +196,14 @@ interface CreateOrderFormProps {
   today: string;
   /** The quote request the form was opened from (D-20): its values are the form's starting point. */
   prefill?: OrderPrefill | undefined;
+  /** The form was opened from a quote request that is gone, so it is blank. */
+  requestMissing?: boolean | undefined;
+}
+
+/** The order a quote request already became (409 quote-requests.already-converted); null members when the server named none. */
+interface ExistingOrder {
+  id: string | null;
+  number: string | null;
 }
 
 /** One save: the checked values and the quote request it converts, or null for a plain order. */
@@ -198,7 +212,7 @@ interface CreateSubmission {
   quoteRequestId: string | null;
 }
 
-function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
+function CreateOrderForm({ today, prefill, requestMissing = false }: CreateOrderFormProps) {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
@@ -217,7 +231,9 @@ function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
   // The draft whose description window is open.
   const [describing, setDescribing] = useState<string | null>(null);
   // The quote request a save converts (D-20).
-  const [linkedRequest] = useState<string | null>(prefill?.quoteRequestId ?? null);
+  const [linkedRequest, setLinkedRequest] = useState<string | null>(prefill?.quoteRequestId ?? null);
+  // Another save converted the request first: the box above Save names that order.
+  const [existing, setExisting] = useState<ExistingOrder | null>(null);
 
   const {
     control,
@@ -273,6 +289,18 @@ function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
     }
     if (isHttpError(error) && error.status === 409 && error.code === ORDERS_BUSY) {
       setBanner({ title: COPY.busy.title, message: COPY.busy.message });
+      return;
+    }
+    // Nothing was saved and every value stays; the request changed, so its page, the inbox and the New count read again.
+    if (isHttpError(error) && error.status === 409 && error.code === ALREADY_CONVERTED) {
+      void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
+      setExisting({ id: error.problem?.orderId ?? null, number: error.problem?.orderNumber ?? null });
+      return;
+    }
+    if (isHttpError(error) && error.status === 404 && error.code === REQUEST_NOT_FOUND) {
+      void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
+      setLinkedRequest(null);
+      setBanner({ title: COPY.fromRequest.gone.title, message: COPY.fromRequest.gone.message });
       return;
     }
     if (isHttpError(error) && error.status === 400) {
@@ -363,11 +391,21 @@ function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
   );
   const { pending } = submission;
 
-  const onValid = async (values: CreateOrderFormValues): Promise<void> => {
+  const submitWith = async (values: CreateOrderFormValues, quoteRequestId: string | null): Promise<void> => {
     setBanner(null);
+    // The box stays through its own unlinked save, so focus stays on its button.
+    if (quoteRequestId !== null) setExisting(null);
     // A photo still being prepared joins the order first.
     await pickerRef.current?.settled();
-    await submission.submit({ values, quoteRequestId: linkedRequest });
+    await submission.submit({ values, quoteRequestId });
+  };
+
+  const onValid = (values: CreateOrderFormValues): Promise<void> => submitWith(values, linkedRequest);
+
+  /** D-23: the typed order is saved as a normal order. The data differs from the linked save, so it gets a new Idempotency-Key. */
+  const saveUnlinked = (): void => {
+    setLinkedRequest(null);
+    void handleSubmit((values) => submitWith(values, null), onInvalid)();
   };
 
   const onInvalid = (): void => {
@@ -402,6 +440,7 @@ function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
         }}
       >
         <div className={orderFormColClasses}>
+          {requestMissing && <Note icon="info">{COPY.fromRequest.notFound}</Note>}
           {prefill !== undefined && (
             <Note icon="info">
               {COPY.fromRequest.note(
@@ -464,6 +503,26 @@ function CreateOrderForm({ today, prefill }: CreateOrderFormProps) {
             <OrderPhotoPicker store={drafts} onEditDescription={setDescribing} handleRef={pickerRef} />
           </section>
           <OrderItemsEditor control={control} rootError={itemsError} />
+          {existing !== null && (
+            <div className={bannerStartClasses} role="alert">
+              <Icon name="triangle-alert" size={20} />
+              <div className={clsx(bannerTextClasses, orderFormConvertedClasses)}>
+                <strong>
+                  {existing.number === null
+                    ? COPY.fromRequest.alreadyConvertedNoNumber
+                    : COPY.fromRequest.alreadyConverted(existing.number)}
+                </strong>
+                {existing.id !== null && existing.number !== null && (
+                  <UiLink to={`${ORDERS_PATH}/${encodeURIComponent(existing.id)}`} className={hitAreaClasses}>
+                    {COPY.fromRequest.openOrder(existing.number)}
+                  </UiLink>
+                )}
+                <Button variant="ghost" onClick={saveUnlinked} loading={pending}>
+                  {COPY.fromRequest.saveAsNew}
+                </Button>
+              </div>
+            </div>
+          )}
           <OrderFormSaveBar
             caption={caption}
             saveLabel={COPY.saveBar.save}
@@ -829,6 +888,7 @@ function EditOrderPage({ id }: { id: string }) {
 interface OpenedForm {
   today: string;
   prefill: OrderPrefill | undefined;
+  requestMissing: boolean;
 }
 
 /**
@@ -865,24 +925,26 @@ function NewOrderPage() {
   // A read again with no data clears the error, so a failure counts until a read succeeds and the alert stays (W7 WR-01).
   const prefillFailed =
     requestId !== null && prefill.data === undefined && prefill.errorUpdatedAt > prefill.dataUpdatedAt;
-  const prefillReady = requestId === null || prefill.data !== undefined;
   const [heldError, setHeldError] = useState<unknown>(null);
   if (prefill.error !== null && prefill.error !== heldError) {
     setHeldError(prefill.error);
   }
   const prefillError = prefill.error ?? heldError;
+  // A request that is gone opens a blank form with a note (UI-SPEC R3).
+  const requestMissing = prefillFailed && isHttpError(prefillError) && prefillError.status === 404;
+  const prefillReady = requestId === null || prefill.data !== undefined || requestMissing;
 
   const [opened, setOpened] = useState<OpenedForm | null>(null);
   if (opened === null && state.today !== null && prefillReady) {
-    setOpened({ today: state.today, prefill: prefill.data });
+    setOpened({ today: state.today, prefill: prefill.data, requestMissing });
   }
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
   if (opened !== null) {
-    return <CreateOrderForm today={opened.today} prefill={opened.prefill} />;
+    return <CreateOrderForm today={opened.today} prefill={opened.prefill} requestMissing={opened.requestMissing} />;
   }
-  const failed = state.isError || prefillFailed;
+  const failed = state.isError || (prefillFailed && !requestMissing);
   return (
     <div className={orderFormPageClasses}>
       {failed && (
@@ -891,7 +953,7 @@ function NewOrderPage() {
           error={state.isError ? state.error : prefillError}
           onRetry={() => {
             if (state.isError) state.refetch();
-            if (prefillFailed) void prefill.refetch();
+            if (prefillFailed && !requestMissing) void prefill.refetch();
           }}
         />
       )}

@@ -63,6 +63,9 @@ export const orderFormBannerClasses = tw('flex flex-col');
 /** A second line in the saved toast ("The quote request is now Converted."). */
 export const orderFormToastLineClasses = tw('block');
 
+/** The already-converted box's text, link and button, stacked so the button never squeezes the text at 320px. */
+export const orderFormConvertedClasses = tw('flex flex-col items-start gap-2');
+
 // ── The item grid ──
 // SPEC-DEVIATION: the grid follows the width of the Items card, not the page. At the page widths the spec names (1024 to 1440), the
 // card sits beside the 320px aside and the 248px sidebar, so it is only 580 to 780px wide, too narrow for seven columns: the

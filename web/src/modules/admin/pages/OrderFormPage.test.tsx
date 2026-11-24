@@ -1828,7 +1828,7 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     expect(backend.writes).toHaveLength(1);
     expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
     expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
-    expect(screen.getByLabelText(/^Unit price/)).toHaveValue('780');
+    expect(screen.getByLabelText(/^Unit price/)).toHaveValue('780.00');
     // Someone else converted it: the request page, the inbox and the New count read again.
     expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
   });

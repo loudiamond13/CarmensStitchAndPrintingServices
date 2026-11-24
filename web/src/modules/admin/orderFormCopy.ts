@@ -105,6 +105,18 @@ export const ORDER_FORM_COPY = {
     note: (name: string, receivedOn: string): string =>
       `Filled in from the quote request from ${name}, received ${receivedOn}. Add the items and prices, then save.`,
     viewRequest: 'View Request',
+    /** The request is gone or was deleted before the form opened. */
+    notFound: "Couldn't find that quote request. The form is blank.",
+    /** 409 quote-requests.already-converted: the box above Save (D-23). */
+    alreadyConverted: (number: string): string => `This request is already an order: ${number}.`,
+    alreadyConvertedNoNumber: 'This request is already an order.',
+    openOrder: (number: string): string => `Open Order ${number}`,
+    saveAsNew: 'Save as a New Order Instead',
+    /** 404 quote-requests.not-found on save: the request was deleted while the form was open. */
+    gone: {
+      title: "Couldn't find that quote request.",
+      message: 'Press Save Order to save the order without it.',
+    },
   },
   /** The Edit Order form (UI-SPEC F2; plan 08-15). */
   edit: {
