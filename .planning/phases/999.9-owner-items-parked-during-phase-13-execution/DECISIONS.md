@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T18:31:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T18:53:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -243,6 +243,20 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 6. **The Notes card hint.** A: under the card title only. B: also linked to the box so a screen reader reads it with the box.
 7. **A version clash on a note.** A: the page's shared clash banner, with the typed note kept. B: a line just for notes asking to press Add Note again.
 8. **Wording to confirm:** the new texts are listed in `13-21-SUMMARY.md` ("Internal notes", "Adding", "Note added.", "Deleting", "Quote request deleted" and the confirm text).
+
+## P13-BL-23 · Choices made in the Turn into Order server side (plan 13-20)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A.
+
+1. **The saved copy of a new order's answer.** A: creating an order answers the full order, and the repeat-press guard keeps that copy for 24 hours, like every order save. So an order deleted for good less than a day after it was made still has that copy. B: a short answer when the order came from a quote request, which would change what plan 13-22 relies on.
+2. **The quote link in the order data.** A: optional. B: required.
+3. **Audit entries when an order is deleted for good.** A: both the order entry and a "quote request deleted" entry. B: only the order entry.
+4. **Which requests can become an order.** A: any status except one that is already an order, Spam included. B: refuse Spam.
+5. **The suggested product type.** A: the first active type of the chosen line, by name. B: add a sort order to types, which is a schema change.
+6. **When the request is locked during the order save.** A: last, just before the order number is taken. B: first.
+7. **Wording to confirm:** "This quote request was already turned into an order." and the audit label "Quote request turned into an order".
+8. **The link on a deleted order.** A: inside the order data. B: also as a separate field.
+9. **The prefilled "received on" date.** A: the shop's business day (Manila time). B: the UTC time.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
