@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T19:39:37-06:00
+updated: 2026-11-23T19:49:10-06:00
 ---
 
 # The quote requests API
@@ -435,8 +435,9 @@ Staff of either role turn a request into an order through the normal New Order f
 
 The order form (`POST /orders`, see [orders.md](orders.md)) takes `quoteRequestId`. In the same transaction as the order:
 
-- The request is locked first, before the order number is taken, by one update that matches the id only while the request is not
-  Converted. A second save of the same request waits for the first and then matches nothing.
+- The request is locked just before the order number is taken (after the public website block, when the form has one), by one
+  update that matches the id only while the request is not Converted. A second save of the same request waits for the first and then
+  matches nothing.
 - The request becomes Converted, keeps the order id, and gets a history row from its old status to `converted` that names the order,
   with who and when. It leaves the New count.
 - One audit entry `quote-request.converted` records who and when, with the detail `order=<order id>`. It never holds the visitor's

@@ -98,6 +98,8 @@ public sealed class OpenApiOrderWriteContractTests
         var summary = operation.GetProperty("summary").GetString().ShouldNotBeNull();
         summary.ShouldContain("quoteRequestId");
         summary.ShouldContain("quote-requests.not-found");
+        summary.ShouldContain("409 `quote-requests.already-converted`");
+        summary.ShouldContain("`orderId` and `orderNumber`");
     }
 
     private static async Task<JsonDocument> ReadDocumentAsync()

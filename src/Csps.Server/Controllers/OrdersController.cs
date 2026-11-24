@@ -74,12 +74,13 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     /// are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
     /// or totals in the body are ignored. The first status history row is written with the order. An order made from a quote request
     /// sends its id as <c>quoteRequestId</c>: the same save turns the request Converted, links the two and records it, and an unknown
-    /// request is a 404 <c>quote-requests.not-found</c> that saves nothing. A retry with the same <c>Idempotency-Key</c> and body
-    /// answers with the stored 201 and creates nothing more.
+    /// request is a 404 <c>quote-requests.not-found</c> that saves nothing. A request that already became an order is a
+    /// 409 <c>quote-requests.already-converted</c> with <c>orderId</c> and <c>orderNumber</c> of that order, and saves nothing. A
+    /// retry with the same <c>Idempotency-Key</c> and body answers with the stored 201 and creates nothing more.
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, 404 when the quote request does not exist, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out, or the save was a deadlock victim.</returns>
+    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, 404 when the quote request does not exist, 409 <c>quote-requests.already-converted</c> (with <c>orderId</c> and <c>orderNumber</c>) when the quote request already became an order, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out, or the save was a deadlock victim.</returns>
     [HttpPost]
     [EndpointName("CreateOrder")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status201Created)]

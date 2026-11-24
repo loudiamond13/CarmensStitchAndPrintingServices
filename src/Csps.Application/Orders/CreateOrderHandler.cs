@@ -41,7 +41,7 @@ public sealed class CreateOrderHandler(
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new order, a 400 listing every field that failed, a 409 when the number lock timed out or the save was a deadlock victim, or a 401 when the token names no usable account.</returns>
+    /// <returns>The new order, a 400 listing every field that failed, a 404 when the quote request does not exist, a 409 <c>quote-requests.already-converted</c> (with <c>orderId</c> and <c>orderNumber</c>) when the quote request already became an order, a 409 when the number lock timed out or the save was a deadlock victim, or a 401 when the token names no usable account.</returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);

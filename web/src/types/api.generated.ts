@@ -990,8 +990,9 @@ export interface paths {
          *     are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
          *     or totals in the body are ignored. The first status history row is written with the order. An order made from a quote request
          *     sends its id as `quoteRequestId`: the same save turns the request Converted, links the two and records it, and an unknown
-         *     request is a 404 `quote-requests.not-found` that saves nothing. A retry with the same `Idempotency-Key` and body
-         *     answers with the stored 201 and creates nothing more.
+         *     request is a 404 `quote-requests.not-found` that saves nothing. A request that already became an order is a
+         *     409 `quote-requests.already-converted` with `orderId` and `orderNumber` of that order, and saves nothing. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
          */
         post: operations["CreateOrder"];
         delete?: never;
