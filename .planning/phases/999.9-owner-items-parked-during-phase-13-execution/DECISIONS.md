@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T02:14:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T02:19:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -329,6 +329,7 @@ Performance scored / 0.93, /products 0.94, /gallery 0.92 to 0.94 and /contact 0.
 - [ ] Quote form on a real phone: pick a photo and press Send at once. The photo must arrive, and Send shows Sending until it does (13-REVIEW-FIX-W5 CR-01).
 - [ ] Quote Requests list on a real phone: the cards, the filter pills and the search (plan 13-15).
 - [ ] Send a real test email from Site Content > Business info > Quote alerts and check it arrives (plan 13-13).
+- [ ] After the Phase 13 deploy, on the live site: set the Quote alerts address and send the test email, then add the first public Gallery photo and check it on a phone. Full steps in `.planning/phases/13-quote-inquiries/13-26-SUMMARY.md` (plan 13-26, INQ-04).
 - [ ] The Quote Requests count chip, the rail dot, the Quotes phone tab and the dashboard strip in Blush and Espresso, on phone and desktop (plan 13-17).
 - [ ] On a quote request page with a keyboard and a screen reader: Change Status and the Spam confirm, Load Latest after a version clash, and the "not found" page after a move on a deleted request (plan 13-19, wave 8 fixes).
 - [ ] On a phone and with a screen reader: add a note, then delete a request as a Manager and land back on the inbox (plan 13-21).

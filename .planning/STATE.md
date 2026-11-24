@@ -15,7 +15,7 @@ progress:
   completed_plans: 390
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-23T22:44:00-06:00"
+updated: "2026-11-24T02:19:00-06:00"
 ---
 
 # Project State
@@ -929,6 +929,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 Phase 13 owner backlog (away mode, parked 2026-11-23; nothing here was auto-approved; the full list of owner choices is in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md`):
 
 - 13 D-28 Privacy Policy approval (parked 2026-11-23): open http://localhost:5180/privacy and the Contact form; read the changes listed in .planning/phases/13-quote-inquiries/13-25-SUMMARY.md (added: what the quote form collects, used only to reply and prepare a quote, Cloudinary stores the photos, three keep-time rows; reworded: the staff log and page count rows now match the daily cleanup). Question: approve A (with one sentence about the rare stray photo, recommended), approve B (as written), or give exact changes? Also settles P13-BL-07, P13-BL-21 item 3 and P13-BL-24 item 2. The page stays DRAFT until then.
+- 13 live checks (parked 2026-11-24): after the Phase 13 deploy, (1) on the live site sign in as a Manager, open Site Content, Business info, type the shop's Quote alerts address in the Quote alerts card and press Save Business Info; (2) press Send Test Email and check that "Test: quote alerts work" arrives at that inbox within a few minutes, spam folder too; (3) add the first public Gallery photo in Site Content, Gallery; (4) on a phone open the public Gallery page, check the photo loads from res.cloudinary.com and that the browser shows no CSP error (ask Claude how to check this on a phone); (5) reply with what you saw for steps 2 and 4. Full steps and what counts as a pass: .planning/phases/13-quote-inquiries/13-26-SUMMARY.md. Open owner item, not a pass (INQ-04; Phase 12 D-49, Phase 11 D-133).
 
 Phase 12.1 owner backlog (away mode, parked 2026-11-19; nothing here was auto-approved):
 
