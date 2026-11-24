@@ -240,6 +240,8 @@ function CreateOrderForm({ today, prefill, requestMissing = false, converted = n
   const [linkedRequest, setLinkedRequest] = useState<string | null>(prefill?.quoteRequestId ?? null);
   // Another save converted the request first: the box above Save names that order.
   const [existing, setExisting] = useState<ExistingOrder | null>(converted);
+  // A save found the request deleted: the note keeps its words but no longer links to it.
+  const [requestGone, setRequestGone] = useState(false);
 
   const {
     control,
@@ -306,6 +308,7 @@ function CreateOrderForm({ today, prefill, requestMissing = false, converted = n
     if (isHttpError(error) && error.status === 404 && error.code === REQUEST_NOT_FOUND) {
       void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
       setLinkedRequest(null);
+      setRequestGone(true);
       setBanner({ title: COPY.fromRequest.gone.title, message: COPY.fromRequest.gone.message });
       return;
     }
@@ -453,10 +456,15 @@ function CreateOrderForm({ today, prefill, requestMissing = false, converted = n
               {COPY.fromRequest.note(
                 prefill.customerName,
                 formatCalendarDate(prefill.receivedOn) ?? prefill.receivedOn,
-              )}{' '}
-              <UiLink to={`${QUOTE_REQUESTS_PATH}/${encodeURIComponent(prefill.quoteRequestId)}`}>
-                {COPY.fromRequest.viewRequest}
-              </UiLink>
+              )}
+              {!requestGone && (
+                <>
+                  {' '}
+                  <UiLink to={`${QUOTE_REQUESTS_PATH}/${encodeURIComponent(prefill.quoteRequestId)}`}>
+                    {COPY.fromRequest.viewRequest}
+                  </UiLink>
+                </>
+              )}
             </Note>
           )}
           {banner !== null && (

@@ -2084,6 +2084,9 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
     // The request is gone: its page, the inbox and the New count read again (W10 IN-02).
     expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
+    // The note still says where the values came from, but no longer links to the deleted request (W10 IN-03).
+    expect(screen.getByText(/^Filled in from the quote request from Juan Dela Cruz/)).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'View Request' })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Save Order' }));
     await screen.findByText('The order page');
