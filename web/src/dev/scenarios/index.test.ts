@@ -59,6 +59,26 @@ describe('the scenario list', () => {
     });
   });
 
+  it('registers the quote group: the eight QuoteForm states, Blush only (plan 13-23)', () => {
+    const quote = scenarios.filter((scenario) => scenario.group === 'quote');
+    expect(quote.map((scenario) => scenario.id)).toEqual([
+      'quote-form-empty',
+      'quote-form-field-errors',
+      'quote-form-photos-refused',
+      'quote-form-sending',
+      'quote-form-sent',
+      'quote-form-sent-photos-missing',
+      'quote-form-rate-limited',
+      'quote-form-send-failed',
+    ]);
+    expect(quote.every((scenario) => scenario.themes.join() === 'light' && !scenario.parity)).toBe(true);
+    expect(scenarioById('quote-form-sending').node).toEqual({
+      kind: 'node',
+      component: 'QuoteFormDemo',
+      props: { state: 'sending' },
+    });
+  });
+
   it('every listed scenario passes the serializability guard', () => {
     for (const scenario of scenarios) {
       expect(() => {

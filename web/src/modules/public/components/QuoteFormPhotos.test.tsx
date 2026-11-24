@@ -503,6 +503,45 @@ describe('QuoteForm keeps the photos when the send fails (D-26)', () => {
   });
 });
 
+describe('QuoteForm with a service of its own (the showcase demos, plan 13-23)', () => {
+  it('reads the ticket, creates and uploads through the given service, and sends no quote request over the network', async () => {
+    const seen: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      seen.push(request.url);
+    });
+    const getTicket = vi.fn<QuoteService['getTicket']>().mockResolvedValue({
+      ticket: 'demo-ticket',
+      minimumSeconds: 0,
+      photoRules: { maxPhotos: 5, maxBytes: 10_485_760, maxPixels: 25_000_000 },
+    });
+    const create = vi
+      .fn<QuoteService['create']>()
+      .mockResolvedValue({ id: QUOTE_ID, photoSlots: [{ slot: 0, fileName: 'logo.png' }] });
+    const uploadPhoto = vi.fn<QuoteService['uploadPhoto']>().mockResolvedValue(undefined);
+    const given: QuoteService = { getTicket, create, uploadPhoto };
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <MemoryRouter>
+        <ToastProvider>{children}</ToastProvider>
+      </MemoryRouter>
+    );
+    const { container } = render(<QuoteForm service={given} />, { wrapper });
+
+    await pickPhotos(container, [pngFile('logo.png')]);
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
+
+    expect(getTicket).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ ticket: 'demo-ticket', photos: ['logo.png'] }),
+      expect.any(String),
+    );
+    expect(uploadPhoto).toHaveBeenCalledTimes(1);
+    expect(seen.filter((url) => url.includes('/quote-requests'))).toEqual([]);
+    server.events.removeAllListeners();
+  });
+});
+
 describe('QuoteForm Send Another with photos (Q3)', () => {
   it('clears the photos, makes a new upload key and a new ticket', async () => {
     const probe = answerQuote();

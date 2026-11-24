@@ -48,11 +48,24 @@ describe('scenariosBySection', () => {
     expect(scenariosBySection(scenarios).get('site-content')).toEqual([]);
   });
 
-  it('gives the Quote requests section no scenario group yet, only its live demos', () => {
+  it('gives the Quote requests section the quote group: the eight QuoteForm states, then its live demos', () => {
     const section = SHOWCASE_SECTIONS.find((item) => item.id === 'quotes');
 
-    expect(section?.groups).toEqual([]);
-    expect(scenariosBySection(scenarios).get('quotes')).toEqual([]);
+    expect(section?.groups).toEqual(['quote']);
+    expect(
+      scenariosBySection(scenarios)
+        .get('quotes')
+        ?.map((item) => item.id),
+    ).toEqual([
+      'quote-form-empty',
+      'quote-form-field-errors',
+      'quote-form-photos-refused',
+      'quote-form-sending',
+      'quote-form-sent',
+      'quote-form-sent-photos-missing',
+      'quote-form-rate-limited',
+      'quote-form-send-failed',
+    ]);
   });
 
   it('gives the Legal section only the legal notice scenario', () => {
