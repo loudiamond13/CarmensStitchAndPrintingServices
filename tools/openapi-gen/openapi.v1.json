@@ -3547,6 +3547,14 @@
             "$ref": "#/components/schemas/OrderPublicWebsiteDto",
             "description": "The order's place on the public website."
           },
+          "quoteRequestId": {
+            "description": "The quote request the order was made from (D-21), so the page can link to it and its photos; null when none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "recordedAt": {
             "description": "When it was created.",
             "format": "date-time",
@@ -6833,6 +6841,21 @@
             },
             "type": "array"
           },
+          "orderId": {
+            "description": "The order the request became (D-21); null until it is converted.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "That order's number, such as `ORD-2026-0148`; null until it is converted.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "photoCount": {
             "description": "How many photo places the request holds.",
             "format": "int32",
@@ -6921,7 +6944,9 @@
           "notes",
           "lastChangedBy",
           "lastChangedAt",
-          "version"
+          "version",
+          "orderId",
+          "orderNumber"
         ],
         "type": "object"
       },

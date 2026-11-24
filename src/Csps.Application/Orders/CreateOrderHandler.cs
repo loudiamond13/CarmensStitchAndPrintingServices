@@ -22,7 +22,7 @@ namespace Csps.Application.Orders;
 /// allocates no number; the customer's OK and Show on the website then save with the order (UI-SPEC F1, D-11). When the form names
 /// the quote request it was made from, the same transaction locks that request before the number is taken, turns it Converted with
 /// a link to the order and a history row, and records <c>quote-request.converted</c>, so a request that is missing allocates no
-/// number and one request makes one order (INQ-06, D-20, D-23).
+/// number and one request makes one order: a second save is a 409 that names the first order (INQ-06, D-20, D-23).
 /// </summary>
 public sealed class CreateOrderHandler(
     IOrders orders,
@@ -144,7 +144,9 @@ public sealed class CreateOrderHandler(
     {
         if (!await quoteRequests.LockForConversionAsync(quoteRequestId, cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure(QuoteRequestErrors.NotFound);
+            // Nothing matched: the request is gone, or it is already Converted (D-23) and the answer names its order.
+            var state = await quoteRequests.FindConversionAsync(quoteRequestId, cancellationToken).ConfigureAwait(false);
+            return Result.Failure(state is null ? QuoteRequestErrors.NotFound : QuoteRequestErrors.AlreadyConverted(state.OrderId, state.OrderNumber));
         }
 
         var quote = await quoteRequests.FindAsync(quoteRequestId, cancellationToken).ConfigureAwait(false);

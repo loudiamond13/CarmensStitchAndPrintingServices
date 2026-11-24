@@ -44,6 +44,23 @@ public static class QuoteRequestErrors
         ConvertedDeleteLockedMessage,
         new Dictionary<string, string[]> { [QuoteRequestRules.StatusField] = [ConvertedDeleteLockedMessage] });
 
+    /// <summary>The code of a second order from a request that already became one (D-23).</summary>
+    public const string AlreadyConvertedCode = QuoteRequestRules.AlreadyConvertedCode;
+
+    /// <summary>The extra member of that 409 that holds the id of the order the request became.</summary>
+    public const string OrderIdKey = "orderId";
+
+    /// <summary>The extra member of that 409 that holds the number of the order the request became.</summary>
+    public const string OrderNumberKey = "orderNumber";
+
+    /// <summary>Builds the 409 for an order save from a request that already became an order, naming that order so the page can link to it.</summary>
+    /// <param name="orderId">The order the request became; no extra members when null.</param>
+    /// <param name="orderNumber">That order's number.</param>
+    /// <returns>The error.</returns>
+    public static Error AlreadyConverted(Guid? orderId, string? orderNumber) => orderId is { } id && orderNumber is { } number
+        ? Error.Conflict(AlreadyConvertedCode, QuoteRequestRules.AlreadyConvertedMessage, new Dictionary<string, object> { [OrderIdKey] = id, [OrderNumberKey] = number })
+        : Error.Conflict(AlreadyConvertedCode, QuoteRequestRules.AlreadyConvertedMessage);
+
     /// <summary>Gets the 409 for a change made from an out-of-date copy of the request.</summary>
     public static Error Conflict { get; } = Error.Conflict(ConflictCode, EditErrors.StaleMessage);
 

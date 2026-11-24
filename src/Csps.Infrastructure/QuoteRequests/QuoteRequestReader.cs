@@ -14,6 +14,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
     private static readonly QuoteRequestStatus[] OpenStatuses = [QuoteRequestStatus.New, QuoteRequestStatus.Contacted, QuoteRequestStatus.Quoted];
 
     private const int DetailReadAttempts = 3;
+    private const string SoftDeleteFilter = "SoftDelete";
 
     public async Task<QuoteRequestListPage> ListAsync(QuoteRequestListQuery query, CancellationToken cancellationToken)
     {
@@ -124,7 +125,7 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
             row.Id, row.CreatedAtUtc, row.CustomerName, row.TeamName, row.ContactNumberE164, row.Email, row.Message, row.ProductChoice, types);
     }
 
-    // Four commands: the request with its last changer, the photo places, the history with each mover's current name, and the notes
+    // Four commands: the request with its last changer and the number of the order it became (also a deleted one), the photo places, the history with each mover's current name, and the notes
     // with each author's current name, so a rename shows at once and a removed person keeps their name.
     private async Task<QuoteRequestDetailView?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -133,9 +134,12 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
             where request.Id == id
             join changerUser in context.Users on request.UpdatedById equals (Guid?)changerUser.Id into changers
             from changer in changers.DefaultIfEmpty()
+            join orderRow in context.Orders.IgnoreQueryFilters([SoftDeleteFilter]) on request.OrderId equals (Guid?)orderRow.Id into orders
+            from order in orders.DefaultIfEmpty()
             select new
             {
                 Request = request,
+                OrderNumber = (string?)order.Number,
                 ChangerId = (Guid?)changer.Id,
                 ChangerFirst = (string?)changer.FirstName,
                 ChangerLast = (string?)changer.LastName,
@@ -232,8 +236,8 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                 : null,
             row.UpdatedAtUtc,
             row.RowVersion,
-            null,
-            null);
+            row.OrderId,
+            header.OrderNumber);
     }
 
     private static QuoteRequestCounts ToCounts(Dictionary<QuoteRequestStatus, int> byStatus)

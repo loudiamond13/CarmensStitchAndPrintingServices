@@ -4523,6 +4523,11 @@ export interface components {
             /** @description The order's place on the public website. */
             publicWebsite: components["schemas"]["OrderPublicWebsiteDto"];
             /**
+             * Format: uuid
+             * @description The quote request the order was made from (D-21), so the page can link to it and its photos; null when none.
+             */
+            quoteRequestId?: null | string;
+            /**
              * Format: date-time
              * @description When it was created.
              */
@@ -5847,6 +5852,13 @@ export interface components {
             missingPhotos: string[];
             /** @description The staff notes, newest first. */
             notes: components["schemas"]["QuoteRequestNoteResponse"][];
+            /**
+             * Format: uuid
+             * @description The order the request became (D-21); null until it is converted.
+             */
+            orderId: null | string;
+            /** @description That order's number, such as `ORD-2026-0148`; null until it is converted. */
+            orderNumber: null | string;
             /**
              * Format: int32
              * @description How many photo places the request holds.

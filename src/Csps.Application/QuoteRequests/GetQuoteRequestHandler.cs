@@ -98,7 +98,7 @@ public sealed class GetQuoteRequestHandler(IQuoteRequestReader reader, IImageDel
             view.LastChangedBy,
             view.LastChangedAtUtc,
             RowVersions.ToText(view.RowVersion),
-            null,
-            null);
+            view.OrderId,
+            view.OrderNumber);
     }
 }
