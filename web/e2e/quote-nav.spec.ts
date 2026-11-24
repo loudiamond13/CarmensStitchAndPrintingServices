@@ -2,7 +2,7 @@
 // other specs may send requests at the same time, so each check compares the page with the count answer it just read.
 import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
-import { signInAs } from './auth.ts';
+import { dashboardHeading, type SignedInUser, signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { freshMobile, holdsItsContent, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createQuoteRequest, createStaff } from './testing-api.ts';
@@ -34,18 +34,33 @@ async function openWithCount(page: Page, path: string): Promise<number> {
   return count;
 }
 
+/**
+ * Waits until the dashboard has drawn its figures and their fonts have arrived. The peso sign sits in a font file of its own that loads
+ * as the figures draw, and Firefox logs a download the next navigation cancels as a console error.
+ */
+async function dashboardDrawn(page: Page, user: SignedInUser): Promise<void> {
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await page.evaluate('document.fonts.ready.then(() => true)');
+}
+
 test('@quote the nav shows the new count', async ({ page, request, guard }) => {
   test.setTimeout(120_000);
   // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
   guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The sidebar shows from the tablet width up; the phone tab bar has its own test below.
+  await page.setViewportSize({ width: 1280, height: 900 });
   const admin = await createStaff(request, 'Admin');
-  await signInAs(page, request, admin);
+  const user = await signInAs(page, request, admin);
+  await dashboardDrawn(page, user);
   const before = await openWithCount(page, '/admin');
+  await dashboardDrawn(page, user);
 
   for (let n = 0; n < 2; n += 1) {
     await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
   }
   const after = await openWithCount(page, '/admin');
+  await dashboardDrawn(page, user);
 
   expect(after, 'the two new requests are counted').toBeGreaterThanOrEqual(before + 2);
   const side = page.locator('[data-ui="s-admin-side"]');
