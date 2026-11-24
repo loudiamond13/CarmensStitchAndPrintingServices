@@ -30,7 +30,25 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
             .Include(request => request.Photos)
             .SingleOrDefaultAsync(request => request.Id == id, cancellationToken);
 
-    public Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(false);
+    public async Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken)
+    {
+        // The update takes the row's exclusive lock to the end of the transaction and matches only a request that is not Converted,
+        // so a second order save of the same request waits here and then changes nothing. Any update moves the row version.
+        try
+        {
+            var locked = await context.QuoteRequests
+                .Where(request => request.Id == id && request.Status != QuoteRequestStatus.Converted)
+                .ExecuteUpdateAsync(set => set.SetProperty(request => request.EditVersion, Guid.NewGuid()), cancellationToken)
+                .ConfigureAwait(false);
+            return locked == 1;
+        }
+        catch (Exception error) when (SqlErrors.Has(error, SqlErrors.Timeout, SqlErrors.DeadlockVictim))
+        {
+            // A wait for the row that ran out of time, or a deadlock victim, is a lost race like any other.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+    }
 
     public void Add(QuoteRequest request)
     {

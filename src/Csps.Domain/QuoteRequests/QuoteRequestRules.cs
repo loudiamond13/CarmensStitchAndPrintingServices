@@ -66,6 +66,12 @@ public static class QuoteRequestRules
     /// <summary>The plain-English text of that 400.</summary>
     public const string ConvertedLockedMessage = "A request that became an order can't change status.";
 
+    /// <summary>The machine code of a second order from a request that already became one (D-23).</summary>
+    public const string AlreadyConvertedCode = "quote-requests.already-converted";
+
+    /// <summary>The plain-English text of that 409.</summary>
+    public const string AlreadyConvertedMessage = "This quote request was already turned into an order.";
+
     /// <summary>The longest internal note, in UTF-16 code units after trimming (D-17).</summary>
     public const int NoteMaxLength = 1000;
 

@@ -2517,6 +2517,9 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset?>("PhotosRemovedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -2570,6 +2573,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedById")
                         .HasDatabaseName("IX_QuoteRequests_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_QuoteRequests_OrderId")
+                        .HasFilter("[OrderId] IS NOT NULL");
 
                     b.HasIndex("ProductLineId")
                         .HasDatabaseName("IX_QuoteRequests_ProductLineId");
@@ -3962,6 +3970,11 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("Csps.Domain.Content.ProductLine", null)

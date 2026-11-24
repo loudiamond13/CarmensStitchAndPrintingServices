@@ -988,8 +988,10 @@ export interface paths {
          *     optional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.
          *     The order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures
          *     are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
-         *     or totals in the body are ignored. The first status history row is written with the order. A retry with the same
-         *     `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
+         *     or totals in the body are ignored. The first status history row is written with the order. An order made from a quote request
+         *     sends its id as `quoteRequestId`: the same save turns the request Converted, links the two and records it, and an unknown
+         *     request is a 404 `quote-requests.not-found` that saves nothing. A retry with the same `Idempotency-Key` and body
+         *     answers with the stored 201 and creates nothing more.
          */
         post: operations["CreateOrder"];
         delete?: never;
@@ -2342,6 +2344,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quote-requests/{id}/order-prefill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the values the New Order form starts with when staff turn a quote request into an order, for both roles (D-20): the
+         *     customer name, team, the phone in its display form, email, the message as notes, the business day it arrived, and the
+         *     suggested product type of the first item, which is the first active type filed under the chosen product line by name, or null
+         *     for Custom design, Not sure yet or no choice. Nothing is saved; send `quoteRequestId` with the new order to convert the
+         *     request. A request that is already Converted still answers; the order save refuses a second order.
+         */
+        get: operations["GetQuoteRequestOrderPrefill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quote-requests/{id}/status": {
         parameters: {
             query?: never;
@@ -3589,6 +3614,11 @@ export interface components {
             /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
             payments?: null | components["schemas"]["OrderPaymentRequest"][];
             publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
+            /**
+             * Format: uuid
+             * @description The quote request this order is made from (INQ-06, D-20); the save turns it Converted and links the two. None when absent.
+             */
+            quoteRequestId?: null | string;
             /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
             status: null | string;
             /** @description The team or club name. */
@@ -4980,6 +5010,34 @@ export interface components {
             recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The reference, such as a transfer number; null when none. */
             reference: null | string;
+        };
+        /** @description The values the New Order form starts with when staff turn a quote request into an order (INQ-06, D-20). Nothing is saved. */
+        OrderPrefillResponse: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`, which the order number rule accepts. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /** @description The email; null when none. */
+            email: null | string;
+            /** @description The visitor's message, for the order notes; null when none. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The suggested product type of the first item; null for Custom design, Not sure yet, no choice or a line with no active type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: uuid
+             * @description The request, sent back as `quoteRequestId` when the order is saved.
+             */
+            quoteRequestId: string;
+            /**
+             * Format: date
+             * @description The business day the request arrived.
+             */
+            receivedOn: string;
+            /** @description The team; null when none. */
+            teamName: null | string;
         };
         /**
          * @description An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is
@@ -10062,6 +10120,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Conflict */
             409: {
                 headers: {
@@ -14540,6 +14607,47 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteRequestOrderPrefill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPrefillResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,4 +1,5 @@
 using Csps.Domain.Content;
+using Csps.Domain.Orders;
 using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,9 @@ namespace Csps.Infrastructure.Persistence.Configurations;
 /// <summary>
 /// Maps the QuoteRequests table (INQ-01). The three stored numbers (status, product choice, quantity range) are bytes that are
 /// never renumbered, each held to its known range by a check constraint. The product line is a nullable link that clears when the
-/// line is deleted, because the title is kept as a snapshot (D-24). No JSON column and no trigger (OR-7). The indexes serve the inbox
-/// list by status and date, the per-sender limits by number and by email, and the retention cleanup by date.
+/// line is deleted, because the title is kept as a snapshot (D-24). The order link is set by the conversion (D-20); a unique index
+/// over the set values keeps one order to one request, a constraint rather than a trigger. No JSON column and no trigger (OR-7). The
+/// indexes serve the inbox list by status and date, the per-sender limits by number and by email, and the retention cleanup by date.
 /// </summary>
 internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<QuoteRequest>
 {
@@ -41,7 +43,6 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.Property(request => request.StatusChangedAtUtc).IsRequired();
         builder.Property(request => request.CreatedAtUtc).IsRequired();
         builder.Property(request => request.RowVersion).IsRowVersion();
-        builder.Ignore(request => request.OrderId);
 
         // Only the SHA-256 of the visitor's upload key is stored, never the key (CWE-639).
         builder.Property(request => request.UploadKeyHash).HasColumnType("varbinary(32)");
@@ -62,6 +63,9 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.CreatedById).OnDelete(DeleteBehavior.NoAction);
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(request => request.UpdatedById).OnDelete(DeleteBehavior.NoAction);
 
+        // NO ACTION, so an order is never removed under its request: the permanent order delete removes the request first (D-22).
+        builder.HasOne<Order>().WithMany().HasForeignKey(request => request.OrderId).OnDelete(DeleteBehavior.NoAction);
+
         // Deleting a product line keeps the request and its title snapshot.
         builder.HasOne<ProductLine>().WithMany().HasForeignKey(request => request.ProductLineId).OnDelete(DeleteBehavior.SetNull);
 
@@ -74,5 +78,8 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.HasIndex(request => request.CreatedById).HasDatabaseName("IX_QuoteRequests_CreatedById");
         builder.HasIndex(request => request.UpdatedById).HasDatabaseName("IX_QuoteRequests_UpdatedById");
         builder.HasIndex(request => request.ProductLineId).HasDatabaseName("IX_QuoteRequests_ProductLineId");
+
+        // Unique over the set values only (EF filters a unique index on a nullable column to IS NOT NULL), so any number of unconverted requests have none.
+        builder.HasIndex(request => request.OrderId).IsUnique().HasDatabaseName("IX_QuoteRequests_OrderId");
     }
 }

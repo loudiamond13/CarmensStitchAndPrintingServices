@@ -72,17 +72,20 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     /// optional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.
     /// The order number, <c>ORD-{YYYY}-{NNNN}</c>, takes its year from the business year of the save, and the money figures
     /// are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
-    /// or totals in the body are ignored. The first status history row is written with the order. A retry with the same
-    /// <c>Idempotency-Key</c> and body answers with the stored 201 and creates nothing more.
+    /// or totals in the body are ignored. The first status history row is written with the order. An order made from a quote request
+    /// sends its id as <c>quoteRequestId</c>: the same save turns the request Converted, links the two and records it, and an unknown
+    /// request is a 404 <c>quote-requests.not-found</c> that saves nothing. A retry with the same <c>Idempotency-Key</c> and body
+    /// answers with the stored 201 and creates nothing more.
     /// </summary>
     /// <param name="body">The form; a null or unreadable body is reported as field errors.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
-    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out, or the save was a deadlock victim.</returns>
+    /// <returns>201 with the order and its location, 400 for field errors, 401 without a valid token, 404 when the quote request does not exist, or 409 <c>orders.busy</c> when another order is being numbered and the wait timed out, or the save was a deadlock victim.</returns>
     [HttpPost]
     [EndpointName("CreateOrder")]
     [ProducesResponseType<OrderDetailResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IResult> Create(
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] CreateOrderRequest? body,

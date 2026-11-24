@@ -234,6 +234,9 @@ public static class AuditActions
     /// <summary>A Manager deleted a quote request for good (D-16). The detail holds the status and the photo count, never customer details.</summary>
     public const string QuoteRequestDeleted = "quote-request.deleted";
 
+    /// <summary>Staff saved an order made from a quote request, which became Converted (D-20). The detail holds the order id only.</summary>
+    public const string QuoteRequestConverted = "quote-request.converted";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -666,5 +669,6 @@ public static class AuditActions
         QuoteRequestStatusChanged,
         QuoteRequestNoteAdded,
         QuoteRequestDeleted,
+        QuoteRequestConverted,
     ];
 }

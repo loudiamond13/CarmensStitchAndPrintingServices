@@ -89,8 +89,40 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
         return view;
     }
 
-    public Task<QuoteOrderPrefillView?> GetOrderPrefillAsync(Guid id, CancellationToken cancellationToken) =>
-        Task.FromResult<QuoteOrderPrefillView?>(null);
+    // Two commands: the request, then the active product types filed under its line when a line was chosen.
+    public async Task<QuoteOrderPrefillView?> GetOrderPrefillAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var row = await context.QuoteRequests.AsNoTracking()
+            .Where(request => request.Id == id)
+            .Select(request => new
+            {
+                request.Id,
+                request.CreatedAtUtc,
+                request.CustomerName,
+                request.TeamName,
+                request.ContactNumberE164,
+                request.Email,
+                request.Message,
+                request.ProductChoice,
+                request.ProductLineId,
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+        if (row is null)
+        {
+            return null;
+        }
+
+        List<QuoteLineProductType> types = row is { ProductChoice: QuoteProductChoice.Line, ProductLineId: { } lineId }
+            ? await context.ProductTypes.AsNoTracking()
+                .Where(type => type.ProductLineId == lineId && type.RetiredAtUtc == null)
+                .Select(type => new QuoteLineProductType(type.Id, type.Name))
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false)
+            : [];
+        return new QuoteOrderPrefillView(
+            row.Id, row.CreatedAtUtc, row.CustomerName, row.TeamName, row.ContactNumberE164, row.Email, row.Message, row.ProductChoice, types);
+    }
 
     // Four commands: the request with its last changer, the photo places, the history with each mover's current name, and the notes
     // with each author's current name, so a rename shows at once and a removed person keeps their name.
