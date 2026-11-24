@@ -77,10 +77,12 @@ interface RenderOptions {
   state?: unknown;
   /** The query string the form was opened with, such as `?fromRequest={id}`. */
   search?: string;
+  /** Runs before the first render, so a test can watch every navigation. */
+  beforeRender?: (router: ReturnType<typeof createMemoryRouter>) => void;
 }
 
 /** Opens the form in a data router, with the Orders list and the new order's page as stand-ins to land on. */
-function renderForm({ state, search = '' }: RenderOptions = {}) {
+function renderForm({ state, search = '', beforeRender }: RenderOptions = {}) {
   const router = createMemoryRouter(
     [
       { path: '/admin/orders', element: <p>The orders list</p> },
@@ -91,6 +93,7 @@ function renderForm({ state, search = '' }: RenderOptions = {}) {
     ],
     { initialEntries: [{ pathname: '/admin/orders/new', search, state }] },
   );
+  beforeRender?.(router);
   const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
@@ -1784,5 +1787,194 @@ describe('Turn into Order: the prefill (INQ-06, D-20, UI-SPEC R3)', () => {
     const { container } = await openForm({ search: FROM_REQUEST });
 
     await expectNoAxeViolations(container);
+  });
+});
+
+/** The 409 the server answers when the request already became an order (13-20), with or without the order. */
+function alreadyConverted(order: { orderId: string; orderNumber: string } | null = EXISTING): Response {
+  return HttpResponse.json(
+    {
+      title: 'This quote request was already turned into an order.',
+      status: 409,
+      code: 'quote-requests.already-converted',
+      ...(order ?? {}),
+    },
+    { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+  );
+}
+
+const EXISTING = { orderId: orderId(160), orderNumber: 'ORD-2026-0160' };
+
+describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () => {
+  it('keeps every value on a 409 already-converted and names the existing order above Save', async () => {
+    const backend = useOrderHandlers({ reply: () => alreadyConverted() });
+    usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    const box = await screen.findByRole('alert');
+    expect(within(box).getByText('This request is already an order: ORD-2026-0160.')).toBeVisible();
+    expect(within(box).getByRole('link', { name: 'Open Order ORD-2026-0160' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${EXISTING.orderId}`,
+    );
+    expect(within(box).getByRole('button', { name: 'Save as a New Order Instead' })).toBeVisible();
+    // The box sits above the save bar.
+    const save = screen.getByRole('button', { name: 'Save Order' });
+    expect(box.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(backend.writes).toHaveLength(1);
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
+    expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
+    expect(screen.getByLabelText(/^Unit price/)).toHaveValue('780');
+    // Someone else converted it: the request page, the inbox and the New count read again.
+    expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
+  });
+
+  it('saves the same order with no link and a new Idempotency-Key on Save as a New Order Instead', async () => {
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: created,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? alreadyConverted() : undefined;
+      },
+    });
+    usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    const box = await screen.findByRole('alert');
+
+    await user.click(within(box).getByRole('button', { name: 'Save as a New Order Instead' }));
+
+    await screen.findByText('The order page');
+    expect(backend.writes).toHaveLength(2);
+    expect(backend.writes[0]?.body).toEqual({ ...PREFILLED_BODY, quoteRequestId: REQUEST_ID });
+    expect(backend.writes[1]?.body).toEqual(PREFILLED_BODY);
+    expect(backend.writes[1]?.key).toMatch(/^[0-9a-f-]{36}$/);
+    expect(backend.writes[1]?.key).not.toBe(backend.writes[0]?.key);
+    expect(await screen.findByText('Order saved')).toBeVisible();
+    expect(screen.queryByText('The quote request is now Converted.')).toBeNull();
+  });
+
+  it('says the request is already an order with no link when the 409 names no order', async () => {
+    useOrderHandlers({ reply: () => alreadyConverted(null) });
+    usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    const box = await screen.findByRole('alert');
+    expect(within(box).getByText('This request is already an order.')).toBeVisible();
+    expect(within(box).queryByRole('link')).toBeNull();
+    expect(within(box).getByRole('button', { name: 'Save as a New Order Instead' })).toBeVisible();
+  });
+
+  it('has no axe violations with the already-converted box shown', async () => {
+    useOrderHandlers({ reply: () => alreadyConverted() });
+    usePrefill();
+    const { user, container } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    await screen.findByRole('alert');
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('opens a blank form with the info note when the request is not found', async () => {
+    const backend = useOrderHandlers({ detail: created });
+    usePrefill(() => orderProblem(404, 'quote-requests.not-found'));
+    const { user } = await openForm({ search: FROM_REQUEST });
+
+    expect(screen.getByText("Couldn't find that quote request. The form is blank.")).toBeVisible();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('');
+    expect(screen.queryByRole('link', { name: 'View Request' })).toBeNull();
+
+    await fillValidOrder(user);
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    await screen.findByText('The order page');
+    expect(backend.writes[0]?.body).not.toHaveProperty('quoteRequestId');
+  });
+
+  it('opens a blank form with no message and drops a fromRequest that is not a request id with one replace', async () => {
+    useOrderHandlers();
+    const reads = usePrefill();
+    const moves: string[] = [];
+    let stop = (): void => undefined;
+    const { router } = renderForm({
+      search: '?fromRequest=abc',
+      beforeRender: (watched) => {
+        stop = watched.subscribe((state) => {
+          if (!moves.includes(state.location.key)) moves.push(state.location.key);
+        });
+      },
+    });
+
+    await screen.findByRole('heading', { level: 1, name: 'New Order' });
+    await waitFor(() => {
+      expect(router.state.location.search).toBe('');
+    });
+    stop();
+
+    expect(router.state.location.pathname).toBe('/admin/orders/new');
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(moves).toHaveLength(1);
+    expect(reads).toEqual([]);
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('');
+    expect(screen.queryByText("Couldn't find that quote request. The form is blank.")).toBeNull();
+    expect(screen.queryByText(/^Filled in from the quote request/)).toBeNull();
+  });
+
+  it('shows the load error with Try Again when the prefill read fails, keeps the alert while it reads again, then fills the form', async () => {
+    useOrderHandlers();
+    let calls = 0;
+    usePrefill(async () => {
+      calls += 1;
+      if (calls === 1) return orderProblem(500);
+      await delay(80);
+      return orderPrefill();
+    });
+    const { user } = { user: userEvent.setup(), ...renderForm({ search: FROM_REQUEST }) };
+
+    const alert = await screen.findByRole('alert');
+    expect(within(alert).getByText("Couldn't load the order form.")).toBeVisible();
+    const retry = within(alert).getByRole('button', { name: 'Try Again' });
+    await user.click(retry);
+
+    expect(screen.getByRole('alert')).toBe(alert);
+    expect(retry).toHaveFocus();
+    await screen.findByRole('heading', { level: 1, name: 'New Order' });
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
+    expect(calls).toBe(2);
+  });
+
+  it('keeps the values, drops the link and says so when a save finds the request deleted', async () => {
+    let attempts = 0;
+    const backend = useOrderHandlers({
+      detail: created,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? orderProblem(404, 'quote-requests.not-found') : undefined;
+      },
+    });
+    usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(within(banner).getByText("Couldn't find that quote request.")).toBeVisible();
+    expect(within(banner).getByText('Press Save Order to save the order without it.')).toBeVisible();
+    expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    await screen.findByText('The order page');
+    expect(backend.writes[1]?.body).toEqual(PREFILLED_BODY);
+    expect(backend.writes[1]?.key).not.toBe(backend.writes[0]?.key);
   });
 });
