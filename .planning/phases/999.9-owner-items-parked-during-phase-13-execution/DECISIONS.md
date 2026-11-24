@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T17:18:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T18:31:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -231,6 +231,19 @@ Order calls keep their full answers the same way. They were left alone because n
 
 The delete docs no longer say a delete takes an Idempotency-Key, so that choice is closed. A retried delete after a lost answer gets "not found", which plan 13-21 treats as already deleted.
 
+## P13-BL-22 · Choices made in the Notes card and Delete Request (plan 13-21)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A.
+
+1. **A "not found" answer to the page's own delete.** A: any 404 to the page's own delete counts as deleted, because the web client retries a lost delete by itself and the page cannot tell that retry from someone else's delete. B: only a 404 on a second press counts as deleted.
+2. **Where a delete goes back to.** A: the inbox view the person came from (its filter and search), replacing the deleted request in history. B: always the plain Quote Requests list, as a new history entry.
+3. **When a new note shows.** A: when the request is read again a moment later. B: at once, from the typed text and the signed-in name.
+4. **Text typed while a note is sending.** A: the box keeps it. B: always clear the box.
+5. **"Note added."** A: a hidden polite status only. B: also a success toast.
+6. **The Notes card hint.** A: under the card title only. B: also linked to the box so a screen reader reads it with the box.
+7. **A version clash on a note.** A: the page's shared clash banner, with the typed note kept. B: a line just for notes asking to press Add Note again.
+8. **Wording to confirm:** the new texts are listed in `13-21-SUMMARY.md` ("Internal notes", "Adding", "Note added.", "Deleting", "Quote request deleted" and the confirm text).
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -241,3 +254,4 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 - [ ] Send a real test email from Site Content > Business info > Quote alerts and check it arrives (plan 13-13).
 - [ ] The Quote Requests count chip, the rail dot, the Quotes phone tab and the dashboard strip in Blush and Espresso, on phone and desktop (plan 13-17).
 - [ ] On a quote request page with a keyboard and a screen reader: Change Status and the Spam confirm, Load Latest after a version clash, and the "not found" page after a move on a deleted request (plan 13-19, wave 8 fixes).
+- [ ] On a phone and with a screen reader: add a note, then delete a request as a Manager and land back on the inbox (plan 13-21).
