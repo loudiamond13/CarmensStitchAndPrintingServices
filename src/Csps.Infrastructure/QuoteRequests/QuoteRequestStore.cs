@@ -15,7 +15,7 @@ namespace Csps.Infrastructure.QuoteRequests;
 /// <param name="context">The request's database context.</param>
 /// <param name="time">The clock.</param>
 /// <param name="logger">The logger.</param>
-/// <param name="wait">How long the lock may be waited for; only tests shorten it.</param>
+/// <param name="wait">How long the lock and the conversion lock may be waited for; only tests shorten it.</param>
 internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvider time, ILogger<QuoteRequestStore> logger, TimeSpan wait) : IQuoteRequestStore
 {
     private const string EmailCollation = "Latin1_General_100_CI_AS";
@@ -35,6 +35,9 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
     {
         // The update takes the row's exclusive lock to the end of the transaction and matches only a request that is not Converted,
         // so a second order save of the same request waits here and then changes nothing. Any update moves the row version.
+        // The wait is the store's, in whole seconds as for the other locks, and the context's timeout is restored after.
+        var previous = context.Database.GetCommandTimeout();
+        context.Database.SetCommandTimeout((int)Math.Ceiling(wait.TotalSeconds));
         try
         {
             var locked = await context.QuoteRequests
@@ -48,6 +51,10 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
             // A wait for the row that ran out of time, or a deadlock victim, is a lost race like any other.
             context.ChangeTracker.Clear();
             throw new ConcurrencyConflictException(error);
+        }
+        finally
+        {
+            context.Database.SetCommandTimeout(previous);
         }
     }
 

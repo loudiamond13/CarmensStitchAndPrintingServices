@@ -1,6 +1,7 @@
 using Csps.Application.Common;
 using Csps.Application.Ports;
 using Csps.Domain.Expenses;
+using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Persistence;
 using Csps.Infrastructure.Persistence.Locking;
 using Csps.Infrastructure.QuoteRequests;
@@ -137,6 +138,54 @@ public sealed class QuoteRequestStoreLockTests(CspsDatabase database) : IClassFi
         }
     }
 
+    // Review W9 IN-06: the conversion lock waits as long as the store is told to, not the context's command timeout.
+    [Fact]
+    public async Task AConversionLockHeldByAnotherTransactionRunsOutAfterTheStoreWaitAndRestoresTheTimeout()
+    {
+        await database.ResetAsync();
+        var id = await SaveRequestAsync();
+        await using var holder = database.CreateContext();
+        await using var waiter = database.CreateContext();
+        var held = await holder.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (held)
+        {
+            (await NewStore(holder, new FakeLogger<QuoteRequestStore>()).LockForConversionAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+            var other = await waiter.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            await using (other)
+            {
+                waiter.Database.SetCommandTimeout(30);
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+
+                var lost = await Should.ThrowAsync<ConcurrencyConflictException>(
+                    () => NewStore(waiter, new FakeLogger<QuoteRequestStore>()).LockForConversionAsync(id, TestContext.Current.CancellationToken));
+
+                clock.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
+                SqlErrors.Has(lost, SqlErrors.Timeout).ShouldBeTrue("the SQL timeout must travel as the cause");
+                waiter.Database.GetCommandTimeout().ShouldBe(30);
+            }
+
+            await held.RollbackAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task AFreeConversionLockRestoresTheCommandTimeout()
+    {
+        await database.ResetAsync();
+        var id = await SaveRequestAsync();
+        await using var context = database.CreateContext();
+        var transaction = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (transaction)
+        {
+            context.Database.SetCommandTimeout(30);
+
+            (await NewStore(context, new FakeLogger<QuoteRequestStore>()).LockForConversionAsync(id, TestContext.Current.CancellationToken)).ShouldBeTrue();
+
+            context.Database.GetCommandTimeout().ShouldBe(30);
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        }
+    }
+
     private static QuoteRequestStore NewStore(CspsDbContext context, FakeLogger<QuoteRequestStore> logger) =>
         new(context, new FakeTimeProvider(Now), logger, TimeSpan.FromSeconds(1));
 
@@ -151,6 +200,18 @@ public sealed class QuoteRequestStoreLockTests(CspsDatabase database) : IClassFi
         {
             return error;
         }
+    }
+
+    private async Task<Guid> SaveRequestAsync()
+    {
+        var request = QuoteRequest.Receive(
+            Guid.CreateVersion7(Now),
+            new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null, null, null, null, null, null),
+            Now).Value;
+        await using var context = database.CreateContext();
+        context.QuoteRequests.Add(request);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return request.Id;
     }
 
     private async Task<Guid> SaveCategoryAsync(string name)
