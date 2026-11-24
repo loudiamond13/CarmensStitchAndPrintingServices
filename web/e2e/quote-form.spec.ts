@@ -1,18 +1,13 @@
 // Get a Quote form E2E (INQ-01, INQ-08, D-35, UI-SPEC Q1 and Q3): a visitor sends a request from the Contact page to the real API.
 // The host runs with the quote limits lifted and a one second minimum time (playwright.config.ts), so every project can send.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { freshMobile } from './helpers.ts';
 import { drawJpeg } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
 
 // A page script as text: the node program has no DOM types.
 const SIDEWAYS_OVERFLOW = 'document.documentElement.scrollWidth - document.documentElement.clientWidth';
-
-/** A Philippine mobile number nobody used before in this run, so the per-sender limit never meets it. */
-function freshMobile(): string {
-  const tail = String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
-  return `09${tail}`;
-}
 
 test('@quote a visitor sends a text-only inquiry and sees Inquiry sent', async ({ page }) => {
   await page.goto('/contact');

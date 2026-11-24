@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { freshMobile, NO_SIDEWAYS_SCROLL } from './helpers.ts';
 import { createQuoteRequest, createStaff } from './testing-api.ts';
 
 interface InboxRow {
@@ -25,12 +25,6 @@ function isInboxRow(value: unknown): value is InboxRow {
     'receivedAtUtc' in value &&
     typeof value.receivedAtUtc === 'string'
   );
-}
-
-/** A Philippine mobile number nobody used before in this run, so the per-sender limit never meets it. */
-function freshMobile(): string {
-  const tail = String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
-  return `09${tail}`;
 }
 
 /** A fake visitor name no other run used. */
