@@ -2074,6 +2074,7 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     usePrefill();
     const { user } = await openForm({ search: FROM_REQUEST });
     await finishPrefilledOrder(user);
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
     await user.click(screen.getByRole('button', { name: 'Save Order' }));
 
@@ -2081,6 +2082,8 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     expect(within(banner).getByText("Couldn't find that quote request.")).toBeVisible();
     expect(within(banner).getByText('Press Save Order to save the order without it.')).toBeVisible();
     expect(screen.getByLabelText(/^Description/)).toHaveValue('Test jersey');
+    // The request is gone: its page, the inbox and the New count read again (W10 IN-02).
+    expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
 
     await user.click(screen.getByRole('button', { name: 'Save Order' }));
     await screen.findByText('The order page');
