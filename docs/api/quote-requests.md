@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T18:37:05-06:00
+updated: 2026-11-23T19:39:37-06:00
 ---
 
 # The quote requests API
@@ -449,8 +449,10 @@ Answers that come from the request:
 | `404 quote-requests.not-found` | no request has this id. Nothing is saved and no order number is taken. |
 | `409 quote-requests.already-converted` | the request already became an order (D-23): "This quote request was already turned into an order." The answer carries `orderId` and `orderNumber` of that order, so the page can link to it. Nothing is saved and no order number is taken. |
 
-Two saves at the same moment make exactly one order; the other gets the `409`. A unique index on the order link (only over set
-values) also keeps one order to one request in the database. That is a constraint, not a trigger (OR-7).
+Two saves at the same moment make exactly one order: the second waits on the first's lock, then gets the `409`. The lock is what
+gives that answer. Without it, the request's row version would still stop a second order, but that save would fail as
+`409 orders.busy`. A unique index on the order link (only over set values) keeps one order from being linked to two requests. That
+is a constraint, not a trigger (OR-7).
 
 The order's answer is the full order, as for every order save, and it now carries `quoteRequestId`. The repeat-press guard keeps
 that answer for 24 hours, as it does for every order save.

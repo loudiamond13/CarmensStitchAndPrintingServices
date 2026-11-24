@@ -5,9 +5,13 @@ using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
 using Csps.Domain.QuoteRequests;
+using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.Persistence.Locking;
 using Csps.Server.IntegrationTests.Orders;
 using Csps.Testing;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Csps.Server.IntegrationTests.QuoteRequests;
 
@@ -21,6 +25,9 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
     private static readonly DateTimeOffset Received = new(2026, 11, 20, 23, 30, 0, TimeSpan.Zero);
     private static readonly Guid BasketballLine = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
     private static readonly string[] TypeNames = ["Charlie Jersey", "Alpha Jersey", "Bravo Jersey"];
+
+    // SqlClient's number for a command that ran out of time.
+    private const int SqlTimeout = -2;
 
     [Fact]
     public async Task ThePrefillHasTheDisplayPhoneTheMessageTheReceivedDayAndTheFirstActiveTypeOfTheLine()
@@ -126,25 +133,34 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
     }
 
     [Fact]
-    public async Task TwoSavesAtOnceMakeOneOrderAndTheOtherIs409WithTheFirstOrder()
+    public async Task TwoSavesAtOnceMakeOneOrderAndTheOtherWaitsThenIs409WithTheFirstOrder()
     {
         await using var rig = await QuoteRequestStaffRig.StartAsync(database);
         var manager = await TestSessions.StartAsync(rig.Factory, Roles.Manager);
         var id = await rig.SeedAsync(new QuoteSeed("Juan Dela Cruz", QuoteRequestStatus.Quoted, Received));
         var today = await OrderFixtures.TodayAsync((CspsApiFactory)rig.Factory);
+        Task<(HttpStatusCode Status, JsonElement Body)> first;
+        Task<(HttpStatusCode Status, JsonElement Body)> second;
 
-        var answers = await Task.WhenAll(
-            PostOrderAsync(rig, rig.Admin.AccessToken, id, today),
-            PostOrderAsync(rig, manager.AccessToken, id, today));
+        // The number lock is held, so the first save stops after it locked the request and its transaction stays open.
+        await using (var numbers = await HoldLockAsync("order-numbers"))
+        {
+            first = PostOrderAsync(rig, rig.Admin.AccessToken, id, today);
+            await WaitUntilLockedAsync(id);
+            second = PostOrderAsync(rig, manager.AccessToken, id, today);
+            await Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+            first.IsCompleted.ShouldBeFalse();
+            second.IsCompleted.ShouldBeFalse();
+        }
 
-        answers.Select(answer => answer.Status).Order().ShouldBe([HttpStatusCode.Created, HttpStatusCode.Conflict]);
-        var created = answers.Single(answer => answer.Status == HttpStatusCode.Created).Body;
-        var refused = answers.Single(answer => answer.Status == HttpStatusCode.Conflict).Body;
-        AssertAlreadyConverted(refused, created);
+        // Without the request lock the second save would load the old row and lose on its version with orders.busy.
+        var created = await first;
+        created.Status.ShouldBe(HttpStatusCode.Created, created.Body.ToString());
+        var refused = await second;
+        refused.Status.ShouldBe(HttpStatusCode.Conflict, refused.Body.ToString());
+        AssertAlreadyConverted(refused.Body, created.Body);
         await using var context = database.CreateContext();
         (await context.Orders.IgnoreQueryFilters().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
-
-        // The refused save took no number: the next order gets the second one.
         var next = await OrderFixtures.CreateAsync(rig.Client, rig.Admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
         next.GetProperty("number").GetString().ShouldBe($"ORD-{today.Year}-0002");
     }
@@ -239,6 +255,42 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
         return (response.StatusCode, document.RootElement.Clone());
     }
 
+    // Takes a standing lock row in an open transaction, the way a save would, and rolls it back on dispose.
+    private async Task<LockHold> HoldLockAsync(string name)
+    {
+        var context = database.CreateContext();
+        var transaction = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var changed = await context.Set<DatabaseLock>().Where(row => row.Name == name)
+            .ExecuteUpdateAsync(set => set.SetProperty(row => row.TakenAtUtc, TimeProvider.System.GetUtcNow()), TestContext.Current.CancellationToken);
+        changed.ShouldBe(1);
+        return new LockHold(context, transaction);
+    }
+
+    // Waits until another transaction holds the request's row: an update with a one-second timeout then runs out of time.
+    private async Task WaitUntilLockedAsync(Guid id)
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            await using var context = database.CreateContext();
+            await using var transaction = await context.Database.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            context.Database.SetCommandTimeout(1);
+            try
+            {
+                await context.QuoteRequests.Where(request => request.Id == id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(request => request.EditVersion, Guid.NewGuid()), TestContext.Current.CancellationToken);
+            }
+            catch (SqlException error) when (error.Number == SqlTimeout)
+            {
+                return;
+            }
+
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+        }
+
+        throw new TimeoutException("The first save never locked the quote request.");
+    }
+
     private static async Task<JsonElement> PrefillAsync(QuoteRequestStaffRig rig, string token, Guid id)
     {
         using var response = await rig.GetAsync(token, $"{QuoteRequestStaffRig.Route}/{id:D}/order-prefill");
@@ -277,5 +329,15 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
         context.ProductTypes.AddRange(types);
         await context.SaveChangesAsync(token);
         return types[2].Id;
+    }
+
+    private sealed class LockHold(CspsDbContext context, IDbContextTransaction transaction) : IAsyncDisposable
+    {
+        public async ValueTask DisposeAsync()
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            await transaction.DisposeAsync();
+            await context.DisposeAsync();
+        }
     }
 }

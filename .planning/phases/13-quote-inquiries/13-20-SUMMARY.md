@@ -1,6 +1,6 @@
 ---
 created: 2026-11-23T18:50:48-06:00
-updated: 2026-11-23T18:50:48-06:00
+updated: 2026-11-23T19:39:37-06:00
 phase: 13-quote-inquiries
 plan: 20
 subsystem: quote-requests-staff-api
@@ -128,7 +128,7 @@ coverage:
     requirement: INQ-06
     verification:
       - kind: integration
-        ref: "tests/Csps.Server.IntegrationTests/QuoteRequests/QuoteConversionTests.cs#TwoSavesAtOnceMakeOneOrderAndTheOtherIs409WithTheFirstOrder, ASaveAfterTheConversionIs409WithTheFirstOrderAndSavesNothing, ASecondRequestRowWithTheSameOrderFailsOnTheUniqueIndex"
+        ref: "tests/Csps.Server.IntegrationTests/QuoteRequests/QuoteConversionTests.cs#TwoSavesAtOnceMakeOneOrderAndTheOtherWaitsThenIs409WithTheFirstOrder, ASaveAfterTheConversionIs409WithTheFirstOrderAndSavesNothing, ASecondRequestRowWithTheSameOrderFailsOnTheUniqueIndex"
         status: pass
     human_judgment: false
   - id: D4
@@ -157,9 +157,9 @@ completed: 2026-11-23
 
 # Phase 13 Plan 20: Staff turn a quote request into a prefilled order, and the two stay linked Summary
 
-*Created: 2026-11-23T18:50:48-06:00 · Updated: 2026-11-23T18:50:48-06:00*
+*Created: 2026-11-23T18:50:48-06:00 · Updated: 2026-11-23T19:39:37-06:00*
 
-**Staff read a New Order prefill for a quote request, and saving the order with `quoteRequestId` turns the request Converted and links the two in the same transaction. A row lock, the 409 that names the first order and a filtered unique index keep one request to one order. Both detail answers point at each other. A permanent order delete takes the request and its photos with it.**
+**Staff read a New Order prefill for a quote request, and saving the order with `quoteRequestId` turns the request Converted and links the two in the same transaction. A row lock and the 409 that names the first order keep one request to one order, with the request's row version as the backstop. A filtered unique index keeps one order to one request (13-REVIEW-W9 IN-01). Both detail answers point at each other. A permanent order delete takes the request and its photos with it.**
 
 ## Performance
 
@@ -328,7 +328,7 @@ None. Every RED stub was replaced by its GREEN commit: the failing `MarkConverte
 ## Threat Flags
 
 None beyond the plan.
-- T-13-59: the conditional `ExecuteUpdate` lock in the order transaction and the filtered unique index; tested by the parallel test and the unique-index test.
+- T-13-59: the conditional `ExecuteUpdate` lock in the order transaction, with the row version as the backstop; the filtered unique index keeps one order to one request. Tested by the parallel test (it holds the first save open, W9 IN-01) and the unique-index test.
 - T-13-60: order create and the prefill are Staff, and the prefill has a matrix row. The request id is checked to exist (404).
 - T-13-61: the request's stored photos are queued as OrderDeleted in the same save as the permanent delete.
 - T-13-SC: no package was added or bumped.
