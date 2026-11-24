@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T00:04:37-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T01:34:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -41,6 +41,10 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 ## Stale test cache hides a new dev preview (plan 13-23)
 
 Vitest keeps transformed files in `web/node_modules/.vitest-cache`. `src/dev/kit.ts` finds the preview files with `import.meta.glob`, and the cached copy kept the old file list, so a new preview (`QuoteFormDemo`) showed as "Missing component" until the cache folder was deleted. A checkout that already has that folder may see the same after this plan merges: delete `web/node_modules/.vitest-cache` and run again. Worth a quick task to turn that cache off for `kit.ts` or for the whole run.
+| 2026-11-24, W11 fixes | `QuoteFormPhotos.test.tsx` "starts no upload before the text is saved" | the Sending state lasts only the 1 s ticket wait, so a loaded machine can miss it | the file alone: 25 of 25, three runs |
+| 2026-11-24, W11 fixes | `OrderFormPage.test.tsx`, `ProfilePage.test.tsx` (13 timeouts) | failed while the 13-24 sweep ran in parallel | alone: 188 of 188 |
+
+- Follow-up (W11 WR-03): `web/src/test/quoteRequestFixtures.ts` still uses `0917 555 0101`-style numbers, which are valid Philippine mobile numbers; switch them to the UI-SPEC sample style in a later quick task.
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 

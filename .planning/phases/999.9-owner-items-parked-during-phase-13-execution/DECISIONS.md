@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T00:06:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T01:34:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -302,6 +302,15 @@ It also settles P13-BL-07 (the staff alert line). Until then the page stays DRAF
 1. **Request page parts in the showcase.** A: the showcase holds only the UI-SPEC list (the quote form states, status pills and badges, the count chip, the dashboard strip). B: also add read-only cases for the Notes card, Delete Request, Turn into Order, the "already an order" box and the status menu, with their actions turned off.
 2. **Where the quote form states show.** A: in the showcase and on the dev parity page. B: also on `/dev/public`.
 3. **Bundle cost.** A: showing the real form in the showcase adds about 0.10 KB to the Contact page (148.32 of 150 KB). B: show the form states on the parity page only, which removes that cost.
+
+## P13-BL-29 · Choices from the showcase review fixes (13-REVIEW-FIX-W11)
+
+**Status:** open · **Blocks:** nothing. Built as A unless it says otherwise.
+
+1. **Where the showcase demos get their shop data (review CR-01).** The demo used to put fake product lines and shop facts into the real public pages' memory. A (built): the demos use fixed made-up data in their own separate space, so the real pages never see it, and no link inside a demo navigates. B: the showcase reads the real shop data instead, which removes the separate space and its small cost on the public pages.
+2. **Public page size.** The fix above adds about 0.1 KB to every public page (privacy is now 149.19 of 150 KB). This joins P13-BL-28 item 3; choosing B there and B here would win the bytes back.
+3. **Alert-style demo states.** A: the photos-refused, rate-limited and send-failed states show only after "Show this example", so a screen reader doesn't hear three alerts when the showcase opens. B: show them on load.
+4. **The count-chip sidebar demos.** A: made inert, so the page has one real Admin menu. B: leave them live.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
