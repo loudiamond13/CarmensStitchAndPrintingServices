@@ -22,6 +22,12 @@ public interface IQuoteRequestStore
     /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">The wait ran out of time or was a deadlock victim.</exception>
     Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Reads whether a request exists, its status and the order it became, with that order's number even when the order was deleted.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The state, or null when there is no such request.</returns>
+    Task<QuoteConversionState?> FindConversionAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Adds a new request to the unit of work. Nothing is saved here.</summary>
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);
@@ -71,3 +77,9 @@ public interface IQuoteRequestStore
     /// <returns>True when the place was filled; false when it was already filled or the request is Spam or gone.</returns>
     Task<bool> FillPhotoSlotAsync(Guid requestId, int slot, QuotePhotoStored stored, CancellationToken cancellationToken);
 }
+
+/// <summary>What the order save needs to answer a request it could not lock (D-23).</summary>
+/// <param name="Status">The request's status.</param>
+/// <param name="OrderId">The order the request became; null when none.</param>
+/// <param name="OrderNumber">That order's number; null when none.</param>
+public sealed record QuoteConversionState(QuoteRequestStatus Status, Guid? OrderId, string? OrderNumber);

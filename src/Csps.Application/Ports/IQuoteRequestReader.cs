@@ -101,6 +101,8 @@ public sealed record QuoteRequestNoteRow(Guid Id, string Text, ActorRef? Created
 /// <param name="LastChangedBy">Who last changed the request; null when nobody has.</param>
 /// <param name="LastChangedAtUtc">When it was last changed; null when never.</param>
 /// <param name="RowVersion">The row version a change must send back.</param>
+/// <param name="OrderId">The order the request became; null until it is converted.</param>
+/// <param name="OrderNumber">That order's number, also after the order was deleted; null until it is converted.</param>
 public sealed record QuoteRequestDetailView(
     Guid Id,
     DateTimeOffset ReceivedAtUtc,
@@ -120,7 +122,9 @@ public sealed record QuoteRequestDetailView(
     IReadOnlyList<QuoteRequestNoteRow> Notes,
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAtUtc,
-    byte[] RowVersion);
+    byte[] RowVersion,
+    Guid? OrderId,
+    string? OrderNumber);
 
 /// <summary>Which requests the status part of the inbox list keeps (D-18).</summary>
 public enum QuoteRequestGroup

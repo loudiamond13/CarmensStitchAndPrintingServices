@@ -55,6 +55,8 @@ public sealed record QuoteRequestNoteResponse(Guid Id, string Text, ActorRef? Cr
 /// <param name="LastChangedBy">Who last changed the request; null when nobody has.</param>
 /// <param name="LastChangedAt">When the request was last changed; null when never.</param>
 /// <param name="Version">The row version to send with a status change.</param>
+/// <param name="OrderId">The order the request became (D-21); null until it is converted.</param>
+/// <param name="OrderNumber">That order's number, such as <c>ORD-2026-0148</c>; null until it is converted.</param>
 public sealed record QuoteRequestDetailResponse(
     Guid Id,
     DateTimeOffset ReceivedAtUtc,
@@ -75,4 +77,6 @@ public sealed record QuoteRequestDetailResponse(
     IReadOnlyList<QuoteRequestNoteResponse> Notes,
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt,
-    string Version);
+    string Version,
+    Guid? OrderId,
+    string? OrderNumber);

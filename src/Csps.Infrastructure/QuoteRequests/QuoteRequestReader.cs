@@ -231,7 +231,9 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
                 ? new ActorRef(changerId, $"{header.ChangerFirst} {header.ChangerLast}", header.ChangerFormer)
                 : null,
             row.UpdatedAtUtc,
-            row.RowVersion);
+            row.RowVersion,
+            null,
+            null);
     }
 
     private static QuoteRequestCounts ToCounts(Dictionary<QuoteRequestStatus, int> byStatus)

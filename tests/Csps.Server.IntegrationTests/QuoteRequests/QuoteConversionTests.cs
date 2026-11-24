@@ -13,7 +13,8 @@ namespace Csps.Server.IntegrationTests.QuoteRequests;
 
 /// <summary>
 /// INQ-06, D-20 to D-23, CWE-362, CWE-862: staff read the New Order prefill of a quote request, and saving the order with the
-/// request id turns the request Converted and links the two in the same transaction.
+/// request id turns the request Converted and links the two in the same transaction. One request makes one order: a second save is a
+/// 409 with the first order, and the order and the request point at each other.
 /// </summary>
 public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<CspsDatabase>
 {
@@ -117,6 +118,120 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
         problem.GetProperty("code").GetString().ShouldBe("quote-requests.not-found");
         await using var context = database.CreateContext();
         (await context.Orders.IgnoreQueryFilters().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TwoSavesAtOnceMakeOneOrderAndTheOtherIs409WithTheFirstOrder()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var manager = await TestSessions.StartAsync(rig.Factory, Roles.Manager);
+        var id = await rig.SeedAsync(new QuoteSeed("Juan Dela Cruz", QuoteRequestStatus.Quoted, Received));
+        var today = await OrderFixtures.TodayAsync((CspsApiFactory)rig.Factory);
+
+        var answers = await Task.WhenAll(
+            PostOrderAsync(rig, rig.Admin.AccessToken, id, today),
+            PostOrderAsync(rig, manager.AccessToken, id, today));
+
+        answers.Select(answer => answer.Status).Order().ShouldBe([HttpStatusCode.Created, HttpStatusCode.Conflict]);
+        var created = answers.Single(answer => answer.Status == HttpStatusCode.Created).Body;
+        var refused = answers.Single(answer => answer.Status == HttpStatusCode.Conflict).Body;
+        AssertAlreadyConverted(refused, created);
+        await using var context = database.CreateContext();
+        (await context.Orders.IgnoreQueryFilters().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+
+        // The refused save took no number: the next order gets the second one.
+        var next = await OrderFixtures.CreateAsync(rig.Client, rig.Admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        next.GetProperty("number").GetString().ShouldBe($"ORD-{today.Year}-0002");
+    }
+
+    [Fact]
+    public async Task ASaveAfterTheConversionIs409WithTheFirstOrderAndSavesNothing()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed("Juan Dela Cruz", QuoteRequestStatus.New, Received));
+        var first = await CreateOrderAsync(rig, id, HttpStatusCode.Created);
+
+        var refused = await CreateOrderAsync(rig, id, HttpStatusCode.Conflict);
+
+        AssertAlreadyConverted(refused, first);
+        await using var context = database.CreateContext();
+        (await context.Orders.IgnoreQueryFilters().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.QuoteRequestStatusChanges.CountAsync(change => change.QuoteRequestId == id, TestContext.Current.CancellationToken)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ASecondRequestRowWithTheSameOrderFailsOnTheUniqueIndex()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var id = await rig.SeedAsync(new QuoteSeed("Juan Dela Cruz", QuoteRequestStatus.New, Received));
+        var other = await rig.SeedAsync(new QuoteSeed("Maria Santos", QuoteRequestStatus.New, Received.AddMinutes(5)));
+        var orderId = (await CreateOrderAsync(rig, id, HttpStatusCode.Created)).GetProperty("id").GetGuid();
+
+        await using var context = database.CreateContext();
+        var failure = await Should.ThrowAsync<Exception>(() => context.QuoteRequests
+            .Where(request => request.Id == other)
+            .ExecuteUpdateAsync(set => set.SetProperty(request => request.OrderId, (Guid?)orderId), TestContext.Current.CancellationToken));
+
+        failure.ToString().ShouldContain("IX_QuoteRequests_OrderId");
+    }
+
+    [Fact]
+    public async Task TheOrderAndTheRequestPointAtEachOtherAndADeletedOrderKeepsTheLink()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database);
+        var manager = await TestSessions.StartAsync(rig.Factory, Roles.Manager);
+        var id = await rig.SeedAsync(new QuoteSeed("Juan Dela Cruz", QuoteRequestStatus.New, Received));
+        var unlinked = await rig.SeedAsync(new QuoteSeed("Maria Santos", QuoteRequestStatus.New, Received.AddMinutes(5)));
+        var created = await CreateOrderAsync(rig, id, HttpStatusCode.Created);
+        var orderId = created.GetProperty("id").GetGuid();
+        var today = await OrderFixtures.TodayAsync((CspsApiFactory)rig.Factory);
+        var plain = await OrderFixtures.CreateAsync(rig.Client, rig.Admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+
+        created.GetProperty("quoteRequestId").GetGuid().ShouldBe(id);
+        plain.GetProperty("quoteRequestId").ValueKind.ShouldBe(JsonValueKind.Null);
+        using (var read = await rig.GetAsync(rig.Admin.AccessToken, $"{OrderFixtures.Route}/{orderId:D}"))
+        {
+            (await QuoteRequestStaffRig.BodyAsync(read, HttpStatusCode.OK)).GetProperty("quoteRequestId").GetGuid().ShouldBe(id);
+        }
+
+        var detail = await rig.ReadAsync(id);
+        detail.GetProperty("orderId").GetGuid().ShouldBe(orderId);
+        detail.GetProperty("orderNumber").GetString().ShouldBe(created.GetProperty("number").GetString());
+        var none = await rig.ReadAsync(unlinked);
+        none.GetProperty("orderId").ValueKind.ShouldBe(JsonValueKind.Null);
+        none.GetProperty("orderNumber").ValueKind.ShouldBe(JsonValueKind.Null);
+
+        using (var deleted = await OrderFixtures.DeleteAsync(rig.Client, manager.AccessToken, orderId))
+        {
+            deleted.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        }
+
+        using (var read = await OrderFixtures.GetDeletedAsync(rig.Client, manager.AccessToken, orderId))
+        {
+            (await QuoteRequestStaffRig.BodyAsync(read, HttpStatusCode.OK)).GetProperty("order").GetProperty("quoteRequestId").GetGuid().ShouldBe(id);
+        }
+
+        var afterDelete = await rig.ReadAsync(id);
+        afterDelete.GetProperty("orderNumber").GetString().ShouldBe(created.GetProperty("number").GetString());
+        afterDelete.GetProperty("status").GetString().ShouldBe("converted");
+    }
+
+    private static void AssertAlreadyConverted(JsonElement problem, JsonElement first)
+    {
+        problem.GetProperty("code").GetString().ShouldBe("quote-requests.already-converted");
+        problem.GetProperty("detail").GetString().ShouldBe("This quote request was already turned into an order.");
+        problem.GetProperty("orderId").GetGuid().ShouldBe(first.GetProperty("id").GetGuid());
+        problem.GetProperty("orderNumber").GetString().ShouldBe(first.GetProperty("number").GetString());
+    }
+
+    private static async Task<(HttpStatusCode Status, JsonElement Body)> PostOrderAsync(QuoteRequestStaffRig rig, string token, Guid quoteRequestId, DateOnly today)
+    {
+        var body = OrderFixtures.ValidBody(OrderFixtures.BasketballId, today);
+        body["quoteRequestId"] = quoteRequestId;
+        using var response = await OrderFixtures.PostAsync(rig.Client, token, body);
+        var text = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var document = JsonDocument.Parse(text);
+        return (response.StatusCode, document.RootElement.Clone());
     }
 
     private static async Task<JsonElement> PrefillAsync(QuoteRequestStaffRig rig, string token, Guid id)

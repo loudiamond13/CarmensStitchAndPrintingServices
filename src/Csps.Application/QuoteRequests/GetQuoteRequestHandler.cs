@@ -97,6 +97,8 @@ public sealed class GetQuoteRequestHandler(IQuoteRequestReader reader, IImageDel
             [.. view.Notes.Select(static note => new QuoteRequestNoteResponse(note.Id, note.Text, note.CreatedBy, note.CreatedAtUtc))],
             view.LastChangedBy,
             view.LastChangedAtUtc,
-            RowVersions.ToText(view.RowVersion));
+            RowVersions.ToText(view.RowVersion),
+            null,
+            null);
     }
 }

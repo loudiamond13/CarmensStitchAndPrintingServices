@@ -753,6 +753,44 @@ public sealed class CreateOrderHandlerTests
     }
 
     [Fact]
+    public async Task AConvertedQuoteRequestIs409WithTheFirstOrdersIdAndNumberAndTakesNoNumber()
+    {
+        var harness = new Harness();
+        var firstOrder = Guid.Parse("01a2b3c4-0000-7000-8000-000000000148");
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+        harness.Quotes.FindConversionAsync(QuoteId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<QuoteConversionState?>(new QuoteConversionState(QuoteRequestStatus.Converted, firstOrder, "ORD-2026-0148")));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("quote-requests.already-converted");
+        result.Error.Message.ShouldBe("This quote request was already turned into an order.");
+        var extensions = result.Error.Extensions.ShouldNotBeNull();
+        extensions["orderId"].ShouldBe(firstOrder);
+        extensions["orderNumber"].ShouldBe("ORD-2026-0148");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Audit.Entries.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AConvertedQuoteRequestWithNoOrderLinkIsStillThe409()
+    {
+        var harness = new Harness();
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+        harness.Quotes.FindConversionAsync(QuoteId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<QuoteConversionState?>(new QuoteConversionState(QuoteRequestStatus.Converted, null, null)));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("quote-requests.already-converted");
+        result.Error.Extensions.ShouldBeNull();
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task ALockedRequestThatCannotBeLoadedIs404()
     {
         var harness = new Harness();
