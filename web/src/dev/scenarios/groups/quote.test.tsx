@@ -1,6 +1,6 @@
 // The QuoteForm scenarios (UI-SPEC "Component Showcase additions"; plan 13-23): the real Get a Quote form in each of its eight states,
 // reached with made-up values and a demo service, so no case sends a request. Blush only (the public look) and SPEC-GAP (parity false).
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { createMemoryRouter, MemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -64,6 +64,11 @@ const READY: Readonly<Record<Id, () => Promise<unknown>>> = {
   'quote-form-rate-limited': () => screen.findByText(/You've sent a few requests/, {}, WAIT),
   'quote-form-send-failed': () => screen.findByText(/Couldn't send your inquiry/, {}, WAIT),
 };
+
+/** Lets a request that starts just after a state shows begin, so the "no request" checks would see it. */
+async function settle(): Promise<void> {
+  await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+}
 
 // Each case loads the form's pieces and plays a visitor's steps: more than the 5 s default on a busy machine.
 vi.setConfig({ testTimeout: 30_000 });
@@ -183,6 +188,7 @@ describe('the quote scenarios', () => {
     renderCase(id, true);
 
     await READY[id]();
+    await settle();
 
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -195,6 +201,7 @@ describe('the quote scenarios', () => {
 
     expect(container.textContent).not.toContain('Missing component');
     await expectNoAxeViolations(container);
+    await settle();
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
