@@ -12,6 +12,7 @@ import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
 import { ICONS } from '@/components/brand/icons';
+import type { ShowcaseSectionId } from '@/modules/admin/components/showcase/showcaseSections';
 import { ComponentShowcaseRoute, ShowcaseSection } from './ComponentShowcasePage';
 import { scenarios } from '@/dev/scenarios';
 
@@ -461,6 +462,60 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
       expect(await frame.findByRole('heading', { level: 2 }, { timeout: 10_000 })).toBeInTheDocument();
     },
   );
+});
+
+/** Some showcase sections at /admin/components, with every other path showing "Left the showcase". */
+function renderAtShowcase(...ids: ShowcaseSectionId[]) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/admin/components',
+        element: (
+          <ToastProvider>
+            {ids.map((id) => (
+              <ShowcaseSection key={id} id={id} title={id} />
+            ))}
+          </ToastProvider>
+        ),
+      },
+      { path: '*', element: <p>Left the showcase</p> },
+    ],
+    { initialEntries: ['/admin/components'] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+describe('ComponentShowcase links stay on the showcase (CR-01, WR-01)', FULL_PAGE, () => {
+  it.each([
+    ['buttons', 'buttonlink-primary-md', 'View Products'],
+    ['navigation', 'site-header-home', 'Products'],
+    ['quotes', 'quote-form-empty', 'Privacy Policy'],
+  ] as const)('a press on a link in the %s section (%s, "%s") does not leave the page', async (id, caseId, name) => {
+    const user = userEvent.setup();
+    const router = renderAtShowcase(id);
+    const frame = within(caseFrame(caseId));
+    const [link] = await frame.findAllByRole('link', { name }, { timeout: 10_000 });
+    if (link === undefined) throw new Error(`No "${name}" link.`);
+
+    await user.click(link);
+
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(screen.queryByText('Left the showcase')).toBeNull();
+  });
+
+  it('gives the quote cases an inert Messenger link that stays on the page', async () => {
+    const user = userEvent.setup();
+    const router = renderAtShowcase('quotes');
+    const frame = within(caseFrame('quote-form-rate-limited'));
+    const link = await frame.findByRole('link', { name: 'Message Us on Messenger' }, { timeout: 10_000 });
+
+    expect(link.getAttribute('href')).toBe('#');
+    await user.click(link);
+
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(router.state.location.hash).toBe('');
+  });
 });
 
 describe('ComponentShowcase accessibility (A11Y-01)', () => {

@@ -49,7 +49,11 @@ const DEMO_LINES: PublicProductLines = {
 };
 
 /** The shop facts and product lines the form shows, with no request and no write to the shared stores. */
-const DEMO_DATA = new Map([fixedAnswer(productLinesResource, DEMO_LINES), fixedAnswer(siteResource, PARITY_SITE)]);
+const DEMO_DATA = new Map([
+  fixedAnswer(productLinesResource, DEMO_LINES),
+  // An in-page Messenger link: the demo never points at an outside account.
+  fixedAnswer(siteResource, { ...PARITY_SITE, messengerUrl: '#' }),
+]);
 
 /** A one-pixel PNG, so the picked photos have a real preview. */
 const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4Xe4LAAOgAZDBbDQ6AAAAAElFTkSuQmCC';

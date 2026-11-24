@@ -15,7 +15,7 @@
 //   - the skip link alone in place of its focusing wrapper (no second `main`, no focus move on load);
 //   - the extra cases no scenario has: the icon names, the toast triggers, dates and a loaded LazyImage.
 // The seed data is spec §12's (Carmen Reyes, Jomar Santos inactive, ORD-2026-0148, ORD-2026-0151), from the scenarios.
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react';
 import { Button, Note, overlineClasses } from '@/components';
 import {
   pageHeadClasses,
@@ -66,11 +66,18 @@ interface CaseFrameProps {
   children?: ReactNode;
 }
 
+/** A press on a link in a case is not followed, so no case leaves the showcase; buttons work as usual. */
+function stayOnShowcase(event: MouseEvent): void {
+  if (event.target instanceof Element && event.target.closest('a[href]') !== null) {
+    event.preventDefault();
+  }
+}
+
 /** One case: its id in the overline look, over its `[data-case]` frame (a scrollable region named by the id). */
 function CaseFrame({ id, theme, demo = false, children }: CaseFrameProps) {
   const labelId = useId();
   return (
-    <div className={caseClasses}>
+    <div className={caseClasses} onClickCapture={stayOnShowcase} onAuxClickCapture={stayOnShowcase}>
       <p id={labelId} className={overlineClasses}>
         {id}
       </p>
