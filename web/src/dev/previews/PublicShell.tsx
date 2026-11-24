@@ -15,7 +15,7 @@ import { siteResource } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicSite } from '@/modules/public/services/siteService';
 
 /** The made-up shop facts of the parity footer. The reference fragment repeats them as text. */
-const PARITY_SITE: PublicSite = {
+export const PARITY_SITE: PublicSite = {
   businessName: 'Sample Shop',
   tagline: 'Custom tailoring and full-sublimation printing for teams, leagues and riding groups.',
   aboutText: null,
