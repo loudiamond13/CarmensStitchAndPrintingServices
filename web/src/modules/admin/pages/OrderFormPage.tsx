@@ -6,7 +6,7 @@
 // values live in this form and save with the order. With `?fromRequest={id}` the form starts from that quote request and the save
 // converts it (UI-SPEC R3, D-20).
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 import { useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { Controller, useForm, useWatch, type FieldPath } from 'react-hook-form';
@@ -66,7 +66,7 @@ import { ADMIN_COPY } from '@/modules/admin/copy';
 import { useApplyOrder, useRefetchOrder } from '@/modules/admin/hooks/useApplyOrder';
 import { orderKey, useOrderQuery } from '@/modules/admin/hooks/useOrderQuery';
 import { photoUploadQueue, type UploadDeps } from '@/modules/admin/hooks/usePhotoUploadQueue';
-import { isQuoteRequestId } from '@/modules/admin/hooks/useQuoteRequestQuery';
+import { isQuoteRequestId, quoteRequestKey } from '@/modules/admin/hooks/useQuoteRequestQuery';
 import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
 import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { useBusinessTodayState } from '@/modules/admin/hooks/useBusinessToday';
@@ -94,7 +94,11 @@ import { blankPublicWebsite, publicWebsiteValuesOf } from '@/modules/admin/publi
 import { orderStateActionClasses } from '@/modules/admin/components/orderPage.recipe';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { ordersService, type OrderDetailResponse } from '@/modules/admin/services/ordersService';
-import { quoteRequestsService, type OrderPrefill } from '@/modules/admin/services/quoteRequestsService';
+import {
+  quoteRequestsService,
+  type OrderPrefill,
+  type QuoteRequestDetailResponse,
+} from '@/modules/admin/services/quoteRequestsService';
 import { ORDER_STATUSES, type OrderStatus } from '@/utils/csps';
 import { formatCalendarDate } from '@/utils/format';
 import { isCalendarDate } from '@/lib/url-state/parsers';
@@ -198,6 +202,8 @@ interface CreateOrderFormProps {
   prefill?: OrderPrefill | undefined;
   /** The form was opened from a quote request that is gone, so it is blank. */
   requestMissing?: boolean | undefined;
+  /** The order this tab already read the request as Converted to: the box above Save shows from the start. */
+  converted?: ExistingOrder | null | undefined;
 }
 
 /** The order a quote request already became (409 quote-requests.already-converted); null members when the server named none. */
@@ -212,7 +218,7 @@ interface CreateSubmission {
   quoteRequestId: string | null;
 }
 
-function CreateOrderForm({ today, prefill, requestMissing = false }: CreateOrderFormProps) {
+function CreateOrderForm({ today, prefill, requestMissing = false, converted = null }: CreateOrderFormProps) {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const navigate = useNavigate();
@@ -233,7 +239,7 @@ function CreateOrderForm({ today, prefill, requestMissing = false }: CreateOrder
   // The quote request a save converts (D-20).
   const [linkedRequest, setLinkedRequest] = useState<string | null>(prefill?.quoteRequestId ?? null);
   // Another save converted the request first: the box above Save names that order.
-  const [existing, setExisting] = useState<ExistingOrder | null>(null);
+  const [existing, setExisting] = useState<ExistingOrder | null>(converted);
 
   const {
     control,
@@ -368,7 +374,8 @@ function CreateOrderForm({ today, prefill, requestMissing = false }: CreateOrder
         );
         // The saved form must not hold its own way to the new order.
         guard.allowLeave();
-        void navigate(`/admin/orders/${order.id}`);
+        // A form filled from a request leaves the history, so Back cannot fill it again for a Converted request (W10 WR-01).
+        void navigate(`/admin/orders/${order.id}`, prefill === undefined ? undefined : { replace: true });
         const who = order.teamName !== null && order.teamName !== '' ? order.teamName : order.customerName;
         const saved = COPY.toast.message(order.number, who);
         let message: ReactNode = saved;
@@ -889,6 +896,16 @@ interface OpenedForm {
   today: string;
   prefill: OrderPrefill | undefined;
   requestMissing: boolean;
+  converted: ExistingOrder | null;
+}
+
+/** The order a request became, when this tab already read the request as Converted (Converted is final). */
+function knownConversion(queryClient: QueryClient, requestId: string | null): ExistingOrder | null {
+  if (requestId === null) return null;
+  const detail = queryClient.getQueryData<QuoteRequestDetailResponse>(quoteRequestKey(requestId));
+  return detail?.status === 'converted' && detail.orderId !== null
+    ? { id: detail.orderId, number: detail.orderNumber }
+    : null;
 }
 
 /**
@@ -897,6 +914,7 @@ interface OpenedForm {
  */
 function NewOrderPage() {
   const state = useBusinessTodayState();
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   // Read once, so a later change of the address never refills the form.
   const [fromRequest] = useState(() => params.get('fromRequest'));
@@ -936,13 +954,25 @@ function NewOrderPage() {
 
   const [opened, setOpened] = useState<OpenedForm | null>(null);
   if (opened === null && state.today !== null && prefillReady) {
-    setOpened({ today: state.today, prefill: prefill.data, requestMissing });
+    setOpened({
+      today: state.today,
+      prefill: prefill.data,
+      requestMissing,
+      converted: prefill.data === undefined ? null : knownConversion(queryClient, requestId),
+    });
   }
   useEffect(() => {
     document.title = `${COPY.documentTitle}${ADMIN_COPY.titleSuffix}`;
   }, []);
   if (opened !== null) {
-    return <CreateOrderForm today={opened.today} prefill={opened.prefill} requestMissing={opened.requestMissing} />;
+    return (
+      <CreateOrderForm
+        today={opened.today}
+        prefill={opened.prefill}
+        requestMissing={opened.requestMissing}
+        converted={opened.converted}
+      />
+    );
   }
   const failed = state.isError || (prefillFailed && !requestMissing);
   return (

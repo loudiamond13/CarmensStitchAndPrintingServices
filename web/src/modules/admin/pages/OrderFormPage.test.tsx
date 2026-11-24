@@ -11,6 +11,7 @@ import { staffMoneyKey } from '@/modules/admin/hooks/useMyMoneyQuery';
 import { orderKey } from '@/modules/admin/hooks/useOrderQuery';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
 import { photoUploadQueue } from '@/modules/admin/hooks/usePhotoUploadQueue';
+import { quoteRequestKey } from '@/modules/admin/hooks/useQuoteRequestQuery';
 import OrderFormPage from '@/modules/admin/pages/OrderFormPage';
 import { orderPhotosService } from '@/modules/admin/services/orderPhotosService';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
@@ -34,7 +35,7 @@ import {
 import { BASKETBALL_ID } from '@/test/orderListFixtures';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
-import { quoteRequestId } from '@/test/quoteRequestFixtures';
+import { quoteRequestDetail, quoteRequestId } from '@/test/quoteRequestFixtures';
 import type { components } from '@/types/api.generated';
 import { sessionResponse } from '@/test/sessionFixtures';
 import { prepareImage, type PrepareResult } from '@/utils/images';
@@ -1767,6 +1768,30 @@ describe('Turn into Order: the prefill (INQ-06, D-20, UI-SPEC R3)', () => {
     expect(invalidatedRoots(invalidate)).toContainEqual(['quote-requests']);
   });
 
+  it('replaces the prefilled form in the history after a linked save, so Back skips it (W10 WR-01)', async () => {
+    useOrderHandlers({ detail: created });
+    usePrefill();
+    const { user, router } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(router.state.location.pathname).toBe(`/admin/orders/${created.id}`);
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('still adds the new order to the history after a plain save', async () => {
+    useOrderHandlers({ detail: created });
+    const { user, router } = await openForm();
+    await fillValidOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    await screen.findByText('The order page');
+    expect(router.state.historyAction).toBe('PUSH');
+  });
+
   it('says nothing about a quote request and reads none again after a plain save', async () => {
     const backend = useOrderHandlers({ detail: created });
     const { user } = await openForm();
@@ -1899,6 +1924,55 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     await screen.findByRole('alert');
 
     await expectNoAxeViolations(container);
+  });
+
+  it('replaces the prefilled form in the history after Save as a New Order Instead too', async () => {
+    let attempts = 0;
+    useOrderHandlers({
+      detail: created,
+      reply: () => {
+        attempts += 1;
+        return attempts === 1 ? alreadyConverted() : undefined;
+      },
+    });
+    usePrefill();
+    const { user, router } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+    const box = await screen.findByRole('alert');
+
+    await user.click(within(box).getByRole('button', { name: 'Save as a New Order Instead' }));
+
+    await screen.findByText('The order page');
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('names the order up front when this tab already read the request as Converted (W10 WR-01)', async () => {
+    useOrderHandlers();
+    usePrefill();
+    queryClient.setQueryData(
+      quoteRequestKey(REQUEST_ID),
+      quoteRequestDetail(REQUEST_ID, { status: 'converted', ...EXISTING }),
+    );
+    await openForm({ search: FROM_REQUEST });
+
+    const box = screen.getByRole('alert');
+    expect(within(box).getByText('This request is already an order: ORD-2026-0160.')).toBeVisible();
+    expect(within(box).getByRole('link', { name: 'Open Order ORD-2026-0160' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${EXISTING.orderId}`,
+    );
+    expect(within(box).getByRole('button', { name: 'Save as a New Order Instead' })).toBeVisible();
+    expect(screen.getByLabelText(/^Customer name/)).toHaveValue('Juan Dela Cruz');
+  });
+
+  it('shows no box up front when the cached request is not Converted', async () => {
+    useOrderHandlers();
+    usePrefill();
+    queryClient.setQueryData(quoteRequestKey(REQUEST_ID), quoteRequestDetail(REQUEST_ID, { status: 'quoted' }));
+    await openForm({ search: FROM_REQUEST });
+
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('opens a blank form with the info note when the request is not found', async () => {
