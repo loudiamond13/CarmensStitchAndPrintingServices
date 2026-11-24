@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T03:46:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T04:08:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -329,6 +329,15 @@ Performance scored / 0.93, /products 0.94, /gallery 0.92 to 0.94 and /contact 0.
 2. **The showcase section title.** A: "Quote requests". B: "Quote Requests", to match the menu item.
 
 The footer Legal row parity gap from Phase 12 (12-13, in STATE.md) is still open and unchanged.
+
+## P13-BL-32 · Two accepted security risks with no owner ruling yet (13-SECURITY.md)
+
+**Status:** open · **Blocks:** nothing (both low severity; the audit found 0 open threats).
+
+The security audit closed all 73 threats. Two were accepted in the plans without a named owner ruling. Please confirm or reject each:
+
+1. **AR-13-02 (T-13-08):** the daily maintenance call from GitHub uses a secret key; guessing it is accepted as low risk because it runs only from main and is rate limited. A: accept. B: ask for an extra guard.
+2. **AR-13-05 (T-13-35):** the staff inbox search text sits in the address bar (so Back and links keep the search), which can hold a visitor's name; the server's request logs drop it. A: accept. B: keep the search out of the address.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
