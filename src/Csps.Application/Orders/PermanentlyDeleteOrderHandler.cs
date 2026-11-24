@@ -42,7 +42,6 @@ public sealed class PermanentlyDeleteOrderHandler(
             return Result.Failure(AuthErrors.SessionEnded);
         }
 
-
         var outcome = await ConflictRetry
             .RunAsync(
                 () => unitOfWork.InTransactionAsync(token => AttemptAsync(id, confirm, token), cancellationToken),
