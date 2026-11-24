@@ -4,9 +4,22 @@
 // form's own drawing. Nothing is sent: the ticket, the create and the photo uploads are answered here, and the shop facts and
 // product lines are made-up ones from a PublicDataScope, so the app's shared stores are left alone. The form loads as its own
 // piece, as on the Contact page.
-import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type RefObject,
+} from 'react';
+import { ErrorState } from '@/components/states/ErrorState';
 import { HttpError } from '@/core/api/errors';
 import { fixedAnswer, PublicDataScope } from '@/lib/public-data/publicResource';
+import type { QuoteFormProps } from '@/modules/public/components/QuoteForm';
+import { PUBLIC_COPY } from '@/modules/public/copy';
 import { productLinesResource } from '@/modules/public/hooks/useProductLinesQuery';
 import { siteResource } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicProductLine, PublicProductLines } from '@/modules/public/services/contentService';
@@ -23,9 +36,28 @@ export type QuoteFormDemoState =
   | 'rate-limited'
   | 'send-failed';
 
-const DemoForm = lazy(async () => ({
+type FormPiece = () => Promise<{ default: ComponentType<QuoteFormProps> }>;
+
+const loadForm: FormPiece = async () => ({
   default: (await import('@/modules/public/components/QuoteForm')).QuoteForm,
-}));
+});
+
+/** Shows the Contact page's failed-load message in place of the form, so a failed piece takes down this case only. */
+class LoadBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  override render(): ReactNode {
+    if (this.state.failed) {
+      const { title, body } = PUBLIC_COPY.contact.formLoadFailed;
+      return <ErrorState align="start" title={title} message={body} />;
+    }
+    return this.props.children;
+  }
+}
 
 /** A made-up product line with only what the form reads filled in. */
 function line(key: string, title: string, number: string): PublicProductLine {
@@ -207,18 +239,23 @@ function PlaySteps({ state, frame }: { state: QuoteFormDemoState; frame: RefObje
 
 export interface QuoteFormDemoProps {
   state?: QuoteFormDemoState;
+  /** Loads the form's piece; tests pass a failing one. */
+  load?: FormPiece;
 }
 
-export function QuoteFormDemo({ state = 'empty' }: QuoteFormDemoProps) {
+export function QuoteFormDemo({ state = 'empty', load = loadForm }: QuoteFormDemoProps) {
   const frame = useRef<HTMLDivElement>(null);
   const [service] = useState(() => demoService(state));
+  const [DemoForm] = useState(() => lazy(load));
   return (
     <PublicDataScope value={DEMO_DATA}>
       <div ref={frame}>
-        <Suspense fallback={null}>
-          <DemoForm service={service} />
-          <PlaySteps state={state} frame={frame} />
-        </Suspense>
+        <LoadBoundary>
+          <Suspense fallback={null}>
+            <DemoForm service={service} />
+            <PlaySteps state={state} frame={frame} />
+          </Suspense>
+        </LoadBoundary>
       </div>
     </PublicDataScope>
   );

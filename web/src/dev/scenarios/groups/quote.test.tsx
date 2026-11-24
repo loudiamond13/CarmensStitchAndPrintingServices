@@ -8,10 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { ToastProvider } from '@/components';
 import { routes } from '@/core/routes/router';
 import { kit } from '@/dev/kit';
+import { QuoteFormDemo } from '@/dev/previews/QuoteFormDemo';
 import { renderNode } from '@/dev/renderScenario';
 import { useProductLinesQuery } from '@/modules/public/hooks/useProductLinesQuery';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import { expectNoAxeViolations } from '@/test/axe';
+import { collectConsole } from '@/test/consoleGuard';
 import { server } from '@/test/msw';
 import { scenarios } from './quote';
 
@@ -246,5 +248,27 @@ describe('the quote demos keep their made-up data to themselves (CR-01)', () => 
       .filter(([, source]) => source.includes('.prime('))
       .map(([path]) => path);
     expect(priming).toEqual([]);
+  });
+});
+
+describe('a quote case whose form piece fails to load (IN-04)', () => {
+  // React reports the error its boundary caught.
+  afterEach(() => {
+    collectConsole();
+  });
+
+  it('shows the failed-load message in its own case and leaves the rest of the page', async () => {
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <p>Rest of the showcase</p>
+          <QuoteFormDemo state="empty" load={() => Promise.reject(new Error('chunk 404'))} />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('alert', {}, WAIT)).toHaveTextContent("Couldn't load the inquiry form.");
+    expect(screen.getByText('Rest of the showcase')).toBeInTheDocument();
+    expect(screen.queryByRole('form')).toBeNull();
   });
 });
