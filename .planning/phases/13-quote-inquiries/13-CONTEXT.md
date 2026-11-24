@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-22T23:40:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-24T07:35:15-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -77,6 +77,7 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-41:** **The form ticket answer carries the minimum seconds, and the form waits that long.** The form never hard-codes the server's `QuoteRequests:MinimumSeconds`, so raising the setting can never make real sends vanish. The replacement ticket (D-38) follows the same value. Fixes review 13-REVIEW-W4 WR-03. (owner, 2026-11-22)
 - **D-42:** **One stricter email rule for the shop email and the Quote alerts address:** no spaces, line breaks or control characters, a dotted domain, and none of `, ; < > ( ) "`. The server rule and the zod rule match. A saved shop email that fails is flagged only when it is next saved; nothing changes stored data. Fixes review 13-REVIEW-W4 WR-04. (owner, 2026-11-22)
 - **D-43:** **The photo picker loads as its own piece the first time a visitor taps to add photos**, so the quote form stays inside its 45 KB budget (D-35, no raise). Applies to plan 13-12. (owner, 2026-11-22)
+- **D-44:** **The end-of-phase code review covers the whole phase at deep depth**, not only the 7 files changed after the wave 11 review. It runs as 7 parallel deep reviewers over about 340 files, and their findings are merged into one `13-REVIEW.md`. (owner, 2026-11-24)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
