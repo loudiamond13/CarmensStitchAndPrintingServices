@@ -83,9 +83,9 @@ export function createQuoteTicketHolder(
   };
 }
 
-/** Holds the form's ticket: read once the form shows, cancelled when it goes away. */
-export function useQuoteTicket(): QuoteTicketHolder {
-  const [holder] = useState(() => createQuoteTicketHolder((signal) => quoteService.getTicket(signal)));
+/** Holds the form's ticket: read once the form shows, through the given service, cancelled when it goes away. */
+export function useQuoteTicket(service: Pick<QuoteService, 'getTicket'> = quoteService): QuoteTicketHolder {
+  const [holder] = useState(() => createQuoteTicketHolder((signal) => service.getTicket(signal)));
   useEffect(() => {
     holder.refresh();
     return () => {

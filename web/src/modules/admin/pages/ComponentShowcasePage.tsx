@@ -48,8 +48,14 @@ import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from '@/modules/admin
 
 const BY_SECTION = scenariosBySection(scenarios);
 
-/** Cases whose wrapper acts on mount and moves focus (the open user menu): shown only when asked for. */
-const ON_DEMAND: ReadonlySet<string> = new Set(['user-menu-open', 'session-menu-open']);
+/** Cases whose wrapper acts on mount and moves focus (the open user menu, a quote form that sends or shows its errors): shown only when asked for. */
+const ON_DEMAND: ReadonlySet<string> = new Set([
+  'user-menu-open',
+  'session-menu-open',
+  'quote-form-field-errors',
+  'quote-form-sent',
+  'quote-form-sent-photos-missing',
+]);
 
 interface CaseFrameProps {
   id: string;

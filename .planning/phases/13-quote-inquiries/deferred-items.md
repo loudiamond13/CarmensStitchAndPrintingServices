@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T23:12:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T00:04:37-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -36,6 +36,11 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, wave 10 gate | `routes.test.tsx` "list to request to Back restores the pill..." (third time) | failed in the full web suite | the file alone: 87 of 87. Fixed in the W10 fixes (ff9dd757): two 1-second waits now 10 seconds |
 | 2026-11-23, wave 10 gate | `OrderListStoreTests` (PaymentMethod rename) | LocalDB connection error (SNI) in the full .NET suite | the class alone: 21 of 21 |
 | 2026-11-23, wave 10 post-fix gate | `GalleryPage.test.tsx` "puts focus back on the tile..." (third time in a full run, recurring) | failed in the full web suite | the file alone: passed. Worth a quick task to make it steady, as was done for the routes test in the W10 fixes |
+| 2026-11-24, plan 13-23 | `QuoteFormPhotos.test.tsx` "loads the picker when photos are chosen and lists them..." | failed once in a run of 36 files | the file alone: 24 of 24; the same 36 files again: 725 of 725 |
+
+## Stale test cache hides a new dev preview (plan 13-23)
+
+Vitest keeps transformed files in `web/node_modules/.vitest-cache`. `src/dev/kit.ts` finds the preview files with `import.meta.glob`, and the cached copy kept the old file list, so a new preview (`QuoteFormDemo`) showed as "Missing component" until the cache folder was deleted. A checkout that already has that folder may see the same after this plan merges: delete `web/node_modules/.vitest-cache` and run again. Worth a quick task to turn that cache off for `kit.ts` or for the whole run.
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 

@@ -4,7 +4,7 @@ import { isHttpError } from '@/core/api/errors';
 import { newIdempotencyKey } from '@/lib/forms/idempotencyKey';
 import { cleanFileName } from '@/utils/images';
 import { newUploadKey } from './quoteSchemas';
-import { quoteService, type CreateQuoteAnswer, type CreateQuoteBody } from './services/quoteService';
+import { quoteService, type CreateQuoteAnswer, type CreateQuoteBody, type QuoteService } from './services/quoteService';
 
 /** How many photos go up at the same time. */
 const AT_ONCE = 2;
@@ -43,10 +43,19 @@ export interface PhotoUpload {
   /** The declared names, in the same order. */
   readonly names: readonly string[];
   readonly uploadKey: string;
+  /** Where the photos go; the real service unless the caller gives one. */
+  readonly service?: Pick<QuoteService, 'uploadPhoto'> | undefined;
 }
 
 /** Uploads every photo and answers the names of the ones that did not arrive, in the order picked. */
-export async function uploadPhotos({ requestId, slots, photos, names, uploadKey }: PhotoUpload): Promise<string[]> {
+export async function uploadPhotos({
+  requestId,
+  slots,
+  photos,
+  names,
+  uploadKey,
+  service = quoteService,
+}: PhotoUpload): Promise<string[]> {
   const missing = new Set<number>();
   let next = 0;
 
@@ -55,7 +64,7 @@ export async function uploadPhotos({ requestId, slots, photos, names, uploadKey 
     if (file === undefined) {
       throw new Error('No photo at this place.');
     }
-    await quoteService.uploadPhoto(requestId, slot, file, names[index] ?? file.name, uploadKey, idempotencyKey);
+    await service.uploadPhoto(requestId, slot, file, names[index] ?? file.name, uploadKey, idempotencyKey);
   };
 
   const worker = async (): Promise<void> => {
@@ -108,10 +117,12 @@ export interface PhotoSend {
   readonly held: { current: HeldUploadKey | undefined };
   /** Creates the request: the form adds the ticket and answers an expired one. */
   readonly create: (body: Omit<CreateQuoteBody, 'ticket'>) => Promise<CreateQuoteAnswer>;
+  /** Where the photos go; the real service unless the caller gives one. */
+  readonly service?: Pick<QuoteService, 'uploadPhoto'> | undefined;
 }
 
 /** The text is saved first with the photo names and the upload key; each photo then goes to its own place (D-03). */
-export async function sendWithPhotos({ key, body, photos, held, create }: PhotoSend): Promise<string[]> {
+export async function sendWithPhotos({ key, body, photos, held, create, service }: PhotoSend): Promise<string[]> {
   const uploadKey = held.current?.forKey === key ? held.current.uploadKey : newUploadKey();
   held.current = { forKey: key, uploadKey };
   const names = photoNames(photos);
@@ -122,5 +133,6 @@ export async function sendWithPhotos({ key, body, photos, held, create }: PhotoS
     photos,
     names,
     uploadKey,
+    service,
   });
 }

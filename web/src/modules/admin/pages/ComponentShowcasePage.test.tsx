@@ -35,6 +35,7 @@ const SECTION_TITLES = [
   'Site content and public website',
   'Visitor stats',
   'Legal',
+  'Quote requests',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -184,12 +185,15 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
     expect(section('Visitor stats')).toContainElement(caseFrame('visitor-trend-30-days'));
     expect(section('Legal')).toContainElement(caseFrame('legal-notice'));
+    expect(section('Quote requests')).toContainElement(caseFrame('quote-form-empty'));
+    expect(section('Quote requests')).toContainElement(caseFrame('showcase-quote-requests'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
     renderShowcase();
 
     expect(caseFrame('site-header-home')).toHaveAttribute('data-theme', 'light');
+    expect(caseFrame('quote-form-empty')).toHaveAttribute('data-theme', 'light');
     expect(caseFrame('topbar-dark')).toHaveAttribute('data-theme', 'dark');
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
@@ -444,6 +448,19 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     await user.click(frame.getByRole('button', { name: 'Show this example' }));
     expect(await frame.findByRole('menu')).toBeInTheDocument();
   });
+
+  it.each(['quote-form-field-errors', 'quote-form-sent', 'quote-form-sent-photos-missing'])(
+    'shows %s only on request, because the form moves focus when it gets there',
+    async (id) => {
+      const user = userEvent.setup();
+      renderShowcase();
+      const frame = within(caseFrame(id));
+      expect(frame.queryByRole('form')).toBeNull();
+
+      await user.click(frame.getByRole('button', { name: 'Show this example' }));
+      expect(await frame.findByRole('heading', { level: 2 }, { timeout: 10_000 })).toBeInTheDocument();
+    },
+  );
 });
 
 describe('ComponentShowcase accessibility (A11Y-01)', () => {
