@@ -136,6 +136,21 @@ describe('parseProblemDetails', () => {
     expect(parseProblemDetails({ title: 'Not found' })?.minimumSeconds).toBeUndefined();
   });
 
+  it('reads the orderId and orderNumber extensions of an already-converted quote request (D-23) and drops ones that are not text', () => {
+    const parsed = parseProblemDetails({
+      code: 'quote-requests.already-converted',
+      orderId: '00000000-0000-4000-8000-000000000160',
+      orderNumber: 'ORD-2026-0160',
+    });
+    expect(parsed?.orderId).toBe('00000000-0000-4000-8000-000000000160');
+    expect(parsed?.orderNumber).toBe('ORD-2026-0160');
+    expect(parseProblemDetails({ orderId: 160, orderNumber: null })).toMatchObject({
+      orderId: undefined,
+      orderNumber: undefined,
+    });
+    expect(parseProblemDetails({ title: 'Not found' })?.orderNumber).toBeUndefined();
+  });
+
   it('keeps only string messages in each field-error list', () => {
     const parsed = parseProblemDetails({
       errors: { Amount: ['Enter an amount.', 5, null], Name: 'not a list', Qty: ['Enter a quantity.'] },

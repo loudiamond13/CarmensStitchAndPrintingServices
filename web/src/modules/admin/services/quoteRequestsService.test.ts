@@ -137,6 +137,44 @@ describe('quoteRequestsService.remove', () => {
   });
 });
 
+describe('quoteRequestsService.getOrderPrefill', () => {
+  it('calls GET /api/v1/quote-requests/{id}/order-prefill and resolves the values the New Order form starts with', async () => {
+    const prefill = {
+      quoteRequestId: quoteRequestId(7),
+      customerName: 'Juan Dela Cruz',
+      teamName: null,
+      contactNumber: '0917 555 0101',
+      email: null,
+      notes: 'Twelve jerseys.',
+      receivedOn: '2026-11-21',
+      productTypeId: null,
+    };
+    const { fake, service } = serviceWith([{ body: prefill }]);
+
+    await expect(service.getOrderPrefill(quoteRequestId(7))).resolves.toEqual(prefill);
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('GET');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}/order-prefill`);
+  });
+
+  it("passes the caller's signal, so cancelling rejects with kind aborted", async () => {
+    const { fake, service } = serviceWith([{ hang: true }]);
+    const controller = new AbortController();
+
+    const pending = service.getOrderPrefill(quoteRequestId(1), controller.signal).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    );
+    await vi.waitFor(() => {
+      expect(fake.calls).toHaveLength(1);
+    });
+    controller.abort();
+
+    expect(await pending).toMatchObject({ kind: 'aborted' });
+  });
+});
+
 describe('quoteRequestsService.newCount', () => {
   it('calls GET /api/v1/quote-requests/new-count and resolves the count', async () => {
     const { fake, service } = serviceWith([{ body: { count: 3 } }]);

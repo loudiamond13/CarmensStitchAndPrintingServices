@@ -235,6 +235,17 @@ describe('toCreateOrderRequest', () => {
     });
     expect(Object.keys(body)).not.toContain('createdById');
   });
+
+  it('passes a 2,000-character quote request message in Notes unchanged (UI-SPEC R3)', () => {
+    // The quote form's message limit equals the Notes limit, so a prefilled message always fits.
+    const message = `${'Line one of the message.\n'.repeat(79)}${'x'.repeat(25)}`;
+    expect(message).toHaveLength(2000);
+
+    const parsed = createOrderSchema.parse(order({ notes: message }));
+
+    expect(parsed.notes).toBe(message);
+    expect(toCreateOrderRequest(parsed).notes).toBe(message);
+  });
 });
 
 describe('updateOrderDetailsSchema (UpdateOrderDetailsRequestValidator)', () => {

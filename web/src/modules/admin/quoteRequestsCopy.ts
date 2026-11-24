@@ -112,6 +112,8 @@ export const QUOTE_REQUEST_COPY = {
     title: 'History',
     separator: ' · ',
     received: 'Received from the website',
+    /** Followed by the order number as a link: "Converted to order ORD-2026-0160". */
+    convertedTo: 'Converted to order',
   },
   status: {
     menu: 'Change Status',
@@ -129,6 +131,17 @@ export const QUOTE_REQUEST_COPY = {
     confirm: 'Mark as Spam',
     pending: 'Marking',
     cancel: 'Cancel',
+  },
+  /** Turn into Order (D-20) and, once Converted, the way to its order (D-21). */
+  convert: {
+    action: 'Turn into Order',
+    openOrder: (number: string): string => `Open Order ${number}`,
+  },
+  /** The order page's row for an order made from a request (D-21); the deleted view shows `made` without the link. */
+  orderLink: {
+    term: 'From quote request',
+    viewRequest: 'View Request',
+    made: 'Yes',
   },
   /** The ConflictBanner lines after a 409. */
   conflict: { title: 'Someone else changed this request.', body: 'Load the latest to see it.' },

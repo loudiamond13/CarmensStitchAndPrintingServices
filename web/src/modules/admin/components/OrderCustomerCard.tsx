@@ -1,6 +1,9 @@
 // The customer card of the order page (UI-SPEC O1 Side 2; plan 08-12): name, team, contact, email and address with an icon each
 // (the empty value when missing), the order notes in a note, and an Edit Details link while the order is open. Text only, never
-// HTML (CWE-79, T-08-22). `readOnly` (the deleted view, D-24) hides the link.
+// HTML (CWE-79, T-08-22). `readOnly` (the deleted view, D-24) hides the links. An order made from a quote request has a
+// "From quote request" row after Email with View Request (UI-SPEC R3, D-21).
+import clsx from 'clsx';
+import { Fragment } from 'react';
 import { hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon, type IconName } from '@/components/brand';
 import { EmptyValue, Note } from '@/components/states';
@@ -10,6 +13,7 @@ import {
   orderCardHeadClasses,
   orderCardTitleClasses,
   orderMetaClasses,
+  orderMetaLinkClasses,
   orderMetaRowClasses,
   orderMetaTermClasses,
   orderMetaValueClasses,
@@ -17,9 +21,12 @@ import {
 } from '@/modules/admin/components/orderPage.recipe';
 import { ORDER_PAGE_COPY } from '@/modules/admin/orderPageCopy';
 import { canEditOrder } from '@/modules/admin/orderRules';
+import { QUOTE_REQUESTS_PATH } from '@/modules/admin/quoteRequestNavigation';
+import { QUOTE_REQUEST_COPY } from '@/modules/admin/quoteRequestsCopy';
 import type { OrderDetailResponse } from '@/modules/admin/services/ordersService';
 
 const COPY = ORDER_PAGE_COPY.customer;
+const LINK = QUOTE_REQUEST_COPY.orderLink;
 const TITLE_ID = 'order-customer';
 
 interface MetaRow {
@@ -42,6 +49,32 @@ export interface OrderCustomerCardProps {
   readOnly?: boolean | undefined;
 }
 
+/** "From quote request" with View Request, only on an order made from a request; text in the deleted view. */
+function QuoteRequestRow({ requestId, readOnly }: { requestId: string | null | undefined; readOnly: boolean }) {
+  if (requestId === null || requestId === undefined) return null;
+  return (
+    <div className={orderMetaRowClasses}>
+      <dt className={orderMetaTermClasses}>
+        <Icon name="inbox" size={16} />
+        {LINK.term}
+      </dt>
+      <dd className={orderMetaValueClasses}>
+        {readOnly ? (
+          LINK.made
+        ) : (
+          <UiLink
+            to={`${QUOTE_REQUESTS_PATH}/${encodeURIComponent(requestId)}`}
+            className={clsx(orderMetaLinkClasses, hitAreaClasses)}
+          >
+            {LINK.viewRequest}
+            <Icon name="arrow-right" size={16} />
+          </UiLink>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 export function OrderCustomerCard({ order, readOnly = false }: OrderCustomerCardProps) {
   const hasNotes = order.notes !== null && order.notes.trim() !== '';
   return (
@@ -61,13 +94,16 @@ export function OrderCustomerCard({ order, readOnly = false }: OrderCustomerCard
           {ROWS.map((row) => {
             const value = row.value(order);
             return (
-              <div key={row.label} className={orderMetaRowClasses}>
-                <dt className={orderMetaTermClasses}>
-                  <Icon name={row.icon} size={16} />
-                  {row.label}
-                </dt>
-                <dd className={orderMetaValueClasses}>{value === null || value === '' ? <EmptyValue /> : value}</dd>
-              </div>
+              <Fragment key={row.label}>
+                <div className={orderMetaRowClasses}>
+                  <dt className={orderMetaTermClasses}>
+                    <Icon name={row.icon} size={16} />
+                    {row.label}
+                  </dt>
+                  <dd className={orderMetaValueClasses}>{value === null || value === '' ? <EmptyValue /> : value}</dd>
+                </div>
+                {row.label === COPY.email && <QuoteRequestRow requestId={order.quoteRequestId} readOnly={readOnly} />}
+              </Fragment>
             );
           })}
         </dl>

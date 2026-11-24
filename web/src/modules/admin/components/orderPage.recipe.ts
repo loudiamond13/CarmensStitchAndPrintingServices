@@ -188,6 +188,9 @@ export const orderStripPaidClasses = tw(
 /** A `div` that groups a term and its value inside the `dl` without taking part in the grid. */
 export const orderMetaRowClasses = tw('contents');
 
+/** A link value with an icon after it ("View Request" and its arrow). */
+export const orderMetaLinkClasses = tw('inline-flex items-center gap-1');
+
 /**
  * The locked-order banner (`.s-banner` layout with the neutral `--surface-2` ground and a 1px `--line-strong` border; D-15): the
  * icon, the text and an action slot in one row. On phones the action wraps onto its own full-width row (D-57).

@@ -28,6 +28,9 @@ export interface ProblemDetails {
   readonly replacementTicket?: string | undefined;
   /** How many seconds a client waits after a ticket (QuoteRequests:MinimumSeconds), sent with the replacement ticket (D-41). */
   readonly minimumSeconds?: number | undefined;
+  /** The order a quote request already became, sent with `409 quote-requests.already-converted` (D-23). */
+  readonly orderId?: string | undefined;
+  readonly orderNumber?: string | undefined;
   readonly errors: FieldErrors;
 }
 
@@ -120,6 +123,8 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     code: stringOrUndefined(value.code),
     replacementTicket: stringOrUndefined(value.replacementTicket),
     minimumSeconds: numberOrUndefined(value.minimumSeconds),
+    orderId: stringOrUndefined(value.orderId),
+    orderNumber: stringOrUndefined(value.orderNumber),
     errors: parseFieldErrors(value.errors),
   });
 }

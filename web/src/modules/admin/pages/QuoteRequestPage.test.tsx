@@ -383,6 +383,74 @@ describe('Change Status on the page (D-15, D-14)', () => {
   });
 });
 
+describe('Turn into Order on the page (INQ-06, D-20, UI-SPEC R2)', () => {
+  it.each(['new', 'contacted', 'quoted', 'closed', 'spam'])(
+    'offers Turn into Order first in the actions on a %s request, to the prefilled New Order form',
+    async (status) => {
+      quoteRequestBackend(quoteRequestDetail(ID, { status }));
+      renderPage();
+
+      const turn = await screen.findByRole('link', { name: 'Turn into Order' });
+      expect(turn).toHaveAttribute('href', `/admin/orders/new?fromRequest=${ID}`);
+      const menu = screen.getByRole('button', { name: 'Change Status' });
+      expect(turn.compareDocumentPosition(menu) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
+
+  const ORDER_ID = '00000000-0000-4000-8000-000000000160';
+  const CONVERTED = quoteRequestDetail(ID, {
+    status: 'converted',
+    orderId: ORDER_ID,
+    orderNumber: 'ORD-2026-0160',
+    history: [
+      { from: 'quoted', to: 'converted', changedBy: MARIA, changedAt: '2026-11-21T09:10:00Z' },
+      { from: null, to: 'new', changedBy: null, changedAt: '2026-11-21T07:42:00Z' },
+    ],
+  });
+
+  it('shows Open Order {number} instead of Turn into Order on a Converted request, with no status menu (D-21)', async () => {
+    signInAsAdmin();
+    quoteRequestBackend(CONVERTED);
+    renderPage();
+
+    const open = await screen.findByRole('link', { name: 'Open Order ORD-2026-0160' });
+    expect(open).toHaveAttribute('href', `/admin/orders/${ORDER_ID}`);
+    expect(screen.queryByRole('link', { name: 'Turn into Order' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+  });
+
+  it('keeps Delete Request aria-disabled for a Manager beside Open Order', async () => {
+    quoteRequestBackend(CONVERTED);
+    renderPage();
+
+    const open = await screen.findByRole('link', { name: 'Open Order ORD-2026-0160' });
+    const remove = screen.getByRole('button', { name: 'Delete Request' });
+    expect(remove).toHaveAttribute('aria-disabled', 'true');
+    expect(open.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('reads the conversion in the history as "Converted to order {number}", with the number as a link', async () => {
+    quoteRequestBackend(CONVERTED);
+    renderPage();
+
+    const card = await screen.findByRole('region', { name: 'History' });
+    const [converted] = within(card).getAllByRole('listitem');
+    expect(converted).toHaveTextContent('Converted to order ORD-2026-0160 · Maria Santos · Nov 21, 2026, 5:10 PM');
+    expect(within(converted ?? card).getByRole('link', { name: 'ORD-2026-0160' })).toHaveAttribute(
+      'href',
+      `/admin/orders/${ORDER_ID}`,
+    );
+  });
+
+  it('has no axe violations on a Converted request', async () => {
+    quoteRequestBackend(CONVERTED);
+    const { container } = renderPage();
+
+    await screen.findByRole('link', { name: 'Open Order ORD-2026-0160' });
+    await expectNoAxeViolations(container);
+  });
+});
+
 /** A gate a fake answer waits on until the test lets it go. */
 function gate(): { wait: Promise<void>; open: () => void } {
   let open: () => void = () => undefined;
