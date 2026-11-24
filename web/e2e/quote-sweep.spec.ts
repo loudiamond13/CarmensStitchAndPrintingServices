@@ -4,16 +4,28 @@
 // admin ones in Blush and Espresso. Each state is checked at 320, 390, 820, 1440 and 1920 px for axe (target-size included), one h1 and
 // no sideways scroll, and for console, page and CSP findings. The privacy checks: the request page title has no customer name, the inbox
 // URL carries personal data only in q, and the page-view beacon sends the path only.
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, type Guard, listFindings, test } from './fixtures.ts';
-import { freshMobile, NO_SIDEWAYS_SCROLL, press, uniqueWord } from './helpers.ts';
-import { drawJpeg } from './photos.ts';
+import { freshMobile, manilaDate, NO_SIDEWAYS_SCROLL, press, uniqueWord } from './helpers.ts';
+import { withPhotoHost } from './photo-host-lock.ts';
+import { apiToken, drawJpeg } from './photos.ts';
 import { settle } from './sweep.ts';
+import {
+  addQuoteNote,
+  changeQuoteStatus,
+  convertQuoteRequest,
+  createQuoteRequest,
+  createStaff,
+  type QuoteSeedInput,
+} from './testing-api.ts';
 
 // Five widths, an axe run at each, for several states: more than the 30 second default.
 test.describe.configure({ timeout: 480_000 });
 
 const WIDTHS = [320, 390, 820, 1440, 1920] as const;
+const THEMES = ['light', 'dark'] as const;
+type Theme = (typeof THEMES)[number];
 
 const PAGE_VIEWS = '/api/v1/analytics/page-views';
 
@@ -178,3 +190,209 @@ test('@quote Contact after a send: no finding from 320 to 1920 px, and no beacon
     sentViews,
   ).toBe(true);
 });
+
+// ── The staff screens ──
+
+/** Signs in a fresh Manager (Delete Request is a Manager action) and stores the admin theme for the next load. */
+async function signInManager(page: Page, request: APIRequestContext, theme: Theme): Promise<void> {
+  await signInAs(page, request, await createStaff(request, 'Manager'));
+  await page.evaluate(`localStorage.setItem('csps-theme', '${theme}')`);
+}
+
+/** Opens an admin path and waits for the theme and the fonts. */
+async function openAdmin(page: Page, theme: Theme, path: string): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(path);
+  await expect(page.locator('[data-theme]').first()).toHaveAttribute('data-theme', theme);
+  await page.evaluate('document.fonts.ready.then(() => true)');
+}
+
+/** Sends a request with one stored photo, under the photo host lock. */
+async function requestWithPhoto(page: Page, request: APIRequestContext, input: QuoteSeedInput): Promise<string> {
+  const photo = await drawJpeg(page, 'front.jpg', 200, 1200, 800);
+  return withPhotoHost(() => createQuoteRequest(request, { ...input, photos: [photo] }));
+}
+
+function themeName(theme: Theme): string {
+  return theme === 'light' ? 'Blush' : 'Espresso';
+}
+
+for (const theme of THEMES) {
+  test(`@quote the inbox on Open, All, an empty pill and a search with no match: no finding from 320 to 1920 px, and the URL holds personal data only in q, in ${themeName(theme)}`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    await signInManager(page, request, theme);
+    const word = uniqueWord();
+    const openName = `E2E Sweep ${word} Open`;
+    const spamName = `E2E Sweep ${word} Spam`;
+    await createQuoteRequest(request, { customerName: openName, contactNumber: freshMobile(), teamName: 'E2E Riders' });
+    const spam = await createQuoteRequest(request, { customerName: spamName, contactNumber: freshMobile() });
+    await changeQuoteStatus(request, await apiToken(page), spam, 'spam');
+    const failures: string[] = [];
+
+    await openAdmin(page, theme, '/admin/quote-requests');
+    await expect(page.getByRole('heading', { level: 1, name: 'Quote Requests' })).toBeVisible();
+    await expect(page.getByRole('link', { name: openName })).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Inbox Open (${theme})`)));
+
+    await openAdmin(page, theme, `/admin/quote-requests?status=all&q=${word}`);
+    await expect(page.getByRole('link', { name: spamName })).toBeVisible();
+    await expect(page.getByRole('link', { name: openName })).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Inbox All (${theme})`)));
+
+    // No spec closes a request and each e2e run starts from a fresh CSPS_E2E, so the Closed pill is empty.
+    await openAdmin(page, theme, '/admin/quote-requests?status=closed');
+    await expect(page.getByRole('heading', { name: 'No closed requests' })).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Inbox empty Closed pill (${theme})`)));
+
+    const nobody = uniqueWord();
+    await openAdmin(page, theme, `/admin/quote-requests?q=${nobody}`);
+    await expect(page.getByRole('heading', { name: `No requests match "${nobody}"` })).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Inbox search with no match (${theme})`)));
+    expect(failures).toEqual([]);
+
+    // Searched from the box: the name rides only in q, never in the path or any other part of the address (CWE-598).
+    await openAdmin(page, theme, '/admin/quote-requests');
+    const search = page.getByRole('searchbox', { name: 'Search requests' });
+    await search.fill(openName);
+    await search.press('Enter');
+    await expect(page).toHaveURL(/[?&]q=/);
+    await expect(page.getByRole('link', { name: openName })).toBeVisible();
+    const address = new URL(page.url());
+    expect(address.searchParams.get('q')).toBe(openName);
+    expect(decodeURIComponent(address.pathname + address.hash)).not.toContain(word);
+    for (const [key, value] of address.searchParams) {
+      if (key !== 'q') {
+        expect(value, `the ${key} parameter`).not.toContain(word);
+      }
+    }
+    await expect(page).not.toHaveTitle(new RegExp(word));
+  });
+
+  test(`@quote the request pages New with photos and notes, with missing photos, Spam and Converted: no finding from 320 to 1920 px, and no customer name in the title, in ${themeName(theme)}`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    await signInManager(page, request, theme);
+    const word = uniqueWord();
+    const withPhotos = `E2E Sweep ${word} Photos`;
+    const missing = `E2E Sweep ${word} Missing`;
+    const spamName = `E2E Sweep ${word} Spam`;
+    const convertedName = `E2E Sweep ${word} Converted`;
+    const photosId = await requestWithPhoto(page, request, {
+      customerName: withPhotos,
+      contactNumber: freshMobile(),
+      teamName: 'E2E Riders',
+      message: 'Twelve jerseys, numbers 1 to 12.',
+    });
+    const token = await apiToken(page);
+    await addQuoteNote(request, token, photosId, 'Called back. Wants 12 jerseys by Friday.');
+    const missingId = await createQuoteRequest(request, {
+      customerName: missing,
+      contactNumber: freshMobile(),
+      declaredPhotos: ['logo.png', 'back.png'],
+    });
+    const spamId = await createQuoteRequest(request, { customerName: spamName, contactNumber: freshMobile() });
+    await changeQuoteStatus(request, token, spamId, 'spam');
+    const convertedNumber = freshMobile();
+    const convertedId = await createQuoteRequest(request, {
+      customerName: convertedName,
+      contactNumber: convertedNumber,
+    });
+    await convertQuoteRequest(request, token, convertedId, {
+      customerName: convertedName,
+      contactNumber: convertedNumber,
+      orderDate: manilaDate(0),
+      dueDate: manilaDate(5),
+    });
+
+    const cases = [
+      {
+        label: 'New with photos and notes',
+        id: photosId,
+        name: withPhotos,
+        ready: async () => {
+          const tile = page.getByRole('region', { name: 'Photos' }).getByRole('button', { name: /^Open photo 1 of 1/ });
+          await expect(tile.locator('img')).toHaveJSProperty('complete', true);
+          await expect(page.getByRole('region', { name: 'Internal notes' })).toContainText('Called back.');
+        },
+      },
+      {
+        label: 'with missing photos',
+        id: missingId,
+        name: missing,
+        ready: async () => {
+          await expect(page.getByRole('region', { name: 'Photos' })).toContainText("2 photos didn't upload");
+        },
+      },
+      {
+        label: 'Spam',
+        id: spamId,
+        name: spamName,
+        ready: async () => {
+          await expect(page.getByRole('region', { name: 'History' })).toContainText('Spam ·');
+        },
+      },
+      {
+        label: 'Converted',
+        id: convertedId,
+        name: convertedName,
+        ready: async () => {
+          await expect(page.getByRole('link', { name: /^Open Order ORD-/ })).toBeVisible();
+        },
+      },
+    ];
+    const failures: string[] = [];
+    for (const { label, id, name, ready } of cases) {
+      await openAdmin(page, theme, `/admin/quote-requests/${id}`);
+      await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+      await ready();
+      // The visitor's name is personal data: it never reaches the document title or the address (CWE-598).
+      await expect(page).toHaveTitle('Quote Request · CSPS Admin');
+      expect(decodeURIComponent(page.url())).not.toContain(word);
+      failures.push(...(await sweepOpenPage(page, guard, `Request ${label} (${theme})`)));
+    }
+    expect(failures).toEqual([]);
+  });
+
+  test(`@quote the Spam and Delete dialogs open: no finding from 320 to 1920 px, in ${themeName(theme)}`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    guard.expectStatus('/api/v1/auth/refresh', 401);
+    await signInManager(page, request, theme);
+    const name = `E2E Sweep ${uniqueWord()} Dialogs`;
+    const id = await requestWithPhoto(page, request, { customerName: name, contactNumber: freshMobile() });
+    const failures: string[] = [];
+
+    await openAdmin(page, theme, `/admin/quote-requests/${id}`);
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    // A request with photos asks before Spam deletes them (D-04).
+    await press(page, page.getByRole('button', { name: 'Change Status' }));
+    await page.getByRole('menuitem', { name: 'Move to Spam' }).click();
+    const spam = page.getByRole('dialog', { name: 'Mark this request as spam?' });
+    await expect(spam).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Spam dialog (${theme})`)));
+    await spam.getByRole('button', { name: 'Cancel' }).click();
+    await expect(spam).toHaveCount(0);
+
+    await press(page, page.getByRole('button', { name: 'Delete Request' }));
+    const remove = page.getByRole('dialog', { name: 'Delete this quote request?' });
+    await expect(remove).toBeVisible();
+    failures.push(...(await sweepOpenPage(page, guard, `Delete dialog (${theme})`)));
+    await remove.getByRole('button', { name: 'Cancel' }).click();
+    await expect(remove).toHaveCount(0);
+    expect(failures).toEqual([]);
+    // Both were cancelled, so the request and its photo are still there.
+    await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Photos' }).getByRole('button', { name: /^Open photo 1 of 1/ }),
+    ).toBeVisible();
+  });
+}

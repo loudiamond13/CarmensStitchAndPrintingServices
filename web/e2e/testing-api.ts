@@ -282,6 +282,74 @@ export async function createQuoteRequest(request: APIRequestContext, input: Quot
   return body.id;
 }
 
+/** The headers of a staff API call made with an access token (`apiToken` in photos.ts), with a fresh Idempotency-Key. */
+function staffHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, 'X-CSPS-CSRF': '1', 'Idempotency-Key': randomUUID() };
+}
+
+/** Reads a quote request's row version, which a status change must send back. */
+async function quoteRequestVersion(request: APIRequestContext, token: string, id: string): Promise<string> {
+  const response = await request.get(`/api/v1/quote-requests/${id}`, { headers: staffHeaders(token) });
+  expect(response.status(), 'GET /api/v1/quote-requests/{id}').toBe(200);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.version !== 'string') {
+    throw new Error('GET /api/v1/quote-requests/{id} returned an unexpected body.');
+  }
+  return body.version;
+}
+
+/** Moves a quote request to another status through the staff API (new, contacted, quoted, closed or spam). */
+export async function changeQuoteStatus(
+  request: APIRequestContext,
+  token: string,
+  id: string,
+  status: 'new' | 'contacted' | 'quoted' | 'closed' | 'spam',
+): Promise<void> {
+  const version = await quoteRequestVersion(request, token, id);
+  const response = await request.post(`/api/v1/quote-requests/${id}/status`, {
+    headers: staffHeaders(token),
+    data: { status, version },
+  });
+  expect(response.status(), 'POST /api/v1/quote-requests/{id}/status').toBe(200);
+}
+
+/** Adds an internal note to a quote request through the staff API. */
+export async function addQuoteNote(request: APIRequestContext, token: string, id: string, text: string): Promise<void> {
+  const response = await request.post(`/api/v1/quote-requests/${id}/notes`, {
+    headers: staffHeaders(token),
+    data: { text },
+  });
+  expect(response.status(), 'POST /api/v1/quote-requests/{id}/notes').toBe(200);
+}
+
+/** Turns a quote request into a one-item order through the staff API, so the request becomes Converted. Returns the order id. */
+export async function convertQuoteRequest(
+  request: APIRequestContext,
+  token: string,
+  id: string,
+  customer: {
+    readonly customerName: string;
+    readonly contactNumber: string;
+    readonly orderDate: string;
+    readonly dueDate: string;
+  },
+): Promise<string> {
+  const response = await request.post('/api/v1/orders', {
+    headers: staffHeaders(token),
+    data: {
+      ...customer,
+      items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E sweep jersey', quantity: 12, unitPrice: 780 }],
+      quoteRequestId: id,
+    },
+  });
+  expect(response.status(), 'POST /api/v1/orders (from a quote request)').toBe(201);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('POST /api/v1/orders returned an unexpected body.');
+  }
+  return body.id;
+}
+
 /** Reads the sink's mail after a cursor id, optionally for one address. Oldest first. */
 export async function readEmails(
   request: APIRequestContext,
