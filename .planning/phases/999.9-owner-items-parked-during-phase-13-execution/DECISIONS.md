@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T18:53:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T20:08:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -258,6 +258,14 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 8. **The link on a deleted order.** A: inside the order data. B: also as a separate field.
 9. **The prefilled "received on" date.** A: the shop's business day (Manila time). B: the UTC time.
 
+## P13-BL-24 · Choices from the wave 9 review fixes (13-REVIEW-FIX-W9)
+
+**Status:** open · **Blocks:** nothing.
+
+1. **Which product type Turn into Order suggests (review IN-03).** A (built): the first active type of the line by name, so "Others" can come first. B (recommended by the review): put "Others" last, as the product type list does. No code was changed.
+2. **The upload race now also applies when an order is deleted for good (review IN-05).** This joins P13-BL-21 item 3: one photo can stay in storage for about 2 to 3 days after either delete. A (recommended): accept it and add one sentence to the API doc and the Privacy Policy. B: lock the request in the upload and in both deletes.
+3. **How long a second order save waits on the same quote request (IN-06 fix).** A (built): at most 10 seconds, then "busy", the same wait as other order locks. B: the database default of 30 seconds.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -269,3 +277,4 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 - [ ] The Quote Requests count chip, the rail dot, the Quotes phone tab and the dashboard strip in Blush and Espresso, on phone and desktop (plan 13-17).
 - [ ] On a quote request page with a keyboard and a screen reader: Change Status and the Spam confirm, Load Latest after a version clash, and the "not found" page after a move on a deleted request (plan 13-19, wave 8 fixes).
 - [ ] On a phone and with a screen reader: add a note, then delete a request as a Manager and land back on the inbox (plan 13-21).
+- [ ] Delete Request on a request someone else just turned into an order: the page shows the reason and then Converted after Cancel (wave 9 fix WR-02).

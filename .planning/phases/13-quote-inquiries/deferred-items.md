@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T18:31:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T20:08:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -28,6 +28,9 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, plan 13-19 | `routes.test.tsx` (2 cases), `OrderFormPage.test.tsx` (10 cases), `ExpensesPage.test.tsx`, `UsersPage.test.tsx`, `QuoteFormPhotos.test.tsx` (Sending) | 5 s and 15 s timeouts in the full web suite while 13-18 ran .NET builds and tests | alone: routes 87 of 87, OrderFormPage 84 of 84, the other three 204 of 204 |
 | 2026-11-23, wave 8 gate | `ReadOnlyGuardTests.RawSqlCommandsAreRefusedAndChangeNothing` (LegacyFitCheck) | LocalDB connection error (SNI) in the full .NET suite | the class alone: 24 of 24 passed |
 | 2026-11-23, plan 13-21 | `routes.test.tsx` (2 deleted-order cases) | failed while several files and a whole-tree eslint ran at once | the file alone: 87 of 87 |
+| 2026-11-23, wave 9 gate | `routes.test.tsx` "list to request to Back restores the pill, the search and the rows" | failed in the full web suite | the file alone: 87 of 87 |
+| 2026-11-23, wave 9 gate | LegacyFitCheck `CompanyExpenseCheckTests`, `TrialSeederTests`, `TrialImportTests` (one case each) | LocalDB connection errors in the full .NET suite | the project alone: 275 passed, 1 skipped |
+| 2026-11-23, wave 9 gate | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (fourth time) | failed in the full .NET suite | the class alone: 599 of 599 |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
