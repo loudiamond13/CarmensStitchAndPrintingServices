@@ -7,7 +7,9 @@
 //     running answers with data that may predate the change, so it is shown but stays stale and is followed by a new load;
 //   - a failed first load is an error with a retry, and a failed refresh keeps the old data.
 // The browser revalidates each read with the answer's ETag, so a reload that changed nothing costs a 304.
-import { useSyncExternalStore } from 'react';
+// Inside a PublicDataScope (the showcase and parity previews) a listed resource shows the scope's answer instead, and never
+// loads or changes its shared store.
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { readBootData, type BootKey } from './bootData';
 
 export type PublicResourceState<T> =
@@ -33,6 +35,16 @@ export interface PublicResourceOptions<T> {
 }
 
 const LOADING: PublicResourceState<never> = { status: 'loading' };
+
+/** Fixed answers for one part of the page, by resource: the showcase and parity previews use it, so their demo data stays theirs. */
+export const PublicDataScope = createContext<ReadonlyMap<object, PublicResourceState<unknown>>>(new Map());
+
+/** One entry of a PublicDataScope: the resource and the data it shows there. */
+export function fixedAnswer<T>(resource: PublicResource<T>, data: T): [object, PublicResourceState<unknown>] {
+  return [resource, { status: 'success', data }];
+}
+
+const ignore = (): (() => void) => () => undefined;
 
 /** What each resource registers, so one call can clear them all. */
 interface Registered {
@@ -146,14 +158,19 @@ export function createPublicResource<T>({ key, load, staleMs }: PublicResourceOp
     },
   });
 
-  return {
-    useResource: () => useSyncExternalStore(subscribe, snapshot, snapshot),
+  const resource: PublicResource<T> = {
+    useResource: () => {
+      const fixed = useContext(PublicDataScope).get(resource) as PublicResourceState<T> | undefined;
+      const shared = useSyncExternalStore(fixed === undefined ? subscribe : ignore, snapshot, snapshot);
+      return fixed ?? shared;
+    },
     invalidate,
     prime: (value) => {
       primedFromBoot = true;
       setData(value);
     },
   };
+  return resource;
 }
 
 /** Clears every public resource (the admin calls it after a content write). */

@@ -4,12 +4,13 @@
 // skip link, the unstyled `main` wrapper with its min-height, and the toast layer. The parity page already provides the
 // router. The reference side renders the App. E.1 header and footer and the App. E.3 page head with the same copy
 // (web/visual/reference/fragments/PublicShell.tsx).
-// Plan 11-10: the footer reads the shop facts from the public site store, so this file primes that store with fixed, made-up
-// facts before anything renders (no request is made). The reference fragment writes the same text. `footer="base"` shows the
-// one-row footer of Gallery, Contact and the 404 page.
+// Plan 11-10: the footer reads the shop facts with fixed, made-up ones from a PublicDataScope, so no request is made and the app's
+// shared store is left alone. The reference fragment writes the same text. `footer="base"` shows the one-row footer of Gallery,
+// Contact and the 404 page.
 import { SiteHeader } from '@/components/navigation';
 import { PageHead } from '@/modules/public/components/PageHead';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { fixedAnswer, PublicDataScope } from '@/lib/public-data/publicResource';
 import { PUBLIC_COPY } from '@/modules/public/copy';
 import { siteResource } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicSite } from '@/modules/public/services/siteService';
@@ -38,7 +39,7 @@ export const PARITY_SITE: PublicSite = {
   upcomingClosures: [],
 };
 
-siteResource.prime(PARITY_SITE);
+const SHELL_DATA = new Map([fixedAnswer(siteResource, PARITY_SITE)]);
 
 export interface PublicShellProps {
   /** The current header link's label. */
@@ -50,10 +51,10 @@ export interface PublicShellProps {
 export function PublicShell({ active = 'Home', footer = 'full' }: PublicShellProps) {
   const { eyebrow, headline, lead } = PUBLIC_COPY.gallery;
   return (
-    <>
+    <PublicDataScope value={SHELL_DATA}>
       <SiteHeader active={active} />
       <PageHead flat crumb={PUBLIC_COPY.crumbs.gallery} eyebrow={eyebrow} headline={headline} lead={lead} />
       <SiteFooter variant={footer} />
-    </>
+    </PublicDataScope>
   );
 }

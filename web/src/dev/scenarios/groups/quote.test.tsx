@@ -2,11 +2,15 @@
 // reached with made-up values and a demo service, so no case sends a request. Blush only (the public look) and SPEC-GAP (parity false).
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { StrictMode } from 'react';
-import { MemoryRouter } from 'react-router';
+import { createMemoryRouter, MemoryRouter } from 'react-router';
+import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { ToastProvider } from '@/components';
+import { routes } from '@/core/routes/router';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
+import { useProductLinesQuery } from '@/modules/public/hooks/useProductLinesQuery';
+import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { scenarios } from './quote';
@@ -186,5 +190,47 @@ describe('the quote scenarios', () => {
     await expectNoAxeViolations(container);
     expect(requests).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+/** What the app's own shop facts and product lines hold, read outside any demo. */
+function SharedStores() {
+  const site = useSiteQuery();
+  const lines = useProductLinesQuery();
+  return <p>{`site ${site.status}, lines ${lines.status}`}</p>;
+}
+
+describe('the quote demos keep their made-up data to themselves (CR-01)', () => {
+  it('leaves the real Products page its own lines after a quote case shows', async () => {
+    const view = renderCase('quote-form-empty');
+    await READY['quote-form-empty']();
+    view.unmount();
+
+    const router = createMemoryRouter(routes, { initialEntries: ['/products'] });
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByRole('article', { name: 'Volleyball Jerseys' }, { timeout: 15_000 })).toBeInTheDocument();
+  });
+
+  it('writes nothing into the shared shop facts and product lines, with the public shell too', async () => {
+    const quote = renderCase('quote-form-sent');
+    await READY['quote-form-sent']();
+    quote.unmount();
+    const shell = render(
+      <MemoryRouter>{renderNode(kit, { kind: 'node', component: 'PublicShell', props: {} }, [])}</MemoryRouter>,
+    );
+    shell.unmount();
+
+    render(<SharedStores />);
+
+    expect(screen.getByText('site loading, lines loading')).toBeInTheDocument();
+  });
+
+  it('no preview primes a shared public store, not even when it is imported', () => {
+    const sources = import.meta.glob<string>('../../previews/*.tsx', { query: '?raw', import: 'default', eager: true });
+    const priming = Object.entries(sources)
+      .filter(([, source]) => source.includes('.prime('))
+      .map(([path]) => path);
+    expect(priming).toEqual([]);
   });
 });

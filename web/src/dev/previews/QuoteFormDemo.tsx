@@ -1,9 +1,11 @@
 // Dev-only scenario wrapper (plan 13-23; never shipped, D-20): the real Get a Quote form in one of its eight states, for the owner's
 // review. It hands the form a demo service, fills the fields with made-up values and presses Send the way a visitor would, so each
 // state is the form's own drawing. Nothing is sent: the ticket, the create and the photo uploads are answered here, and the shop facts
-// and product lines are primed with made-up ones. The form loads as its own piece, as on the Contact page.
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+// and product lines are made-up ones from a PublicDataScope, so the app's shared stores are left alone. The form loads as its own
+// piece, as on the Contact page.
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { HttpError } from '@/core/api/errors';
+import { fixedAnswer, PublicDataScope } from '@/lib/public-data/publicResource';
 import { productLinesResource } from '@/modules/public/hooks/useProductLinesQuery';
 import { siteResource } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicProductLine, PublicProductLines } from '@/modules/public/services/contentService';
@@ -46,11 +48,8 @@ const DEMO_LINES: PublicProductLines = {
   lines: [line('basketball-jerseys', 'Basketball Jerseys', '01'), line('polo-shirts', 'Polo Shirts', '02')],
 };
 
-/** Primes the shop facts and the product lines, so the form reads them without a request. */
-function primeDemoData(): void {
-  productLinesResource.prime(DEMO_LINES);
-  siteResource.prime(PARITY_SITE);
-}
+/** The shop facts and product lines the form shows, with no request and no write to the shared stores. */
+const DEMO_DATA = new Map([fixedAnswer(productLinesResource, DEMO_LINES), fixedAnswer(siteResource, PARITY_SITE)]);
 
 /** A one-pixel PNG, so the picked photos have a real preview. */
 const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGM4Xe4LAAOgAZDBbDQ6AAAAAElFTkSuQmCC';
@@ -208,14 +207,14 @@ export interface QuoteFormDemoProps {
 export function QuoteFormDemo({ state = 'empty' }: QuoteFormDemoProps) {
   const frame = useRef<HTMLDivElement>(null);
   const [service] = useState(() => demoService(state));
-  // Layout effects run before the form subscribes to the stores, so it finds fresh data and reads nothing.
-  useLayoutEffect(primeDemoData, []);
   return (
-    <div ref={frame}>
-      <Suspense fallback={null}>
-        <DemoForm service={service} />
-        <PlaySteps state={state} frame={frame} />
-      </Suspense>
-    </div>
+    <PublicDataScope value={DEMO_DATA}>
+      <div ref={frame}>
+        <Suspense fallback={null}>
+          <DemoForm service={service} />
+          <PlaySteps state={state} frame={frame} />
+        </Suspense>
+      </div>
+    </PublicDataScope>
   );
 }
