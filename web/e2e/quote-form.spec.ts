@@ -1,7 +1,7 @@
 // Get a Quote form E2E (INQ-01, INQ-08, D-35, UI-SPEC Q1 and Q3): a visitor sends a request from the Contact page to the real API.
 // The host runs with the quote limits lifted and a one second minimum time (playwright.config.ts), so every project can send.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
-import { freshMobile } from './helpers.ts';
+import { freshMobile, press } from './helpers.ts';
 import { drawJpeg } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
@@ -122,7 +122,8 @@ test('@quote the rate limit keeps what the visitor typed', async ({ page, guard 
   const number = freshMobile();
   await form.getByRole('textbox', { name: /Contact number/ }).fill(number);
   const send = form.getByRole('button', { name: 'Send Inquiry' });
-  await send.click();
+  // Sent from the keyboard: Safari does not focus a button on click, and focus staying on Send is part of what is proved.
+  await press(page, send);
 
   const alert = form.getByRole('alert');
   await expect(alert).toContainText(
