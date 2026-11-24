@@ -35,6 +35,7 @@ const SECTION_TITLES = [
   'Site content and public website',
   'Visitor stats',
   'Legal',
+  'Quote requests',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */

@@ -63,3 +63,32 @@ describe('ComponentShowcase: the Site content and public website cases load only
     expect(loaded11.times).toBe(1);
   }, 20_000);
 });
+
+// The Quote requests cases are a lazy chunk too (plan 13-23), loaded the same way.
+const loaded13 = vi.hoisted(() => ({ times: 0 }));
+
+vi.mock('@/modules/admin/components/showcase/Phase13Demos', () => {
+  loaded13.times += 1;
+  return { Phase13Demos: () => <div data-testid="phase13-demos">Phase 13 demos</div> };
+});
+
+describe('ComponentShowcase: the Quote requests cases load only on request', () => {
+  it('does not load the Phase 13 demos with the page, and loads them when the button is pressed', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ToastProvider>
+          <ComponentShowcaseRoute />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { level: 1, name: 'Component Showcase' })).toBeInTheDocument();
+    expect(loaded13.times).toBe(0);
+    expect(screen.queryByTestId('phase13-demos')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Show the Quote requests cases' }));
+
+    expect(await screen.findByTestId('phase13-demos')).toBeInTheDocument();
+    expect(loaded13.times).toBe(1);
+  }, 20_000);
+});
