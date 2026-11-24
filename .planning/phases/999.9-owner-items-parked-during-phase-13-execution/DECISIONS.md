@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T21:34:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T22:40:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -276,6 +276,13 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 4. **Icon for the "From quote request" row.** A: the inbox icon. B: another icon from the set.
 5. **Wording to confirm:** "Turn into Order", "Filled in from the quote request from {name}, received {date}. Add the items and prices, then save.", "The quote request is now Converted.", "Save as a New Order Instead", "Couldn't find that quote request. The form is blank." and "Converted to order {number}".
 
+## P13-BL-26 · Choices from the wave 10 review fixes (13-REVIEW-FIX-W10)
+
+**Status:** open · **Blocks:** nothing.
+
+1. **Stopping a second order from the same request through Back (review WR-01).** A (built): saving a form filled from a request replaces it in the browser history, and a tab that already knows the request is Converted shows the "already an order" box as soon as the form opens. B: the server also sends the request's status and order with the prefill, so every tab knows up front.
+2. **A Converted request whose order was deleted (review WR-02). Not built.** A: keep it as it is; "Open Order" leads to "not found". B: the server adds a "deleted" flag, so a Manager gets a link to the deleted-order view and an Admin sees the order number as text with a reason.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -289,3 +296,4 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 - [ ] On a phone and with a screen reader: add a note, then delete a request as a Manager and land back on the inbox (plan 13-21).
 - [ ] Delete Request on a request someone else just turned into an order: the page shows the reason and then Converted after Cancel (wave 9 fix WR-02).
 - [ ] On a phone: turn a request into an order, check the prefilled form, save it, and follow the links between the order and the request both ways (plan 13-22).
+- [ ] After saving an order made from a request, press Back: it skips the filled form (wave 10 fix WR-01).
