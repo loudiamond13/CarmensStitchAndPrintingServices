@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T22:44:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T00:06:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -295,6 +295,14 @@ Read the review package in `.planning/phases/13-quote-inquiries/13-25-SUMMARY.md
 
 It also settles P13-BL-07 (the staff alert line). Until then the page stays DRAFT, out of the sitemap and not indexed.
 
+## P13-BL-28 · Choices made in the Component Showcase additions (plan 13-23)
+
+**Status:** open · **Blocks:** nothing. Each item was built as A.
+
+1. **Request page parts in the showcase.** A: the showcase holds only the UI-SPEC list (the quote form states, status pills and badges, the count chip, the dashboard strip). B: also add read-only cases for the Notes card, Delete Request, Turn into Order, the "already an order" box and the status menu, with their actions turned off.
+2. **Where the quote form states show.** A: in the showcase and on the dev parity page. B: also on `/dev/public`.
+3. **Bundle cost.** A: showing the real form in the showcase adds about 0.10 KB to the Contact page (148.32 of 150 KB). B: show the form states on the parity page only, which removes that cost.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -309,3 +317,4 @@ It also settles P13-BL-07 (the staff alert line). Until then the page stays DRAF
 - [ ] Delete Request on a request someone else just turned into an order: the page shows the reason and then Converted after Cancel (wave 9 fix WR-02).
 - [ ] On a phone: turn a request into an order, check the prefilled form, save it, and follow the links between the order and the request both ways (plan 13-22).
 - [ ] After saving an order made from a request, press Back: it skips the filled form (wave 10 fix WR-01).
+- [ ] Open the Component Showcase, "Quote requests" section, in Blush and Espresso and check each state looks right (plan 13-23).
