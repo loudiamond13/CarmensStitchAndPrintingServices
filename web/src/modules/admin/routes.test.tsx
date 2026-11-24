@@ -589,9 +589,13 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
         'true',
       );
       await user.click(await screen.findByRole('link', { name: 'Juan Dela Cruz' }));
-      await waitFor(() => {
-        expect(window.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
-      });
+      // The address changes only once the request page's code has loaded, which can pass 1 s under a full-suite load.
+      await waitFor(
+        () => {
+          expect(window.location.pathname).toMatch(/^\/admin\/quote-requests\/[0-9a-f-]{36}$/);
+        },
+        { timeout: 10_000 },
+      );
       // The inbox link opens the request page, not the not-found screen (W6 IN-03).
       expect(
         await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' }, { timeout: 10_000 }),
@@ -600,9 +604,12 @@ describe('Quote Requests for both roles (INQ-05, D-13; plan 13-15)', () => {
         window.history.back();
       });
 
-      await waitFor(() => {
-        expect(window.location.search).toBe('?status=spam&q=juan');
-      });
+      await waitFor(
+        () => {
+          expect(window.location.search).toBe('?status=spam&q=juan');
+        },
+        { timeout: 10_000 },
+      );
       expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' }, { timeout: 10_000 })).toBeVisible();
       expect(screen.getByRole('button', { name: 'Spam 1 requests' })).toHaveAttribute('aria-pressed', 'true');
       expect(screen.getByRole('searchbox', { name: 'Search requests' })).toHaveValue('juan');
