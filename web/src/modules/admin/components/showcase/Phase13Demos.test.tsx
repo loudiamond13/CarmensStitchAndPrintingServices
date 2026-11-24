@@ -102,13 +102,11 @@ describe('Phase13Demos: QuoteStatusFilter', () => {
     const frame = within(caseFrame('quote-status-filter'));
     const bar = frame.getByRole('toolbar', { name: 'Show' });
 
-    expect(within(bar).getAllByRole('button').map((pill) => pill.textContent)).toEqual([
-      'Open 4 requests',
-      'Converted 12 requests',
-      'Closed 3 requests',
-      'Spam 1 requests',
-      'All 20 requests',
-    ]);
+    expect(
+      within(bar)
+        .getAllByRole('button')
+        .map((pill) => pill.textContent),
+    ).toEqual(['Open 4 requests', 'Converted 12 requests', 'Closed 3 requests', 'Spam 1 requests', 'All 20 requests']);
     expect(within(bar).getByRole('button', { name: /^Open/ })).toHaveAttribute('aria-pressed', 'true');
 
     await userEvent.click(within(bar).getByRole('button', { name: /^All/ }));
@@ -121,13 +119,11 @@ describe('Phase13Demos: QuoteStatusFilter', () => {
     renderDemos();
     const bar = within(caseFrame('quote-status-filter-loading')).getByRole('toolbar', { name: 'Show' });
 
-    expect(within(bar).getAllByRole('button').map((pill) => pill.textContent)).toEqual([
-      'Open',
-      'Converted',
-      'Closed',
-      'Spam',
-      'All',
-    ]);
+    expect(
+      within(bar)
+        .getAllByRole('button')
+        .map((pill) => pill.textContent),
+    ).toEqual(['Open', 'Converted', 'Closed', 'Spam', 'All']);
   });
 });
 

@@ -55,6 +55,9 @@ const Phase10Demos = lazy(async () => ({ default: (await import('./Phase10Demos'
 /** The Phase 11 cases are a chunk of their own for the same reason: the photo slot, the phone field and the order card load only when they are asked for. */
 const Phase11Demos = lazy(async () => ({ default: (await import('./Phase11Demos')).Phase11Demos }));
 
+/** The Phase 13 cases are a chunk of their own: the pills, the strip and four sidebars load only when they are asked for. */
+const Phase13Demos = lazy(async () => ({ default: (await import('./Phase13Demos')).Phase13Demos }));
+
 const MANAGER: Role = 'manager';
 const CARMEN = { name: 'Carmen Reyes' };
 const ORDER = 'ORD-2026-0148';
@@ -492,6 +495,29 @@ function Phase11OnRequest() {
   );
 }
 
+/** The Quote requests cases load and mount when asked for, like the Site content cases. Phase13Demos.test.tsx covers them. */
+function Phase13OnRequest() {
+  const [shown, setShown] = useState(false);
+  if (shown) {
+    return (
+      <Suspense fallback={<SkeletonText />}>
+        <Phase13Demos />
+      </Suspense>
+    );
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => {
+        setShown(true);
+      }}
+    >
+      {SHOWCASE_COPY.quotes.show}
+    </Button>
+  );
+}
+
 export interface ExtraCase {
   readonly id: string;
   readonly Component: ComponentType;
@@ -515,4 +541,5 @@ export const EXTRA_CASES: Readonly<Partial<Record<ShowcaseSectionId, readonly Ex
   photos: [{ id: 'showcase-order-photos', Component: Phase9OnRequest, demo: true }],
   dashboard: [{ id: 'showcase-dashboard-and-money', Component: Phase10OnRequest, demo: true }],
   'site-content': [{ id: 'showcase-site-content', Component: Phase11OnRequest, demo: true }],
+  quotes: [{ id: 'showcase-quote-requests', Component: Phase13OnRequest, demo: true }],
 };
