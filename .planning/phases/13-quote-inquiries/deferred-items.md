@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T20:08:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T20:40:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -31,6 +31,8 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, wave 9 gate | `routes.test.tsx` "list to request to Back restores the pill, the search and the rows" | failed in the full web suite | the file alone: 87 of 87 |
 | 2026-11-23, wave 9 gate | LegacyFitCheck `CompanyExpenseCheckTests`, `TrialSeederTests`, `TrialImportTests` (one case each) | LocalDB connection errors in the full .NET suite | the project alone: 275 passed, 1 skipped |
 | 2026-11-23, wave 9 gate | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (fourth time) | failed in the full .NET suite | the class alone: 599 of 599 |
+| 2026-11-23, wave 9 post-fix gate | `PublicLayout.test.tsx` "sends one view with the path only for /gallery?q=jersey#top" | failed in the full web suite | the file alone: 48 of 48 |
+| 2026-11-23, wave 9 post-fix gate | `ManagerRosterLockTests`, `SiteContentLockTests` (deadlock cases), `AnalyticsVisitsMigrationTests` | LocalDB connection error (SNI) in the full .NET suite | the three classes alone: 19 of 19 |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
