@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T02:19:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T03:46:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -320,6 +320,15 @@ Performance scored / 0.93, /products 0.94, /gallery 0.92 to 0.94 and /contact 0.
 
 - **A (built):** keep the gate as it is and record the miss as a known gap.
 - **B:** a quick task to bring public page load time down, aiming to get /contact back to its pre-Phase 13 score.
+
+## P13-BL-31 · Showcase test choices (13-SHOWCASE-E2E-FIX)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+1. **The New count read on the showcase page.** The admin menu reads the New quote count on every admin page, including the showcase, so the showcase now makes that one real read besides the sign-in refresh. A (built): keep the real menu and let the test allow that read; any call from a demo still fails the test. B: skip the count on the showcase page only, so its menu shows no count.
+2. **The showcase section title.** A: "Quote requests". B: "Quote Requests", to match the menu item.
+
+The footer Legal row parity gap from Phase 12 (12-13, in STATE.md) is still open and unchanged.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 

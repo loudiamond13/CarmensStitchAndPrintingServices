@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T02:14:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T03:46:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -49,6 +49,8 @@ Vitest keeps transformed files in `web/node_modules/.vitest-cache`. `src/dev/kit
 | 2026-11-24, plan 13-24 | LegacyFitCheck `TrialImportTests` (duplicate number case) | LocalDB connection timeout | the class alone: 7 of 7 |
 | 2026-11-24, plan 13-24 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (fifth time) | 500 instead of 204 | the class alone: 599 of 599. Recurring: worth a quick task |
 | 2026-11-24, plan 13-24 | `QuoteRequestPage.test.tsx` "deletes with the version..." and `GalleryPage.test.tsx` "asks for the lightbox chunk only when a tile is first pressed" | first `npm run verify` run | each file alone twice: 88 of 88; the second verify run passed all 12,187 |
+| 2026-11-24, post-sweep gate | LegacyFitCheck `ColumnInventoryTests.AFakeRunListsNoUnknownColumns` | LocalDB connection error in the full .NET suite | the class alone: 11 of 11 |
+| 2026-11-24, showcase e2e fix | `ComponentShowcasePage.lazy.test.tsx` | failed once in a five-file run | alone 3 of 3; the five files then passed twice (129 of 129) |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
