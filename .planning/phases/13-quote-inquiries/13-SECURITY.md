@@ -7,7 +7,7 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-24T04:07:00-06:00"
-updated: "2026-11-24T04:07:00-06:00"
+updated: "2026-11-24T07:30:22-06:00"
 ---
 
 # Phase 13: Security
@@ -139,6 +139,7 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-11-24 | 73 | 73 | 0 | gsd-security-auditor (ASVS L1, block_on high), orchestrator in away mode |
+| 2026-11-24 (re-check) | 73 | 73 | 0 | orchestrator, L1 short-circuit: only `quoteRequests.recipe.ts` class strings changed since the audit, no new attack surface |
 
 ---
 
@@ -150,3 +151,11 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-11-24 by the audit. The owner still confirms AR-13-02 and AR-13-05 (P13-BL-32) and the stray-photo warning above.
+
+## Security Audit 2026-11-24
+
+| Metric | Count |
+|---|---|
+| Threats found | 73 |
+| Closed | 73 |
+| Open | 0 |
