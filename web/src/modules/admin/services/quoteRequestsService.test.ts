@@ -121,6 +121,22 @@ describe('quoteRequestsService.addNote', () => {
   });
 });
 
+describe('quoteRequestsService.remove', () => {
+  it('calls DELETE /api/v1/quote-requests/{id} with the version as a query parameter, no body and no Idempotency-Key', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.remove(quoteRequestId(7), 'AAAAAAAAB9E=');
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
+    expect(url.pathname).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({ version: 'AAAAAAAAB9E=' });
+    expect(fake.calls[0]?.body).toBeUndefined();
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
+  });
+});
+
 describe('quoteRequestsService.newCount', () => {
   it('calls GET /api/v1/quote-requests/new-count and resolves the count', async () => {
     const { fake, service } = serviceWith([{ body: { count: 3 } }]);

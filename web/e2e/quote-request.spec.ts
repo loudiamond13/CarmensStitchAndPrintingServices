@@ -72,6 +72,9 @@ test('@quote staff add a note, and it stays after a reload', async ({ page, requ
   const id = await createQuoteRequest(request, { customerName: name, contactNumber: freshMobile() });
 
   await openFromInbox(page, name, id);
+  // D-16: an Admin never sees Delete Request.
+  await expect(page.getByRole('button', { name: 'Change Status' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Delete Request' })).toHaveCount(0);
   const notes = page.getByRole('region', { name: 'Internal notes' });
   await expect(notes).toContainText('No notes yet.');
   const box = notes.getByRole('textbox', { name: 'Add a note' });
@@ -96,6 +99,45 @@ test('@quote staff add a note, and it stays after a reload', async ({ page, requ
   await expect(page.getByRole('region', { name: 'Internal notes' }).getByRole('listitem').first()).toContainText(
     'Wants 12 jerseys by Friday.',
   );
+});
+
+test('@quote a Manager deletes a request after the confirm', async ({ page, request, guard }) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+  const name = uniqueName();
+  const id = await createQuoteRequest(request, { customerName: name, contactNumber: freshMobile() });
+
+  await openFromInbox(page, name, id);
+  const remove = page.getByRole('button', { name: 'Delete Request' });
+  await remove.click();
+  const dialog = page.getByRole('dialog', { name: 'Delete this quote request?' });
+  await expect(dialog).toContainText(
+    `This deletes the request from ${name} and its photos for good. This can't be undone.`,
+  );
+  await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expectNoAxeViolations(page);
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(remove).toBeFocused();
+
+  await remove.click();
+  const deleted = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/v1/quote-requests/${id}` && response.request().method() === 'DELETE',
+  );
+  await dialog.getByRole('button', { name: 'Delete Request' }).click();
+  expect((await deleted).status()).toBe(204);
+
+  await expect(page).toHaveURL(/\/admin\/quote-requests\?q=/);
+  await expect(page.getByText('Quote request deleted')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Quote Requests' })).toBeFocused();
+  await expect(page.getByRole('link', { name })).toHaveCount(0);
+
+  guard.expectStatus(`/api/v1/quote-requests/${id}`, 404);
+  await page.goto(`/admin/quote-requests/${id}`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Quote request not found' })).toBeVisible();
 });
 
 test('@quote at 320px the actions wrap under the title, 44px tall, and nothing scrolls sideways', async ({

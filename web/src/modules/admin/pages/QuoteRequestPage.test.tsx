@@ -775,3 +775,192 @@ describe('Internal notes on the page (D-17, UI-SPEC R2 item 4)', () => {
     });
   });
 });
+
+/** Answers DELETE /quote-requests/{id} with `answer` (by default 204) and records each address. */
+function deleteBackend(answer: () => Response | Promise<Response> = () => new HttpResponse(null, { status: 204 })) {
+  const deletes: URL[] = [];
+  server.use(
+    http.delete(/\/api\/v1\/quote-requests\/([0-9a-f-]{36})$/, async ({ request }) => {
+      deletes.push(new URL(request.url));
+      return answer();
+    }),
+  );
+  return deletes;
+}
+
+function signInAsAdmin(): void {
+  clearSession();
+  const manager = sessionResponse();
+  acceptSession(sessionResponse({ user: { ...manager.user, role: 'Admin' } }));
+}
+
+describe('Delete Request (D-16, UI-SPEC R2 actions and Destructive actions)', () => {
+  const LIST_KEY = ['quote-requests', 'list', { status: 'open', q: null, page: 1, size: 20 }] as const;
+  const CONTACTED = quoteRequestDetail(ID, { status: 'contacted' });
+
+  it('is not shown to an Admin, while Change Status is', async () => {
+    signInAsAdmin();
+    quoteRequestBackend(CONTACTED);
+    renderPage();
+
+    await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' });
+    expect(screen.getByRole('button', { name: 'Change Status' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Delete Request' })).toBeNull();
+  });
+
+  it('is not shown to an Admin on a Converted request, nor its reason', async () => {
+    signInAsAdmin();
+    quoteRequestBackend(quoteRequestDetail(ID, { status: 'converted' }));
+    renderPage();
+
+    await screen.findByRole('heading', { level: 1, name: 'Juan Dela Cruz' });
+    expect(screen.queryByRole('button', { name: 'Delete Request' })).toBeNull();
+    expect(screen.queryByText("A request that became an order can't be deleted.")).toBeNull();
+  });
+
+  it('asks a Manager first, naming the visitor, with Cancel focused; Cancel closes with focus back on the button', async () => {
+    const deletes = deleteBackend();
+    quoteRequestBackend(CONTACTED);
+    renderPage();
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole('button', { name: 'Delete Request' });
+    expect(button.className).toContain('bg-danger-soft');
+    await user.click(button);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    expect(dialog).toHaveTextContent(
+      "This deletes the request from Juan Dela Cruz and its photos for good. This can't be undone.",
+    );
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' });
+    expect(cancel).toHaveFocus();
+    expect(within(dialog).getByRole('button', { name: 'Delete Request' })).toBeVisible();
+    await expectNoAxeViolations(document.body);
+
+    await user.click(cancel);
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: 'Delete Request' })).toHaveFocus();
+    expect(deletes).toHaveLength(0);
+  });
+
+  it('deletes with the version, shows Deleting, then opens the inbox with the toast and asks it to focus its h1', async () => {
+    const answer = gate();
+    const deletes = deleteBackend(async () => {
+      await answer.wait;
+      return new HttpResponse(null, { status: 204 });
+    });
+    quoteRequestBackend(CONTACTED);
+    queryClient.setQueryData(NEW_QUOTE_COUNT_KEY, 4);
+    queryClient.setQueryData(LIST_KEY, { items: [] });
+    const { router } = renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+
+    expect(await within(dialog).findByRole('button', { name: 'Deleting' })).toBeVisible();
+    await waitFor(() => {
+      expect(deletes).toHaveLength(1);
+    });
+    expect(deletes[0]?.pathname).toBe(`/api/v1/quote-requests/${ID}`);
+    expect(Object.fromEntries(deletes[0]?.searchParams ?? [])).toEqual({ version: 'AAAAAAAAB9E=' });
+    answer.open();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Quote Requests inbox' })).toBeVisible();
+    expect(screen.getByText('Quote request deleted')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/quote-requests');
+    expect(router.state.location.state).toEqual({ focusHeading: true });
+    expect(queryClient.getQueryState(NEW_QUOTE_COUNT_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(LIST_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(['quote-requests', 'detail', ID])).toBeUndefined();
+  });
+
+  it('returns to the inbox view the person came from, in place of the deleted request in history', async () => {
+    deleteBackend();
+    quoteRequestBackend(CONTACTED);
+    const inbox = '/admin/quote-requests?status=all&q=juan';
+    const { router } = renderPage([inbox, { pathname: PATH, state: { from: inbox } }]);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+
+    await screen.findByRole('heading', { level: 1, name: 'Quote Requests inbox' });
+    expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(inbox);
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it('treats a 404 on its own delete as deleted: the same toast and way back (13-REVIEW-W8 IN-02)', async () => {
+    deleteBackend(() => quoteProblem(404, { code: 'quote-requests.not-found' }));
+    quoteRequestBackend(CONTACTED);
+    const { router } = renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Quote Requests inbox' })).toBeVisible();
+    expect(screen.getByText('Quote request deleted')).toBeVisible();
+    expect(router.state.location.pathname).toBe('/admin/quote-requests');
+  });
+
+  it('closes the confirm and shows the ConflictBanner, focused, on a 409', async () => {
+    deleteBackend(() => quoteProblem(409, { code: 'quote-requests.conflict' }));
+    quoteRequestBackend(CONTACTED);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+
+    const title = await screen.findByText('Someone else changed this request.');
+    const banner = title.closest<HTMLElement>('[role="alert"]');
+    if (banner === null) throw new Error('The banner is not an alert.');
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(within(banner).getByRole('button', { name: 'Load Latest' })).toHaveFocus();
+  });
+
+  it("shows the server's sentence in the confirm on a 400", async () => {
+    deleteBackend(() =>
+      quoteProblem(400, {
+        code: 'quote-requests.converted-locked',
+        detail: "A request that became an order can't be deleted.",
+      }),
+    );
+    quoteRequestBackend(CONTACTED);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+
+    expect(await within(dialog).findByText(/A request that became an order can't be deleted\./)).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toBeInTheDocument();
+  });
+
+  it('is aria-disabled for a Manager on a Converted request, described by the reason, and opens nothing', async () => {
+    const deletes = deleteBackend();
+    quoteRequestBackend(quoteRequestDetail(ID, { status: 'converted' }));
+    const { container } = renderPage();
+    const user = userEvent.setup();
+
+    const button = await screen.findByRole('button', { name: 'Delete Request' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription("A request that became an order can't be deleted.");
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+    await user.click(button);
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(deletes).toHaveLength(0);
+    await expectNoAxeViolations(container);
+  });
+});
