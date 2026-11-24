@@ -19,6 +19,7 @@ namespace Csps.Infrastructure.QuoteRequests;
 internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvider time, ILogger<QuoteRequestStore> logger, TimeSpan wait) : IQuoteRequestStore
 {
     private const string EmailCollation = "Latin1_General_100_CI_AS";
+    private const string SoftDeleteFilter = "SoftDelete";
 
     public QuoteRequestStore(CspsDbContext context, TimeProvider time, ILogger<QuoteRequestStore> logger)
         : this(context, time, logger, DatabaseLocks.DefaultWait)
@@ -29,6 +30,40 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
         context.QuoteRequests
             .Include(request => request.Photos)
             .SingleOrDefaultAsync(request => request.Id == id, cancellationToken);
+
+    public async Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken)
+    {
+        // The update takes the row's exclusive lock to the end of the transaction and matches only a request that is not Converted,
+        // so a second order save of the same request waits here and then changes nothing. Any update moves the row version.
+        try
+        {
+            var locked = await context.QuoteRequests
+                .Where(request => request.Id == id && request.Status != QuoteRequestStatus.Converted)
+                .ExecuteUpdateAsync(set => set.SetProperty(request => request.EditVersion, Guid.NewGuid()), cancellationToken)
+                .ConfigureAwait(false);
+            return locked == 1;
+        }
+        catch (Exception error) when (SqlErrors.Has(error, SqlErrors.Timeout, SqlErrors.DeadlockVictim))
+        {
+            // A wait for the row that ran out of time, or a deadlock victim, is a lost race like any other.
+            context.ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(error);
+        }
+    }
+
+    // The order's number is read with the soft-delete filter lifted, so a request whose order was deleted still names it.
+    public Task<QuoteConversionState?> FindConversionAsync(Guid id, CancellationToken cancellationToken) => (
+            from request in context.QuoteRequests.AsNoTracking()
+            where request.Id == id
+            join orderRow in context.Orders.IgnoreQueryFilters([SoftDeleteFilter]).AsNoTracking() on request.OrderId equals (Guid?)orderRow.Id into orders
+            from order in orders.DefaultIfEmpty()
+            select new QuoteConversionState(request.Status, request.OrderId, (string?)order.Number))
+        .SingleOrDefaultAsync(cancellationToken);
+
+    public Task<QuoteRequest?> FindByOrderAsync(Guid orderId, CancellationToken cancellationToken) =>
+        context.QuoteRequests
+            .Include(request => request.Photos)
+            .SingleOrDefaultAsync(request => request.OrderId == orderId, cancellationToken);
 
     public void Add(QuoteRequest request)
     {

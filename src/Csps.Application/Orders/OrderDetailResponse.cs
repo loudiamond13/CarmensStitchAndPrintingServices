@@ -245,6 +245,7 @@ public sealed record OrderPublicWebsiteDto(
 /// <param name="LastChangedAt">When it was last changed; null until an edit.</param>
 /// <param name="Version">The base64 of the eight-byte row version a save must send back.</param>
 /// <param name="Today">The business today, so the browser never reads the device clock for it.</param>
+/// <param name="QuoteRequestId">The quote request the order was made from (D-21), so the page can link to it and its photos; null when none.</param>
 public sealed record OrderDetailResponse(
     Guid Id,
     string Number,
@@ -272,4 +273,5 @@ public sealed record OrderDetailResponse(
     ActorRef? LastChangedBy,
     DateTimeOffset? LastChangedAt,
     string Version,
-    DateOnly Today);
+    DateOnly Today,
+    Guid? QuoteRequestId = null);

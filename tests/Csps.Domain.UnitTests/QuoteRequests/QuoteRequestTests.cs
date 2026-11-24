@@ -244,6 +244,44 @@ public sealed class QuoteRequestTests
         Should.Throw<ArgumentNullException>(() => Received().AddNote(null!, StaffId, Later));
     }
 
+    [Theory]
+    [MemberData(nameof(HandSetStatuses))]
+    public void ConvertingSetsConvertedLinksTheOrderAndAddsAHistoryRowWithTheOrder(QuoteRequestStatus from)
+    {
+        var request = At(from);
+        var version = request.EditVersion;
+        var orderId = Guid.Parse("01a2b3c4-0000-7000-8000-000000000148");
+
+        var result = request.MarkConverted(orderId, StaffId, Later);
+
+        result.IsSuccess.ShouldBeTrue();
+        request.Status.ShouldBe(QuoteRequestStatus.Converted);
+        request.StatusChangedAtUtc.ShouldBe(Later);
+        request.OrderId.ShouldBe(orderId);
+        request.EditVersion.ShouldNotBe(version);
+        var row = request.StatusChanges[^1];
+        (row.FromStatus, row.ToStatus, row.ChangedById, row.ChangedAtUtc, row.OrderId).ShouldBe((from, QuoteRequestStatus.Converted, (Guid?)StaffId, Later, (Guid?)orderId));
+    }
+
+    [Fact]
+    public void AConvertedRequestIsNeverConvertedAgainAndKeepsItsFirstOrder()
+    {
+        var request = Received();
+        var first = Guid.Parse("01a2b3c4-0000-7000-8000-000000000148");
+        request.MarkConverted(first, StaffId, Now.AddMinutes(1)).IsSuccess.ShouldBeTrue();
+        var version = request.EditVersion;
+
+        var result = request.MarkConverted(Guid.Parse("01a2b3c4-0000-7000-8000-000000000149"), StaffId, Later);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("quote-requests.already-converted");
+        result.Error.Message.ShouldBe("This quote request was already turned into an order.");
+        request.OrderId.ShouldBe(first);
+        request.EditVersion.ShouldBe(version);
+        request.StatusChanges.Count.ShouldBe(1);
+    }
+
     [Fact]
     public void StoredNumbersAreFixed()
     {

@@ -9,7 +9,7 @@ namespace Csps.Server.Controllers;
 
 /// <summary>
 /// The staff side of the quote requests (INQ-05, D-13): staff of either role read the inbox, open a request, change its status and add
-/// notes; a Manager may delete a request for good (D-16).
+/// notes, and read the New Order prefill; a Manager may delete a request for good (D-16).
 /// The visitor's own sends are on the public controller. Never cached.
 /// </summary>
 /// <param name="list">The inbox list handler.</param>
@@ -18,6 +18,7 @@ namespace Csps.Server.Controllers;
 /// <param name="changeStatus">The change-status handler.</param>
 /// <param name="addNote">The add-note handler.</param>
 /// <param name="delete">The Manager delete handler.</param>
+/// <param name="prefill">The New Order prefill handler.</param>
 [ApiController]
 [Route("api/v1/quote-requests")]
 [Authorize(Policy = Policies.Staff)]
@@ -29,7 +30,8 @@ public sealed class QuoteRequestsController(
     GetQuoteRequestHandler get,
     ChangeQuoteRequestStatusHandler changeStatus,
     AddQuoteRequestNoteHandler addNote,
-    DeleteQuoteRequestHandler delete) : ControllerBase
+    DeleteQuoteRequestHandler delete,
+    GetOrderPrefillHandler prefill) : ControllerBase
 {
     /// <summary>
     /// Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
@@ -91,6 +93,27 @@ public sealed class QuoteRequestsController(
     {
         var result = await get.HandleAsync(id, cancellationToken).ConfigureAwait(false);
         return result.ToHttpResult(HttpContext, static request => TypedResults.Ok(request));
+    }
+
+    /// <summary>
+    /// Reads the values the New Order form starts with when staff turn a quote request into an order, for both roles (D-20): the
+    /// customer name, team, the phone in its display form, email, the message as notes, the business day it arrived, and the
+    /// suggested product type of the first item, which is the first active type filed under the chosen product line by name, or null
+    /// for Custom design, Not sure yet or no choice. Nothing is saved; send <c>quoteRequestId</c> with the new order to convert the
+    /// request. A request that is already Converted still answers; the order save refuses a second order.
+    /// </summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
+    /// <returns>200 with the form values, 401 without a valid token, or 404 when there is no such request.</returns>
+    [HttpGet("{id:guid}/order-prefill")]
+    [EndpointName("GetQuoteRequestOrderPrefill")]
+    [ProducesResponseType<OrderPrefillResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IResult> GetOrderPrefill(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await prefill.HandleAsync(id, cancellationToken).ConfigureAwait(false);
+        return result.ToHttpResult(HttpContext, static values => TypedResults.Ok(values));
     }
 
     /// <summary>

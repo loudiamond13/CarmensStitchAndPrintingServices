@@ -103,6 +103,18 @@ public sealed class ErrorTests
     }
 
     [Fact]
+    public void ConflictKeepsItsExtraMembers()
+    {
+        var extensions = new Dictionary<string, object>(StringComparer.Ordinal) { ["orderNumber"] = "ORD-2026-0148" };
+
+        var error = Error.Conflict("a.b", "m", extensions);
+
+        (error.Kind, error.Code, error.Message).ShouldBe((ErrorKind.Conflict, "a.b", "m"));
+        error.Extensions.ShouldBeSameAs(extensions);
+        Error.Conflict("a.b", "m").Extensions.ShouldBeNull();
+    }
+
+    [Fact]
     public void AnErrorHasNoExtraMembersUnlessGivenSome()
     {
         Error.Validation("a.b", "m", OneFieldError).Extensions.ShouldBeNull();

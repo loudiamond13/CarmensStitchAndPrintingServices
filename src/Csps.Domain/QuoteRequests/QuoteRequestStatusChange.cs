@@ -6,14 +6,15 @@ namespace Csps.Domain.QuoteRequests;
 /// </summary>
 public sealed class QuoteRequestStatusChange
 {
-    // Used by EF Core (constructor binding) and by QuoteRequest.ChangeStatus.
+    // Used by EF Core (constructor binding), by QuoteRequest.ChangeStatus and by QuoteRequest.MarkConverted.
     internal QuoteRequestStatusChange(
         Guid id,
         Guid quoteRequestId,
         QuoteRequestStatus fromStatus,
         QuoteRequestStatus toStatus,
         Guid? changedById,
-        DateTimeOffset changedAtUtc)
+        DateTimeOffset changedAtUtc,
+        Guid? orderId = null)
     {
         Id = id;
         QuoteRequestId = quoteRequestId;
@@ -21,6 +22,7 @@ public sealed class QuoteRequestStatusChange
         ToStatus = toStatus;
         ChangedById = changedById;
         ChangedAtUtc = changedAtUtc;
+        OrderId = orderId;
     }
 
     /// <summary>Gets the primary key, a version 7 id made by the domain.</summary>

@@ -11,6 +11,7 @@ using Csps.Domain.Common;
 using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
+using Csps.Domain.QuoteRequests;
 using Csps.Domain.Time;
 using FluentValidation;
 using FluentValidation.Results;
@@ -39,6 +40,7 @@ public sealed class CreateOrderHandlerTests
     private static readonly Guid RetiredCategoryId = Guid.Parse("8e2c5a47-1d93-4b60-a7f4-6c0d9b3e5a12");
     private static readonly Guid Basketball = ProductLineSeed.All.Single(entry => entry.Key == "basketball").Id;
     private static readonly Guid Volleyball = ProductLineSeed.All.Single(entry => entry.Key == "volleyball").Id;
+    private static readonly Guid QuoteId = Guid.Parse("019aa1c2-7c40-7a11-8b3e-2f5d6c7e8a90");
 
     [Fact]
     public async Task WithNoCallerTheSessionHasEnded()
@@ -694,6 +696,128 @@ public sealed class CreateOrderHandlerTests
         harness.Audit.Entries.ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task WithoutAQuoteRequestTheQuoteStoreIsNotTouched()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(Valid(), TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Quotes.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AQuoteRequestIsLockedBeforeTheNumberAndConvertedLinkedAndAuditedInTheOrderSave()
+    {
+        var harness = new Harness();
+        var quote = harness.SeedQuote();
+        Order? added = null;
+        harness.Orders.When(store => store.Add(Arg.Any<Order>())).Do(call => added = call.Arg<Order>());
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        Received.InOrder(() =>
+        {
+            harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>());
+            harness.Quotes.FindAsync(QuoteId, Arg.Any<CancellationToken>());
+            harness.Numbers.NextAsync(Arg.Any<int>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+        });
+        var order = added.ShouldNotBeNull();
+        quote.Status.ShouldBe(QuoteRequestStatus.Converted);
+        quote.OrderId.ShouldBe(order.Id);
+        quote.StatusChanges.ShouldHaveSingleItem().ChangedById.ShouldBe(CallerId);
+        quote.StatusChangedAtUtc.ShouldBe(Now);
+        var entry = harness.Audit.Entries.Single(entry => entry.Call.Action == "quote-request.converted");
+        entry.Call.ShouldBe(new AuditCall("quote-request.converted", "QuoteRequest", QuoteId.ToString("D"), $"order={order.Id:D}", Independent: false));
+        entry.SavesSoFar.ShouldBe(0);
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task AnUnknownQuoteRequestIs404AndTakesNoNumberAndSavesNothing()
+    {
+        var harness = new Harness();
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("quote-requests.not-found");
+        result.Error.Kind.ShouldBe(ErrorKind.NotFound);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Audit.Entries.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AConvertedQuoteRequestIs409WithTheFirstOrdersIdAndNumberAndTakesNoNumber()
+    {
+        var harness = new Harness();
+        var firstOrder = Guid.Parse("01a2b3c4-0000-7000-8000-000000000148");
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+        harness.Quotes.FindConversionAsync(QuoteId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<QuoteConversionState?>(new QuoteConversionState(QuoteRequestStatus.Converted, firstOrder, "ORD-2026-0148")));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Kind.ShouldBe(ErrorKind.Conflict);
+        result.Error.Code.ShouldBe("quote-requests.already-converted");
+        result.Error.Message.ShouldBe("This quote request was already turned into an order.");
+        var extensions = result.Error.Extensions.ShouldNotBeNull();
+        extensions["orderId"].ShouldBe(firstOrder);
+        extensions["orderNumber"].ShouldBe("ORD-2026-0148");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Orders.DidNotReceiveWithAnyArgs().Add(default!);
+        harness.Audit.Entries.ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task AConvertedQuoteRequestWithNoOrderLinkIsStillThe409()
+    {
+        var harness = new Harness();
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(false));
+        harness.Quotes.FindConversionAsync(QuoteId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<QuoteConversionState?>(new QuoteConversionState(QuoteRequestStatus.Converted, null, null)));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("quote-requests.already-converted");
+        result.Error.Extensions.ShouldBeNull();
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ALockedRequestThatCannotBeLoadedIs404()
+    {
+        var harness = new Harness();
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+        harness.Quotes.FindAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult<QuoteRequest?>(null));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.Code.ShouldBe("quote-requests.not-found");
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Saves.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task ALockThatTimesOutIsTheOrdersBusy409AndTakesNoNumber()
+    {
+        var harness = new Harness();
+        harness.Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>())
+            .ThrowsAsync(new ConcurrencyConflictException(new InvalidOperationException("The wait ran out.")));
+
+        var result = await harness.Handler.HandleAsync(Valid() with { QuoteRequestId = QuoteId }, TestContext.Current.CancellationToken);
+
+        result.Error.ShouldBe(OrderErrors.Busy);
+        harness.Numbers.ReceivedCalls().ShouldBeEmpty();
+        harness.Unit.Rollbacks.ShouldBe(1);
+    }
+
     private static CreateOrderRequest Valid() => new(
         "Juan Dela Cruz",
         "Brgy. San Roque Ballers",
@@ -781,9 +905,10 @@ public sealed class CreateOrderHandlerTests
                     : id == BlockedReceiverId ? new StaffState(id, "Dee Dizon", Roles.Admin, false, false, false, true) : null;
                 return Task.FromResult(state);
             });
+            Quotes = Substitute.For<IQuoteRequestStore>();
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
-            Handler = new CreateOrderHandler(Orders, Reader, Numbers, Lists, Staff, new FixedCalendar(), Audit, Unit, request, validator ?? new CreateOrderRequestValidator(), new OrderPublicWebsiteWriter(Lines, Gallery, SiteLock, Audit));
+            Handler = new CreateOrderHandler(Orders, Reader, Numbers, Lists, Staff, new FixedCalendar(), Audit, Unit, request, validator ?? new CreateOrderRequestValidator(), new OrderPublicWebsiteWriter(Lines, Gallery, SiteLock, Audit), Quotes);
             Get = new GetOrderHandler(Reader, request);
         }
 
@@ -803,6 +928,8 @@ public sealed class CreateOrderHandlerTests
 
         public ISiteContentLock SiteLock { get; }
 
+        public IQuoteRequestStore Quotes { get; }
+
         public List<GalleryEntry> Added { get; } = [];
 
         public FakeUnitOfWork Unit { get; } = new();
@@ -812,6 +939,18 @@ public sealed class CreateOrderHandlerTests
         public CreateOrderHandler Handler { get; }
 
         public GetOrderHandler Get { get; }
+
+        // A New request the lock finds and the store loads.
+        public QuoteRequest SeedQuote()
+        {
+            var quote = QuoteRequest.Receive(
+                QuoteId,
+                new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null, QuoteProductChoice.Custom, null, null, null, null),
+                Now.AddDays(-2)).Value;
+            Quotes.LockForConversionAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult(true));
+            Quotes.FindAsync(QuoteId, Arg.Any<CancellationToken>()).Returns(Task.FromResult<QuoteRequest?>(quote));
+            return quote;
+        }
 
         private static OrderDetailResponse Detail() => new(
             Guid.NewGuid(),

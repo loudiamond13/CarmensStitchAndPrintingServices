@@ -131,6 +131,8 @@ export function quoteRequestDetail(
     lastChangedBy: null,
     lastChangedAt: null,
     version: 'AAAAAAAAB9E=',
+    orderId: null,
+    orderNumber: null,
     ...overrides,
   };
 }

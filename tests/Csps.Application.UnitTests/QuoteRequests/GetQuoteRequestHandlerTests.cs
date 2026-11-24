@@ -47,6 +47,27 @@ public sealed class GetQuoteRequestHandlerTests
     }
 
     [Fact]
+    public async Task AConvertedRequestCarriesTheIdAndNumberOfItsOrder()
+    {
+        var orderId = Guid.Parse("01a2b3c4-0000-7000-8000-000000000148");
+        var (handler, _) = Build(View([], []) with { Status = QuoteRequestStatus.Converted, OrderId = orderId, OrderNumber = "ORD-2026-0148" });
+
+        var result = await handler.HandleAsync(Id, Token);
+
+        (result.Value.Status, result.Value.OrderId, result.Value.OrderNumber).ShouldBe(("converted", (Guid?)orderId, "ORD-2026-0148"));
+    }
+
+    [Fact]
+    public async Task ARequestWithNoOrderHasNoOrderIdOrNumber()
+    {
+        var (handler, _) = Build(View([], []));
+
+        var result = await handler.HandleAsync(Id, Token);
+
+        (result.Value.OrderId, result.Value.OrderNumber).ShouldBe(((Guid?)null, (string?)null));
+    }
+
+    [Fact]
     public async Task AnUnknownIdIs404()
     {
         var (handler, _) = Build(null);
@@ -111,5 +132,7 @@ public sealed class GetQuoteRequestHandlerTests
         [],
         history.Count > 0 ? history[0].ChangedBy : null,
         history.Count > 0 ? history[0].ChangedAtUtc : null,
-        [0, 0, 0, 0, 0, 0, 7, 209]);
+        [0, 0, 0, 0, 0, 0, 7, 209],
+        null,
+        null);
 }

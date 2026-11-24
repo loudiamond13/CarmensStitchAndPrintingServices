@@ -1311,6 +1311,14 @@
               }
             ]
           },
+          "quoteRequestId": {
+            "description": "The quote request this order is made from (INQ-06, D-20); the save turns it Converted and links the two. None when absent.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "status": {
             "description": "The status to start in: pending, mockup, production, ready or delivered; pending when not sent.",
             "type": [
@@ -3539,6 +3547,14 @@
             "$ref": "#/components/schemas/OrderPublicWebsiteDto",
             "description": "The order's place on the public website."
           },
+          "quoteRequestId": {
+            "description": "The quote request the order was made from (D-21), so the page can link to it and its photos; null when none.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "recordedAt": {
             "description": "When it was created.",
             "format": "date-time",
@@ -4704,6 +4720,69 @@
           "recordedAt",
           "lastChangedBy",
           "lastChangedAt"
+        ],
+        "type": "object"
+      },
+      "OrderPrefillResponse": {
+        "description": "The values the New Order form starts with when staff turn a quote request into an order (INQ-06, D-20). Nothing is saved.",
+        "properties": {
+          "contactNumber": {
+            "description": "The mobile number in its display form, such as `0917 123 4567`, which the order number rule accepts.",
+            "type": "string"
+          },
+          "customerName": {
+            "description": "The visitor's name.",
+            "type": "string"
+          },
+          "email": {
+            "description": "The email; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "description": "The visitor's message, for the order notes; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "productTypeId": {
+            "description": "The suggested product type of the first item; null for Custom design, Not sure yet, no choice or a line with no active type.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quoteRequestId": {
+            "description": "The request, sent back as `quoteRequestId` when the order is saved.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "receivedOn": {
+            "description": "The business day the request arrived.",
+            "format": "date",
+            "type": "string"
+          },
+          "teamName": {
+            "description": "The team; null when none.",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "quoteRequestId",
+          "customerName",
+          "teamName",
+          "contactNumber",
+          "email",
+          "notes",
+          "receivedOn",
+          "productTypeId"
         ],
         "type": "object"
       },
@@ -6762,6 +6841,21 @@
             },
             "type": "array"
           },
+          "orderId": {
+            "description": "The order the request became (D-21); null until it is converted.",
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "orderNumber": {
+            "description": "That order's number, such as `ORD-2026-0148`; null until it is converted.",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "photoCount": {
             "description": "How many photo places the request holds.",
             "format": "int32",
@@ -6850,7 +6944,9 @@
           "notes",
           "lastChangedBy",
           "lastChangedAt",
-          "version"
+          "version",
+          "orderId",
+          "orderNumber"
         ],
         "type": "object"
       },
@@ -13963,6 +14059,16 @@
             },
             "description": "Unauthorized"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
           "409": {
             "content": {
               "application/json": {
@@ -13974,7 +14080,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order\ndate and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,\nproduction, ready or delivered and is pending when not sent; Completed and Cancelled are refused on a new order. An order\nhas 1 to 100 items, each with a product type that exists and is not retired, a description of up to 200 characters, an\noptional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.\nThe order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures\nare worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number\nor totals in the body are ignored. The first status history row is written with the order. A retry with the same\n`Idempotency-Key` and body answers with the stored 201 and creates nothing more.",
+        "summary": "Creates an order with its items in one call. The customer name, a contact number (digits, spaces and + - ( ) only), the order\ndate and the due date are required, and the due date may not be before the order date. The status may be pending, mockup,\nproduction, ready or delivered and is pending when not sent; Completed and Cancelled are refused on a new order. An order\nhas 1 to 100 items, each with a product type that exists and is not retired, a description of up to 200 characters, an\noptional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.\nThe order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures\nare worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number\nor totals in the body are ignored. The first status history row is written with the order. An order made from a quote request\nsends its id as `quoteRequestId`: the same save turns the request Converted, links the two and records it, and an unknown\nrequest is a 404 `quote-requests.not-found` that saves nothing. A retry with the same `Idempotency-Key` and body\nanswers with the stored 201 and creates nothing more.",
         "tags": [
           "Orders"
         ]
@@ -14468,7 +14574,7 @@
             "description": "Conflict"
           }
         },
-        "summary": "Deletes one order for good, Managers only, whether or not it was deleted before. The order and every item, payment, refund,\ndiscount, expense and history row are removed from the database in one step and there is no way back. The query value\n`confirm` must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log\nkeeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and\nhanded refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone\nis a 404 that changes nothing. Image cleanup joins this delete when orders have images.",
+        "summary": "Deletes one order for good, Managers only, whether or not it was deleted before. The order and every item, payment, refund,\ndiscount, expense and history row are removed from the database in one step and there is no way back. The query value\n`confirm` must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log\nkeeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and\nhanded refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone\nis a 404 that changes nothing. Image cleanup joins this delete when orders have images. A quote request the order was made\nfrom goes in the same save, with its photo places, notes and history; its stored photos are queued for removal and a\nquote-request.deleted entry is recorded (D-22). Deleting without \"for good\" keeps the request and its link.",
         "tags": [
           "Orders"
         ]
@@ -20343,6 +20449,59 @@
           }
         },
         "summary": "Adds an internal note to a quote request, for both roles. The body is `{ \"text\": \"...\" }` with 1 to 1,000 characters after\ntrimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote\nit and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the\nrequest's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A\nretry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the request id, the note\nid, when it was written and the new row version, so no visitor details or note text are stored with it; read the request again\nfor the notes.",
+        "tags": [
+          "QuoteRequests"
+        ]
+      }
+    },
+    "/api/v1/quote-requests/{id}/order-prefill": {
+      "get": {
+        "operationId": "GetQuoteRequestOrderPrefill",
+        "parameters": [
+          {
+            "description": "The request id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPrefillResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Reads the values the New Order form starts with when staff turn a quote request into an order, for both roles (D-20): the\ncustomer name, team, the phone in its display form, email, the message as notes, the business day it arrived, and the\nsuggested product type of the first item, which is the first active type filed under the chosen product line by name, or null\nfor Custom design, Not sure yet or no choice. Nothing is saved; send `quoteRequestId` with the new order to convert the\nrequest. A request that is already Converted still answers; the order save refuses a second order.",
         "tags": [
           "QuoteRequests"
         ]

@@ -330,6 +330,7 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 ChangerFormer = changer.DeletedAtUtc != null,
                 ConsenterFirst = (string?)consenter.FirstName,
                 ConsenterLast = (string?)consenter.LastName,
+                QuoteRequestId = context.QuoteRequests.Where(request => request.OrderId == row.Id).Select(request => (Guid?)request.Id).FirstOrDefault(),
             })
             .SingleOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -682,7 +683,8 @@ internal sealed class OrderReader(CspsDbContext context, IBusinessCalendar calen
                 : null,
             order.UpdatedAtUtc,
             RowVersions.ToText(order.RowVersion),
-            default);
+            default,
+            header.QuoteRequestId);
     }
 
     private OrderImageResponse ToResponse(OrderImage image)

@@ -25,6 +25,11 @@ public static class QuoteRequestAuditDetail
     /// <returns>For example <c>note=0196...</c>.</returns>
     public static string NoteAdded(Guid noteId) => AuditDetailFormat.Pair("note", noteId);
 
+    /// <summary>The detail of <c>quote-request.converted</c>: the order the request became, never customer details.</summary>
+    /// <param name="orderId">The new order.</param>
+    /// <returns>For example <c>order=0196...</c>.</returns>
+    public static string Converted(Guid orderId) => AuditDetailFormat.Pair("order", orderId);
+
     /// <summary>The detail of <c>quote-request.deleted</c>: the status and how many stored photos were queued for removal.</summary>
     /// <param name="status">The status the request had.</param>
     /// <param name="photos">How many stored photos were queued.</param>

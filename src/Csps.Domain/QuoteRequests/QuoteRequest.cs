@@ -106,6 +106,9 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
     /// <summary>Gets when the photos were removed because the request was marked Spam (D-04); null while they are kept.</summary>
     public DateTimeOffset? PhotosRemovedAtUtc { get; private set; }
 
+    /// <summary>Gets the order this request became (D-20); null until it is converted.</summary>
+    public Guid? OrderId { get; private set; }
+
     /// <summary>Gets the photo places the visitor declared, in slot order.</summary>
     public IReadOnlyList<QuoteRequestPhoto> Photos => _photos;
 
@@ -226,6 +229,29 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         StatusChangedAtUtc = now;
         EditVersion = Guid.CreateVersion7(now);
         return Result.Success<IReadOnlyList<string>>(to == QuoteRequestStatus.Spam ? RemovePhotos(now) : []);
+    }
+
+    /// <summary>
+    /// Turns the request into an order (D-20): from any status but Converted, the request becomes Converted, keeps the order id and
+    /// gains a history row that names the order. One request makes one order (D-23), so a Converted request is refused.
+    /// </summary>
+    /// <param name="orderId">The new order.</param>
+    /// <param name="by">The staff member who saved the order.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>Success, or a 409 <c>quote-requests.already-converted</c>; nothing changes on a failure.</returns>
+    public Result MarkConverted(Guid orderId, Guid by, DateTimeOffset now)
+    {
+        if (Status == QuoteRequestStatus.Converted)
+        {
+            return Result.Failure(Error.Conflict(QuoteRequestRules.AlreadyConvertedCode, QuoteRequestRules.AlreadyConvertedMessage));
+        }
+
+        _statusChanges.Add(new QuoteRequestStatusChange(Guid.CreateVersion7(now), Id, Status, QuoteRequestStatus.Converted, by, now, orderId));
+        Status = QuoteRequestStatus.Converted;
+        StatusChangedAtUtc = now;
+        OrderId = orderId;
+        EditVersion = Guid.CreateVersion7(now);
+        return Result.Success();
     }
 
     // Spam drops every photo place for good (D-04); the caller queues the stored files. Leaving Spam never brings them back.
