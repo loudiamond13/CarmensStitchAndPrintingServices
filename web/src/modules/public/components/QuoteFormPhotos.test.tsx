@@ -73,6 +73,7 @@ function holdUploads() {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  server.events.removeAllListeners();
 });
 
 describe('QuoteForm photo area (D-43: the picker loads on the first tap)', () => {
@@ -509,6 +510,7 @@ describe('QuoteForm with a service of its own (the showcase demos, plan 13-23)',
     server.events.on('request:start', ({ request }) => {
       seen.push(request.url);
     });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const getTicket = vi.fn<QuoteService['getTicket']>().mockResolvedValue({
       ticket: 'demo-ticket',
       minimumSeconds: 0,
@@ -538,7 +540,8 @@ describe('QuoteForm with a service of its own (the showcase demos, plan 13-23)',
     );
     expect(uploadPhoto).toHaveBeenCalledTimes(1);
     expect(seen.filter((url) => url.includes('/quote-requests'))).toEqual([]);
-    server.events.removeAllListeners();
+    const fetched = fetchSpy.mock.calls.map(([input]) => (input instanceof Request ? input.url : String(input)));
+    expect(fetched.filter((url) => url.includes('/quote-requests'))).toEqual([]);
   });
 
   it('keeps the first service for the ticket, the create and the uploads when a new one is passed later', async () => {
