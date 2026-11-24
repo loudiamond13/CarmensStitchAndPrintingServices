@@ -264,7 +264,9 @@ public sealed class OrdersController(CreateOrderHandler create, ListOrdersHandle
     /// <c>confirm</c> must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log
     /// keeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and
     /// handed refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone
-    /// is a 404 that changes nothing. Image cleanup joins this delete when orders have images.
+    /// is a 404 that changes nothing. Image cleanup joins this delete when orders have images. A quote request the order was made
+    /// from goes in the same save, with its photo places, notes and history; its stored photos are queued for removal and a
+    /// quote-request.deleted entry is recorded (D-22). Deleting without "for good" keeps the request and its link.
     /// </summary>
     /// <param name="id">The order id.</param>
     /// <param name="confirm">The order number, typed exactly.</param>

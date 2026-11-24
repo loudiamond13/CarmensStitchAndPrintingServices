@@ -44,7 +44,7 @@ public static class QuoteRequestErrors
         ConvertedDeleteLockedMessage,
         new Dictionary<string, string[]> { [QuoteRequestRules.StatusField] = [ConvertedDeleteLockedMessage] });
 
-    /// <summary>The code of a second order from a request that already became one (D-23).</summary>
+    /// <summary>The code of a second order from a request that already became one (D-23): <c>quote-requests.already-converted</c>.</summary>
     public const string AlreadyConvertedCode = QuoteRequestRules.AlreadyConvertedCode;
 
     /// <summary>The extra member of that 409 that holds the id of the order the request became.</summary>

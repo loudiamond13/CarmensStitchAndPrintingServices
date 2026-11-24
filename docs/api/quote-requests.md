@@ -1,6 +1,6 @@
 ---
 created: 2026-11-22T16:32:00-06:00
-updated: 2026-11-23T17:18:00-06:00
+updated: 2026-11-23T18:37:05-06:00
 ---
 
 # The quote requests API
@@ -216,6 +216,7 @@ data and may do the same things, except the delete, which is for a Manager only.
 | `GET /quote-requests` | `200` a page of requests with the pill counts; `400 quote-requests.list-invalid` with field errors; `401` |
 | `GET /quote-requests/new-count` | `200` `{ "count": 3 }`; `401` |
 | `GET /quote-requests/{id}` | `200` the request in full; `401`; `404 quote-requests.not-found` |
+| `GET /quote-requests/{id}/order-prefill` | `200` the New Order form values; `401`; `404 quote-requests.not-found` |
 | `POST /quote-requests/{id}/status` | with an `Idempotency-Key`: `200` the new status and version; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 | `POST /quote-requests/{id}/notes` | with an `Idempotency-Key`: `200` the note id, its time and the new version; `400 quote-requests.validation`; `401`; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
 | `DELETE /quote-requests/{id}?version=...` | Manager only: `204`; the repeat-press guard covers only `POST`, so a retried delete after a lost `204` answers `404`, which means it is already gone; `400 quote-requests.validation` or `400 quote-requests.converted-locked`; `401`; `403` for an Admin; `404 quote-requests.not-found`; `409 quote-requests.conflict` |
@@ -316,7 +317,9 @@ Rows come newest received first. Two requests received at the same time come by 
   ],
   "lastChangedBy": { "id": "...", "name": "Maria Santos", "formerStaff": false },
   "lastChangedAt": "2026-11-21T08:05:00+00:00",
-  "version": "AAAAAAAAB9E="
+  "version": "AAAAAAAAB9E=",
+  "orderId": null,
+  "orderNumber": null
 }
 ```
 
@@ -331,6 +334,8 @@ Rows come newest received first. Two requests received at the same time come by 
   `formerStaff: true`.
 - `lastChangedBy` and `lastChangedAt` are `null` until someone changes the request. A note counts as a change.
 - `version` is the row version to send with a status change.
+- `orderId` and `orderNumber` name the order the request became (D-21), for the "From quote request" link both ways. They are `null`
+  until the request is converted. A deleted order is still named, because a soft delete keeps the request.
 - The request, its photos, its history and its notes are read in separate commands. The row version is checked again at the end,
   and when a status change or a note landed in between, the request is read again, so the status, the photos, the history, the
   notes and `version` always come from one save.
@@ -396,6 +401,65 @@ Rows come newest received first. Two requests received at the same time come by 
   It has no visitor details, no photo addresses and no note text, because the idempotency gate keeps the answer for 24 hours, where
   the 6-month purge and the Manager delete cannot reach it. Read the request again with `GET /quote-requests/{id}` for the notes.
 
+## Turning a request into an order (INQ-06, D-20 to D-23)
+
+Staff of either role turn a request into an order through the normal New Order form. Nothing is saved until the order is saved.
+
+### The prefill
+
+`GET /quote-requests/{id}/order-prefill` answers the values the form starts with:
+
+```json
+{
+  "quoteRequestId": "...",
+  "customerName": "Juan Dela Cruz",
+  "teamName": "Brgy. San Roque Ballers",
+  "contactNumber": "0917 123 4567",
+  "email": "juan@example.test",
+  "notes": "Twelve jerseys, numbers 1 to 12.",
+  "receivedOn": "2026-11-21",
+  "productTypeId": "..."
+}
+```
+
+- `contactNumber` is the display form, which the order's contact number rule accepts.
+- `notes` is the visitor's message, for the order notes. Empty values are `null`.
+- `receivedOn` is the business day (shop time zone) the request arrived.
+- `productTypeId` is the suggested product type of the first item: the first product type that is not retired and is filed under
+  the chosen product line (Phase 11 D-09), by name in the order the product type list shows. It is `null` for Custom design, Not sure
+  yet, no choice, a deleted line or a line with no active type. Staff can change it.
+- A request that is already Converted still answers; the save below refuses a second order.
+- It is a `GET`, so nothing is stored by the repeat-press guard.
+
+### The save
+
+The order form (`POST /orders`, see [orders.md](orders.md)) takes `quoteRequestId`. In the same transaction as the order:
+
+- The request is locked first, before the order number is taken, by one update that matches the id only while the request is not
+  Converted. A second save of the same request waits for the first and then matches nothing.
+- The request becomes Converted, keeps the order id, and gets a history row from its old status to `converted` that names the order,
+  with who and when. It leaves the New count.
+- One audit entry `quote-request.converted` records who and when, with the detail `order=<order id>`. It never holds the visitor's
+  details.
+
+Answers that come from the request:
+
+| Status | When |
+|---|---|
+| `404 quote-requests.not-found` | no request has this id. Nothing is saved and no order number is taken. |
+| `409 quote-requests.already-converted` | the request already became an order (D-23): "This quote request was already turned into an order." The answer carries `orderId` and `orderNumber` of that order, so the page can link to it. Nothing is saved and no order number is taken. |
+
+Two saves at the same moment make exactly one order; the other gets the `409`. A unique index on the order link (only over set
+values) also keeps one order to one request in the database. That is a constraint, not a trigger (OR-7).
+
+The order's answer is the full order, as for every order save, and it now carries `quoteRequestId`. The repeat-press guard keeps
+that answer for 24 hours, as it does for every order save.
+
+### What stays where (D-21)
+
+The photos stay on the request; they are not copied to the order's photos. The order answers carry `quoteRequestId` and the
+request detail carries `orderId` and `orderNumber`, so each page links to the other.
+
 ## Deleting a request (D-16)
 
 `DELETE /quote-requests/{id}?version=AAAAAAAAB9E=`, for a Manager only, for example on a visitor's data-removal request.
@@ -415,3 +479,8 @@ Rows come newest received first. Two requests received at the same time come by 
 ## Retention
 
 The 6-month purge removes a request together with its photo places, its status history and its notes (cascade).
+
+A converted request is never purged by age: it is kept as long as its order (D-22). Orders are kept until a Manager deletes one for
+good. Then the request goes in the same save, with its photo places, notes and history; each stored photo is queued for removal
+with the reason `OrderDeleted`, and one `quote-request.deleted` audit entry records it with `status=converted;photos=<n>`. A soft
+delete of the order keeps the request and its link, and a restore shows the link again.

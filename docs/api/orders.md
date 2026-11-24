@@ -1,6 +1,6 @@
 ---
 created: 2026-10-28T10:45:00-05:00
-updated: 2026-11-14T22:13:24-06:00
+updated: 2026-11-23T18:37:05-06:00
 ---
 
 # The orders API
@@ -27,7 +27,7 @@ order expenses, recording, correcting and removing refunds, and moving an order 
 
 | Method and path | Who | Body | Answers |
 |---|---|---|---|
-| `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `409 orders.busy` |
+| `POST /orders` | Staff | the order form below, with an `Idempotency-Key` | `201` the order, with `Location: /api/v1/orders/{id}`; `400` field errors; `404 quote-requests.not-found`; `409 orders.busy`; `409 quote-requests.already-converted` |
 | `GET /orders?q=&status=&from=&to=&productType=&hasBalance=&sort=&page=&pageSize=` | Staff | none | `200` the list page; `400` field errors |
 | `GET /orders/{id}` | Staff | none | `200` the order; `404 orders.not-found` |
 | `PUT /orders/{id}` | Staff | the details form below, with the `version` | `200` the order as saved; `400` field errors; `404 orders.not-found`; `409 edit.stale`; `422 orders.locked`; `422 orders.public-cancelled` (with a `publicWebsite` block) |
@@ -114,6 +114,7 @@ about five years of orders. The photo count and the cover are read inside the pa
 | `payments` | no | none to 100 payments, each as in the payment form below; together they may not be more than the total after discounts | An order can have at most 100 payments. / The payments would be more than the order total. Lower a payment first. |
 | `expenses` | no | none to 100 order expenses, each as in the expense form below | An order can have at most 100 expenses. |
 | `publicWebsite` | no | the customer's OK and Show on the website, as in the block below; left out means no OK and not shown | the messages of the block below |
+| `quoteRequestId` | no | the quote request the order is made from (INQ-06, D-20); see "An order from a quote request" | `404 quote-requests.not-found` / `409 quote-requests.already-converted` |
 
 Each item:
 
@@ -142,6 +143,18 @@ Ink & paper and `600.00` Outsourcing) gives subtotal `22450.00`, discount `1122.
 Text is trimmed, and empty optional text is stored as `null`. Every rule is checked twice, by the validators and again by the
 order itself, so no caller can skip one. Any other member in the body, such as `createdById`, `createdAt`, `updatedById`,
 `number`, `totals`, `statusHistory`, `deletedAtUtc` or `version`, is ignored.
+
+### An order from a quote request (`quoteRequestId`) (INQ-06, D-20 to D-23)
+
+Staff start from `GET /quote-requests/{id}/order-prefill` (see [quote-requests.md](quote-requests.md)) and send the request's id as
+`quoteRequestId` with the order. The order rules and the money figures are the same as for any order. In the same transaction:
+
+- The request is locked before the order number is taken, so a missing or already used request takes no number.
+- The request becomes Converted, links to the order and records `quote-request.converted`.
+- An unknown id is `404 quote-requests.not-found` and saves nothing.
+- A request that already became an order is `409 quote-requests.already-converted`, "This quote request was already turned into an
+  order.", with `orderId` and `orderNumber` of that order. One request makes one order (D-23); a second order for the same customer is
+  made with the normal form, without `quoteRequestId`.
 
 ### The public website block (`publicWebsite`) (UI-SPEC F1, F2, D-11)
 
@@ -565,6 +578,9 @@ Who may do what:
   value `confirm` must be the order number typed exactly, for example `ORD-2026-0148`: the same letters and no spaces around it. A missing
   or different value is `400` on `confirm` ("Type the order number exactly to delete it for good.") and nothing is removed. An unknown id
   is `404` before the confirm is looked at. The audit entry is written in the same save as the delete, so it stays when the rows are gone.
+- **The quote request of an order (D-22).** A soft delete keeps the quote request the order was made from, and its link. A delete for
+  good removes that request in the same save, with its photo places, notes and history; its stored photos are queued for removal with
+  the reason `OrderDeleted`, and a `quote-request.deleted` audit entry records `status=converted;photos=<n>`.
 - **Images (ORD-06).** When orders can carry images (Phase 9), deleting an order for good will also schedule the cleanup of its images.
   There are none yet, so nothing is scheduled today.
 - **Refunds on a deleted order.** Whether refunds on a deleted order count toward money on hand is still an open question for the owner
@@ -592,7 +608,7 @@ Who may do what:
   totals: { subtotal, discount, total, paid, refunded, balance, customerCredit, expenses, profit, fullyPaid },
   publicWebsite: { customerConsent, consentRecordedAtUtc, consentRecordedByName, shownOnWebsite, shownSinceUtc,
                    productLineId, productLineTitle, autoProductLineId, publicName, pieces, hasPhoto, canShow },
-  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today
+  recordedBy, recordedAt, lastChangedBy, lastChangedAt, version, today, quoteRequestId
 }
 ```
 
@@ -618,6 +634,8 @@ Who may do what:
   team shows. It never holds the customer's name, contact details, prices or notes.
 - `productType.retired` is true when a Manager later retired the type; old orders keep showing it.
 - `version` is the base64 of the eight-byte row version a later save must send back.
+- `quoteRequestId` is the quote request the order was made from (D-21), so the page can show "From quote request" with a link to it
+  and its photos; `null` when none. The deleted-order read carries it inside `order` too.
 - `images` lists the order's photos in display order (ORD-04, IMG-04), `[]` when there are none. The photo at `position` 0 is the cover.
   Each has `id`, `position`, `description` (`null` when the default text, `Order <number> photo <n>`, applies), `width` and `height` as the
   photo is shown upright, and three addresses built when the order is read, never stored: `thumb` (the tile, `src` plus a `srcSet` with
