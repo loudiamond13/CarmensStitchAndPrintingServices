@@ -68,11 +68,11 @@ function pdf(name: string): File {
   return new File([new TextEncoder().encode('%PDF-1.7\n')], name, { type: 'application/pdf' });
 }
 
-/** What a visitor types: a made-up name, a 0917 555 01xx number and an example.test address. */
+/** What a visitor types: the UI-SPEC sample name and number and an example.test address. */
 const VALID = {
   customerName: 'Juan Dela Cruz',
   teamName: 'Brgy. San Roque Ballers',
-  contactNumber: '0917 555 0123',
+  contactNumber: '0917 123 4567',
   email: 'juan.delacruz@example.test',
   product: 'line:basketball-jerseys',
   quantity: '21-50',

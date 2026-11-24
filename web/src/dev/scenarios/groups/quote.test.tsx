@@ -131,6 +131,7 @@ describe('the quote scenarios', () => {
     expect(screen.getByRole('button', { name: /Sending/ })).toBeInTheDocument();
     expect(textbox(/Your name/)).toHaveAttribute('readonly');
     expect(textbox(/Your name/)).toHaveValue('Juan Dela Cruz');
+    expect(textbox(/Contact number/)).toHaveValue('0917 123 4567');
   });
 
   it('shows the success state', async () => {
