@@ -89,6 +89,9 @@ internal sealed class QuoteRequestReader(CspsDbContext context) : IQuoteRequestR
         return view;
     }
 
+    public Task<QuoteOrderPrefillView?> GetOrderPrefillAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult<QuoteOrderPrefillView?>(null);
+
     // Four commands: the request with its last changer, the photo places, the history with each mover's current name, and the notes
     // with each author's current name, so a rename shows at once and a removed person keeps their name.
     private async Task<QuoteRequestDetailView?> ReadDetailOnceAsync(Guid id, CancellationToken cancellationToken)

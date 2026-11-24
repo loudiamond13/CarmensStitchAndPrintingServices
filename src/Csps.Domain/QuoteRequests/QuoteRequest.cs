@@ -106,6 +106,9 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
     /// <summary>Gets when the photos were removed because the request was marked Spam (D-04); null while they are kept.</summary>
     public DateTimeOffset? PhotosRemovedAtUtc { get; private set; }
 
+    /// <summary>Gets the order this request became (D-20); null until it is converted.</summary>
+    public Guid? OrderId { get; private set; }
+
     /// <summary>Gets the photo places the visitor declared, in slot order.</summary>
     public IReadOnlyList<QuoteRequestPhoto> Photos => _photos;
 
@@ -227,6 +230,14 @@ public sealed class QuoteRequest : IAttributedRecord, IEditVersioned
         EditVersion = Guid.CreateVersion7(now);
         return Result.Success<IReadOnlyList<string>>(to == QuoteRequestStatus.Spam ? RemovePhotos(now) : []);
     }
+
+    /// <summary>Turns the request into an order (D-20). Not built yet.</summary>
+    /// <param name="orderId">The new order.</param>
+    /// <param name="by">The staff member who saved the order.</param>
+    /// <param name="now">The current instant.</param>
+    /// <returns>A failure.</returns>
+    public Result MarkConverted(Guid orderId, Guid by, DateTimeOffset now) =>
+        Result.Failure(Error.BusinessRule("quote-requests.not-built", $"Not built yet for {Id}."));
 
     // Spam drops every photo place for good (D-04); the caller queues the stored files. Leaving Spam never brings them back.
     private List<string> RemovePhotos(DateTimeOffset now)

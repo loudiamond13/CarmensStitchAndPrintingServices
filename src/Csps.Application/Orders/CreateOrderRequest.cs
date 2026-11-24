@@ -18,6 +18,7 @@ namespace Csps.Application.Orders;
 /// <param name="Payments">The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts.</param>
 /// <param name="Expenses">The order expenses, none to 100, each with who paid it; saved in the same transaction as the order.</param>
 /// <param name="PublicWebsite">The customer's OK and Show on the website, applied in the same transaction (UI-SPEC F1); when absent the order has no consent and is not shown.</param>
+/// <param name="QuoteRequestId">The quote request this order is made from (INQ-06, D-20); the save turns it Converted and links the two. None when absent.</param>
 public sealed record CreateOrderRequest(
     string? CustomerName,
     string? TeamName,
@@ -32,7 +33,8 @@ public sealed record CreateOrderRequest(
     IReadOnlyList<OrderDiscountRequest>? Discounts = null,
     IReadOnlyList<OrderPaymentRequest>? Payments = null,
     IReadOnlyList<OrderExpenseRequest>? Expenses = null,
-    OrderPublicWebsiteFields? PublicWebsite = null) : IOrderDetailsFields
+    OrderPublicWebsiteFields? PublicWebsite = null,
+    Guid? QuoteRequestId = null) : IOrderDetailsFields
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
     public static CreateOrderRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null);

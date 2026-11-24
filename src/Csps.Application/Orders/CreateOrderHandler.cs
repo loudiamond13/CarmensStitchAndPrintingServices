@@ -31,7 +31,8 @@ public sealed class CreateOrderHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<CreateOrderRequest> validator,
-    OrderPublicWebsiteWriter publicWebsite)
+    OrderPublicWebsiteWriter publicWebsite,
+    IQuoteRequestStore quoteRequests)
 {
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
@@ -40,6 +41,7 @@ public sealed class CreateOrderHandler(
     public async Task<Result<OrderDetailResponse>> HandleAsync(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        _ = quoteRequests;
 
         if (requestContext.UserId is not { } callerId)
         {

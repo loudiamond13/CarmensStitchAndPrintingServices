@@ -30,6 +30,8 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
             .Include(request => request.Photos)
             .SingleOrDefaultAsync(request => request.Id == id, cancellationToken);
 
+    public Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult(false);
+
     public void Add(QuoteRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

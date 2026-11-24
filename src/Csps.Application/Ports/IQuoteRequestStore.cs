@@ -11,6 +11,17 @@ public interface IQuoteRequestStore
     /// <returns>The request, or null when there is no such request.</returns>
     Task<QuoteRequest?> FindAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Takes the request's row lock for an order save (D-23): one conditional update that matches the id only while the request is not
+    /// Converted. Call it inside <see cref="IUnitOfWork.InTransactionAsync{T}"/> before the order number is taken; a second save of
+    /// the same request waits here and then matches nothing.
+    /// </summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>True when the request exists, is not Converted and is now locked; false otherwise.</returns>
+    /// <exception cref="Csps.Application.Common.ConcurrencyConflictException">The wait ran out of time or was a deadlock victim.</exception>
+    Task<bool> LockForConversionAsync(Guid id, CancellationToken cancellationToken);
+
     /// <summary>Adds a new request to the unit of work. Nothing is saved here.</summary>
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);

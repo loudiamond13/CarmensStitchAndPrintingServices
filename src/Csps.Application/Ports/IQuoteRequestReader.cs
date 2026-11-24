@@ -25,7 +25,39 @@ public interface IQuoteRequestReader
     /// <param name="cancellationToken">Cancels the read.</param>
     /// <returns>The request as stored, or null when there is no such request.</returns>
     Task<QuoteRequestDetailView?> GetDetailAsync(Guid id, CancellationToken cancellationToken);
+
+    /// <summary>Reads what the New Order form needs from one request, with the active product types filed under the chosen line (D-20).</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The request's form values, or null when there is no such request.</returns>
+    Task<QuoteOrderPrefillView?> GetOrderPrefillAsync(Guid id, CancellationToken cancellationToken);
 }
+
+/// <summary>One product type that is not retired and is filed under the chosen product line (Phase 11 D-09).</summary>
+/// <param name="Id">The product type id.</param>
+/// <param name="Name">Its name, which orders the list as the product type list does.</param>
+public sealed record QuoteLineProductType(Guid Id, string Name);
+
+/// <summary>What the New Order form needs from one request, as stored. The phone is still E.164.</summary>
+/// <param name="Id">The request id.</param>
+/// <param name="ReceivedAtUtc">When it was received.</param>
+/// <param name="CustomerName">The visitor's name.</param>
+/// <param name="TeamName">The team; null when none.</param>
+/// <param name="ContactNumberE164">The mobile number as E.164.</param>
+/// <param name="Email">The email; null when none.</param>
+/// <param name="Message">What the visitor wrote; null when nothing.</param>
+/// <param name="ProductChoice">What was chosen in the product list; null when nothing.</param>
+/// <param name="LineProductTypes">The active product types of the chosen line; empty for another choice or a deleted line.</param>
+public sealed record QuoteOrderPrefillView(
+    Guid Id,
+    DateTimeOffset ReceivedAtUtc,
+    string CustomerName,
+    string? TeamName,
+    string ContactNumberE164,
+    string? Email,
+    string? Message,
+    QuoteProductChoice? ProductChoice,
+    IReadOnlyList<QuoteLineProductType> LineProductTypes);
 
 /// <summary>One photo place as stored. A place with no public id is a photo that never arrived.</summary>
 /// <param name="Slot">The place, from 0.</param>

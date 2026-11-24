@@ -71,6 +71,13 @@ public sealed record Error
     /// <returns>The error.</returns>
     public static Error Conflict(string code, string message) => new(ErrorKind.Conflict, code, message, null);
 
+    /// <summary>Someone else changed the thing first. Not built yet.</summary>
+    /// <param name="code">A stable machine-readable code.</param>
+    /// <param name="message">A short plain-English message.</param>
+    /// <param name="extensions">Extra members for the answer.</param>
+    /// <returns>The error.</returns>
+    public static Error Conflict(string code, string message, IReadOnlyDictionary<string, object> extensions) => new(ErrorKind.Conflict, code, message, null);
+
     /// <summary>A business rule forbids the action.</summary>
     /// <param name="code">A stable machine-readable code.</param>
     /// <param name="message">A short plain-English message.</param>

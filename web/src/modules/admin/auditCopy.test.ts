@@ -154,6 +154,7 @@ const API_ACTIONS = [
   'quote-request.status-changed',
   'quote-request.note-added',
   'quote-request.deleted',
+  'quote-request.converted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -177,8 +178,8 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors every code of the API', () => {
-    expect(API_ACTIONS).toHaveLength(136);
-    expect(AUDIT_ACTION_CODES).toHaveLength(136);
+    expect(API_ACTIONS).toHaveLength(137);
+    expect(AUDIT_ACTION_CODES).toHaveLength(137);
   });
 
   it('reads a quote request status change under Orders (D-15)', () => {
@@ -194,6 +195,11 @@ describe('the action labels (D-28)', () => {
   it('reads a quote request delete under Orders (D-16)', () => {
     expect(auditActionLabel('quote-request.deleted')).toBe('Quote request deleted');
     expect(auditActionGroup('quote-request.deleted')).toBe('Orders');
+  });
+
+  it('reads a quote request turned into an order under Orders (D-20)', () => {
+    expect(auditActionLabel('quote-request.converted')).toBe('Quote request turned into an order');
+    expect(auditActionGroup('quote-request.converted')).toBe('Orders');
   });
 
   it('reads the Quote alerts test email under Site content (D-11)', () => {

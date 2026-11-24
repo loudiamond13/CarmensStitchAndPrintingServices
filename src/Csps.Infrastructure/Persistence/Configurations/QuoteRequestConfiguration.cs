@@ -41,6 +41,7 @@ internal sealed class QuoteRequestConfiguration : IEntityTypeConfiguration<Quote
         builder.Property(request => request.StatusChangedAtUtc).IsRequired();
         builder.Property(request => request.CreatedAtUtc).IsRequired();
         builder.Property(request => request.RowVersion).IsRowVersion();
+        builder.Ignore(request => request.OrderId);
 
         // Only the SHA-256 of the visitor's upload key is stored, never the key (CWE-639).
         builder.Property(request => request.UploadKeyHash).HasColumnType("varbinary(32)");
