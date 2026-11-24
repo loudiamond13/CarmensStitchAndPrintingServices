@@ -38,7 +38,12 @@ const NOTES_PATH = /\/api\/v1\/quote-requests\/([0-9a-f-]{36})\/notes$/;
 /** A made-up second staff member. */
 const JOSE = { id: '00000000-0000-4000-8000-0000000000a2', name: 'Jose Ramos', formerStaff: true } as const;
 
-function note(n: number, text: string, createdAtUtc: string, createdBy = MARIA): QuoteRequestNote {
+function note(
+  n: number,
+  text: string,
+  createdAtUtc: string,
+  createdBy: QuoteRequestNote['createdBy'] = MARIA,
+): QuoteRequestNote {
   return { id: quoteRequestId(100 + n), text, createdBy, createdAtUtc };
 }
 
@@ -53,7 +58,9 @@ interface Posted {
 }
 
 /** Answers POST /quote-requests/{id}/notes with `answer` (by default the slim answer) and records each call. */
-function notesBackend(answer: () => QuoteRequestNoteAdded | Response | Promise<QuoteRequestNoteAdded | Response> = added) {
+function notesBackend(
+  answer: () => QuoteRequestNoteAdded | Response | Promise<QuoteRequestNoteAdded | Response> = added,
+) {
   const posts: Posted[] = [];
   server.use(
     http.post(NOTES_PATH, async ({ request }) => {
@@ -96,7 +103,9 @@ describe('the list (UI-SPEC R2 empty and zero-one-many)', () => {
     renderCard();
 
     const card = screen.getByRole('region', { name: 'Internal notes' });
-    expect(within(card).getByText("Only staff see these. A note can't be changed or removed after it's added.")).toBeVisible();
+    expect(
+      within(card).getByText("Only staff see these. A note can't be changed or removed after it's added."),
+    ).toBeVisible();
     expect(within(card).getByText('No notes yet.')).toBeVisible();
     expect(within(card).queryByRole('list')).toBeNull();
   });
@@ -129,8 +138,10 @@ describe('the list (UI-SPEC R2 empty and zero-one-many)', () => {
       expect.stringContaining('Jose Ramos'),
       expect.stringContaining('Maria Santos'),
     ]);
-    expect(items[0]).toHaveTextContent('(former staff)');
-    const text = within(items[0] as HTMLElement).getByText(/Line one/);
+    const newest = items[0];
+    if (newest === undefined) throw new Error('No newest note.');
+    expect(newest).toHaveTextContent('(former staff)');
+    const text = within(newest).getByText(/Line one/);
     expect(text.textContent).toBe('Line one\nLine two');
     expect(text.className).toContain('whitespace-pre-wrap');
   });
@@ -236,10 +247,10 @@ describe('Add Note (D-17, OR-3)', () => {
   it("puts the server's sentence under the box on a 400 with field errors, keeping the text", async () => {
     notesBackend(
       () =>
-        new HttpResponse(
-          JSON.stringify({ title: 'x', status: 400, errors: { text: ['Write a note first.'] } }),
-          { status: 400, headers: { 'Content-Type': 'application/problem+json' } },
-        ),
+        new HttpResponse(JSON.stringify({ title: 'x', status: 400, errors: { text: ['Write a note first.'] } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/problem+json' },
+        }),
     );
     const { user } = renderCard();
 

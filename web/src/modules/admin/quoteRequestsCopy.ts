@@ -132,4 +132,20 @@ export const QUOTE_REQUEST_COPY = {
   },
   /** The ConflictBanner lines after a 409. */
   conflict: { title: 'Someone else changed this request.', body: 'Load the latest to see it.' },
+  /** The add-only Notes card (D-17). */
+  notes: {
+    title: 'Internal notes',
+    hint: "Only staff see these. A note can't be changed or removed after it's added.",
+    label: 'Add a note',
+    add: 'Add Note',
+    adding: 'Adding',
+    added: 'Note added.',
+    empty: 'No notes yet.',
+    failed: "Couldn't add the note",
+    /** The server's own words (QuoteRequestRules), so the browser and the server say the same (OR-3). */
+    errors: {
+      required: 'Write a note first.',
+      tooLong: 'Keep the note to 1,000 characters or fewer.',
+    },
+  },
 } as const;

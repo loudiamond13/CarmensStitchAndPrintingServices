@@ -738,6 +738,10 @@ describe('Internal notes on the page (D-17, UI-SPEC R2 item 4)', () => {
     });
     expect(backend.moves[0]?.body).toEqual({ status: 'contacted', version: 'AAAAAAAAB9J=' });
     read.open();
+    expect(await screen.findByText('This request is now Contacted.')).toBeVisible();
+    await waitFor(() => {
+      expect(within(screen.getByRole('region', { name: 'Internal notes' })).getAllByRole('listitem')).toHaveLength(1);
+    });
   });
 
   it('keeps the typed note and shows the ConflictBanner on a 409', async () => {

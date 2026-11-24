@@ -93,9 +93,9 @@ test('@quote staff add a note, and it stays after a reload', async ({ page, requ
 
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Internal notes' }).getByRole('listitem').first(),
-  ).toContainText('Wants 12 jerseys by Friday.');
+  await expect(page.getByRole('region', { name: 'Internal notes' }).getByRole('listitem').first()).toContainText(
+    'Wants 12 jerseys by Friday.',
+  );
 });
 
 test('@quote at 320px the actions wrap under the title, 44px tall, and nothing scrolls sideways', async ({

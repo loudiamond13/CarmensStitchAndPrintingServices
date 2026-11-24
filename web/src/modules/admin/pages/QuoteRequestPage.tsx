@@ -1,8 +1,9 @@
-// SPEC-GAP: quote request page (UI-SPEC R2; INQ-05, D-13, D-15, D-36). /admin/quote-requests/:id for both roles: the back link,
-// the visitor's name, when it arrived, the status badge and Change Status, then the Request and Photos cards beside the History
-// card. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change answers
-// only the new status and version, so the page reads the request again for its history. The first load shows skeletons, a failed
-// load an ErrorState with Try Again, and a gone request or an address that is not a request id the not-found state.
+// SPEC-GAP: quote request page (UI-SPEC R2; INQ-05, D-13, D-15, D-17, D-36). /admin/quote-requests/:id for both roles: the back
+// link, the visitor's name, when it arrived, the status badge and Change Status, then the Request and Photos cards beside the Notes
+// and History cards. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change
+// and a note answer only the new version (and status), so the page reads the request again for its history and notes. The first
+// load shows skeletons, a failed load an ErrorState with Try Again, and a gone request or an address that is not a request id the
+// not-found state.
 import clsx from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
@@ -28,6 +29,7 @@ import {
   orderSublineClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { QuoteHistoryCard } from '@/modules/admin/components/QuoteHistoryCard';
+import { QuoteNotesCard } from '@/modules/admin/components/QuoteNotesCard';
 import { QuoteRequestDetailsCard } from '@/modules/admin/components/QuoteRequestDetailsCard';
 import { QuoteRequestPhotosCard } from '@/modules/admin/components/QuoteRequestPhotosCard';
 import { QuoteStatusBadge } from '@/modules/admin/components/QuoteRequestsTable';
@@ -47,6 +49,7 @@ import { QUOTE_REQUESTS_PATH, quoteBackTarget } from '@/modules/admin/quoteReque
 import { QUOTE_REQUEST_COPY } from '@/modules/admin/quoteRequestsCopy';
 import type {
   QuoteRequestDetailResponse,
+  QuoteRequestNoteAdded,
   QuoteRequestStatusChanged,
 } from '@/modules/admin/services/quoteRequestsService';
 import { describeHttpError } from '@/utils/describeHttpError';
@@ -85,10 +88,11 @@ function BackLink() {
 interface QuoteRequestBodyProps {
   request: QuoteRequestDetailResponse;
   onMoved: (answer: QuoteRequestStatusChanged) => void;
+  onNoteAdded: (answer: QuoteRequestNoteAdded) => void;
   onConflict: () => void;
 }
 
-function QuoteRequestBody({ request, onMoved, onConflict }: QuoteRequestBodyProps) {
+function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRequestBodyProps) {
   return (
     <>
       <div className={pageHeadClasses}>
@@ -115,6 +119,7 @@ function QuoteRequestBody({ request, onMoved, onConflict }: QuoteRequestBodyProp
           <QuoteRequestPhotosCard request={request} />
         </div>
         <div className={quoteColumnClasses}>
+          <QuoteNotesCard request={request} onAdded={onNoteAdded} onConflict={onConflict} />
           <QuoteHistoryCard history={request.history} />
         </div>
       </div>
@@ -208,6 +213,14 @@ export default function QuoteRequestPage() {
     void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
   };
 
+  const onNoteAdded = (answer: QuoteRequestNoteAdded): void => {
+    // The next change sends the new version at once; the read below brings the note itself.
+    queryClient.setQueryData<QuoteRequestDetailResponse>(quoteRequestKey(id), (held) =>
+      held === undefined ? held : { ...held, version: answer.version },
+    );
+    void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
+  };
+
   const loadLatest = async (): Promise<void> => {
     setLoadingLatest(true);
     const result = await query.refetch();
@@ -283,6 +296,7 @@ export default function QuoteRequestPage() {
             <QuoteRequestBody
               request={request}
               onMoved={onMoved}
+              onNoteAdded={onNoteAdded}
               onConflict={() => {
                 setConflicts((count) => count + 1);
               }}
