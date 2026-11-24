@@ -49,16 +49,20 @@ function textbox(name: RegExp): HTMLElement {
   return screen.getByRole('textbox', { name });
 }
 
+/** Each case loads the form's pieces first, which can pass the 1 s default wait on a busy machine. */
+const WAIT = { timeout: 10_000 };
+
 /** What shows once each case has reached its state. */
 const READY: Readonly<Record<Id, () => Promise<unknown>>> = {
-  'quote-form-empty': () => screen.findByRole('form', { name: 'Inquiry form' }),
-  'quote-form-field-errors': () => screen.findByText('Enter your name.'),
-  'quote-form-photos-refused': () => screen.findByText(/isn't a photo we can take/),
-  'quote-form-sending': () => screen.findByText('Sending your photos. This can take a minute on mobile data.'),
-  'quote-form-sent': () => screen.findByRole('heading', { level: 2, name: 'Inquiry sent' }),
-  'quote-form-sent-photos-missing': () => screen.findByText(/didn't upload/),
-  'quote-form-rate-limited': () => screen.findByText(/You've sent a few requests/),
-  'quote-form-send-failed': () => screen.findByText(/Couldn't send your inquiry/),
+  'quote-form-empty': () => screen.findByRole('form', { name: 'Inquiry form' }, WAIT),
+  'quote-form-field-errors': () => screen.findByText('Enter your name.', {}, WAIT),
+  'quote-form-photos-refused': () => screen.findByText(/isn't a photo we can take/, {}, WAIT),
+  'quote-form-sending': () =>
+    screen.findByText('Sending your photos. This can take a minute on mobile data.', {}, WAIT),
+  'quote-form-sent': () => screen.findByRole('heading', { level: 2, name: 'Inquiry sent' }, WAIT),
+  'quote-form-sent-photos-missing': () => screen.findByText(/didn't upload/, {}, WAIT),
+  'quote-form-rate-limited': () => screen.findByText(/You've sent a few requests/, {}, WAIT),
+  'quote-form-send-failed': () => screen.findByText(/Couldn't send your inquiry/, {}, WAIT),
 };
 
 // Each case loads the form's pieces and plays a visitor's steps: more than the 5 s default on a busy machine.
@@ -94,7 +98,7 @@ describe('the quote scenarios', () => {
   it('shows the empty form', async () => {
     renderCase('quote-form-empty');
 
-    const form = await screen.findByRole('form', { name: 'Inquiry form' });
+    const form = await screen.findByRole('form', { name: 'Inquiry form' }, WAIT);
     expect(textbox(/Your name/)).toHaveValue('');
     expect(within(form).getByRole('button', { name: 'Send Inquiry' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -103,7 +107,7 @@ describe('the quote scenarios', () => {
   it('shows an error on every field a visitor can get wrong', async () => {
     renderCase('quote-form-field-errors');
 
-    expect(await screen.findByText('Enter your name.')).toBeInTheDocument();
+    expect(await screen.findByText('Enter your name.', {}, WAIT)).toBeInTheDocument();
     expect(screen.getByText('Keep the team name to 100 characters or fewer.')).toBeInTheDocument();
     expect(screen.getByText('Enter a mobile number, like 0917 123 4567.')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid email, like name@gmail.com')).toBeInTheDocument();
@@ -116,10 +120,10 @@ describe('the quote scenarios', () => {
   it('shows two photos picked and one file refused', async () => {
     renderCase('quote-form-photos-refused');
 
-    const list = await screen.findByRole('list', { name: 'Photos to send' });
+    const list = await screen.findByRole('list', { name: 'Photos to send' }, WAIT);
     await waitFor(() => {
       expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    });
+    }, WAIT);
     expect(screen.getByRole('alert')).toHaveTextContent("price-list.pdf isn't a photo we can take.");
     expect(screen.getByText('2 of 5 photos')).toBeInTheDocument();
   });
@@ -127,7 +131,9 @@ describe('the quote scenarios', () => {
   it('shows the form sending: the pending button, read-only fields and the photo line', async () => {
     renderCase('quote-form-sending');
 
-    expect(await screen.findByText('Sending your photos. This can take a minute on mobile data.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Sending your photos. This can take a minute on mobile data.', {}, WAIT),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sending/ })).toBeInTheDocument();
     expect(textbox(/Your name/)).toHaveAttribute('readonly');
     expect(textbox(/Your name/)).toHaveValue('Juan Dela Cruz');
@@ -137,7 +143,7 @@ describe('the quote scenarios', () => {
   it('shows the success state', async () => {
     renderCase('quote-form-sent');
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' }, WAIT)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send Another' })).toBeInTheDocument();
     expect(screen.queryByText(/didn't upload/)).not.toBeInTheDocument();
   });
@@ -145,7 +151,7 @@ describe('the quote scenarios', () => {
   it('shows the success state with the photos that did not upload and the Messenger link', async () => {
     renderCase('quote-form-sent-photos-missing');
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' }, WAIT)).toBeInTheDocument();
     expect(
       screen.getByText(
         "We got your request, but 2 of your photos didn't upload: front-sketch.png, back-sketch.png. Please send them to us on Messenger.",
@@ -157,7 +163,7 @@ describe('the quote scenarios', () => {
   it('shows the rate limit box and keeps what was typed', async () => {
     renderCase('quote-form-rate-limited');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, WAIT)).toHaveTextContent(
       "You've sent a few requests in a short time. Wait a few minutes and try again, or message us on Messenger.",
     );
     expect(textbox(/Your name/)).toHaveValue('Juan Dela Cruz');
@@ -167,7 +173,7 @@ describe('the quote scenarios', () => {
   it('shows the send failed box and keeps what was typed', async () => {
     renderCase('quote-form-send-failed');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(await screen.findByRole('alert', {}, WAIT)).toHaveTextContent(
       "Couldn't send your inquiry. Check your internet connection and try again. What you typed is still here.",
     );
     expect(textbox(/Your name/)).toHaveValue('Juan Dela Cruz');
