@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T22:40:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-23T23:12:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -35,6 +35,7 @@ Items found while executing Phase 13 that are recorded here instead of being hid
 | 2026-11-23, wave 9 post-fix gate | `ManagerRosterLockTests`, `SiteContentLockTests` (deadlock cases), `AnalyticsVisitsMigrationTests` | LocalDB connection error (SNI) in the full .NET suite | the three classes alone: 19 of 19 |
 | 2026-11-23, wave 10 gate | `routes.test.tsx` "list to request to Back restores the pill..." (third time) | failed in the full web suite | the file alone: 87 of 87. Fixed in the W10 fixes (ff9dd757): two 1-second waits now 10 seconds |
 | 2026-11-23, wave 10 gate | `OrderListStoreTests` (PaymentMethod rename) | LocalDB connection error (SNI) in the full .NET suite | the class alone: 21 of 21 |
+| 2026-11-23, wave 10 post-fix gate | `GalleryPage.test.tsx` "puts focus back on the tile..." (third time in a full run, recurring) | failed in the full web suite | the file alone: passed. Worth a quick task to make it steady, as was done for the routes test in the W10 fixes |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
