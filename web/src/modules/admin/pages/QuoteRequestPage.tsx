@@ -107,7 +107,8 @@ interface DeleteRequestProps {
 /**
  * The Manager's Delete Request (D-16): a confirm naming the visitor, then the DELETE with the version. A Converted request keeps the
  * button, aria-disabled and described by why. The DELETE has no Idempotency-Key, so a 404 after this page's own delete means it is
- * already gone: the same toast and way back as a 204. A 409 closes the confirm and the page shows its ConflictBanner.
+ * already gone: the same toast and way back as a 204. A 409 closes the confirm and the page shows its ConflictBanner. A 400
+ * converted-locked keeps the server's sentence in the confirm and reads the request again.
  */
 function DeleteRequest({ request, onConflict }: DeleteRequestProps) {
   const [open, setOpen] = useState(false);
@@ -163,6 +164,10 @@ function DeleteRequest({ request, onConflict }: DeleteRequestProps) {
         conflictAfterClose.current = true;
         setOpen(false);
         return undefined;
+      }
+      if (isHttpError(error) && error.code === 'quote-requests.converted-locked') {
+        // Someone turned it into an order meanwhile: read it again so the page shows Converted.
+        void queryClient.invalidateQueries({ queryKey: quoteRequestKey(id), exact: true });
       }
       if (!isStatus(error, 404)) return { ok: false, error };
     }

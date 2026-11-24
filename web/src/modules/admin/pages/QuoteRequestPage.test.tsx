@@ -947,6 +947,33 @@ describe('Delete Request (D-16, UI-SPEC R2 actions and Destructive actions)', ()
     expect(screen.getByRole('heading', { level: 1, name: 'Juan Dela Cruz' })).toBeInTheDocument();
   });
 
+  it('reads the request again on a 400 converted-locked, so the page shows Converted after Cancel', async () => {
+    deleteBackend(() =>
+      quoteProblem(400, {
+        code: 'quote-requests.converted-locked',
+        detail: "A request that became an order can't be deleted.",
+      }),
+    );
+    const backend = quoteRequestBackend((read) =>
+      read === 1 ? CONTACTED : quoteRequestDetail(ID, { status: 'converted' }),
+    );
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Delete Request' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this quote request?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Request' }));
+    expect(await within(dialog).findByText(/A request that became an order can't be deleted\./)).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Delete Request' })).toHaveAttribute('aria-disabled', 'true');
+    });
+    expect(backend.reads).toHaveLength(2);
+    expect(screen.getByText('Converted', { selector: '*:not(li)' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Change Status' })).toBeNull();
+  });
+
   it('is aria-disabled for a Manager on a Converted request, described by the reason, and opens nothing', async () => {
     const deletes = deleteBackend();
     quoteRequestBackend(quoteRequestDetail(ID, { status: 'converted' }));
