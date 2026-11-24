@@ -48,13 +48,19 @@ import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from '@/modules/admin
 
 const BY_SECTION = scenariosBySection(scenarios);
 
-/** Cases whose wrapper acts on mount and moves focus (the open user menu, a quote form that sends or shows its errors): shown only when asked for. */
+/**
+ * Cases shown only when asked for: those whose wrapper moves focus on mount (the open user menu, a quote form that sends or shows
+ * its errors) and the quote forms that raise an alert, so the page reads none out when it opens.
+ */
 const ON_DEMAND: ReadonlySet<string> = new Set([
   'user-menu-open',
   'session-menu-open',
   'quote-form-field-errors',
+  'quote-form-photos-refused',
   'quote-form-sent',
   'quote-form-sent-photos-missing',
+  'quote-form-rate-limited',
+  'quote-form-send-failed',
 ]);
 
 interface CaseFrameProps {

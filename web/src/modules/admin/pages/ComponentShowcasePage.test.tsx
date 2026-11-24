@@ -467,6 +467,21 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
     },
   );
 
+  it.each(['quote-form-photos-refused', 'quote-form-rate-limited', 'quote-form-send-failed'] as const)(
+    'shows %s only on request, so its alert is not read out when the page opens',
+    async (id) => {
+      const user = userEvent.setup();
+      renderQuoteSection();
+      const frame = caseFrame(id);
+      expect(within(frame).queryByRole('alert')).toBeNull();
+
+      await user.click(within(frame).getByRole('button', { name: 'Show this example' }));
+
+      await QUOTE_READY[id](frame);
+      expect(within(frame).getByRole('alert')).toBeInTheDocument();
+    },
+  );
+
   it('leaves focus alone while the quote cases shown on load reach their states', async () => {
     renderQuoteSection();
     const eager = QUOTE_CASES.filter(
@@ -564,6 +579,7 @@ describe('ComponentShowcase links stay on the showcase (CR-01, WR-01)', FULL_PAG
     const user = userEvent.setup();
     const router = renderAtShowcase('quotes');
     const frame = within(caseFrame('quote-form-rate-limited'));
+    await user.click(frame.getByRole('button', { name: 'Show this example' }));
     const link = await frame.findByRole('link', { name: 'Message Us on Messenger' }, { timeout: 10_000 });
 
     expect(link.getAttribute('href')).toBe('#');
