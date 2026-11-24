@@ -10,9 +10,17 @@ const COPY = QUOTE_REQUEST_COPY.notes.errors;
 /** QuoteRequestRules.NoteMaxLength. */
 export const NOTE_MAX_LENGTH = 1000;
 
-/** 1 to 1,000 characters after trimming; hands on the trimmed text. */
+/** What .NET string.Trim() trims (char.IsWhiteSpace). JavaScript's trim keeps U+0085 and trims U+FEFF, so the list is spelled out. */
+const DOTNET_SPACE = '[\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]';
+const DOTNET_TRIM = new RegExp(`^${DOTNET_SPACE}+|${DOTNET_SPACE}+$`, 'g');
+
+/** 1 to 1,000 characters after trimming as the server does; hands on the trimmed text. */
 export const noteSchema = z.object({
-  text: z.string().trim().min(1, COPY.required).max(NOTE_MAX_LENGTH, COPY.tooLong),
+  text: z
+    .string()
+    .overwrite((text) => text.replace(DOTNET_TRIM, ''))
+    .min(1, COPY.required)
+    .max(NOTE_MAX_LENGTH, COPY.tooLong),
 });
 
 export type NoteInput = z.input<typeof noteSchema>;
