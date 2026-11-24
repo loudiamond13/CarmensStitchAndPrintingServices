@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T01:34:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T02:14:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -311,6 +311,15 @@ It also settles P13-BL-07 (the staff alert line). Until then the page stays DRAF
 2. **Public page size.** The fix above adds about 0.1 KB to every public page (privacy is now 149.19 of 150 KB). This joins P13-BL-28 item 3; choosing B there and B here would win the bytes back.
 3. **Alert-style demo states.** A: the photos-refused, rate-limited and send-failed states show only after "Show this example", so a screen reader doesn't hear three alerts when the showcase opens. B: show them on load.
 4. **The count-chip sidebar demos.** A: made inert, so the page has one real Admin menu. B: leave them live.
+
+## P13-BL-30 · Lighthouse performance below 0.95 on the public pages (plan 13-24)
+
+**Status:** open · **Blocks:** nothing (page load time counts only as a report under D-29). Built as A.
+
+Performance scored / 0.93, /products 0.94, /gallery 0.92 to 0.94 and /contact 0.93 to 0.94, twice. Every other category scored 1, and layout shift and blocking time are within limits. The cause is page load time (LCP) of 2.5 to 3.0 s. Plans 11-36 and 12-24 saw the same miss.
+
+- **A (built):** keep the gate as it is and record the miss as a known gap.
+- **B:** a quick task to bring public page load time down, aiming to get /contact back to its pre-Phase 13 score.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 

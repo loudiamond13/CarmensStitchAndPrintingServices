@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T01:34:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T02:14:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -45,6 +45,10 @@ Vitest keeps transformed files in `web/node_modules/.vitest-cache`. `src/dev/kit
 | 2026-11-24, W11 fixes | `OrderFormPage.test.tsx`, `ProfilePage.test.tsx` (13 timeouts) | failed while the 13-24 sweep ran in parallel | alone: 188 of 188 |
 
 - Follow-up (W11 WR-03): `web/src/test/quoteRequestFixtures.ts` still uses `0917 555 0101`-style numbers, which are valid Philippine mobile numbers; switch them to the UI-SPEC sample style in a later quick task.
+| 2026-11-24, plan 13-24 | `quote-nav` "dashboard strip" (webkit) | sign-in stuck on Verify Code and timed out | alone: 3 of 3 |
+| 2026-11-24, plan 13-24 | LegacyFitCheck `TrialImportTests` (duplicate number case) | LocalDB connection timeout | the class alone: 7 of 7 |
+| 2026-11-24, plan 13-24 | `AuthorizationMatrixTests.ParallelCallersEachGetTheirOwnStatus` (fifth time) | 500 instead of 204 | the class alone: 599 of 599. Recurring: worth a quick task |
+| 2026-11-24, plan 13-24 | `QuoteRequestPage.test.tsx` "deletes with the version..." and `GalleryPage.test.tsx` "asks for the lightbox chunk only when a tile is first pressed" | first `npm run verify` run | each file alone twice: 88 of 88; the second verify run passed all 12,187 |
 
 The LocalDB login timeouts are the recurring pattern: the full .NET suite opens many `CSPS_Test_<guid>` databases at once on the shared `(localdb)\MSSQLLocalDB` instance. Worth a look in a later quick task (connection timeout or fixture parallelism), not in this phase.
 
@@ -56,6 +60,6 @@ The LocalDB login timeouts are the recurring pattern: the full .NET suite opens 
 
 `build-output.node.test.ts` reads the built site in `src/Csps.Server/wwwroot` and only rebuilds when it is missing. The main checkout had a build from 2026-11-21, so the full suite passed while a fresh build failed on the 13-09 placeholder `you@gmail.com` (fixed in f1fd0076, owner item P13-BL-11 item 7). Later gates should rebuild the web app first.
 
-## Webkit e2e failure handed to plan 13-24 (W5 fixes)
+## Webkit e2e failure handed to plan 13-24 (resolved in 13-24, commit 50a280de: Safari does not focus a button on a mouse click; the test now presses Send from the keyboard) (W5 fixes)
 
 "@quote the rate limit keeps what the visitor typed" fails its "Send is focused" check on webkit. It fails the same way with the code from before the W5 fixes, so the fixes did not cause it. The `@quote` cases had run only on chromium; plan 13-24 runs them on every browser and must fix or record this one.

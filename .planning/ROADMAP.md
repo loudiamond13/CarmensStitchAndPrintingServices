@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 24/26 plans executed
+**Plans:** 25/26 plans executed
 
 Plans:
 **Wave 1**
@@ -1464,7 +1464,7 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [x] 13-23-PLAN.md: showcase and dev page states for the owner's UI review (wave 11)
-- [ ] 13-24-PLAN.md: [BLOCKING] schema applied; a11y, CSP, layout and privacy sweep; full suites (wave 11)
+- [x] 13-24-PLAN.md: [BLOCKING] schema applied; a11y, CSP, layout and privacy sweep; full suites (wave 11)
 - [x] 13-25-PLAN.md: owner approves the Privacy Policy 1.1 wording (checkpoint, not autonomous) (wave 11)
 
 **Wave 12** *(blocked on Wave 11 completion)*
@@ -1671,7 +1671,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 24/26 | In Progress | - |
+| 13. Quote Inquiries | 25/26 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
