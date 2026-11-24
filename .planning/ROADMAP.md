@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 21/26 plans executed
+**Plans:** 22/26 plans executed
 
 Plans:
 **Wave 1**
@@ -1460,7 +1460,7 @@ Plans:
 - [x] 13-21-PLAN.md: notes and Delete Request on the request page (wave 9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 13-22-PLAN.md: Turn into Order prefills the New Order form; the order links back (wave 10)
+- [x] 13-22-PLAN.md: Turn into Order prefills the New Order form; the order links back (wave 10)
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 13-23-PLAN.md: showcase and dev page states for the owner's UI review (wave 11)
@@ -1671,7 +1671,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 21/26 | In Progress | - |
+| 13. Quote Inquiries | 22/26 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
