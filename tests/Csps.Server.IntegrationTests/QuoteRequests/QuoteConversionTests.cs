@@ -118,6 +118,11 @@ public sealed class QuoteConversionTests(CspsDatabase database) : IClassFixture<
         problem.GetProperty("code").GetString().ShouldBe("quote-requests.not-found");
         await using var context = database.CreateContext();
         (await context.Orders.IgnoreQueryFilters().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+
+        // The 404 is stored and its transaction commits, so a number taken before the lock would be lost: the next order is the first.
+        var today = await OrderFixtures.TodayAsync((CspsApiFactory)rig.Factory);
+        var next = await OrderFixtures.CreateAsync(rig.Client, rig.Admin.AccessToken, OrderFixtures.ValidBody(OrderFixtures.BasketballId, today));
+        next.GetProperty("number").GetString().ShouldBe($"ORD-{today.Year}-0001");
     }
 
     [Fact]
