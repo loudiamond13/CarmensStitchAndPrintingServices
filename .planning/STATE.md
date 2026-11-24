@@ -15,7 +15,7 @@ progress:
   completed_plans: 390
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-21T22:42:00-06:00"
+updated: "2026-11-23T22:44:00-06:00"
 ---
 
 # Project State
@@ -925,6 +925,10 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: Phase-end review fixed (merges dd854328, 22300b43, 81606503, 61a6f71d). Regression gate green: Vitest 9010/9010, all .NET but ExpenseListTimingTests (303.7 ms vs 300, known machine issue); all 88 e2e load failures passed on a quiet machine. Verifier: human_needed, no gaps (37f4deda). Sign-off parked as P10-BL-20; phase not marked complete.
 
 ### Pending Todos
+
+Phase 13 owner backlog (away mode, parked 2026-11-23; nothing here was auto-approved; the full list of owner choices is in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md`):
+
+- [ ] 13 D-28 Privacy Policy approval (parked 2026-11-23): open http://localhost:5180/privacy and the Contact form; read the changes listed in .planning/phases/13-quote-inquiries/13-25-SUMMARY.md (added: what the quote form collects, used only to reply and prepare a quote, Cloudinary stores the photos, three keep-time rows; reworded: the staff log and page count rows now match the daily cleanup). Question: approve A (with one sentence about the rare stray photo, recommended), approve B (as written), or give exact changes? Also settles P13-BL-07, P13-BL-21 item 3 and P13-BL-24 item 2. The page stays DRAFT until then.
 
 Phase 12.1 owner backlog (away mode, parked 2026-11-19; nothing here was auto-approved):
 

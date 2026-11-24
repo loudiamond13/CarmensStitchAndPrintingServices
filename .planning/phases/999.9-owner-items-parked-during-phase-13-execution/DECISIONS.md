@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T22:40:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-23T22:44:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -282,6 +282,18 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 
 1. **Stopping a second order from the same request through Back (review WR-01).** A (built): saving a form filled from a request replaces it in the browser history, and a tab that already knows the request is Converted shows the "already an order" box as soon as the form opens. B: the server also sends the request's status and order with the prefill, so every tab knows up front.
 2. **A Converted request whose order was deleted (review WR-02). Not built.** A: keep it as it is; "Open Order" leads to "not found". B: the server adds a "deleted" flag, so a Manager gets a link to the deleted-order view and an Admin sees the order number as text with a reason.
+
+## P13-BL-27 · Privacy Policy 1.1 and the form notice: your approval (plan 13-25, D-28)
+
+**Status:** open · **Blocks:** the Privacy Policy leaving DRAFT. Nothing was approved.
+
+Read the review package in `.planning/phases/13-quote-inquiries/13-25-SUMMARY.md` (every added or reworded sentence next to the 1.0 wording, and the form notice). Then answer:
+
+- **A (recommended):** approve the draft plus one sentence about the rare stray photo (wording in the SUMMARY). This also settles P13-BL-21 item 3 and P13-BL-24 item 2.
+- **B:** approve it exactly as written.
+- Or give the exact changes.
+
+It also settles P13-BL-07 (the staff alert line). Until then the page stays DRAFT, out of the sitemap and not indexed.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
