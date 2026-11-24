@@ -7,7 +7,7 @@ import { tw } from '@/ui/tw';
 export const quoteReceivedClasses = tw('flex flex-col');
 
 /** The time under the date. */
-export const quoteReceivedTimeClasses = tw('text-[14px] leading-5 text-ink-muted');
+export const quoteReceivedTimeClasses = tw('text-14 leading-5 text-ink-muted');
 
 /** The Name cell: the name link over the team. */
 export const quoteWhoClasses = tw('flex min-w-0 flex-col items-start');
@@ -19,7 +19,7 @@ export const quoteNameLinkClasses = clsx(
 );
 
 /** The team under the name: Small muted. */
-export const quoteTeamClasses = tw('text-[14px] leading-5 wrap-anywhere text-ink-muted');
+export const quoteTeamClasses = tw('text-14 leading-5 wrap-anywhere text-ink-muted');
 
 /** The Photos cell: an optional warning icon before the count. */
 export const quotePhotosClasses = tw('inline-flex items-center gap-1');
@@ -74,10 +74,10 @@ export const quoteColumnClasses = tw('flex min-w-0 flex-col gap-6');
 export const quoteDetailsListClasses = tw('m-0 flex flex-col gap-4');
 
 /** A term: Label (14px, 600). */
-export const quoteTermClasses = tw('text-[14px] leading-5 font-semibold text-ink');
+export const quoteTermClasses = tw('text-14 leading-5 font-semibold text-ink');
 
 /** A value: Body (16px), wrapping anywhere. */
-export const quoteValueClasses = tw('m-0 text-[16px] leading-6 wrap-anywhere text-ink');
+export const quoteValueClasses = tw('m-0 text-16 leading-6 wrap-anywhere text-ink');
 
 /** The message keeps the visitor's line breaks. */
 export const quoteMessageClasses = tw('whitespace-pre-wrap');
@@ -89,10 +89,10 @@ export const quoteContactLinkClasses = tw('inline-flex min-h-11 items-center wra
 export const quotePhotoListClasses = tw('m-0 grid list-none gap-3 p-0');
 
 /** Small muted text: "No photos were sent.", the history dates. */
-export const quoteMutedClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
+export const quoteMutedClasses = tw('m-0 text-14 leading-5 text-ink-muted');
 
 /** The history list: Small rows, newest first, 12px apart. */
-export const quoteHistoryListClasses = tw('m-0 flex list-none flex-col gap-3 p-0 text-[14px] leading-5 text-ink');
+export const quoteHistoryListClasses = tw('m-0 flex list-none flex-col gap-3 p-0 text-14 leading-5 text-ink');
 
 /** The Add a note box over its Add Note button, 12px apart. */
 export const quoteNoteFormClasses = tw('flex flex-col items-start gap-3');
@@ -104,7 +104,7 @@ export const quoteNoteFieldClasses = tw('self-stretch');
 export const quoteNoteListClasses = tw('m-0 flex list-none flex-col gap-4 p-0');
 
 /** A note's author: Label (14px, 600). */
-export const quoteNoteAuthorClasses = tw('m-0 text-[14px] leading-5 font-semibold text-ink');
+export const quoteNoteAuthorClasses = tw('m-0 text-14 leading-5 font-semibold text-ink');
 
 /** Delete Request with its Small muted reason under it when it cannot be used. */
 export const quoteDeleteClasses = tw('flex flex-col items-start gap-1');
