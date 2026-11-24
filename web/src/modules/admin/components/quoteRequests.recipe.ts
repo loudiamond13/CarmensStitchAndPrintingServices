@@ -40,8 +40,8 @@ export const quotePillOffClasses = tw(
   'border-line bg-surface font-semibold text-ink-muted hover:border-line-strong hover:text-ink',
 );
 
-/** The selected pill: maroon and bold, so orange is never the only cue. */
-export const quotePillOnClasses = tw('border-primary bg-primary font-bold text-on-primary');
+/** The selected pill: maroon at 600, so orange is never the only cue. */
+export const quotePillOnClasses = tw('border-primary bg-primary font-semibold text-on-primary');
 
 /** The pill count at full opacity. */
 export const quotePillCountClasses = tw('tabular-nums');
