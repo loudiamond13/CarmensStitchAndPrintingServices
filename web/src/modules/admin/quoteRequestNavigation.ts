@@ -21,3 +21,10 @@ export function quoteBackTarget(state: unknown): QuoteBackTarget {
     ? { to: from, historyBack: true }
     : { to: QUOTE_REQUESTS_PATH, historyBack: false };
 }
+
+/** The navigation state that asks the inbox to focus its h1, after a delete (D-16). */
+export const INBOX_HEADING_FOCUS = { focusHeading: true } as const;
+
+export function wantsHeadingFocus(state: unknown): boolean {
+  return typeof state === 'object' && state !== null && 'focusHeading' in state && state.focusHeading === true;
+}

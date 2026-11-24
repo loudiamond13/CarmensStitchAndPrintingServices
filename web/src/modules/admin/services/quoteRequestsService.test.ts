@@ -102,6 +102,41 @@ describe('quoteRequestsService.changeStatus', () => {
   });
 });
 
+describe('quoteRequestsService.addNote', () => {
+  it('posts the text with the Idempotency-Key and resolves the slim answer', async () => {
+    const answer = {
+      id: quoteRequestId(7),
+      noteId: quoteRequestId(70),
+      createdAtUtc: '2026-11-21T08:05:00Z',
+      version: 'AAAAAAAAB9I=',
+    };
+    const { fake, service } = serviceWith([{ body: answer }]);
+
+    await expect(service.addNote(quoteRequestId(7), 'Called back, wants 12.', 'key-2')).resolves.toEqual(answer);
+
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}/notes`);
+    expect(JSON.parse(String(fake.calls[0]?.body))).toEqual({ text: 'Called back, wants 12.' });
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-2');
+  });
+});
+
+describe('quoteRequestsService.remove', () => {
+  it('calls DELETE /api/v1/quote-requests/{id} with the version as a query parameter, no body and no Idempotency-Key', async () => {
+    const { fake, service } = serviceWith([{ status: 204 }]);
+
+    await service.remove(quoteRequestId(7), 'AAAAAAAAB9E=');
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('DELETE');
+    const url = new URL(fake.calls[0]?.url ?? '', 'https://csps.invalid');
+    expect(url.pathname).toBe(`/api/v1/quote-requests/${quoteRequestId(7)}`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({ version: 'AAAAAAAAB9E=' });
+    expect(fake.calls[0]?.body ?? null).toBeNull();
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBeNull();
+  });
+});
+
 describe('quoteRequestsService.newCount', () => {
   it('calls GET /api/v1/quote-requests/new-count and resolves the count', async () => {
     const { fake, service } = serviceWith([{ body: { count: 3 } }]);

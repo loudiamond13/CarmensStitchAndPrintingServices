@@ -1,13 +1,14 @@
-// SPEC-GAP: quote request page (UI-SPEC R2; INQ-05, D-13, D-15, D-36). /admin/quote-requests/:id for both roles: the back link,
-// the visitor's name, when it arrived, the status badge and Change Status, then the Request and Photos cards beside the History
-// card. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change answers
-// only the new status and version, so the page reads the request again for its history. The first load shows skeletons, a failed
-// load an ErrorState with Try Again, and a gone request or an address that is not a request id the not-found state.
+// SPEC-GAP: quote request page (UI-SPEC R2; INQ-05, D-13, D-15, D-16, D-17, D-36). /admin/quote-requests/:id for both roles: the
+// back link, the visitor's name, when it arrived, the status badge, Change Status and, for a Manager, Delete Request, then the
+// Request and Photos cards beside the Notes and History cards. The document title is fixed, so the name stays out of browser history and tab lists (CWE-598). A status change
+// and a note answer only the new version (and status), so the page reads the request again for its history and notes. The first
+// load shows skeletons, a failed load an ErrorState with Try Again, and a gone request or an address that is not a request id the
+// not-found state.
 import clsx from 'clsx';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { ButtonLink, hitAreaClasses, UiLink } from '@/components/actions';
+import { Button, ButtonLink, hitAreaClasses, UiLink } from '@/components/actions';
 import { Icon } from '@/components/brand';
 import { Skeleton, useToast } from '@/components/feedback';
 import {
@@ -17,6 +18,7 @@ import {
   pageSublineClasses,
   pageTitleClasses,
 } from '@/components/layout/layout.recipe';
+import { ConfirmDialog } from '@/components/overlays';
 import { ConflictBanner, ErrorState, LoadingRegion, SkeletonText, STATES_COPY } from '@/components/states';
 import { isHttpError } from '@/core/api/errors';
 import {
@@ -28,6 +30,7 @@ import {
   orderSublineClasses,
 } from '@/modules/admin/components/orderPage.recipe';
 import { QuoteHistoryCard } from '@/modules/admin/components/QuoteHistoryCard';
+import { QuoteNotesCard } from '@/modules/admin/components/QuoteNotesCard';
 import { QuoteRequestDetailsCard } from '@/modules/admin/components/QuoteRequestDetailsCard';
 import { QuoteRequestPhotosCard } from '@/modules/admin/components/QuoteRequestPhotosCard';
 import { QuoteStatusBadge } from '@/modules/admin/components/QuoteRequestsTable';
@@ -35,7 +38,9 @@ import { QuoteStatusMenu } from '@/modules/admin/components/QuoteStatusMenu';
 import {
   quoteActionsClasses,
   quoteColumnClasses,
+  quoteDeleteClasses,
   quoteDetailClasses,
+  quoteMutedClasses,
   quoteNameClasses,
   quoteReceivedRowClasses,
   quoteTopClasses,
@@ -43,11 +48,14 @@ import {
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { isQuoteRequestId, quoteRequestKey, useQuoteRequestQuery } from '@/modules/admin/hooks/useQuoteRequestQuery';
 import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
-import { QUOTE_REQUESTS_PATH, quoteBackTarget } from '@/modules/admin/quoteRequestNavigation';
+import { useSession } from '@/modules/admin/hooks/useSession';
+import { INBOX_HEADING_FOCUS, QUOTE_REQUESTS_PATH, quoteBackTarget } from '@/modules/admin/quoteRequestNavigation';
 import { QUOTE_REQUEST_COPY } from '@/modules/admin/quoteRequestsCopy';
-import type {
-  QuoteRequestDetailResponse,
-  QuoteRequestStatusChanged,
+import {
+  quoteRequestsService,
+  type QuoteRequestDetailResponse,
+  type QuoteRequestNoteAdded,
+  type QuoteRequestStatusChanged,
 } from '@/modules/admin/services/quoteRequestsService';
 import { describeHttpError } from '@/utils/describeHttpError';
 import { formatBusinessDateTime } from '@/utils/format';
@@ -82,13 +90,134 @@ function BackLink() {
   );
 }
 
-interface QuoteRequestBodyProps {
+function isStatus(error: unknown, status: number): boolean {
+  return isHttpError(error) && error.kind === 'http' && error.status === status;
+}
+
+/** The server's sentence of a refusal, when it sent one. */
+function refusal(error: unknown): string | undefined {
+  return isStatus(error, 400) && isHttpError(error) ? error.problem?.detail : undefined;
+}
+
+interface DeleteRequestProps {
   request: QuoteRequestDetailResponse;
-  onMoved: (answer: QuoteRequestStatusChanged) => void;
   onConflict: () => void;
 }
 
-function QuoteRequestBody({ request, onMoved, onConflict }: QuoteRequestBodyProps) {
+/**
+ * The Manager's Delete Request (D-16): a confirm naming the visitor, then the DELETE with the version. A Converted request keeps the
+ * button, aria-disabled and described by why. The DELETE has no Idempotency-Key, so a 404 after this page's own delete means it is
+ * already gone: the same toast and way back as a 204. A 409 closes the confirm and the page shows its ConflictBanner.
+ */
+function DeleteRequest({ request, onConflict }: DeleteRequestProps) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const reasonId = useId();
+  const focusAfterClose = useRef(false);
+  const conflictAfterClose = useRef(false);
+  const deleted = useRef(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const locked = request.status === 'converted';
+  const id = request.id;
+
+  // Once the confirm has closed, a 409 raises the banner, else the button takes focus back.
+  useEffect(() => {
+    if (open) return;
+    if (conflictAfterClose.current) {
+      conflictAfterClose.current = false;
+      onConflict();
+    } else if (focusAfterClose.current) {
+      focusAfterClose.current = false;
+      buttonRef.current?.focus();
+    }
+  });
+
+  // The deleted request leaves the cache only once the page is gone, so nothing reads it again.
+  useEffect(
+    () => () => {
+      if (deleted.current) queryClient.removeQueries({ queryKey: quoteRequestKey(id), exact: true });
+    },
+    [queryClient, id],
+  );
+
+  const leave = (): void => {
+    deleted.current = true;
+    toast.show({ tone: 'success', title: COPY.remove.deleted });
+    // The inbox lists and the New count read again; the deleted request itself is never read again.
+    void queryClient.cancelQueries({ queryKey: quoteRequestKey(id), exact: true });
+    void queryClient.invalidateQueries({
+      queryKey: quoteRequestsKey,
+      predicate: (query) => query.queryKey[1] !== 'detail' || query.queryKey[2] !== id,
+    });
+    void navigate(quoteBackTarget(location.state).to, { replace: true, state: INBOX_HEADING_FOCUS });
+  };
+
+  const confirm = async (): Promise<unknown> => {
+    try {
+      await quoteRequestsService.remove(id, request.version);
+    } catch (error: unknown) {
+      if (isStatus(error, 409)) {
+        conflictAfterClose.current = true;
+        setOpen(false);
+        return undefined;
+      }
+      if (!isStatus(error, 404)) return { ok: false, error };
+    }
+    leave();
+    return undefined;
+  };
+
+  return (
+    <div className={quoteDeleteClasses}>
+      <Button
+        ref={buttonRef}
+        variant="ghost-danger"
+        icon="trash-2"
+        {...(locked ? { 'aria-disabled': true, 'aria-describedby': reasonId } : {})}
+        onClick={() => {
+          if (!locked) setOpen(true);
+        }}
+      >
+        {COPY.remove.action}
+      </Button>
+      {locked && (
+        <p id={reasonId} className={quoteMutedClasses}>
+          {COPY.remove.locked}
+        </p>
+      )}
+      <ConfirmDialog
+        open={open}
+        title={COPY.remove.title}
+        message={COPY.remove.message(request.customerName)}
+        cancelLabel={COPY.remove.cancel}
+        confirmLabel={COPY.remove.confirm}
+        pendingLabel={COPY.remove.pending}
+        describeFailure={refusal}
+        onConfirm={confirm}
+        onCancel={() => {
+          setOpen(false);
+          focusAfterClose.current = true;
+        }}
+      />
+    </div>
+  );
+}
+
+interface QuoteRequestBodyProps {
+  request: QuoteRequestDetailResponse;
+  onMoved: (answer: QuoteRequestStatusChanged) => void;
+  onNoteAdded: (answer: QuoteRequestNoteAdded) => void;
+  onConflict: () => void;
+}
+
+function QuoteRequestBody({ request, onMoved, onNoteAdded, onConflict }: QuoteRequestBodyProps) {
+  const { user } = useSession();
+  // Hiding the button is not the control: the server's Manager policy decides (T-13-62).
+  const isManager = user?.role === 'manager';
+  const showMenu = request.status !== 'converted';
   return (
     <>
       <div className={pageHeadClasses}>
@@ -103,9 +232,10 @@ function QuoteRequestBody({ request, onMoved, onConflict }: QuoteRequestBodyProp
             <QuoteStatusBadge status={request.status} />
           </div>
         </div>
-        {request.status !== 'converted' && (
+        {(showMenu || isManager) && (
           <div className={quoteActionsClasses}>
-            <QuoteStatusMenu request={request} onMoved={onMoved} onConflict={onConflict} />
+            {showMenu && <QuoteStatusMenu request={request} onMoved={onMoved} onConflict={onConflict} />}
+            {isManager && <DeleteRequest request={request} onConflict={onConflict} />}
           </div>
         )}
       </div>
@@ -115,6 +245,7 @@ function QuoteRequestBody({ request, onMoved, onConflict }: QuoteRequestBodyProp
           <QuoteRequestPhotosCard request={request} />
         </div>
         <div className={quoteColumnClasses}>
+          <QuoteNotesCard request={request} onAdded={onNoteAdded} onConflict={onConflict} />
           <QuoteHistoryCard history={request.history} />
         </div>
       </div>
@@ -208,6 +339,14 @@ export default function QuoteRequestPage() {
     void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
   };
 
+  const onNoteAdded = (answer: QuoteRequestNoteAdded): void => {
+    // The next change sends the new version at once; the read below brings the note itself.
+    queryClient.setQueryData<QuoteRequestDetailResponse>(quoteRequestKey(id), (held) =>
+      held === undefined ? held : { ...held, version: answer.version },
+    );
+    void queryClient.invalidateQueries({ queryKey: quoteRequestsKey });
+  };
+
   const loadLatest = async (): Promise<void> => {
     setLoadingLatest(true);
     const result = await query.refetch();
@@ -283,6 +422,7 @@ export default function QuoteRequestPage() {
             <QuoteRequestBody
               request={request}
               onMoved={onMoved}
+              onNoteAdded={onNoteAdded}
               onConflict={() => {
                 setConflicts((count) => count + 1);
               }}

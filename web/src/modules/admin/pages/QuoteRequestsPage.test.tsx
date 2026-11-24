@@ -728,3 +728,39 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
     await expectNoAxeViolations(container);
   });
 });
+
+describe('arriving after a delete (D-16, UI-SPEC R2 "focus goes to the inbox h1")', () => {
+  function renderWithState(state: unknown) {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <NuqsTestingAdapter defaultOptions={URL_STATE_DEFAULTS} processUrlSearchParams={orderSearchParams} hasMemory>
+          <MemoryRouter initialEntries={[{ pathname: '/admin/quote-requests', state }]}>
+            <ToastProvider>
+              <QuoteRequestsPage />
+            </ToastProvider>
+          </MemoryRouter>
+        </NuqsTestingAdapter>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('focuses the h1 when the request page asks for it', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS));
+    renderWithState({ focusHeading: true });
+
+    const heading = screen.getByRole('heading', { level: 1, name: 'Quote Requests' });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
+    await screen.findByRole('link', { name: 'Juan Dela Cruz' });
+    expect(heading).toHaveFocus();
+  });
+
+  it('leaves focus alone on a plain visit', async () => {
+    quoteRequestsBackend(quoteRequestList(ROWS));
+    renderWithState(null);
+
+    await screen.findByRole('link', { name: 'Juan Dela Cruz' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Quote Requests' })).not.toHaveFocus();
+  });
+});

@@ -93,3 +93,18 @@ export const quoteMutedClasses = tw('m-0 text-[14px] leading-5 text-ink-muted');
 
 /** The history list: Small rows, newest first, 12px apart. */
 export const quoteHistoryListClasses = tw('m-0 flex list-none flex-col gap-3 p-0 text-[14px] leading-5 text-ink');
+
+/** The Add a note box over its Add Note button, 12px apart. */
+export const quoteNoteFormClasses = tw('flex flex-col items-start gap-3');
+
+/** The Add a note box takes the card's width. */
+export const quoteNoteFieldClasses = tw('self-stretch');
+
+/** The notes, newest first, 16px apart. */
+export const quoteNoteListClasses = tw('m-0 flex list-none flex-col gap-4 p-0');
+
+/** A note's author: Label (14px, 600). */
+export const quoteNoteAuthorClasses = tw('m-0 text-[14px] leading-5 font-semibold text-ink');
+
+/** Delete Request with its Small muted reason under it when it cannot be used. */
+export const quoteDeleteClasses = tw('flex flex-col items-start gap-1');
