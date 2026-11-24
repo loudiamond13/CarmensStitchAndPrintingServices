@@ -63,6 +63,41 @@ test('@quote staff open a request with a photo', async ({ page, request, guard }
   await expect(page.getByRole('region', { name: 'History' })).toContainText('Received from the website');
 });
 
+test('@quote staff add a note, and it stays after a reload', async ({ page, request, guard }) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin', undefined, { firstName: 'Notes', lastName: 'Tester' });
+  await signInAs(page, request, admin);
+  const name = uniqueName();
+  const id = await createQuoteRequest(request, { customerName: name, contactNumber: freshMobile() });
+
+  await openFromInbox(page, name, id);
+  const notes = page.getByRole('region', { name: 'Internal notes' });
+  await expect(notes).toContainText('No notes yet.');
+  const box = notes.getByRole('textbox', { name: 'Add a note' });
+  await box.fill('Called back.\nWants 12 jerseys by Friday.');
+  const added = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/v1/quote-requests/${id}/notes` &&
+      response.request().method() === 'POST',
+  );
+  await notes.getByRole('button', { name: 'Add Note' }).click();
+  expect((await added).status()).toBe(200);
+
+  await expect(box).toHaveValue('');
+  await expect(box).toBeFocused();
+  const first = notes.getByRole('listitem').first();
+  await expect(first).toContainText('Called back.');
+  await expect(first).toContainText('Notes Tester');
+  await expectNoAxeViolations(page);
+
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Internal notes' }).getByRole('listitem').first(),
+  ).toContainText('Wants 12 jerseys by Friday.');
+});
+
 test('@quote at 320px the actions wrap under the title, 44px tall, and nothing scrolls sideways', async ({
   page,
   request,

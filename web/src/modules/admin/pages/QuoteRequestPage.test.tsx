@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, type InitialEntry } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -9,6 +10,7 @@ import { createQueryClient } from '@/lib/query/queryClient';
 import QuoteRequestPage from '@/modules/admin/pages/QuoteRequestPage';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
+import { server } from '@/test/msw';
 import { NEW_QUOTE_COUNT_KEY } from '@/modules/admin/hooks/useNewQuoteCountQuery';
 import {
   MARIA,
@@ -644,5 +646,128 @@ describe('empty values and long text (OR-4, UI-SPEC R2 overflow)', () => {
     expect(value.className).toContain('wrap-anywhere');
     expect(value.className).toContain('whitespace-pre-wrap');
     expect(value.textContent).toBe(message);
+  });
+});
+
+const NOTES_PATH = /\/api\/v1\/quote-requests\/([0-9a-f-]{36})\/notes$/;
+
+/** Answers POST /quote-requests/{id}/notes with `answer` and records each body. */
+function notesBackend(answer: () => Response | object) {
+  const posts: unknown[] = [];
+  server.use(
+    http.post(NOTES_PATH, async ({ request }) => {
+      posts.push(await request.json());
+      const body = answer();
+      return body instanceof Response ? body : HttpResponse.json(body);
+    }),
+  );
+  return posts;
+}
+
+describe('Internal notes on the page (D-17, UI-SPEC R2 item 4)', () => {
+  const LIST_KEY = ['quote-requests', 'list', { status: 'open', q: null, page: 1, size: 20 }] as const;
+  const NOTE = {
+    id: quoteRequestId(101),
+    text: 'Called back, wants 12.',
+    createdBy: MARIA,
+    createdAtUtc: '2026-11-21T09:00:00Z',
+  };
+  const ADDED = { id: ID, noteId: NOTE.id, createdAtUtc: NOTE.createdAtUtc, version: 'AAAAAAAAB9J=' };
+
+  it('sits in the aside above History', async () => {
+    quoteRequestBackend(quoteRequestDetail(ID));
+    renderPage();
+
+    const notes = await screen.findByRole('region', { name: 'Internal notes' });
+    const history = screen.getByRole('region', { name: 'History' });
+    expect(notes.parentElement).toBe(history.parentElement);
+    expect(notes.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('reads the request again after a note, shows it at the top, and marks the inbox lists and the New count stale', async () => {
+    const older = { ...NOTE, id: quoteRequestId(100), text: 'Older note', createdAtUtc: '2026-11-21T08:00:00Z' };
+    const backend = quoteRequestBackend((read) =>
+      read === 1
+        ? quoteRequestDetail(ID, { notes: [older] })
+        : quoteRequestDetail(ID, { notes: [NOTE, older], version: 'AAAAAAAAB9J=' }),
+    );
+    const posts = notesBackend(() => ADDED);
+    queryClient.setQueryData(NEW_QUOTE_COUNT_KEY, 4);
+    queryClient.setQueryData(LIST_KEY, { items: [] });
+    renderPage();
+    const user = userEvent.setup();
+
+    const box = await screen.findByRole('textbox', { name: 'Add a note' });
+    await user.type(box, 'Called back, wants 12.');
+    await user.click(screen.getByRole('button', { name: 'Add Note' }));
+
+    const notes = screen.getByRole('region', { name: 'Internal notes' });
+    await waitFor(() => {
+      expect(within(notes).getAllByRole('listitem')[0]).toHaveTextContent('Called back, wants 12.');
+    });
+    const first = within(notes).getAllByRole('listitem')[0];
+    expect(first).toHaveTextContent('Maria Santos');
+    expect(first).toHaveTextContent('Nov 21, 2026, 5:00 PM');
+    expect(within(notes).getAllByRole('listitem')).toHaveLength(2);
+    expect(posts).toEqual([{ text: 'Called back, wants 12.' }]);
+    expect(backend.reads).toHaveLength(2);
+    expect(queryClient.getQueryState(NEW_QUOTE_COUNT_KEY)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(LIST_KEY)?.isInvalidated).toBe(true);
+    expect(box).toHaveFocus();
+  });
+
+  it('sends the version from the note answer with the next status change, before the read lands', async () => {
+    const read = gate();
+    const backend = quoteRequestBackend(async (count) => {
+      if (count === 1) return quoteRequestDetail(ID);
+      await read.wait;
+      return quoteRequestDetail(ID, { notes: [NOTE], version: 'AAAAAAAAB9J=' });
+    });
+    notesBackend(() => ADDED);
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByRole('textbox', { name: 'Add a note' }), 'Called back, wants 12.');
+    await user.click(screen.getByRole('button', { name: 'Add Note' }));
+    await screen.findByText('Note added.');
+    await user.click(screen.getByRole('button', { name: 'Change Status' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Contacted' }));
+
+    await waitFor(() => {
+      expect(backend.moves).toHaveLength(1);
+    });
+    expect(backend.moves[0]?.body).toEqual({ status: 'contacted', version: 'AAAAAAAAB9J=' });
+    read.open();
+  });
+
+  it('keeps the typed note and shows the ConflictBanner on a 409', async () => {
+    quoteRequestBackend(quoteRequestDetail(ID));
+    notesBackend(() => quoteProblem(409, { code: 'quote-requests.conflict' }));
+    renderPage();
+    const user = userEvent.setup();
+
+    const box = await screen.findByRole('textbox', { name: 'Add a note' });
+    await user.type(box, 'Do not lose me');
+    await user.click(screen.getByRole('button', { name: 'Add Note' }));
+
+    expect(await screen.findByText('Someone else changed this request.')).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Add a note' })).toHaveValue('Do not lose me');
+  });
+
+  it('shows not found, focused, when the request is gone as a note is added', async () => {
+    quoteRequestBackend((read) =>
+      read === 1 ? quoteRequestDetail(ID) : quoteProblem(404, { code: 'quote-requests.not-found' }),
+    );
+    notesBackend(() => quoteProblem(404, { code: 'quote-requests.not-found' }));
+    renderPage();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByRole('textbox', { name: 'Add a note' }), 'Too late');
+    await user.click(screen.getByRole('button', { name: 'Add Note' }));
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Quote request not found' });
+    await waitFor(() => {
+      expect(heading).toHaveFocus();
+    });
   });
 });
