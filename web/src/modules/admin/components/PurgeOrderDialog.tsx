@@ -8,6 +8,8 @@
 //   - The DELETE sends `confirm=` with the order number and no Idempotency-Key. The server checks it again: a 400 shows its line here.
 //   - On success the screen hears about it first (`onDone`, to choose where focus goes or to leave the page), then the dialog closes,
 //     the toast shows and the order lists and the deleted list read again.
+//   - A purge also removes the quote request the order came from (13 D-22), so every `['quote-requests']` query reads again too.
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { useToast } from '@/components/feedback';
 import { ConfirmDialog } from '@/components/overlays';
@@ -15,6 +17,7 @@ import { isHttpError } from '@/core/api/errors';
 import { DELETED_ORDERS_COPY } from '@/modules/admin/deletedOrdersCopy';
 import { useDeletedOrderCountsQuery } from '@/modules/admin/hooks/useDeletedOrderQuery';
 import { useOrderAction } from '@/modules/admin/hooks/useOrderAction';
+import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
 import { useRefreshOrders } from '@/modules/admin/hooks/useRefreshOrders';
 import { deletedOrdersService } from '@/modules/admin/services/deletedOrdersService';
 import type { CascadeCounts } from '@/utils/csps';
@@ -58,7 +61,10 @@ function describeFailure(error: unknown): string | undefined {
 
 export function PurgeOrderDialog({ orderId, number, team, customer, open, onClose, onDone }: PurgeOrderDialogProps) {
   const toast = useToast();
-  const refreshAll = useRefreshOrders();
+  const queryClient = useQueryClient();
+  const refreshOrders = useRefreshOrders();
+  const refreshAll = () =>
+    Promise.all([refreshOrders(), queryClient.invalidateQueries({ queryKey: quoteRequestsKey })]);
   const counts = useDeletedOrderCountsQuery(orderId, open);
   const goneHandled = useRef(false);
 
