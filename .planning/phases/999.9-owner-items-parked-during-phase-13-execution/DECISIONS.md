@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T04:08:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-24T04:28:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -339,6 +339,18 @@ The security audit closed all 73 threats. Two were accepted in the plans without
 1. **AR-13-02 (T-13-08):** the daily maintenance call from GitHub uses a secret key; guessing it is accepted as low risk because it runs only from main and is rate limited. A: accept. B: ask for an extra guard.
 2. **AR-13-05 (T-13-35):** the staff inbox search text sits in the address bar (so Back and links keep the search), which can hold a visitor's name; the server's request logs drop it. A: accept. B: keep the search out of the address.
 
+## P13-BL-33 · Empty messages for the Converted, Closed and Spam pills (UI review fix 5)
+
+**Status:** open · **Blocks:** nothing. Wording, so your call; nothing was changed.
+
+All three empty pills say "Requests show here when their status changes." The UI review suggests each says what its status means. A: keep the one sentence. B: one sentence each, for example "Requests you turn into orders show here.", "Requests you close show here." and "Requests you mark as spam show here."
+
+## P13-BL-34 · The 6 px gap inside the status pills (UI review, 13-UI-REVIEW-FIX)
+
+**Status:** open · **Blocks:** nothing. Built as A.
+
+The pills reuse the Gallery pill look, which the base UI spec sets at a 6 px gap between the label and its count. The Phase 13 spec's "Declared exceptions" list says "No other exception" and does not name it. A: add this 6 px gap to the Phase 13 declared exceptions (a spec note only). B: move the pills to an 8 px gap, which would also differ from the Gallery pills.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -354,4 +366,6 @@ The security audit closed all 73 threats. Two were accepted in the plans without
 - [ ] Delete Request on a request someone else just turned into an order: the page shows the reason and then Converted after Cancel (wave 9 fix WR-02).
 - [ ] On a phone: turn a request into an order, check the prefilled form, save it, and follow the links between the order and the request both ways (plan 13-22).
 - [ ] After saving an order made from a request, press Back: it skips the filled form (wave 10 fix WR-01).
+- [ ] Look at the Contact form, the Quote Requests inbox, a request page and the showcase in Blush and Espresso at 320, 768 and 1440 px, including the selected pill and warning text contrast (UI review fix 4).
+- [ ] With a screen reader, send the quote form (with a photo refused and with a failed send) and check each message is read once, not twice (UI review fix 6).
 - [ ] Open the Component Showcase, "Quote requests" section, in Blush and Espresso and check each state looks right (plan 13-23).
