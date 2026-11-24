@@ -6,6 +6,7 @@ using Csps.Application.Ports;
 using Csps.Application.UnitTests.Auth;
 using Csps.Domain.Auditing;
 using Csps.Domain.Orders;
+using Csps.Domain.QuoteRequests;
 using NSubstitute;
 
 namespace Csps.Application.UnitTests.Orders;
@@ -111,6 +112,52 @@ public sealed class OrderDeletionHandlerTests
         {
             entry.Call.Detail.ShouldNotBeNull().ShouldNotContain(secret, Case.Insensitive);
         }
+    }
+
+    [Fact]
+    public async Task PermanentTheConvertedRequestIsQueuedRecordedAndRemovedInTheOneSave()
+    {
+        var harness = new Harness();
+        var quote = harness.LinkQuote(("front.jpg", "csps-test/quotes/front"), ("never.jpg", null), ("back.jpg", "csps-test/quotes/back"));
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Quotes.Received(1).Remove(quote);
+        harness.Queue.Entries.Select(entry => (entry.PublicId, entry.Reason, entry.SavesBefore))
+            .ShouldBe([("csps-test/quotes/front", ImageDeletionReason.OrderDeleted, 0), ("csps-test/quotes/back", ImageDeletionReason.OrderDeleted, 0)]);
+        var entry = harness.Audit.Entries.Single(entry => entry.Call.Action == AuditActions.QuoteRequestDeleted);
+        entry.Call.ShouldBe(new AuditCall("quote-request.deleted", "QuoteRequest", quote.Id.ToString("D"), "status=converted;photos=2", Independent: false));
+        entry.SavesBefore.ShouldBe(0);
+        harness.Orders.Received(1).Remove(harness.Order);
+        harness.Unit.Saves.ShouldBe(1);
+        harness.Unit.Commits.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task PermanentAnOrderWithNoRequestRemovesNoRequest()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0148", TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Quotes.Received(1).FindByOrderAsync(harness.Order.Id, Arg.Any<CancellationToken>());
+        harness.Quotes.DidNotReceiveWithAnyArgs().Remove(default!);
+        harness.Audit.Entries.ShouldHaveSingleItem().Call.Action.ShouldBe(AuditActions.OrderPermanentlyDeleted);
+    }
+
+    [Fact]
+    public async Task PermanentAWrongConfirmLooksUpNoRequest()
+    {
+        var harness = new Harness();
+        harness.LinkQuote(("front.jpg", "csps-test/quotes/front"));
+
+        var result = await harness.Permanent.HandleAsync(harness.Order.Id, "ORD-2026-0149", TestContext.Current.CancellationToken);
+
+        result.IsFailure.ShouldBeTrue();
+        harness.Quotes.ReceivedCalls().ShouldBeEmpty();
+        harness.Queue.Entries.ShouldBeEmpty();
     }
 
     [Fact]
@@ -341,7 +388,28 @@ public sealed class OrderDeletionHandlerTests
             var request = Substitute.For<IRequestContext>();
             request.UserId.Returns(noCaller ? null : CallerId);
             Cache = new RecordingCache(Unit);
-            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Queue, Cache, Unit, request);
+            Quotes = Substitute.For<IQuoteRequestStore>();
+            Permanent = new PermanentlyDeleteOrderHandler(Orders, Audit, Queue, Cache, Unit, request, Quotes);
+        }
+
+        public IQuoteRequestStore Quotes { get; }
+
+        // A request converted into this order, with the photo places given; a null id is a photo that never arrived.
+        public QuoteRequest LinkQuote(params (string Name, string? PublicId)[] places)
+        {
+            var quote = QuoteRequest.Receive(
+                Guid.CreateVersion7(Now),
+                new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null, QuoteProductChoice.Custom, null, null, null, null),
+                Now).Value;
+            quote.DeclarePhotos([.. places.Select(place => place.Name)], new byte[QuoteRequestRules.UploadKeyHashLength], Now.AddHours(2)).IsSuccess.ShouldBeTrue();
+            for (var slot = 0; slot < places.Length; slot++)
+            {
+                typeof(QuoteRequestPhoto).GetProperty(nameof(QuoteRequestPhoto.PublicId))!.SetValue(quote.Photos[slot], places[slot].PublicId);
+            }
+
+            quote.MarkConverted(Order.Id, CallerId, Now).IsSuccess.ShouldBeTrue();
+            Quotes.FindByOrderAsync(Order.Id, Arg.Any<CancellationToken>()).Returns(Task.FromResult<QuoteRequest?>(quote));
+            return quote;
         }
 
         public Order Order { get; }

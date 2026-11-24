@@ -28,6 +28,12 @@ public interface IQuoteRequestStore
     /// <returns>The state, or null when there is no such request.</returns>
     Task<QuoteConversionState?> FindConversionAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Finds the request an order was made from, tracked with its photo places, for the permanent order delete (D-22).</summary>
+    /// <param name="orderId">The order id.</param>
+    /// <param name="cancellationToken">Cancels the read.</param>
+    /// <returns>The request, or null when the order was not made from one.</returns>
+    Task<QuoteRequest?> FindByOrderAsync(Guid orderId, CancellationToken cancellationToken);
+
     /// <summary>Adds a new request to the unit of work. Nothing is saved here.</summary>
     /// <param name="request">The new request.</param>
     void Add(QuoteRequest request);

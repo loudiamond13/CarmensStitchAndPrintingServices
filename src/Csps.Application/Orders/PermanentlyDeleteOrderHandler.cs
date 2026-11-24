@@ -24,7 +24,8 @@ public sealed class PermanentlyDeleteOrderHandler(
     IImageDeletionQueue imageDeletions,
     IPublicContentCache publicCache,
     IUnitOfWork unitOfWork,
-    IRequestContext requestContext)
+    IRequestContext requestContext,
+    IQuoteRequestStore quoteRequests)
 {
     /// <summary>Deletes the order for good.</summary>
     /// <param name="id">The order to remove.</param>
@@ -37,6 +38,8 @@ public sealed class PermanentlyDeleteOrderHandler(
         {
             return Result.Failure(AuthErrors.SessionEnded);
         }
+
+        _ = quoteRequests;
 
         var outcome = await ConflictRetry
             .RunAsync(

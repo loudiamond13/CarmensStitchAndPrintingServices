@@ -60,6 +60,9 @@ internal sealed partial class QuoteRequestStore(CspsDbContext context, TimeProvi
             select new QuoteConversionState(request.Status, request.OrderId, (string?)order.Number))
         .SingleOrDefaultAsync(cancellationToken);
 
+    public Task<QuoteRequest?> FindByOrderAsync(Guid orderId, CancellationToken cancellationToken) =>
+        Task.FromResult<QuoteRequest?>(null);
+
     public void Add(QuoteRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
