@@ -206,6 +206,9 @@ interface CreateOrderFormProps {
   converted?: ExistingOrder | null | undefined;
 }
 
+/** An order id is a GUID; the box links to the order only then (W10 IN-05). */
+const ORDER_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** The order a quote request already became (409 quote-requests.already-converted); null members when the server named none. */
 interface ExistingOrder {
   id: string | null;
@@ -526,7 +529,7 @@ function CreateOrderForm({ today, prefill, requestMissing = false, converted = n
                     ? COPY.fromRequest.alreadyConvertedNoNumber
                     : COPY.fromRequest.alreadyConverted(existing.number)}
                 </strong>
-                {existing.id !== null && existing.number !== null && (
+                {existing.id !== null && ORDER_ID.test(existing.id) && existing.number !== null && (
                   <UiLink to={`${ORDERS_PATH}/${encodeURIComponent(existing.id)}`} className={hitAreaClasses}>
                     {COPY.fromRequest.openOrder(existing.number)}
                   </UiLink>

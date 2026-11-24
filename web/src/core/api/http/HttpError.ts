@@ -30,6 +30,7 @@ export interface ProblemDetails {
   readonly minimumSeconds?: number | undefined;
   /** The order a quote request already became, sent with `409 quote-requests.already-converted` (D-23). */
   readonly orderId?: string | undefined;
+  /** That order's number, such as `ORD-2026-0160`, sent with `orderId`. */
   readonly orderNumber?: string | undefined;
   readonly errors: FieldErrors;
 }

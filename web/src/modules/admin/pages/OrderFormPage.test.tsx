@@ -1918,6 +1918,20 @@ describe('Turn into Order: a race or a missing request (D-23, UI-SPEC R3)', () =
     expect(within(box).getByRole('button', { name: 'Save as a New Order Instead' })).toBeVisible();
   });
 
+  it('names the order with no link when the 409 order id is not an id (W10 IN-05)', async () => {
+    useOrderHandlers({ reply: () => alreadyConverted({ orderId: 'not-an-id', orderNumber: 'ORD-2026-0160' }) });
+    usePrefill();
+    const { user } = await openForm({ search: FROM_REQUEST });
+    await finishPrefilledOrder(user);
+
+    await user.click(screen.getByRole('button', { name: 'Save Order' }));
+
+    const box = await screen.findByRole('alert');
+    expect(within(box).getByText('This request is already an order: ORD-2026-0160.')).toBeVisible();
+    expect(within(box).queryByRole('link')).toBeNull();
+    expect(within(box).getByRole('button', { name: 'Save as a New Order Instead' })).toBeVisible();
+  });
+
   it('has no axe violations with the already-converted box shown', async () => {
     useOrderHandlers({ reply: () => alreadyConverted() });
     usePrefill();
