@@ -292,12 +292,31 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
     [Fact]
     public async Task TheGuardsNeverAskTheVisitorToSolveAnything()
     {
-        await using var factory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
+        await database.ResetAsync();
+        await using var baseFactory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
+        var clock = new FakeTimeProvider(Start);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
         using var client = factory.CreateClient();
+        var plain = QuoteRequestFixtures.MinimalBody();
+        plain["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+        var empty = new Dictionary<string, object?> { ["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client) };
+        clock.Advance(TimeSpan.FromSeconds(3));
 
-        var text = await client.GetStringAsync(new Uri($"{QuoteRequestFixtures.Route}/ticket", UriKind.Relative), TestContext.Current.CancellationToken);
+        using var saved = await QuoteRequestFixtures.PostAsync(client, plain);
+        using var refused = await QuoteRequestFixtures.PostAsync(client, empty);
 
-        foreach (var word in new[] { "captcha", "puzzle", "challenge", "recaptcha", "turnstile" })
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using (var context = database.CreateContext())
+        {
+            (await context.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1, "a body with only the documented members is saved");
+        }
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(refused, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe("quote-requests.validation");
+        problem.GetProperty("errors").EnumerateObject().Select(property => property.Name).ShouldBe(["customerName", "contactNumber"], ignoreOrder: true);
+        var text = await ProblemJson.ReadWithoutTraceIdAsync(refused, TestContext.Current.CancellationToken);
+        foreach (var word in new[] { "captcha", "puzzle", "challenge", "recaptcha", "turnstile", "token" })
         {
             text.ShouldNotContain(word, Case.Insensitive);
         }
