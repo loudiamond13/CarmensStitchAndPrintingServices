@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T00:42:46-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T01:58:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -383,6 +383,28 @@ All three empty pills say "Requests show here when their status changes." The UI
 
 The pills reuse the Gallery pill look, which the base UI spec sets at a 6 px gap between the label and its count. The Phase 13 spec's "Declared exceptions" list says "No other exception" and does not name it. A: add this 6 px gap to the Phase 13 declared exceptions (a spec note only). B: move the pills to an 8 px gap, which would also differ from the Gallery pills.
 
+## P13-BL-35 · The stuck photo backlog leaves Cloudinary all at once on the first live run (13-REVIEW-W12 IN-06, plan 13-27)
+
+**Status:** open · **Blocks:** nothing. Built as B (the plan as written).
+
+Since Phase 11 (content) and Phase 13 (quotes), queued photo removals failed as `outside-folder` and stayed queued. After the 13-27 fix, the first live run after the deploy removes all of them, 25 per batch, with no cap and no preview. Each one is still checked against the photo rows first, so a photo still in use is kept. Cloudinary removals cannot be undone.
+
+- **A (recommended):** add one step to the deploy checklist: before the first run, count the live queue rows with `outside-folder` by folder (a read-only look) so you know how many will go.
+- **B:** accept it as is and record that here.
+
+## P13-BL-36 · Small follow-ups from the 13-27 review and security check
+
+**Status:** open · **Blocks:** nothing. Deferred to `/gsd-code-review 13 --fix` with the other phase 13 findings; nothing was changed.
+
+- **WR-01:** the runbook row "Photo removals still failing" (`docs/operations/maintenance.md:93`) says to press Run now for every code. That never clears an `outside-folder` row. The right step (check the row, then remove it by hand) is only on the "needing attention" row. This is runbook wording, so your call.
+- **IN-01:** the pin test compares the sweep with `OwnFolders`, not with what the job accepts.
+- **IN-02:** `IsInOwnFolder` accepts a bare folder id and ids with empty or `..` parts. No live path reaches this.
+- **IN-03 / security note 1:** `CloudinarySettings.OrdersPrefix` is an unused second orders prefix.
+- **IN-04:** stale wording: "both folders" in `StraySweepJob.cs:183` and `docs/operations/cloudinary-setup.md:190-191`, and the `PublicIds` class summary names order photos only.
+- **IN-05:** no test pins the check order for an outside-folder row that a photo row names. Both orders are safe.
+- **Security note 2:** `CloudinaryImageStorage.RemoveAsync` has no folder check of its own (the job is its only caller). A second check would be extra safety only.
+- **Security note 4 (optional):** add "(removal end to end: 13-27)" to threat rows T-13-23, T-13-24 and T-13-61 in 13-SECURITY.md.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -401,3 +423,4 @@ The pills reuse the Gallery pill look, which the base UI spec sets at a 6 px gap
 - [ ] Look at the Contact form, the Quote Requests inbox, a request page and the showcase in Blush and Espresso at 320, 768 and 1440 px, including the selected pill and warning text contrast (UI review fix 4).
 - [ ] With a screen reader, send the quote form (with a photo refused and with a failed send) and check each message is read once, not twice (UI review fix 6).
 - [ ] Open the Component Showcase, "Quote requests" section, in Blush and Espresso and check each state looks right (plan 13-23).
+- [ ] Re-run UAT test 11 on CSPS_Dev: mark a request with photos as Spam, press Run now, and check the photos are gone from the dev quotes folder in Cloudinary with no "Photo removals still failing" line. The row stuck since UAT test 9 should clear on the same run (plan 13-27, G-13-11).

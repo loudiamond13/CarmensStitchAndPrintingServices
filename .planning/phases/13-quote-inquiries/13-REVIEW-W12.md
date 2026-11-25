@@ -1,7 +1,7 @@
 ---
 phase: 13-quote-inquiries
 created: 2026-11-25T01:44:00-06:00
-updated: 2026-11-25T01:44:00-06:00
+updated: 2026-11-25T01:58:00-06:00
 reviewed: 2026-11-25T01:44:00-06:00
 depth: standard
 wave: 12
@@ -96,6 +96,18 @@ The one warning is in the runbook: the "still failing" row tells the owner to pr
 **File:** `src/Csps.Application/Maintenance/ImageRemovalJob.cs:103-153`, `docs/operations/maintenance.md:74-76`
 **Issue:** Every content and quote row queued since Phase 11 and stuck as `outside-folder` is now claimed and removed in the first run, 25 at a time, with no cap like the sweep's 50 (D-52) and no preview. Each row is still checked against the photo rows first, so a file in use is safe. This is what the plan wants (one-way, settled by D-04, D-22 and Phase 9 D-07). But the owner gets no step to look at the backlog before it goes, and Cloudinary removals cannot be undone.
 **Fix:** Owner's call. One option: add a one-time step to the deploy checklist to count the live queue rows with `LastFailureCode = 'outside-folder'` by folder (a read-only look in SSMS) before the first run. Another: accept it as is and record that in the phase notes.
+
+## Disposition (orchestrator, 2026-11-25, owner away)
+
+| Finding | Outcome | Reason |
+|---|---|---|
+| WR-01 | deferred | Runbook wording is the owner's call; parked as P13-BL-36 and left for `/gsd-code-review 13 --fix` |
+| IN-01 | deferred | Test hardening; P13-BL-36, `/gsd-code-review 13 --fix` |
+| IN-02 | deferred | No live path; P13-BL-36, `/gsd-code-review 13 --fix` |
+| IN-03 | deferred | Unused code cleanup; P13-BL-36, `/gsd-code-review 13 --fix` |
+| IN-04 | deferred | Comment and doc wording; P13-BL-36, `/gsd-code-review 13 --fix` |
+| IN-05 | deferred | Test hardening, both orders safe; P13-BL-36, `/gsd-code-review 13 --fix` |
+| IN-06 | deferred | Owner decision; parked as P13-BL-35 |
 
 ---
 
