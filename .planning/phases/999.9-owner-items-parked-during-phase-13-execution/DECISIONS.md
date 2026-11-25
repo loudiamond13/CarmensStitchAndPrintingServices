@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T03:10:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T11:20:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -424,6 +424,17 @@ Today Send Test Email shows the generic "check your connection" line even when t
 - **A (recommended):** a new line for 422 only: "That address can't receive email. Check the spelling and save it again." 409 keeps the generic line.
 - **B:** new lines for both 422 and 409 (you give the 409 words).
 - **C:** keep the generic line for both.
+
+## P13-BL-39 · Empty request folders stay in Cloudinary after their photos are removed (UAT test 99)
+
+**Status:** open · **Blocks:** nothing. Built as B.
+
+The maintenance run removes each quote photo, but Cloudinary keeps the folder `quotes/{request id}/` once it is empty. The folder name is only the request id, with no name or photo, so nothing private is left.
+
+- **A:** add a step to the maintenance run that removes empty `quotes/` folders (one more Cloudinary call per folder; needs a plan and tests).
+- **B (recommended):** leave them. They hold no data and cost nothing.
+
+Also found in test 99: the dev machine had no `Maintenance:Key` in user-secrets, so the dev maintenance call answered 401 until one was set. The runbook could say this for local runs.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
