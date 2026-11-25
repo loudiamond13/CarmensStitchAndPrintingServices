@@ -543,6 +543,35 @@ describe('QuotePhotoPicker picks that overlap (review W1 IN-05)', () => {
       expect(previewImage).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('goes on to the next preview when the photo being drawn is removed (review G5-WR-01)', async () => {
+    const finishers: ((url: string | null) => void)[] = [];
+    vi.mocked(previewImage).mockImplementation(
+      () =>
+        new Promise<string | null>((resolve) => {
+          finishers.push(resolve);
+        }),
+    );
+    render(<Harness initial={[pngFile('a.png'), pngFile('b.png')]} />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Remove a.png' }));
+
+    await act(async () => {
+      finishers[0]?.(PREVIEW);
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(previewImage).toHaveBeenCalledTimes(2);
+    });
+    await act(async () => {
+      finishers[1]?.(PREVIEW);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(within(photoList()).getByRole('listitem').querySelector('img')).toHaveAttribute('src', PREVIEW);
+    });
+  });
 });
 
 describe('QuotePhotoPicker first pick and settled (D-43, review W5 CR-01)', () => {

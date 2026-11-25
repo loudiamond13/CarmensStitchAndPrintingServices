@@ -116,10 +116,12 @@ export function QuotePhotoPicker({
       .catch(() => null)
       .then((url) => {
         drawing.current = null;
-        // A photo removed while it was being drawn keeps no preview.
-        if (latest.current.includes(next)) {
-          setPreviews((current) => new Map(current).set(next, url));
-        }
+        // A photo removed while it was drawn keeps no preview, but the state still changes so the next photo is drawn.
+        setPreviews((current) => {
+          const kept = new Map(current);
+          if (latest.current.includes(next)) kept.set(next, url);
+          return kept;
+        });
       });
   }, [photos, previews, rules.maxBytes]);
 
