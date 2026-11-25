@@ -10,6 +10,7 @@ import { expect, expectNoAxeViolations, type Guard, listFindings, test } from '.
 import { freshMobile, manilaDate, NO_SIDEWAYS_SCROLL, press, uniqueWord } from './helpers.ts';
 import { withPhotoHost } from './photo-host-lock.ts';
 import { apiToken, drawJpeg } from './photos.ts';
+import { withSiteContentLock } from './site-content-lock.ts';
 import { settle } from './sweep.ts';
 import {
   addQuoteNote,
@@ -18,6 +19,7 @@ import {
   createQuoteRequest,
   createStaff,
   type QuoteSeedInput,
+  seedDemoSiteContent,
 } from './testing-api.ts';
 
 // Five widths, an axe run at each, for several states: more than the 30 second default.
@@ -101,94 +103,108 @@ async function openContact(page: Page): Promise<void> {
 
 test('@quote Contact at rest: no finding from 320 to 1920 px, CLS under 0.05 while the form loads, and the beacon sends the path only', async ({
   page,
+  request,
   guard,
   browserName,
 }) => {
-  await page.addInitScript({ content: LAYOUT_SHIFT_OBSERVER });
-  const views = recordPageViews(page);
-  await openContact(page);
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await page.addInitScript({ content: LAYOUT_SHIFT_OBSERVER });
+    const views = recordPageViews(page);
+    await openContact(page);
 
-  // D-35: the form piece loads into a card of the same size, so nothing shifts. Chromium (desktop and Pixel) reports the shifts.
-  const supported = await page.evaluate<boolean>('window.__cspsLayoutShiftSupported');
-  if (browserName === 'chromium') {
-    expect(supported, 'Chromium reports layout shifts').toBe(true);
-  }
-  if (supported) {
-    expect(await page.evaluate<number>('window.__cspsLayoutShift'), 'layout shift while the form loads').toBeLessThan(
-      0.05,
-    );
-  }
-
-  expect(await sweepOpenPage(page, guard, 'Contact at rest')).toEqual([]);
-  // ANL-05: the beacon body is the path and nothing else.
-  await expect.poll(() => views).toContain('{"path":"/contact"}');
-  expect(
-    views.every((body) => body === '{"path":"/contact"}'),
-    views.join(' '),
-  ).toBe(true);
-});
-
-test('@quote Contact with every field error: no finding from 320 to 1920 px', async ({ page, guard }) => {
-  await openContact(page);
-  const form = page.getByRole('form', { name: 'Inquiry form' });
-  await form.getByRole('textbox', { name: /^Email/ }).fill('not-an-email');
-  await form.getByRole('textbox', { name: /^Message/ }).fill('x'.repeat(2001));
-  let sent = false;
-  page.on('request', (request) => {
-    if (request.method() === 'POST' && request.url().endsWith('/api/v1/public/quote-requests')) {
-      sent = true;
+    // D-35: the form piece loads into a card of the same size, so nothing shifts. Chromium (desktop and Pixel) reports the shifts.
+    const supported = await page.evaluate<boolean>('window.__cspsLayoutShiftSupported');
+    if (browserName === 'chromium') {
+      expect(supported, 'Chromium reports layout shifts').toBe(true);
     }
-  });
-  await press(page, form.getByRole('button', { name: 'Send Inquiry' }));
+    if (supported) {
+      expect(await page.evaluate<number>('window.__cspsLayoutShift'), 'layout shift while the form loads').toBeLessThan(
+        0.05,
+      );
+    }
 
-  // Name and number missing, the email and the message refused: every check the browser makes, and nothing sent (OR-3).
-  await expect(form.locator('[aria-invalid="true"]')).toHaveCount(4);
-  await expect(form.getByRole('textbox', { name: /Your name/ })).toBeFocused();
-  expect(await sweepOpenPage(page, guard, 'Contact with every field error')).toEqual([]);
-  expect(sent).toBe(false);
+    expect(await sweepOpenPage(page, guard, 'Contact at rest')).toEqual([]);
+    // ANL-05: the beacon body is the path and nothing else.
+    await expect.poll(() => views).toContain('{"path":"/contact"}');
+    expect(
+      views.every((body) => body === '{"path":"/contact"}'),
+      views.join(' '),
+    ).toBe(true);
+  });
 });
 
-test('@quote Contact with a refused photo: no finding from 320 to 1920 px', async ({ page, guard }) => {
-  await openContact(page);
-  const form = page.getByRole('form', { name: 'Inquiry form' });
-  const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
-  // Text with a photo name: the picker reads the first bytes, so it is refused.
-  const notPhoto = { name: 'design.png', mimeType: 'image/png', buffer: Buffer.from('not a picture at all') };
-  await form.locator('input[type="file"]').setInputFiles([photo, notPhoto]);
+test('@quote Contact with every field error: no finding from 320 to 1920 px', async ({ page, request, guard }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await openContact(page);
+    const form = page.getByRole('form', { name: 'Inquiry form' });
+    await form.getByRole('textbox', { name: /^Email/ }).fill('not-an-email');
+    await form.getByRole('textbox', { name: /^Message/ }).fill('x'.repeat(2001));
+    let sent = false;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().endsWith('/api/v1/public/quote-requests')) {
+        sent = true;
+      }
+    });
+    await press(page, form.getByRole('button', { name: 'Send Inquiry' }));
 
-  await expect(form.getByRole('list', { name: 'Photos to send' }).getByRole('listitem')).toHaveCount(1);
-  await expect(form.getByRole('alert')).toContainText('design.png');
-  expect(await sweepOpenPage(page, guard, 'Contact with a refused photo')).toEqual([]);
+    // Name and number missing, the email and the message refused: every check the browser makes, and nothing sent (OR-3).
+    await expect(form.locator('[aria-invalid="true"]')).toHaveCount(4);
+    await expect(form.getByRole('textbox', { name: /Your name/ })).toBeFocused();
+    expect(await sweepOpenPage(page, guard, 'Contact with every field error')).toEqual([]);
+    expect(sent).toBe(false);
+  });
+});
+
+test('@quote Contact with a refused photo: no finding from 320 to 1920 px', async ({ page, request, guard }) => {
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    await openContact(page);
+    const form = page.getByRole('form', { name: 'Inquiry form' });
+    const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
+    // Text with a photo name: the picker reads the first bytes, so it is refused.
+    const notPhoto = { name: 'design.png', mimeType: 'image/png', buffer: Buffer.from('not a picture at all') };
+    await form.locator('input[type="file"]').setInputFiles([photo, notPhoto]);
+
+    await expect(form.getByRole('list', { name: 'Photos to send' }).getByRole('listitem')).toHaveCount(1);
+    await expect(form.getByRole('alert')).toContainText('design.png');
+    expect(await sweepOpenPage(page, guard, 'Contact with a refused photo')).toEqual([]);
+  });
 });
 
 test('@quote Contact after a send: no finding from 320 to 1920 px, and no beacon carries what was typed', async ({
   page,
+  request,
   guard,
 }) => {
-  const views = recordPageViews(page);
-  await openContact(page);
-  const form = page.getByRole('form', { name: 'Inquiry form' });
-  const name = `E2E Sweep ${uniqueWord()}`;
-  const number = freshMobile();
-  await form.getByRole('textbox', { name: /Your name/ }).fill(name);
-  await form.getByRole('textbox', { name: /Contact number/ }).fill(number);
-  const created = page.waitForResponse(
-    (response) => response.url().endsWith('/api/v1/public/quote-requests') && response.request().method() === 'POST',
-  );
-  await press(page, form.getByRole('button', { name: 'Send Inquiry' }));
-  expect((await created).status()).toBe(200);
-  await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeFocused();
+  await withSiteContentLock(async () => {
+    await seedDemoSiteContent(request);
+    const views = recordPageViews(page);
+    await openContact(page);
+    const form = page.getByRole('form', { name: 'Inquiry form' });
+    const name = `E2E Sweep ${uniqueWord()}`;
+    const number = freshMobile();
+    await form.getByRole('textbox', { name: /Your name/ }).fill(name);
+    await form.getByRole('textbox', { name: /Contact number/ }).fill(number);
+    const created = page.waitForResponse(
+      (response) => response.url().endsWith('/api/v1/public/quote-requests') && response.request().method() === 'POST',
+    );
+    await press(page, form.getByRole('button', { name: 'Send Inquiry' }));
+    expect((await created).status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeFocused();
 
-  expect(await sweepOpenPage(page, guard, 'Contact after a send')).toEqual([]);
-  expect(new URL(page.url()).pathname).toBe('/contact');
-  expect(page.url()).not.toContain(number);
-  const sentViews = views.join(' ');
-  expect(sentViews).not.toContain(number);
-  expect(sentViews).not.toContain(name.split(' ').at(-1) ?? name);
-  expect(
-    views.every((body) => body === '{"path":"/contact"}'),
-    sentViews,
-  ).toBe(true);
+    expect(await sweepOpenPage(page, guard, 'Contact after a send')).toEqual([]);
+    expect(new URL(page.url()).pathname).toBe('/contact');
+    expect(page.url()).not.toContain(number);
+    const sentViews = views.join(' ');
+    expect(sentViews).not.toContain(number);
+    expect(sentViews).not.toContain(name.split(' ').at(-1) ?? name);
+    expect(
+      views.every((body) => body === '{"path":"/contact"}'),
+      sentViews,
+    ).toBe(true);
+  });
 });
 
 // ── The staff screens ──
