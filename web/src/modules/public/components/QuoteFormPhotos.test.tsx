@@ -102,6 +102,31 @@ describe('QuoteForm photo area (D-43: the picker loads on the first tap)', () =>
     expect(screen.getByRole('button', { name: 'Remove sketch.png' })).toBeInTheDocument();
   });
 
+  it('moves focus onto the first Remove button when the picker loads from the Choose Photos button (review G5-WR-03)', async () => {
+    answerQuote();
+    const { container } = renderForm();
+    screen.getByRole('button', { name: 'Choose Photos' }).focus();
+
+    fireEvent.change(fileInput(container), { target: { files: [pngFile('logo.png'), pngFile('sketch.png', 128)] } });
+
+    const remove = await screen.findByRole('button', { name: 'Remove logo.png' });
+    await waitFor(() => {
+      expect(remove).toHaveFocus();
+    });
+  });
+
+  it('leaves focus alone when the visitor moved to another field while the picker loaded (review G5-WR-03)', async () => {
+    answerQuote();
+    const { container } = renderForm();
+    const name = screen.getByRole('textbox', { name: /Your name/ });
+    name.focus();
+
+    fireEvent.change(fileInput(container), { target: { files: [pngFile('logo.png')] } });
+
+    await screen.findByRole('button', { name: 'Remove logo.png' });
+    expect(name).toHaveFocus();
+  });
+
   it('has no axe violations before the tap and with photos picked', async () => {
     answerQuote();
     const { container } = renderForm();

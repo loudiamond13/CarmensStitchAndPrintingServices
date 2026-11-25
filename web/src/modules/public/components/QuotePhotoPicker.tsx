@@ -59,6 +59,8 @@ export interface QuotePhotoPickerProps {
   handleRef?: Ref<QuotePhotoPickerHandle> | undefined;
   /** The refusals of the files chosen before this picker was loaded, shown when it shows. */
   firstErrors?: PickErrors | undefined;
+  /** The picker took the place of the button that had focus: focus goes to the first photo's Remove, or the add control. */
+  focusOnMount?: boolean | undefined;
 }
 
 export interface QuotePhotoPickerHandle {
@@ -86,6 +88,7 @@ export function QuotePhotoPicker({
   disabled = false,
   handleRef,
   firstErrors = NO_ERRORS,
+  focusOnMount = false,
 }: QuotePhotoPickerProps) {
   const labelId = useId();
   const [over, setOver] = useState(false);
@@ -93,13 +96,13 @@ export function QuotePhotoPicker({
   const latest = useRef(photos);
   // A missing entry is a preview still being drawn; null is a photo the browser cannot draw.
   const [previews, setPreviews] = useState<ReadonlyMap<File, string | null>>(new Map());
-  const [focusTick, setFocusTick] = useState(0);
+  const [focusTick, setFocusTick] = useState(focusOnMount ? 1 : 0);
   const galleryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const browseRef = useRef<HTMLButtonElement>(null);
   const chooseRef = useRef<HTMLButtonElement>(null);
   const removeRefs = useRef(new Map<File, HTMLButtonElement>());
-  const focusTarget = useRef<FocusTarget | null>(null);
+  const focusTarget = useRef<FocusTarget | null>(focusOnMount ? (photos[0] ?? 'add') : null);
   const drawing = useRef<File | null>(null);
   // Picks run one after the other, so each one counts the photos the one before it added (review W1 IN-05).
   const queue = useRef<Promise<void>>(Promise.resolve());

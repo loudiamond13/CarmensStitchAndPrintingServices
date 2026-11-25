@@ -30,11 +30,14 @@ export interface QuotePhotoSlotProps {
 
 interface Loaded extends FirstPick {
   kit: QuotePhotoKit;
+  /** The first pick was made from the Choose Photos button and focus is still there, so the picker takes it over. */
+  focusFirst: boolean;
 }
 
 export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }: QuotePhotoSlotProps) {
   const labelId = useId();
   const input = useRef<HTMLInputElement>(null);
+  const chooseRef = useRef<HTMLButtonElement>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   // Loading: the photo piece is loading and checking the first pick, and Choose Photos shows a spinner and takes no second pick.
   const [status, setStatus] = useState<'idle' | 'loading' | 'failed'>('idle');
@@ -57,6 +60,7 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
         disabled={disabled}
         rules={loaded.rules}
         firstErrors={loaded.errors}
+        focusOnMount={loaded.focusFirst}
         handleRef={picker}
       />
     );
@@ -72,7 +76,10 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
     first.current = Promise.all([loadQuotePhotoKit(), limits()])
       .then(async ([kit, rules]) => {
         const pick = await kit.firstPick(files, rules);
-        setLoaded({ kit, ...pick });
+        // This button leaves the page when the picker shows, so focus goes on only if it was still here (or nowhere).
+        const active = document.activeElement;
+        const focusFirst = active === null || active === document.body || active === chooseRef.current;
+        setLoaded({ kit, focusFirst, ...pick });
         onChange(pick.photos);
         return pick.photos;
       })
@@ -90,6 +97,7 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
       </p>
       <div>
         <Button
+          ref={chooseRef}
           variant="secondary"
           icon="image"
           aria-disabled={disabled}
