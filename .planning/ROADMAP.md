@@ -1417,7 +1417,7 @@ If the owner rules under C-36 that inquiries are out of this milestone, this pha
 
 **Research flag:** Needs research only if PDF/AI attachments are accepted (CWE-434 handling). Otherwise standard patterns, with images re-encoded through Cloudinary.
 
-**Plans:** 26/27 plans executed
+**Plans:** 27/27 plans executed
 
 Plans:
 **Wave 1**
@@ -1471,7 +1471,7 @@ Plans:
 - [x] 13-26-PLAN.md: owner's live checks after the deploy: Quote alerts test email and the first Gallery photo (checkpoint, not autonomous) (wave 12)
 
 **Gap closure** *(UAT G-13-11, review G2A-CR-01, planned 2026-11-25; run with `/gsd-execute-phase 13 --gaps-only`)*
-- [ ] 13-27-PLAN.md: the photo removal job accepts the own orders, content and quotes folders (one shared source in PublicIds, lookalikes still refused), so Spam, delete and purge really remove photos; runbook corrected (INQ-05, INQ-06, INQ-07; D-04, D-22, Phase 9 D-07)
+- [x] 13-27-PLAN.md: the photo removal job accepts the own orders, content and quotes folders (one shared source in PublicIds, lookalikes still refused), so Spam, delete and purge really remove photos; runbook corrected (INQ-05, INQ-06, INQ-07; D-04, D-22, Phase 9 D-07)
 
 **UI hint**: yes
 
@@ -1675,7 +1675,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 10. Admin Dashboard | 21/21 | Complete    | 2026-11-13 |
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
-| 13. Quote Inquiries | 26/26 | In Progress | - |
+| 13. Quote Inquiries | 27/27 | In Progress | - |
 | 14. Hardening & Release Readiness | 0/TBD | Not started | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
