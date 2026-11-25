@@ -195,6 +195,31 @@ public sealed class UploadQuotePhotoHandlerTests
     }
 
     [Fact]
+    public async Task AnUploadCutOffByALeftVisitorQueuesTheFileAndLetsTheCancelThrough()
+    {
+        var harness = new Harness { UploadError = new OperationCanceledException() };
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => harness.Handler.HandleAsync(RequestId, 0, Harness.Request(), TestContext.Current.CancellationToken));
+
+        harness.Fills.ShouldBeEmpty();
+        await harness.Queue.Received(1).EnqueueNowAsync(harness.Uploads.Single().PublicId, ImageDeletionReason.UploadUndone, CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task ThePlaceIsFilledEvenWhenTheVisitorHasLeftSoTheOutcomeIsNeverUnknown()
+    {
+        var harness = new Harness();
+        using var left = new CancellationTokenSource();
+        await left.CancelAsync();
+
+        var result = await harness.Handler.HandleAsync(RequestId, 0, Harness.Request(), left.Token);
+
+        result.IsSuccess.ShouldBeTrue();
+        await harness.Store.Received(1).FillPhotoSlotAsync(RequestId, 0, Arg.Any<QuotePhotoStored>(), CancellationToken.None);
+    }
+
+    [Fact]
     public async Task AFailingQueueWriteNeverReplacesTheAnswer()
     {
         var harness = new Harness { Fill = false };
@@ -229,6 +254,8 @@ public sealed class UploadQuotePhotoHandlerTests
         public bool Fill { get; init; } = true;
 
         public Exception? FillError { get; init; }
+
+        public Exception? UploadError { get; init; }
 
         public ImageUploadSettings Settings { get; init; } = new();
 
@@ -266,7 +293,7 @@ public sealed class UploadQuotePhotoHandlerTests
             storage.UploadAsync(Arg.Any<ImageUpload>(), Arg.Any<CancellationToken>()).Returns(call =>
             {
                 Uploads.Add(call.Arg<ImageUpload>());
-                return Task.FromResult(Outcome);
+                return UploadError is not null ? Task.FromException<ImageUploadOutcome>(UploadError) : Task.FromResult(Outcome);
             });
             return new UploadQuotePhotoHandler(Store, new FixedCalendar(), storage, Queue, Settings);
         }

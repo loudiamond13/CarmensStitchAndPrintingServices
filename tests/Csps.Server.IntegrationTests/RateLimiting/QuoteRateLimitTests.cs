@@ -171,8 +171,14 @@ public sealed class QuoteRateLimitTests(CspsDatabase database) : IClassFixture<C
         photo.Headers.Add(RemoteIpStartupFilter.HeaderName, "203.0.113.143");
         using var photoAnswer = await client.SendAsync(photo, TestContext.Current.CancellationToken);
 
+        using var pageView = PageViewCollectTests.NewPost(PageViewCollectTests.PathBody("/gallery"));
+        pageView.Headers.Add(RemoteIpStartupFilter.HeaderName, "203.0.113.144");
+        using var pageViewAnswer = await client.SendAsync(pageView, TestContext.Current.CancellationToken);
+
         ticketAnswer.StatusCode.ShouldBe(HttpStatusCode.OK);
-        photoAnswer.StatusCode.ShouldNotBe(HttpStatusCode.TooManyRequests);
+        photoAnswer.StatusCode.ShouldBe(HttpStatusCode.BadRequest, "the post with no file passes the ceiling and is refused for the missing file");
+        (await ProblemJson.ReadAsync(photoAnswer, TestContext.Current.CancellationToken)).GetProperty("code").GetString().ShouldBe("images.file-missing");
+        pageViewAnswer.StatusCode.ShouldBe(HttpStatusCode.NoContent);
     }
 
     [Theory]

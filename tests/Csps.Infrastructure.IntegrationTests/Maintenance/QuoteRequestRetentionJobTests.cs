@@ -141,6 +141,25 @@ public sealed class QuoteRequestRetentionJobTests(CspsDatabase database) : IClas
     }
 
     [Fact]
+    public async Task ARequestConvertedAfterTheReadSurvivesWithItsPhotosAndNothingIsQueued()
+    {
+        await database.ResetAsync();
+        var photo = $"csps-test/quotes/{Guid.NewGuid():D}/photoraceyphotoraceyphotorace";
+        var id = await AddRequestAsync(Cut.AddDays(-1), QuoteRequestStatus.New, 1, (0, photo));
+
+        var report = await RunAsync(new FakeTimeProvider(Now), new ConvertBeforeFirstDelete(database));
+
+        Line(report, RemovedLabel).Value.ShouldBe(0);
+        Line(report, RemovedLabel).Failed.ShouldBeFalse();
+        report.More.ShouldBeTrue();
+        await using var context = database.CreateContext();
+        var kept = await context.QuoteRequests.AsNoTracking().SingleAsync(request => request.Id == id, TestContext.Current.CancellationToken);
+        kept.Status.ShouldBe(QuoteRequestStatus.Converted);
+        (await context.QuoteRequestPhotos.CountAsync(row => row.PublicId == photo, TestContext.Current.CancellationToken)).ShouldBe(1);
+        (await context.Set<ImageDeletion>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+    }
+
+    [Fact]
     public void TheJobRunsBeforeThePhotoRemovalsUnderItsFixedName()
     {
         using var context = database.CreateContext();
@@ -306,6 +325,25 @@ public sealed class QuoteRequestRetentionJobTests(CspsDatabase database) : IClas
             }
 
             return base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
+    // Converts every quote request just before the first delete runs, as if staff converted one between the id read and the delete (D-22).
+    private sealed class ConvertBeforeFirstDelete(CspsDatabase database) : DbCommandInterceptor
+    {
+        private int _done;
+
+        public override async ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            var isDelete = command.CommandText.Contains("DELETE", StringComparison.Ordinal) && command.CommandText.Contains("QuoteRequests", StringComparison.Ordinal);
+            if (isDelete && Interlocked.Exchange(ref _done, 1) == 0)
+            {
+                await using var other = database.CreateContext();
+                await other.QuoteRequests.ExecuteUpdateAsync(set => set.SetProperty(request => request.Status, QuoteRequestStatus.Converted), cancellationToken);
+            }
+
+            return await base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
         }
     }
 

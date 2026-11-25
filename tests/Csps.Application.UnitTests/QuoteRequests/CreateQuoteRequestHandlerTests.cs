@@ -332,6 +332,30 @@ public sealed class CreateQuoteRequestHandlerTests
     }
 
     [Fact]
+    public async Task AFilledHoneypotIsAnsweredBeforeTheFormIsValidatedSoABotLearnsNothingAboutTheFields()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(CreateQuoteRequestRequest.Empty with { Ticket = "ticket", SubjectLine = "x" }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Caught.ShouldBe(["honeypot"]);
+        harness.Added.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ATooFastTicketIsAnsweredBeforeTheFormIsValidatedSoABotLearnsNothingAboutTheFields()
+    {
+        var harness = new Harness { TicketReading = QuoteTicketReading.Valid(TimeSpan.FromSeconds(1)) };
+
+        var result = await harness.Handler.HandleAsync(CreateQuoteRequestRequest.Empty with { Ticket = "ticket" }, TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Caught.ShouldBe(["too-fast"]);
+        harness.Added.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task AZeroMinimumNeverCatchesATicketThatIsNotYetOneSecondOld()
     {
         var harness = new Harness(minimumSeconds: 0) { TicketReading = QuoteTicketReading.Valid(TimeSpan.FromTicks(-5)) };
