@@ -247,7 +247,7 @@ export function QuoteForm({ service = quoteService }: QuoteFormProps = {}) {
   // The box under the form after a send that did not go through (UI-SPEC Q3), from the server-answer piece. When that piece could
   // not load, the visitor is offline: the send-failed words show as a plain line.
   const sendStatus = (): ReactNode => {
-    if (sendError === undefined || answers === null) {
+    if (pending || sendError === undefined || answers === null) {
       return null;
     }
     if (answers === 'failed') {

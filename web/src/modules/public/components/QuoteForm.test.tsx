@@ -443,6 +443,32 @@ describe('QuoteForm when the send may have arrived (Q3 maybe sent)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(NOT_SURE);
   });
 
+  it('hides the box while the retry runs and shows a fresh alert when it fails the same way (review G5-WR-02)', async () => {
+    answerQuote();
+    let fail: (error: unknown) => void = () => undefined;
+    vi.spyOn(quoteService, 'create')
+      .mockRejectedValueOnce(new HttpError({ kind: 'timeout' }))
+      .mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          fail = reject;
+        }),
+      );
+    renderForm();
+    await fillRequired();
+    await userEvent.click(screen.getByRole('button', SEND));
+    const first = await screen.findByRole('alert');
+    expect(first).toHaveTextContent(NOT_SURE);
+
+    await userEvent.click(screen.getByRole('button', SEND));
+
+    await screen.findByRole('button', { name: 'Sending' });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fail(new HttpError({ kind: 'timeout' }));
+    const second = await screen.findByRole('alert');
+    expect(second).toHaveTextContent(NOT_SURE);
+    expect(second).not.toBe(first);
+  });
+
   it('says it could not send when the phone is offline', async () => {
     answerQuote();
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
