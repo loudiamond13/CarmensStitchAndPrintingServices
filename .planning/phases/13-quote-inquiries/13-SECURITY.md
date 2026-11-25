@@ -7,7 +7,7 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-24T04:07:00-06:00"
-updated: "2026-11-25T00:45:59-06:00"
+updated: "2026-11-25T01:55:00-06:00"
 ---
 
 # Phase 13: Security
@@ -31,7 +31,7 @@ updated: "2026-11-25T00:45:59-06:00"
 
 ## Threat Register
 
-Evidence for each row (file:line, test names) is in the auditor's verdict recorded in the audit trail below (2026-11-24).
+Evidence for each row (file:line, test names) is in the auditor's verdict recorded in the audit trail below (2026-11-24; 13-27 rows 2026-11-25).
 
 | Threat ID | Category | Component | Severity | Disposition | Mitigation | Status |
 |-----------|----------|-----------|----------|-------------|------------|--------|
@@ -107,6 +107,10 @@ Evidence for each row (file:line, test names) is in the auditor's verdict record
 | T-13-70 | DoS | Collision with TheBETSLLC | low | mitigate | Playwright run lock, busy-port refusal, preflight | closed |
 | T-13-71 | Info disclosure | Real addresses in the repo | medium | mitigate | Scan found placeholders only | closed |
 | T-13-72 | Repudiation | Unrun live check marked done | medium | mitigate | 13-26 parked; no verification claimed | closed |
+| T-13-73 | Info disclosure | Queued quote and content photos left in Cloudinary | high | mitigate | Removal job accepts the three own folders through `PublicIds.IsInOwnFolder`; quotes, content and stuck-row unit tests; end-to-end Spam and content run tests (13-27) | closed |
+| T-13-74 | Tampering | Removal reaching another root or a lookalike folder | high | mitigate | Slash-ended prefixes, ordinal match, root shape checked at startup; lookalike, live-root and letter-case tests | closed |
+| T-13-75 | Tampering | Live photo removed by a stale queue row | medium | mitigate | Named-by-photo drop runs before the folder check; inventory covers all five photo tables; quotes drop test | closed |
+| T-13-76 | Tampering | Sweep and removal job drift on folders | medium | mitigate | One source in `PublicIds`; pin test `TheSweepListsExactlyTheFoldersTheRemovalJobAccepts` | closed |
 | T-13-SC | Tampering | Package installs | high | mitigate | No package or version change on the branch | closed |
 
 *Status: open · closed · open, below high threshold (non-blocking)*
@@ -140,6 +144,7 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 |------------|---------------|--------|------|--------|
 | 2026-11-24 | 73 | 73 | 0 | gsd-security-auditor (ASVS L1, block_on high), orchestrator in away mode |
 | 2026-11-24 (re-check) | 73 | 73 | 0 | orchestrator, L1 short-circuit: only `quoteRequests.recipe.ts` class strings changed since the audit, no new attack surface |
+| 2026-11-25 (13-27) | 77 | 77 | 0 | gsd-security-auditor (ASVS L1, block_on high): gap plan 13-27, T-13-73 to T-13-76 added and closed, T-13-SC re-checked; unit tests 94 of 94; post-merge full suite green (orchestrator, away mode) |
 
 ---
 
