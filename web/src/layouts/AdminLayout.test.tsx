@@ -1178,14 +1178,23 @@ describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
   }
 
   /** Counts the New count reads, answering each with `count`. */
-  function countReads(count: number | { readonly failWith: number }): { reads: number } {
-    const probe = { reads: 0 };
+  function countReads(count: number | { readonly failWith: number }): { reads: number; answered: Promise<void> } {
+    let answer: () => void = () => undefined;
+    const probe = {
+      reads: 0,
+      answered: new Promise<void>((resolve) => {
+        answer = resolve;
+      }),
+    };
     server.use(
       http.get('*/api/v1/quote-requests/new-count', () => {
         probe.reads += 1;
-        return typeof count === 'number'
-          ? HttpResponse.json({ count })
-          : HttpResponse.json({ title: 'x', status: count.failWith }, { status: count.failWith });
+        const response =
+          typeof count === 'number'
+            ? HttpResponse.json({ count })
+            : HttpResponse.json({ title: 'x', status: count.failWith }, { status: count.failWith });
+        answer();
+        return response;
       }),
     );
     return probe;
@@ -1245,8 +1254,10 @@ describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
     const probe = countReads({ failWith: 500 });
     await renderSignedIn();
 
-    await waitFor(() => {
-      expect(probe.reads).toBeGreaterThan(0);
+    await probe.answered;
+    // The answer is sent; give the shell time to handle the failure before checking that it shows nothing.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
     });
     expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
     expect(screen.queryByRole('alert')).toBeNull();
