@@ -1,3 +1,4 @@
+using Csps.Application.Images;
 using Csps.Application.Ports;
 
 namespace Csps.Application.Maintenance;
@@ -67,17 +68,17 @@ public sealed class StraySweepJob(IImageStorage storage, IImageDeletionQueue que
         var cutOff = time.GetUtcNow() - MinimumAge;
         var run = new SweepRun();
 
-        // The trailing slash keeps "csps" from matching "csps-dev" (D-07). Each pass keeps its own place: orders, then content (the photos of
-        // the public pages), then quotes (private quote photos); any stops the run when the budget is spent, the cap is passed or the storage cannot be read.
-        await SweepFolderAsync($"{storage.RootFolder}/orders/", Name, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+        // The prefixes come from PublicIds, the same folders the removal job accepts, each with its trailing slash (Phase 9 D-07). Each pass keeps
+        // its own place: orders, then content, then quotes; any stops the run when the budget is spent, the cap is passed or the storage cannot be read.
+        await SweepFolderAsync(PublicIds.OrdersPrefix(storage.RootFolder), Name, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
         if (!run.Stopped)
         {
-            await SweepFolderAsync($"{storage.RootFolder}/content/", ContentCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+            await SweepFolderAsync(PublicIds.ContentPrefix(storage.RootFolder), ContentCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
         }
 
         if (!run.Stopped)
         {
-            await SweepFolderAsync($"{storage.RootFolder}/quotes/", QuotesCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
+            await SweepFolderAsync(PublicIds.QuotesPrefix(storage.RootFolder), QuotesCursorName, budget, cutOff, run, cancellationToken).ConfigureAwait(false);
         }
 
         var lines = new List<MaintenanceLine> { new(StrayLabel, run.Queued, false, null) };
