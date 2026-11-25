@@ -34,6 +34,46 @@ public sealed partial class PublicIdsTests
         id.ShouldNotContain(" ");
     }
 
+    [Fact]
+    public void TheOwnFoldersAreOrdersContentAndQuotesEachWithATrailingSlash()
+    {
+        PublicIds.OwnFolders("csps-dev").ShouldBe(["csps-dev/orders/", "csps-dev/content/", "csps-dev/quotes/"]);
+        PublicIds.OrdersPrefix("csps-dev").ShouldBe("csps-dev/orders/");
+        PublicIds.ContentPrefix("csps-dev").ShouldBe("csps-dev/content/");
+        PublicIds.QuotesPrefix("csps-dev").ShouldBe("csps-dev/quotes/");
+    }
+
+    [Fact]
+    public void AnIdMadeByAnyOfTheThreeMakersIsInsideTheOwnFolders()
+    {
+        PublicIds.IsInOwnFolder("csps-dev", PublicIds.New("csps-dev", OrderId)).ShouldBeTrue();
+        PublicIds.IsInOwnFolder("csps-dev", PublicIds.NewQuote("csps-dev", OrderId)).ShouldBeTrue();
+        PublicIds.IsInOwnFolder("csps-dev", PublicIds.NewContent("csps-dev", "lines", OrderId)).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("csps-dev-more/quotes/x")]
+    [InlineData("csps-dev/quotes-old/x")]
+    [InlineData("csps-dev/quotes")]
+    [InlineData("csps-dev/other/x")]
+    [InlineData("csps/quotes/x")]
+    [InlineData("CSPS-DEV/quotes/x")]
+    [InlineData("csps-dev/QUOTES/x")]
+    [InlineData("")]
+    public void AnIdOutsideTheOwnFoldersIsNotInThem(string publicId)
+    {
+        PublicIds.IsInOwnFolder("csps-dev", publicId).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ABlankRootOrANullIdIsRefused()
+    {
+        Should.Throw<ArgumentException>(() => PublicIds.OwnFolders(" "));
+        Should.Throw<ArgumentException>(() => PublicIds.OrdersPrefix(string.Empty));
+        Should.Throw<ArgumentException>(() => PublicIds.IsInOwnFolder(string.Empty, "csps-dev/orders/x"));
+        Should.Throw<ArgumentNullException>(() => PublicIds.IsInOwnFolder("csps-dev", null!));
+    }
+
     [GeneratedRegex("^csps/orders/0197d4e2-3c1a-7b55-9d0e-6f2a8c4b1e37/[a-z2-7]{26}$", RegexOptions.CultureInvariant)]
     private static partial Regex IdShape();
 }

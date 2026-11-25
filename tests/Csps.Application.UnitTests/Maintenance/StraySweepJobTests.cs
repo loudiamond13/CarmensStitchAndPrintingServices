@@ -1,3 +1,4 @@
+using Csps.Application.Images;
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
 using Microsoft.Extensions.Time.Testing;
@@ -460,6 +461,16 @@ public sealed class StraySweepJobTests
         harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe([Folder, ContentFolder, QuotesFolder]);
         harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("order-stray"), ContentId("content-stray")]);
         report.Lines.ShouldHaveSingleItem().Value.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task TheSweepListsExactlyTheFoldersTheRemovalJobAccepts()
+    {
+        var harness = new Harness();
+
+        await harness.RunAsync();
+
+        harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe(PublicIds.OwnFolders("csps-test"));
     }
 
     [Fact]
