@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-25T03:10:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-25T10:05:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -71,3 +71,12 @@ The LocalDB login timeouts are the recurring pattern: the full .NET suite opens 
 ## Sending flakes and 1 second test timeouts: root causes fixed (13-REVIEW G7A-WR-01, G7A-WR-02)
 
 The recurring "Sending" flakes in the rows above (13-14, 13-17, 13-19 and the W11 fixes) raced the real 1 second ticket wait. Commit 7ffb785e makes those three tests hold the create call and release it by hand. Commit 3a7b689e raises the Testing Library async timeout from 1 s to 5 s in the jsdom setup, which covers the load timeouts in the 13-19 row. The rows stay as the record of what was seen.
+
+## Full web suite flakes after the whole-phase review fixes (2026-11-25)
+
+Two full `npm run test:coverage` runs on a quiet machine (no other test run, about 15 minutes each) each failed a different set of tests. All of them pass when their files run alone (4 files, 204 of 204). A different set fails every time, mostly with the 5 s per-test timeout, so this is load, not the fixes.
+
+- Run 1: 11 failed of 12,214. OrderFormPage.test.tsx (8: Idempotency-Key retry, four Public website card cases, three Turn into Order prefill cases), OrderItemModal.test.tsx (Saving ignores Esc), OrderRefundModal.test.tsx (customer credit), GalleryPage.test.tsx (focus on tile 30).
+- Run 2: 5 failed of 12,214. OrderFormPage.test.tsx (4: discard dialog while saving, two photo draft cases, description window), OrdersPage.test.tsx (axe).
+
+Follow-up worth a quick task: the per-test timeout (Vitest default 5 s) now equals the Testing Library wait timeout set by G7A-WR-01, and OrderFormPage.test.tsx is the file that runs out of time under load. A longer `testTimeout` for the jsdom project, or splitting OrderFormPage.test.tsx, would make the full suite steady.
