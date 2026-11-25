@@ -106,7 +106,7 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
     }
 
     [Fact]
-    public async Task AnExpiredOrTamperedTicketIsA400AndNothingIsSaved()
+    public async Task AnExpiredOrNonsenseTicketIsA400AndNothingIsSaved()
     {
         await database.ResetAsync();
         await using var baseFactory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
@@ -114,11 +114,9 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
         await using var factory = AuthClient.WithClock(baseFactory, clock);
         using var client = factory.CreateClient();
         var old = await QuoteRequestFixtures.GetTicketAsync(client);
-        var fresh = await QuoteRequestFixtures.GetTicketAsync(client);
-        var tampered = fresh[..^1] + (fresh[^1] == 'A' ? 'B' : 'A');
         clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
 
-        foreach (var (name, ticket) in new[] { ("a ticket past 24 hours", old), ("a ticket with one character changed", tampered), ("a ticket of nonsense", "not-a-ticket") })
+        foreach (var (name, ticket) in new[] { ("a ticket past 24 hours", old), ("a ticket of nonsense", "not-a-ticket") })
         {
             var body = QuoteRequestFixtures.MinimalBody();
             body["ticket"] = ticket;
@@ -132,6 +130,42 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
         await using var context = database.CreateContext();
         (await context.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
         CatchEvents(baseFactory).ShouldBeEmpty("an expired ticket is not a caught bot");
+    }
+
+    // The ticket is young and old enough, so only the signature check can refuse the changed copy; the unchanged copy proves the clock was fine.
+    [Fact]
+    public async Task AYoungTicketWithOneCharacterChangedIsRefusedWhileTheSameTicketUnchangedIsSaved()
+    {
+        await database.ResetAsync();
+        await using var baseFactory = new RealLimitsFactory(database.ConnectionString, ThreeSeconds);
+        var clock = new FakeTimeProvider(Start);
+        await using var factory = AuthClient.WithClock(baseFactory, clock);
+        using var client = factory.CreateClient();
+        var fresh = await QuoteRequestFixtures.GetTicketAsync(client);
+        var middle = fresh.Length / 2;
+        var tampered = string.Concat(fresh.AsSpan(0, middle), fresh[middle] == 'A' ? "B" : "A", fresh.AsSpan(middle + 1));
+        clock.Advance(TimeSpan.FromSeconds(3));
+        var forged = QuoteRequestFixtures.MinimalBody();
+        forged["ticket"] = tampered;
+
+        using var refused = await QuoteRequestFixtures.PostAsync(client, forged);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var problem = await ProblemJson.ReadAsync(refused, TestContext.Current.CancellationToken);
+        problem.GetProperty("code").GetString().ShouldBe(ExpiredCode);
+        await using (var empty = database.CreateContext())
+        {
+            (await empty.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(0);
+        }
+
+        var genuine = QuoteRequestFixtures.MinimalBody();
+        genuine["ticket"] = fresh;
+        using var accepted = await QuoteRequestFixtures.PostAsync(client, genuine);
+
+        accepted.StatusCode.ShouldBe(HttpStatusCode.OK, await accepted.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        await using var context = database.CreateContext();
+        (await context.Set<QuoteRequest>().CountAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
+        CatchEvents(baseFactory).ShouldBeEmpty("a forged ticket is not a caught bot");
     }
 
     [Fact]
@@ -254,6 +288,7 @@ public sealed class QuoteBotGuardTests(CspsDatabase database) : IClassFixture<Cs
         problem.GetProperty("minimumSeconds").GetInt32().ShouldBe(7);
     }
 
+    // D-25: the create route takes a name, a number and the ticket and nothing else, and a refusal names only form fields, never a puzzle or a token to solve.
     [Fact]
     public async Task TheGuardsNeverAskTheVisitorToSolveAnything()
     {
