@@ -334,7 +334,11 @@ for (const theme of THEMES) {
         name: withPhotos,
         ready: async () => {
           const tile = page.getByRole('region', { name: 'Photos' }).getByRole('button', { name: /^Open photo 1 of 1/ });
+          // complete is also true for a broken image, so a real width proves the picture decoded.
           await expect(tile.locator('img')).toHaveJSProperty('complete', true);
+          await expect
+            .poll(() => tile.locator('img').evaluate((img: { naturalWidth: number }) => img.naturalWidth))
+            .toBeGreaterThan(0);
           await expect(page.getByRole('region', { name: 'Internal notes' })).toContainText('Called back.');
         },
       },

@@ -53,7 +53,11 @@ test('@quote staff open a request with a photo', async ({ page, request, guard }
   const photos = page.getByRole('region', { name: 'Photos' });
   const tile = photos.getByRole('button', { name: 'Open photo 1 of 1: front.jpg' });
   await expect(tile).toBeVisible();
+  // complete is also true for a broken image, so a real width proves the picture decoded.
   await expect(tile.locator('img')).toHaveJSProperty('complete', true);
+  await expect
+    .poll(() => tile.locator('img').evaluate((img: { naturalWidth: number }) => img.naturalWidth))
+    .toBeGreaterThan(0);
   await expect(page.getByRole('region', { name: 'History' })).toContainText('Received from the website');
 });
 
