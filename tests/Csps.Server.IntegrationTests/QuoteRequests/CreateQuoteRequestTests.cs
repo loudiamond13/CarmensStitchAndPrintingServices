@@ -247,9 +247,15 @@ public sealed class CreateQuoteRequestTests(CspsDatabase database) : IClassFixtu
         await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
         using var client = factory.CreateClient();
 
+        // Both tickets are fetched first, so the gate holds back only the posts and they reach the server together.
+        var one = QuoteRequestFixtures.MinimalBody();
+        one["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+        var two = QuoteRequestFixtures.MinimalBody();
+        two["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+
         var (first, second) = await ConcurrentRequests.SendTogetherAsync(
-            () => QuoteRequestFixtures.PostAsync(client, QuoteRequestFixtures.MinimalBody()),
-            () => QuoteRequestFixtures.PostAsync(client, QuoteRequestFixtures.MinimalBody()));
+            () => QuoteRequestFixtures.PostAsync(client, one),
+            () => QuoteRequestFixtures.PostAsync(client, two));
 
         using (first)
         using (second)

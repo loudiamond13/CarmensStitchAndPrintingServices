@@ -89,11 +89,21 @@ public sealed class QuoteAlertCapTests(CspsDatabase database) : IClassFixture<Cs
             await PostOkAsync(client);
         }
 
-        var statuses = await Task.WhenAll(Enumerable.Range(0, 5).Select(async _ =>
+        // Every ticket is fetched first, so the gate holds back only the posts and they reach the server together.
+        var bodies = await Task.WhenAll(Enumerable.Range(0, 5).Select(async _ =>
         {
-            using var response = await QuoteRequestFixtures.PostAsync(client, QuoteRequestFixtures.MinimalBody());
-            return response.StatusCode;
+            var body = QuoteRequestFixtures.MinimalBody();
+            body["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+            return body;
         }));
+        var responses = await ConcurrentRequests.SendAllTogetherAsync(
+            [.. bodies.Select(body => (Func<Task<HttpResponseMessage>>)(() => QuoteRequestFixtures.PostAsync(client, body)))]);
+
+        var statuses = responses.Select(static response => response.StatusCode).ToList();
+        foreach (var response in responses)
+        {
+            response.Dispose();
+        }
 
         statuses.ShouldAllBe(status => status == HttpStatusCode.OK);
         await using var context = database.CreateContext();

@@ -106,21 +106,18 @@ public sealed class QuoteSenderLimitTests(CspsDatabase database) : IClassFixture
             saved.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        var both = await Task.WhenAll(
-            PostAsync(client, "Juan 3", "0917 123 4567", null),
-            PostAsync(client, "Juan 4", "0917 123 4567", null));
+        // Both tickets are fetched first, so the gate holds back only the posts and they reach the server together.
+        var third = await BodyAsync(client, "Juan 3", "0917 123 4567");
+        var fourth = await BodyAsync(client, "Juan 4", "0917 123 4567");
+        var (first, second) = await ConcurrentRequests.SendTogetherAsync(
+            () => QuoteRequestFixtures.PostAsync(client, third),
+            () => QuoteRequestFixtures.PostAsync(client, fourth));
 
-        try
+        using (first)
+        using (second)
         {
-            both.Select(static response => response.StatusCode).Order().ShouldBe([HttpStatusCode.OK, HttpStatusCode.TooManyRequests]);
+            new[] { first.StatusCode, second.StatusCode }.Order().ShouldBe([HttpStatusCode.OK, HttpStatusCode.TooManyRequests]);
             (await RowCountAsync()).ShouldBe(3);
-        }
-        finally
-        {
-            foreach (var response in both)
-            {
-                response.Dispose();
-            }
         }
     }
 
@@ -156,6 +153,13 @@ public sealed class QuoteSenderLimitTests(CspsDatabase database) : IClassFixture
 
     private static WebApplicationFactory<Program> Host(WebApplicationFactory<Program> baseFactory, FakeTimeProvider clock) =>
         AuthClient.WithClock(baseFactory, clock).WithWebHostBuilder(builder => builder.UseSetting("QuoteRequests:PerSenderPerDay", "3"));
+
+    private static async Task<Dictionary<string, object?>> BodyAsync(HttpClient client, string name, string phone)
+    {
+        var body = new Dictionary<string, object?> { ["customerName"] = name, ["contactNumber"] = phone, ["email"] = null };
+        body["ticket"] = await QuoteRequestFixtures.GetTicketAsync(client);
+        return body;
+    }
 
     private static Task<HttpResponseMessage> PostAsync(HttpClient client, string name, string phone, string? email)
     {
