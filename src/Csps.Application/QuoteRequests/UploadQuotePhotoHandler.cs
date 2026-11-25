@@ -74,7 +74,18 @@ public sealed class UploadQuotePhotoHandler(
 
         var clean = cleaned.Value;
         var publicId = PublicIds.NewQuote(storage.RootFolder, requestId);
-        var stored = await storage.UploadAsync(new ImageUpload(publicId, PublicIds.QuoteFolder(storage.RootFolder, requestId), clean, facts.Kind), cancellationToken).ConfigureAwait(false);
+        ImageUploadOutcome stored;
+        try
+        {
+            stored = await storage.UploadAsync(new ImageUpload(publicId, PublicIds.QuoteFolder(storage.RootFolder, requestId), clean, facts.Kind), cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // The file may have arrived before the visitor left; queue it, then let the cancel pass.
+            await UndoUploadAsync(publicId).ConfigureAwait(false);
+            throw;
+        }
+
         if (!stored.Succeeded)
         {
             // A timeout or busy storage may have kept the file; queue it. A clear refusal stored nothing.
@@ -90,7 +101,8 @@ public sealed class UploadQuotePhotoHandler(
         try
         {
             var photo = new QuotePhotoStored(publicId, facts.UprightWidth, facts.UprightHeight, clean.Length, ImageKinds.Key(facts.Kind), clock.UtcNow);
-            filled = await store.FillPhotoSlotAsync(requestId, slot, photo, cancellationToken).ConfigureAwait(false);
+            // A short single-row update: a visitor who leaves now must not leave its outcome unknown.
+            filled = await store.FillPhotoSlotAsync(requestId, slot, photo, CancellationToken.None).ConfigureAwait(false);
         }
         catch
         {
