@@ -1,3 +1,4 @@
+using Csps.Application.Images;
 using Csps.Application.Ports;
 
 namespace Csps.Application.Maintenance;
@@ -43,7 +44,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
     /// <summary>The text of the line for storage that is not set up.</summary>
     public const string NotRunText = "photo storage is not set up.";
 
-    /// <summary>The failure code of a queued file outside this environment's own orders folder. It is never removed.</summary>
+    /// <summary>The failure code of a queued file outside this environment's own folders (orders, content and quotes). It is never removed (Phase 9 D-07).</summary>
     public const string OutsideFolderCode = "outside-folder";
 
     /// <summary>
@@ -88,7 +89,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
 
         var holder = Guid.NewGuid();
         var startedAt = time.GetUtcNow();
-        var folder = $"{storage.RootFolder}/orders/";
+        var root = storage.RootFolder;
         var held = new HashSet<long>();
         long removed = 0;
         long failing = 0;
@@ -120,7 +121,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
                         break;
                     }
 
-                    var step = await RemoveRowAsync(row, inUse.Contains(row.PublicId), holder, folder, startedAt, cancellationToken).ConfigureAwait(false);
+                    var step = await RemoveRowAsync(row, inUse.Contains(row.PublicId), holder, root, startedAt, cancellationToken).ConfigureAwait(false);
                     if (step == Step.KeysRefused)
                     {
                         keysRefused = true;
@@ -185,7 +186,7 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
         return new MaintenanceJobReport(lines, more);
     }
 
-    private async Task<Step> RemoveRowAsync(QueuedRemoval row, bool namedByPhoto, Guid holder, string folder, DateTimeOffset startedAt, CancellationToken cancellationToken)
+    private async Task<Step> RemoveRowAsync(QueuedRemoval row, bool namedByPhoto, Guid holder, string root, DateTimeOffset startedAt, CancellationToken cancellationToken)
     {
         // A lost reply after a save that did succeed can leave an UploadUndone row for a live photo. The file stays; only the row goes.
         if (namedByPhoto)
@@ -194,8 +195,8 @@ public sealed class ImageRemovalJob(IImageStorage storage, IImageDeletionQueue q
             return Step.Dropped;
         }
 
-        // A file outside this environment's own orders folder is never removed, whatever the row says (D-07).
-        if (!row.PublicId.StartsWith(folder, StringComparison.Ordinal))
+        // A file outside this environment's own folders (orders, content and quotes) is never removed, whatever the row says (Phase 9 D-07).
+        if (!PublicIds.IsInOwnFolder(root, row.PublicId))
         {
             await FailRowAsync(row, holder, OutsideFolderCode, startedAt, cancellationToken).ConfigureAwait(false);
             return FailedStep(row);
