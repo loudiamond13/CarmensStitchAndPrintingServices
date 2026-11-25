@@ -12,7 +12,7 @@ import { HttpError } from '@/core/api/errors';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { demoLines, siteFailureHandler } from '@/test/publicFixtures';
-import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
+import { answerQuote, holdCreate, QUOTE_ID } from '@/test/quoteFixtures';
 import { quoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
 
@@ -101,13 +101,15 @@ describe('QuoteForm send (INQ-01)', () => {
   });
 
   it('shows the pending label "Sending" while the request runs', async () => {
-    answerQuote({ minimumSeconds: 1 });
+    answerQuote();
+    const { release } = holdCreate();
     renderForm();
     await fillRequired();
 
     await userEvent.click(screen.getByRole('button', SEND));
 
     expect(await screen.findByRole('button', { name: 'Sending' })).toBeInTheDocument();
+    release();
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
   });
 

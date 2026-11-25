@@ -1,6 +1,7 @@
 // MSW answers for the quote form tests (INQ-01, INQ-03): the ticket read and the create, each recording what the form sent.
 import { http, HttpResponse } from 'msw';
-import type { CreateQuoteBody } from '@/modules/public/services/quoteService';
+import { vi } from 'vitest';
+import { quoteService, type CreateQuoteAnswer, type CreateQuoteBody } from '@/modules/public/services/quoteService';
 import { server } from './msw';
 
 export const QUOTE_ID = '7b1d6c58-3c7e-4a0e-9f0b-2f3c5a1b9d10';
@@ -97,4 +98,16 @@ export function answerQuote(answers: QuoteAnswers = {}): QuoteProbe {
     }),
   );
   return probe;
+}
+
+/** Holds every create until the test releases it, so the Sending state lasts as long as the test needs and no clock is raced. */
+export function holdCreate() {
+  let release: (answer?: CreateQuoteAnswer) => void = () => undefined;
+  const gate = new Promise<CreateQuoteAnswer>((resolve) => {
+    release = (answer = { id: QUOTE_ID, photoSlots: [] }) => {
+      resolve(answer);
+    };
+  });
+  const spy = vi.spyOn(quoteService, 'create').mockReturnValue(gate);
+  return { spy, release };
 }

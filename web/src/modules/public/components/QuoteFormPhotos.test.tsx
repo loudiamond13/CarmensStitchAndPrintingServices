@@ -11,7 +11,7 @@ import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { siteFailureHandler } from '@/test/publicFixtures';
 import { answerPhotos, pngFile } from '@/test/quotePhotoFixtures';
-import { answerQuote, QUOTE_ID } from '@/test/quoteFixtures';
+import { answerQuote, holdCreate, QUOTE_ID } from '@/test/quoteFixtures';
 import { defaultBrowserImageParts } from '@/utils/images';
 import { quoteService, type QuoteService } from '../services/quoteService';
 import { QuoteForm } from './QuoteForm';
@@ -183,7 +183,8 @@ describe('QuoteForm sends photos after the text (INQ-02)', () => {
   });
 
   it('starts no upload before the text is saved', async () => {
-    const probe = answerQuote({ minimumSeconds: 1 });
+    answerQuote();
+    const { spy: create, release } = holdCreate();
     const uploads = spyUploads();
     const { container } = renderForm();
     await pickPhotos(container, [pngFile('logo.png')]);
@@ -191,9 +192,12 @@ describe('QuoteForm sends photos after the text (INQ-02)', () => {
 
     await userEvent.click(screen.getByRole('button', SEND));
     expect(await screen.findByRole('button', { name: 'Sending' })).toBeInTheDocument();
-    expect(probe.creates).toHaveLength(0);
+    await waitFor(() => {
+      expect(create).toHaveBeenCalledTimes(1);
+    });
     expect(uploads).not.toHaveBeenCalled();
 
+    release({ id: QUOTE_ID, photoSlots: [{ slot: 0, fileName: 'logo.png' }] });
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
     expect(uploads).toHaveBeenCalledTimes(1);
   });
@@ -314,7 +318,8 @@ describe('QuoteForm while it sends (Q3 loading)', () => {
   });
 
   it('shows no photo line for a text-only send', async () => {
-    answerQuote({ minimumSeconds: 1 });
+    answerQuote();
+    const { release } = holdCreate();
     renderForm();
     await fillRequired();
 
@@ -322,6 +327,7 @@ describe('QuoteForm while it sends (Q3 loading)', () => {
 
     expect(await screen.findByRole('button', { name: 'Sending' })).toBeInTheDocument();
     expect(screen.queryByText(/Sending your photos/)).not.toBeInTheDocument();
+    release();
     await screen.findByRole('heading', { level: 2, name: 'Inquiry sent' });
   });
 });
