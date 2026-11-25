@@ -7,7 +7,7 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-24T04:07:00-06:00"
-updated: "2026-11-24T07:30:22-06:00"
+updated: "2026-11-25T00:45:59-06:00"
 ---
 
 # Phase 13: Security
@@ -120,10 +120,10 @@ Evidence for each row (file:line, test names) is in the auditor's verdict record
 | Risk ID | Threat Ref | Rationale | Accepted By | Date |
 |---------|------------|-----------|-------------|------|
 | AR-13-01 | T-13-03 | Create flooding before plan 13-06; superseded once the limits shipped | Plan 13-01 threat model (superseded) | 2026-11-21 |
-| AR-13-02 | T-13-08 | A daily keyed maintenance call adds no new guessing surface | Plan 13-03 threat model only; owner confirmation pending (P13-BL-32) | 2026-11-21 |
+| AR-13-02 | T-13-08 | A daily keyed maintenance call adds no new guessing surface | Plan 13-03 threat model; owner confirmed 2026-11-25 (D-47) | 2026-11-21 |
 | AR-13-03 | T-13-18 | Shared carrier addresses may hit the per-address limit; numbers are settings and the 429 copy offers Messenger | Owner rulings D-26, D-37 | 2026-11-21 |
 | AR-13-04 | T-13-32 | Visitor details sit in the staff alert inbox | Owner ruling D-08 | 2026-11-21 |
-| AR-13-05 | T-13-35 | Inbox search text `q` may hold personal data in the address bar; request logs drop the query string | Plan 13-11 threat model only (WEB-10); owner confirmation pending (P13-BL-32) | 2026-11-21 |
+| AR-13-05 | T-13-35 | Inbox search text `q` may hold personal data in the address bar; request logs drop the query string | Plan 13-11 threat model (WEB-10); owner confirmed 2026-11-25 (D-47) | 2026-11-21 |
 | AR-13-06 | T-13-38 | A caught bot gets a normal success answer and may notice missing photos | Owner ruling D-25 | 2026-11-21 |
 
 *Accepted risks do not resurface in future audit runs.*
@@ -150,7 +150,7 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-11-24 by the audit. The owner still confirms AR-13-02 and AR-13-05 (P13-BL-32) and the stray-photo warning above.
+**Approval:** verified 2026-11-24 by the audit. The owner confirmed AR-13-02 and AR-13-05 on 2026-11-25 (D-47) and chose to add the stray-photo sentence to the Privacy Policy (D-45).
 
 ## Security Audit 2026-11-24
 

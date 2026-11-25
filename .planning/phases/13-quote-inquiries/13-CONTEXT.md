@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-24T07:35:15-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-25T00:44:56-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -78,6 +78,10 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-42:** **One stricter email rule for the shop email and the Quote alerts address:** no spaces, line breaks or control characters, a dotted domain, and none of `, ; < > ( ) "`. The server rule and the zod rule match. A saved shop email that fails is flagged only when it is next saved; nothing changes stored data. Fixes review 13-REVIEW-W4 WR-04. (owner, 2026-11-22)
 - **D-43:** **The photo picker loads as its own piece the first time a visitor taps to add photos**, so the quote form stays inside its 45 KB budget (D-35, no raise). Applies to plan 13-12. (owner, 2026-11-22)
 - **D-44:** **The end-of-phase code review covers the whole phase at deep depth**, not only the 7 files changed after the wave 11 review. It runs as 7 parallel deep reviewers over about 340 files, and their findings are merged into one `13-REVIEW.md`. (owner, 2026-11-24)
+- **D-45:** **Privacy Policy 1.1 and the quote form notice are approved with option A:** the draft as written plus the one sentence about the rare stray photo (wording in `13-25-SUMMARY.md`). This settles P13-BL-27, P13-BL-07, P13-BL-21 item 3 and P13-BL-24 item 2. The page leaves DRAFT, drops noindex and returns to sitemap.xml once that sentence is added and the five DRAFT-pinning tests are updated; that code work is still to do. (owner, 2026-11-25, UAT test 17)
+- **D-46:** **The Lighthouse performance score of 0.92 to 0.94 on the public pages is accepted as report-only under D-29.** No speed task is added; the bundle budgets stay the hard gate. Settles P13-BL-30. (owner, 2026-11-25, UAT test 18)
+- **D-47:** **Every remaining Phase 13 owner item, P13-BL-01 to P13-BL-34 except P13-BL-27 (D-45) and P13-BL-30 (D-46), is accepted as built**, each with the recommended option that was built. This includes the two accepted security risks AR-13-02 and AR-13-05 (P13-BL-32), the empty messages for the Converted, Closed and Spam pills (P13-BL-33) and the 6 px pill gap (P13-BL-34). (owner, 2026-11-25, UAT test 19)
+- **D-48:** **Send Test Email error wording (review 13-REVIEW G6-WR-02):** a 422 (the address cannot receive mail) shows "That address can't receive email. Check it, save it, then try again." and a 409 (no saved address) shows "Save a Quote alerts address first, then send the test." The 429 and network texts stay as they are. (owner, 2026-11-25, UAT test 21)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
