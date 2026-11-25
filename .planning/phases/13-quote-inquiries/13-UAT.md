@@ -1,14 +1,14 @@
 ---
-status: testing
+status: partial
 phase: 13-quote-inquiries
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md, 13-03-SUMMARY.md, 13-04-SUMMARY.md, 13-05-SUMMARY.md, 13-06-SUMMARY.md, 13-07-SUMMARY.md, 13-08-SUMMARY.md, 13-09-SUMMARY.md, 13-10-SUMMARY.md, 13-11-SUMMARY.md, 13-12-SUMMARY.md, 13-13-SUMMARY.md, 13-14-SUMMARY.md, 13-15-SUMMARY.md, 13-16-SUMMARY.md, 13-17-SUMMARY.md, 13-18-SUMMARY.md, 13-19-SUMMARY.md, 13-20-SUMMARY.md, 13-21-SUMMARY.md, 13-22-SUMMARY.md, 13-23-SUMMARY.md, 13-24-SUMMARY.md, 13-25-SUMMARY.md, 13-26-SUMMARY.md]
 started: 2026-11-25T00:08:22-06:00
 created: 2026-11-25T00:08:22-06:00
-updated: 2026-11-25T10:40:00-06:00
+updated: 2026-11-25T22:46:39.348Z
 ---
 
 # Phase 13 UAT: Quote Inquiries
-*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T10:40:00-06:00*
+*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T11:30:00-06:00*
 
 All 26 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 11), then look, wording and screen reader (12 to 16), then rulings and reviews (17 to 21), then live-site steps (22 and 23).
 Tests 24 to 98 are passed by automated tests (coverage blocks); they are not asked.
@@ -17,11 +17,7 @@ Three SUMMARY coverage blocks are malformed (13-13 D5 has a bad verification kin
 
 ## Current Test
 
-number: 99
-name: Re-test 11 after the fix: Spam removes the photos (plan 13-27, G-13-11)
-expected: |
-  Restart the API from the current branch so it runs the 13-27 fix. On CSPS_Dev, mark a request that has photos as Spam, then press Run now on the maintenance page. The report shows "Photos removed from storage" with the count and no "Photo removals still failing" line, and the photos are gone from the dev quotes folder in Cloudinary. The row left by the Test 9 delete clears on the same run.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -134,9 +130,8 @@ result: pass
 ### 21. Code review outcomes
 expected: Each finding in 13-REVIEW.md (1 critical, 19 warnings, 41 info) gets a recorded outcome: fixed, deferred with a reason, or accepted by you. The critical G2A-CR-01 (photo removals) is fixed before the phase ships. You give the wording for G6-WR-02 (the test email error text for a 422 or 409).
 covers: 13-REVIEW.md
-result: blocked
-reason: "ok" (owner accepted the G6-WR-02 wording, ruling D-48, and blocking this test until /gsd-code-review 13 --fix records an outcome for every finding and fixes G2A-CR-01)
-blocked_by: prior-phase
+result: pass
+note: Re-tested after /gsd-code-review 13 --fix (2026-11-25): disposition 19 fixed, 1 skipped, 41 info deferred; G6-WR-02 shows the D-48 wording. Earlier block reason: "ok" (owner accepted the G6-WR-02 wording, ruling D-48, and blocking this test until /gsd-code-review 13 --fix records an outcome for every finding and fixes G2A-CR-01)
 
 ### 22. Live site: Quote alerts test email
 expected: After the Phase 13 deploy, sign in as a Manager on the live site, set the Quote alerts address, press Send Test Email, and check "Test: quote alerts work" arrives (look in spam too) within a few minutes. Full steps are in 13-26-SUMMARY.md.
@@ -605,20 +600,21 @@ coverage_id: 13-24 D3
 ### 99. Re-test 11 after the fix: Spam removes the photos (plan 13-27, G-13-11)
 expected: Restart the API from the current branch so it runs the 13-27 fix. On CSPS_Dev, mark a request that has photos as Spam, then press Run now on the maintenance page. The report shows "Photos removed from storage" with the count and no "Photo removals still failing" line, and the photos are gone from the dev quotes folder in Cloudinary. The row left by the Test 9 delete clears on the same run.
 covers: G-13-11, INQ-05, D-04, 13-27
-result: [pending]
+result: pass
+note: Owner ran the dev maintenance call (after setting a dev Maintenance:Key in user-secrets; it was missing, so the first call got 401). Report ok, "Photos removed from storage" 8, no failing line. The request folders under quotes/ stay in Cloudinary but are empty: Cloudinary keeps a folder after its files go. Follow-up P13-BL-39.
 
 ### 100. A cut-off photo upload is cleaned up (review fix G1-WR-01)
-expected: On the Contact form, pick a large photo and send the request, then cut the connection while the photo is still uploading (for example close the tab or turn on airplane mode). After the next maintenance Run now, that photo is not left in the dev quotes folder in Cloudinary, and the request itself is still saved.
+expected: On the Contact form, pick a large photo and send the request, then cut the connection while the photo is still uploading (for example close the tab or turn on airplane mode). After the next maintenance run (the same call as test 99), that photo is not left in the dev quotes folder in Cloudinary, and the request itself is still saved.
 covers: 13-REVIEW G1-WR-01, commit fa72525b
-result: [pending]
+result: pass
 ## Summary
 
 total: 100
-passed: 94
+passed: 97
 issues: 1
-pending: 2
+pending: 0
 skipped: 0
-blocked: 3
+blocked: 2
 
 ## Gaps
 
