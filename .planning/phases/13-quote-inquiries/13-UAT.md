@@ -1,14 +1,14 @@
 ---
-status: partial
+status: diagnosed
 phase: 13-quote-inquiries
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md, 13-03-SUMMARY.md, 13-04-SUMMARY.md, 13-05-SUMMARY.md, 13-06-SUMMARY.md, 13-07-SUMMARY.md, 13-08-SUMMARY.md, 13-09-SUMMARY.md, 13-10-SUMMARY.md, 13-11-SUMMARY.md, 13-12-SUMMARY.md, 13-13-SUMMARY.md, 13-14-SUMMARY.md, 13-15-SUMMARY.md, 13-16-SUMMARY.md, 13-17-SUMMARY.md, 13-18-SUMMARY.md, 13-19-SUMMARY.md, 13-20-SUMMARY.md, 13-21-SUMMARY.md, 13-22-SUMMARY.md, 13-23-SUMMARY.md, 13-24-SUMMARY.md, 13-25-SUMMARY.md, 13-26-SUMMARY.md]
 started: 2026-11-25T00:08:22-06:00
 created: 2026-11-25T00:08:22-06:00
-updated: 2026-11-25T06:46:15.389Z
+updated: 2026-11-25T00:46:38-06:00
 ---
 
 # Phase 13 UAT: Quote Inquiries
-*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T00:45:49-06:00*
+*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T00:46:38-06:00*
 
 All 26 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 11), then look, wording and screen reader (12 to 16), then rulings and reviews (17 to 21), then live-site steps (22 and 23).
 Tests 24 to 98 are passed by automated tests (coverage blocks); they are not asked.
@@ -627,4 +627,4 @@ blocked: 3
     - "Accept the three own folders {root}/orders/, {root}/content/ and {root}/quotes/ (each with the trailing slash) in the removal job"
     - "Tests for quotes/ and content/ rows, and that a lookalike root is still refused"
     - "Correct the maintenance runbook line"
-  debug_session: ""
+  debug_session: "13-REVIEW.md G2A-CR-01 (code read, confirmed by the orchestrator); CSPS_Dev ImageDeletions row for the Test 9 delete showed 0 attempts"
