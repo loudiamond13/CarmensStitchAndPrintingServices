@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-24T04:28:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-25T03:10:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -67,3 +67,7 @@ The LocalDB login timeouts are the recurring pattern: the full .NET suite opens 
 ## Webkit e2e failure handed to plan 13-24 (resolved in 13-24, commit 50a280de: Safari does not focus a button on a mouse click; the test now presses Send from the keyboard) (W5 fixes)
 
 "@quote the rate limit keeps what the visitor typed" fails its "Send is focused" check on webkit. It fails the same way with the code from before the W5 fixes, so the fixes did not cause it. The `@quote` cases had run only on chromium; plan 13-24 runs them on every browser and must fix or record this one.
+
+## Sending flakes and 1 second test timeouts: root causes fixed (13-REVIEW G7A-WR-01, G7A-WR-02)
+
+The recurring "Sending" flakes in the rows above (13-14, 13-17, 13-19 and the W11 fixes) raced the real 1 second ticket wait. Commit 7ffb785e makes those three tests hold the create call and release it by hand. Commit 3a7b689e raises the Testing Library async timeout from 1 s to 5 s in the jsdom setup, which covers the load timeouts in the 13-19 row. The rows stay as the record of what was seen.

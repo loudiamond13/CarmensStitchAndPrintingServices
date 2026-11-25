@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T02:05:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T03:10:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -414,6 +414,16 @@ The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit foll
 - **A (recommended):** rename that one commit to `feat(13-27): ...` on the local branch (a history rewrite of the 7 local commits after it, before any push), then run `/gsd-execute-phase 13 --gaps-only` again so it goes straight to the verifier.
 - **B:** keep the history and rule that `fix(...)` counts as GREEN for 13-27. Record the ruling, then run the verifier.
 
+## P13-BL-38 · Send Test Email error wording for a refused or missing address (13-REVIEW G6-WR-02)
+
+**Status:** open · **Blocks:** nothing. Wording, so your call; nothing was changed.
+
+Today Send Test Email shows the generic "check your connection" line even when the server refused the address (422) or no address is saved (409). The fix is ready to wire once you pick the words.
+
+- **A (recommended):** a new line for 422 only: "That address can't receive email. Check the spelling and save it again." 409 keeps the generic line.
+- **B:** new lines for both 422 and 409 (you give the 409 words).
+- **C:** keep the generic line for both.
+
 ## Manual checks for the owner (cannot be proven by automated tests)
 
 - [ ] Photo picker on a real phone: the camera and gallery buttons, a real photo preview, and the no-preview icon for an HEIC photo in a desktop browser (after plan 13-12 puts the picker on the form).
@@ -433,3 +443,4 @@ The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit foll
 - [ ] With a screen reader, send the quote form (with a photo refused and with a failed send) and check each message is read once, not twice (UI review fix 6).
 - [ ] Open the Component Showcase, "Quote requests" section, in Blush and Espresso and check each state looks right (plan 13-23).
 - [ ] Re-run UAT test 11 on CSPS_Dev: mark a request with photos as Spam, press Run now, and check the photos are gone from the dev quotes folder in Cloudinary with no "Photo removals still failing" line. The row stuck since UAT test 9 should clear on the same run (plan 13-27, G-13-11).
+- [ ] Review the G1-WR-01 fix (commit fa72525b): when a visitor's photo upload is cut off mid-way, the photo is now queued for removal and the slot write always finishes. Its unit tests pass; the fixer flagged it for a human look because it changes upload behavior.
