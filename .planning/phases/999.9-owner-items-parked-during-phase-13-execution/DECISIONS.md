@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T11:20:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T11:50:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -407,9 +407,9 @@ Since Phase 11 (content) and Phase 13 (quotes), queued photo removals failed as 
 
 ## P13-BL-37 · The TDD gate blocks phase 13 on a commit name (plan 13-27)
 
-**Status:** open · **Blocks:** the phase 13 verifier and marking the phase complete. Nothing was changed.
+**Status:** answered A (owner, 2026-11-25, ruling D-49 in 13-CONTEXT.md). The commit is now `feat(13-27)` (e8de223d); the gate passes.
 
-The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit followed by a `feat(...)` commit. Plan 13-27 told the executor to name its fix `fix(13-27): ...`, so the check reports "missing GREEN" and blocks under TDD mode. The real order is right: RED `5f57b838` (tests failing, quoted in 13-27-SUMMARY.md) comes before the fix `262c0f15`, and the full suite is green after the merge. The branch is not pushed yet, so its commits can still be renamed.
+The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit followed by a `feat(...)` commit. Plan 13-27 told the executor to name its fix `fix(13-27): ...`, so the check reports "missing GREEN" and blocks under TDD mode. The real order is right: RED `5f57b838` (tests failing, quoted in 13-27-SUMMARY.md) comes before the fix `e8de223d`, and the full suite is green after the merge. The branch is not pushed yet, so its commits can still be renamed.
 
 - **A (recommended):** rename that one commit to `feat(13-27): ...` on the local branch (a history rewrite of the 7 local commits after it, before any push), then run `/gsd-execute-phase 13 --gaps-only` again so it goes straight to the verifier.
 - **B:** keep the history and rule that `fix(...)` counts as GREEN for 13-27. Record the ruling, then run the verifier.
@@ -417,7 +417,7 @@ The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit foll
 ## P13-BL-38 · Send Test Email error wording for a refused or missing address (13-REVIEW G6-WR-02)
 
 **Status:** answered · **Blocks:** nothing.
-**Answer:** already ruled as D-48 (owner, 2026-11-25, UAT test 21): 422 "That address can't receive email. Check it, save it, then try again.", 409 "Save a Quote alerts address first, then send the test." The fix pass missed the ruling; G6-WR-02 is now fixed with this wording (commit 68eb971b).
+**Answer:** already ruled as D-48 (owner, 2026-11-25, UAT test 21): 422 "That address can't receive email. Check it, save it, then try again.", 409 "Save a Quote alerts address first, then send the test." The fix pass missed the ruling; G6-WR-02 is now fixed with this wording (commit d68f43c1).
 
 Today Send Test Email shows the generic "check your connection" line even when the server refused the address (422) or no address is saved (409). The fix is ready to wire once you pick the words.
 
@@ -455,4 +455,4 @@ Also found in test 99: the dev machine had no `Maintenance:Key` in user-secrets,
 - [ ] With a screen reader, send the quote form (with a photo refused and with a failed send) and check each message is read once, not twice (UI review fix 6).
 - [ ] Open the Component Showcase, "Quote requests" section, in Blush and Espresso and check each state looks right (plan 13-23).
 - [ ] Re-run UAT test 11 on CSPS_Dev: mark a request with photos as Spam, press Run now, and check the photos are gone from the dev quotes folder in Cloudinary with no "Photo removals still failing" line. The row stuck since UAT test 9 should clear on the same run (plan 13-27, G-13-11).
-- [ ] Review the G1-WR-01 fix (commit fa72525b): when a visitor's photo upload is cut off mid-way, the photo is now queued for removal and the slot write always finishes. Its unit tests pass; the fixer flagged it for a human look because it changes upload behavior.
+- [ ] Review the G1-WR-01 fix (commit d9766207): when a visitor's photo upload is cut off mid-way, the photo is now queued for removal and the slot write always finishes. Its unit tests pass; the fixer flagged it for a human look because it changes upload behavior.

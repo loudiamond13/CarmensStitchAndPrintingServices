@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-25T00:44:56-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-25T11:50:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -82,6 +82,7 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-46:** **The Lighthouse performance score of 0.92 to 0.94 on the public pages is accepted as report-only under D-29.** No speed task is added; the bundle budgets stay the hard gate. Settles P13-BL-30. (owner, 2026-11-25, UAT test 18)
 - **D-47:** **Every remaining Phase 13 owner item, P13-BL-01 to P13-BL-34 except P13-BL-27 (D-45) and P13-BL-30 (D-46), is accepted as built**, each with the recommended option that was built. This includes the two accepted security risks AR-13-02 and AR-13-05 (P13-BL-32), the empty messages for the Converted, Closed and Spam pills (P13-BL-33) and the 6 px pill gap (P13-BL-34). (owner, 2026-11-25, UAT test 19)
 - **D-48:** **Send Test Email error wording (review 13-REVIEW G6-WR-02):** a 422 (the address cannot receive mail) shows "That address can't receive email. Check it, save it, then try again." and a 409 (no saved address) shows "Save a Quote alerts address first, then send the test." The 429 and network texts stay as they are. (owner, 2026-11-25, UAT test 21)
+- **D-49:** **The TDD gate block on plan 13-27 is cleared by renaming its fix commit to `feat(13-27)`** (option A of P13-BL-37), before any push; the code did not change. The local branch history was rewritten from b368442f; the old history is kept in branch `backup/phase-13-before-tdd-rename`. (owner, 2026-11-25, UAT session)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.

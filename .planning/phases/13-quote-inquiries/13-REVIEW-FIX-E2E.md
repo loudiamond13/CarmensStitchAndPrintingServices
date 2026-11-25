@@ -32,7 +32,7 @@ status: all_fixed
 ### G7B-WR-01: Two quote form tests upload photos without the photo host lock
 
 **Files modified:** `web/e2e/quote-form.spec.ts`
-**Commit:** 89f5331f
+**Commit:** 0eee6e26
 **Applied fix:** The click, the create wait and the upload wait of the two photo tests now run inside `withPhotoHost`, with a 240 s test timeout (the later G7B-WR-02 commit raised the whole file to 480 s).
 **Evidence:**
 - Red: a temporary probe spec held one armed `fail-next` failure under the photo lock for 20 s. With the old test file, the photo test got `503` on the upload (`Expected: 200, Received: 503`).
@@ -42,7 +42,7 @@ status: all_fixed
 ### G7B-WR-02: Contact page tests read the shared site content without the site content lock
 
 **Files modified:** `web/e2e/quote-form.spec.ts`, `web/e2e/quote-sweep.spec.ts`
-**Commit:** 155fe9e1
+**Commit:** 4b52245b
 **Applied fix:** Every quote form test (the product line test already had it) and the four Contact sweep tests now run inside `withSiteContentLock` after `seedDemoSiteContent`, the same pattern as `contact.spec.ts`. `quote-form.spec.ts` got a file-wide 480 s timeout (the sweep already had one), because the lock wait can be 6 minutes. The two photo tests take the site content lock first and the photo lock inside it, the same order the site content specs use. I used the inline pattern rather than a new helper because `scripts/e2e-lock-timeouts.test.ts` finds lock users by the text `withSiteContentLock(`; that test still passes (4 of 4).
 **Evidence:**
 - Red: a temporary probe held the site content lock for 25 s. With the old files, the form and Contact sweep tests finished in 1.3 to 3.7 s, so they ignored the lock.
@@ -52,7 +52,7 @@ status: all_fixed
 ### G7B-WR-03: The nav count test compares two reads of a counter that other specs also lower
 
 **Files modified:** `web/e2e/quote-nav.spec.ts`
-**Commit:** bff55627
+**Commit:** 2a9b3a11
 **Status of the earlier fix:** the earlier commit `b9f85cf0` (fix(13-24)) did not fix this. It only made the test use a desktop window and wait for the dashboard fonts. The old `expect(after).toBeGreaterThanOrEqual(before + 2)` was still in the file, so this finding was open.
 **Applied fix:** The `before` read is gone. The test creates two requests with names that share one unique tag, and checks the count the page read afterwards is at least 2 (the two stay New, and no other spec touches them). It then opens the inbox with `?q=<tag>` and checks both names are listed, and keeps the existing sidebar and current-page checks. The review suggested `>= 1`; I used `>= 2` because the test's own two requests are always in the count, which is stricter and still sound.
 **Evidence:**
@@ -63,7 +63,7 @@ status: all_fixed
 ### G7B-WR-04: `img.complete` is true for a broken image, so the photo checks cannot see one
 
 **Files modified:** `web/e2e/quote-request.spec.ts`, `web/e2e/quote-sweep.spec.ts`
-**Commit:** ec633a50
+**Commit:** 79f337ad
 **Applied fix:** After the `complete` check, both places now also `expect.poll` the image `naturalWidth` to be above 0, as the review suggested.
 **Evidence:**
 - Red: I temporarily swapped the tile image for a broken one (a new `<img>` pointing at a 404 address). The old `complete` check passed ("OLD CHECK PASSED on a broken image") and the new check failed (`Expected: > 0, Received: 0`).

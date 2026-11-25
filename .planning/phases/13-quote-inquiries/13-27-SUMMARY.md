@@ -29,7 +29,7 @@ requirements: [INQ-05, INQ-06, INQ-07]
 status: complete
 commits: 3
 plan_head_before: b368442f72d575d781f169652214b0bf411efa7c
-plan_head_after: a248e1e15079571c177916657161a678876f8b32
+plan_head_after: 0ea48bff585470cbeeef8bf48e66caa4e31c031e
 actuals:
   tokens: 14000
   tasks: 2
@@ -46,7 +46,7 @@ updated: "2026-11-25T01:25:00-06:00"
 
 gap_ids: [G-13-11]
 
-13-REVIEW G2A-CR-01: fixed by 13-27 (fix commit `262c0f1502ab61ea03cc28c4981f4e3de929cb1b`). `/gsd-code-review 13 --fix` should record this outcome and not fix it again.
+13-REVIEW G2A-CR-01: fixed by 13-27 (fix commit `e8de223d9b314fd91f2ee244acdea85b7c2a4c2c`). `/gsd-code-review 13 --fix` should record this outcome and not fix it again.
 
 ## Note for the owner (plain words)
 
@@ -66,8 +66,8 @@ Rows that were stuck are still claimed on every run. The first run after this fi
 | Task | Name | Commit |
 |------|------|--------|
 | 1 RED | Failing unit and end-to-end tests | `5f57b8385a1001988e9bf2442ce388cbda5a6380` test(13-27) |
-| 1 GREEN | Removal job accepts the three own folders | `262c0f1502ab61ea03cc28c4981f4e3de929cb1b` fix(13-27) |
-| 2 | Sweep shares the folders, pin test, runbook | `a248e1e15079571c177916657161a678876f8b32` refactor(13-27) |
+| 1 GREEN | Removal job accepts the three own folders | `e8de223d9b314fd91f2ee244acdea85b7c2a4c2c` fix(13-27) |
+| 2 | Sweep shares the folders, pin test, runbook | `0ea48bff585470cbeeef8bf48e66caa4e31c031e` refactor(13-27) |
 
 ## TDD evidence
 
@@ -140,4 +140,4 @@ None. No new endpoint, auth path or schema change. T-13-73 to T-13-76 are mitiga
 ## Self-Check: PASSED
 
 - Files found: `PublicIds.cs`, `ImageRemovalJob.cs`, `StraySweepJob.cs`, the four test files and `docs/operations/maintenance.md` (all edited in the three commits).
-- Commits found in the branch: `5f57b838`, `262c0f15`, `a248e1e1`.
+- Commits found in the branch: `5f57b838`, `e8de223d`, `0ea48bff`.

@@ -605,7 +605,7 @@ note: Owner ran the dev maintenance call (after setting a dev Maintenance:Key in
 
 ### 100. A cut-off photo upload is cleaned up (review fix G1-WR-01)
 expected: On the Contact form, pick a large photo and send the request, then cut the connection while the photo is still uploading (for example close the tab or turn on airplane mode). After the next maintenance run (the same call as test 99), that photo is not left in the dev quotes folder in Cloudinary, and the request itself is still saved.
-covers: 13-REVIEW G1-WR-01, commit fa72525b
+covers: 13-REVIEW G1-WR-01, commit d9766207
 result: pass
 ## Summary
 

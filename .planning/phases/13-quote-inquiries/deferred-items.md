@@ -70,7 +70,7 @@ The LocalDB login timeouts are the recurring pattern: the full .NET suite opens 
 
 ## Sending flakes and 1 second test timeouts: root causes fixed (13-REVIEW G7A-WR-01, G7A-WR-02)
 
-The recurring "Sending" flakes in the rows above (13-14, 13-17, 13-19 and the W11 fixes) raced the real 1 second ticket wait. Commit 7ffb785e makes those three tests hold the create call and release it by hand. Commit 3a7b689e raises the Testing Library async timeout from 1 s to 5 s in the jsdom setup, which covers the load timeouts in the 13-19 row. The rows stay as the record of what was seen.
+The recurring "Sending" flakes in the rows above (13-14, 13-17, 13-19 and the W11 fixes) raced the real 1 second ticket wait. Commit 4e50549b makes those three tests hold the create call and release it by hand. Commit 8a589018 raises the Testing Library async timeout from 1 s to 5 s in the jsdom setup, which covers the load timeouts in the 13-19 row. The rows stay as the record of what was seen.
 
 ## Full web suite flakes after the whole-phase review fixes (2026-11-25)
 
