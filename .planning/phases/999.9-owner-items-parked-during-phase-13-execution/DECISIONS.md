@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T01:58:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T02:05:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -404,6 +404,15 @@ Since Phase 11 (content) and Phase 13 (quotes), queued photo removals failed as 
 - **IN-05:** no test pins the check order for an outside-folder row that a photo row names. Both orders are safe.
 - **Security note 2:** `CloudinaryImageStorage.RemoveAsync` has no folder check of its own (the job is its only caller). A second check would be extra safety only.
 - **Security note 4 (optional):** add "(removal end to end: 13-27)" to threat rows T-13-23, T-13-24 and T-13-61 in 13-SECURITY.md.
+
+## P13-BL-37 · The TDD gate blocks phase 13 on a commit name (plan 13-27)
+
+**Status:** open · **Blocks:** the phase 13 verifier and marking the phase complete. Nothing was changed.
+
+The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit followed by a `feat(...)` commit. Plan 13-27 told the executor to name its fix `fix(13-27): ...`, so the check reports "missing GREEN" and blocks under TDD mode. The real order is right: RED `5f57b838` (tests failing, quoted in 13-27-SUMMARY.md) comes before the fix `262c0f15`, and the full suite is green after the merge. The branch is not pushed yet, so its commits can still be renamed.
+
+- **A (recommended):** rename that one commit to `feat(13-27): ...` on the local branch (a history rewrite of the 7 local commits after it, before any push), then run `/gsd-execute-phase 13 --gaps-only` again so it goes straight to the verifier.
+- **B:** keep the history and rule that `fix(...)` counts as GREEN for 13-27. Record the ruling, then run the verifier.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
