@@ -2,17 +2,17 @@
 phase: 13
 review: 13-REVIEW.md
 created: 2026-11-25T10:25:00-06:00
-updated: 2026-11-25T10:25:00-06:00
+updated: 2026-11-25T10:50:00-06:00
 total: 61
-fixed: 18
-skipped: 2
+fixed: 19
+skipped: 1
 deferred: 41
 open: 0
 ---
 
 # Phase 13: Code Review Disposition
 
-*Created: 2026-11-25T10:25:00-06:00 · Updated: 2026-11-25T10:25:00-06:00*
+*Created: 2026-11-25T10:25:00-06:00 · Updated: 2026-11-25T10:50:00-06:00*
 
 One row per finding in `13-REVIEW.md`. Built by the orchestrator from the review headings and `13-REVIEW-FIX.md`, because the automatic ledger expects `### WR-01:` headings and this review uses `#### G1-WR-01:`.
 
@@ -56,7 +56,7 @@ One row per finding in `13-REVIEW.md`. Built by the orchestrator from the review
 | G5-IN-03 | info | deferred | Info, outside the fix scope (critical and warning); left for a later /gsd-code-review 13 --fix --all or the next phase |
 | G5-IN-04 | info | deferred | Info, outside the fix scope (critical and warning); left for a later /gsd-code-review 13 --fix --all or the next phase |
 | G6-WR-01 | warning | fixed | fixed, 59ba992f |
-| G6-WR-02 | warning | skipped | skipped: needs owner decision; owner item P13-BL-38 |
+| G6-WR-02 | warning | fixed | fixed, 68eb971b, owner wording D-48 |
 | G6-IN-01 | info | deferred | Info, outside the fix scope (critical and warning); left for a later /gsd-code-review 13 --fix --all or the next phase |
 | G6-IN-02 | info | deferred | Info, outside the fix scope (critical and warning); left for a later /gsd-code-review 13 --fix --all or the next phase |
 | G6-IN-03 | info | deferred | Info, outside the fix scope (critical and warning); left for a later /gsd-code-review 13 --fix --all or the next phase |

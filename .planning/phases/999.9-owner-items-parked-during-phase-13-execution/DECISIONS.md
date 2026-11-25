@@ -416,7 +416,8 @@ The end-of-phase TDD check wants each TDD plan to have a `test(...)` commit foll
 
 ## P13-BL-38 · Send Test Email error wording for a refused or missing address (13-REVIEW G6-WR-02)
 
-**Status:** open · **Blocks:** nothing. Wording, so your call; nothing was changed.
+**Status:** answered · **Blocks:** nothing.
+**Answer:** already ruled as D-48 (owner, 2026-11-25, UAT test 21): 422 "That address can't receive email. Check it, save it, then try again.", 409 "Save a Quote alerts address first, then send the test." The fix pass missed the ruling; G6-WR-02 is now fixed with this wording (commit 68eb971b).
 
 Today Send Test Email shows the generic "check your connection" line even when the server refused the address (422) or no address is saved (409). The fix is ready to wire once you pick the words.
 

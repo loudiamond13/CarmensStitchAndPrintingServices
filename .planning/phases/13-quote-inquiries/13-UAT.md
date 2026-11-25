@@ -1,14 +1,14 @@
 ---
-status: diagnosed
+status: testing
 phase: 13-quote-inquiries
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md, 13-03-SUMMARY.md, 13-04-SUMMARY.md, 13-05-SUMMARY.md, 13-06-SUMMARY.md, 13-07-SUMMARY.md, 13-08-SUMMARY.md, 13-09-SUMMARY.md, 13-10-SUMMARY.md, 13-11-SUMMARY.md, 13-12-SUMMARY.md, 13-13-SUMMARY.md, 13-14-SUMMARY.md, 13-15-SUMMARY.md, 13-16-SUMMARY.md, 13-17-SUMMARY.md, 13-18-SUMMARY.md, 13-19-SUMMARY.md, 13-20-SUMMARY.md, 13-21-SUMMARY.md, 13-22-SUMMARY.md, 13-23-SUMMARY.md, 13-24-SUMMARY.md, 13-25-SUMMARY.md, 13-26-SUMMARY.md]
 started: 2026-11-25T00:08:22-06:00
 created: 2026-11-25T00:08:22-06:00
-updated: 2026-11-25T00:46:38-06:00
+updated: 2026-11-25T10:40:00-06:00
 ---
 
 # Phase 13 UAT: Quote Inquiries
-*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T00:46:38-06:00*
+*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-25T10:40:00-06:00*
 
 All 26 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 11), then look, wording and screen reader (12 to 16), then rulings and reviews (17 to 21), then live-site steps (22 and 23).
 Tests 24 to 98 are passed by automated tests (coverage blocks); they are not asked.
@@ -17,7 +17,11 @@ Three SUMMARY coverage blocks are malformed (13-13 D5 has a bad verification kin
 
 ## Current Test
 
-[testing complete]
+number: 99
+name: Re-test 11 after the fix: Spam removes the photos (plan 13-27, G-13-11)
+expected: |
+  Restart the API from the current branch so it runs the 13-27 fix. On CSPS_Dev, mark a request that has photos as Spam, then press Run now on the maintenance page. The report shows "Photos removed from storage" with the count and no "Photo removals still failing" line, and the photos are gone from the dev quotes folder in Cloudinary. The row left by the Test 9 delete clears on the same run.
+awaiting: user response
 
 ## Tests
 
@@ -598,12 +602,21 @@ result: pass
 source: automated
 coverage_id: 13-24 D3
 
+### 99. Re-test 11 after the fix: Spam removes the photos (plan 13-27, G-13-11)
+expected: Restart the API from the current branch so it runs the 13-27 fix. On CSPS_Dev, mark a request that has photos as Spam, then press Run now on the maintenance page. The report shows "Photos removed from storage" with the count and no "Photo removals still failing" line, and the photos are gone from the dev quotes folder in Cloudinary. The row left by the Test 9 delete clears on the same run.
+covers: G-13-11, INQ-05, D-04, 13-27
+result: [pending]
+
+### 100. A cut-off photo upload is cleaned up (review fix G1-WR-01)
+expected: On the Contact form, pick a large photo and send the request, then cut the connection while the photo is still uploading (for example close the tab or turn on airplane mode). After the next maintenance Run now, that photo is not left in the dev quotes folder in Cloudinary, and the request itself is still saved.
+covers: 13-REVIEW G1-WR-01, commit fa72525b
+result: [pending]
 ## Summary
 
-total: 98
+total: 100
 passed: 94
 issues: 1
-pending: 0
+pending: 2
 skipped: 0
 blocked: 3
 
@@ -611,7 +624,7 @@ blocked: 3
 
 - gap_id: G-13-11
   truth: "Marking a request Spam or deleting it queues its photos, and the maintenance run removes them from Cloudinary under quotes/ with no failing removals"
-  status: failed
+  status: resolved
   reason: "User reported: image are still in cloudinary after marking request spam"
   severity: major
   test: 11
@@ -628,3 +641,5 @@ blocked: 3
     - "Tests for quotes/ and content/ rows, and that a lookalike root is still refused"
     - "Correct the maintenance runbook line"
   debug_session: "13-REVIEW.md G2A-CR-01 (code read, confirmed by the orchestrator); CSPS_Dev ImageDeletions row for the Test 9 delete showed 0 attempts"
+  resolved_by: 13-27-PLAN.md
+  resolved_at: 2026-11-25

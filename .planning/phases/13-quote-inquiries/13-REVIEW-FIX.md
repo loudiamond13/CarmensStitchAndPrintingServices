@@ -1,20 +1,20 @@
 ---
 phase: 13-quote-inquiries
 created: 2026-11-25T09:00:00-06:00
-updated: 2026-11-25T09:00:00-06:00
+updated: 2026-11-25T10:50:00-06:00
 fixed_at: 2026-11-25T09:00:00-06:00
 review_path: .planning/phases/13-quote-inquiries/13-REVIEW.md
 iteration: 1
 fix_scope: critical_warning
 findings_in_scope: 20
-fixed: 18
-skipped: 2
+fixed: 19
+skipped: 1
 status: partial
 ---
 
 # Phase 13: Code Review Fix Report (whole-phase review)
 
-*Created: 2026-11-25T09:00:00-06:00 · Updated: 2026-11-25T09:00:00-06:00*
+*Created: 2026-11-25T09:00:00-06:00 · Updated: 2026-11-25T10:50:00-06:00*
 
 Fixes for the Critical and Warning findings of `13-REVIEW.md` (1 critical, 19 warnings). Info findings were not in scope. Three fixers worked on separate files: the .NET backend in its own worktree (merged in `5ee06a9a`), then the web app and the Playwright tests in the main checkout. Their detailed reports, with the red and green evidence for each fix, are:
 
@@ -38,7 +38,7 @@ Fixes for the Critical and Warning findings of `13-REVIEW.md` (1 critical, 19 wa
 | G5-WR-02 | fixed | 6eafc8f7 | |
 | G5-WR-03 | fixed | 1513c1d4, 20cc8d3e | Focus moves only while Choose Photos still holds it |
 | G6-WR-01 | fixed | 59ba992f | |
-| G6-WR-02 | skipped: needs owner decision | none | New error wording; parked as P13-BL-38 |
+| G6-WR-02 | fixed | 68eb971b | Owner wording from ruling D-48 (the first pass missed the ruling) |
 | G7A-WR-01 | fixed | 3a7b689e | Async timeout 5 s in the jsdom setup |
 | G7A-WR-02 | fixed | 7ffb785e | Sending tests hold the create call by hand |
 | G7A-WR-03 | fixed | eafc2f46 | |
