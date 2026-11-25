@@ -365,6 +365,30 @@ describe('the empty, loading, error and refresh states (UI-SPEC R1 "States")', (
     expect(screen.getByText(message)).toBeVisible();
   });
 
+  it('shows no empty state while the next pill loads after an empty one (review G6-WR-01)', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    quoteRequestsBackend(async (url) => {
+      if (url.searchParams.get('status') === 'spam') return quoteRequestList([]);
+      await held;
+      return quoteRequestList(ROWS);
+    });
+    renderPage('?status=spam');
+    const user = userEvent.setup();
+    await screen.findByRole('heading', { level: 2, name: 'No spam requests' });
+
+    await user.click(screen.getByRole('button', { name: 'Open 4 requests' }));
+
+    await waitFor(() => {
+      expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+    });
+    expect(screen.queryByRole('heading', { level: 2, name: /^No / })).toBeNull();
+    release();
+    expect(await screen.findByRole('link', { name: 'Juan Dela Cruz' })).toBeVisible();
+  });
+
   it('a search with no match names the search and Clear Search removes it', async () => {
     quoteRequestsBackend(quoteRequestList([]));
     const onUrlUpdate = vi.fn<OnUrlUpdateFunction>();

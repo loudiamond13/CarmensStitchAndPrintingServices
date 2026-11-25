@@ -131,7 +131,9 @@ export default function QuoteRequestsPage() {
   // The stale line stays while Try Again reads, so its alert is not read out again and focus stays on the button.
   const staleAt =
     query.isError && data !== undefined ? formatBusinessTime(new Date(query.dataUpdatedAt).toISOString()) : null;
-  const empty = query.isSuccess && !hasRows && !pastTheEnd;
+  // A kept earlier page is not the answer for this view yet: no empty state until the real one arrives.
+  const kept = query.isPlaceholderData;
+  const empty = query.isSuccess && !kept && !hasRows && !pastTheEnd;
   const retry = (): void => {
     void query.refetch();
   };
@@ -178,10 +180,10 @@ export default function QuoteRequestsPage() {
         {values.q !== null && <FilterChip label={COPY.search.chip} value={values.q} onClear={clearSearch} />}
       </ResultBar>
       {firstFailed && <ErrorState things={COPY.loadingThings} align="start" error={query.error} onRetry={retry} />}
-      {empty && values.q !== null && (
+      {empty && params.q !== null && (
         <EmptyState
           icon="search"
-          title={COPY.empty.searchTitle(values.q)}
+          title={COPY.empty.searchTitle(params.q)}
           message={COPY.empty.searchMessage}
           action={
             <Button variant="secondary" onClick={clearSearch}>
@@ -190,18 +192,18 @@ export default function QuoteRequestsPage() {
           }
         />
       )}
-      {empty && values.q === null && (
+      {empty && params.q === null && (
         <EmptyState
           icon="inbox"
-          title={COPY.empty.titles[values.status]}
-          message={COPY.empty.messages[values.status]}
+          title={COPY.empty.titles[params.status]}
+          message={COPY.empty.messages[params.status]}
         />
       )}
       {!firstFailed && !empty && (
         <QuoteRequestsTable
           rows={rows}
           captionId={RESULTS_ID}
-          pending={query.isPending || pastTheEnd}
+          pending={query.isPending || pastTheEnd || (kept && !hasRows)}
           refetching={query.isPlaceholderData && query.isFetching}
         />
       )}
