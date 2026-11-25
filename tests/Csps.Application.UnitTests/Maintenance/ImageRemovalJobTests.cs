@@ -25,6 +25,10 @@ public sealed class ImageRemovalJobTests
 
     private static string PublicId(int number) => $"csps-test/orders/00000000-0000-0000-0000-000000000001/photo{number:D3}";
 
+    private static string QuotePublicId(int number) => $"csps-test/quotes/00000000-0000-0000-0000-000000000002/photo{number:D3}";
+
+    private static string ContentPublicId(int number) => $"csps-test/content/lines/00000000-0000-0000-0000-000000000003/photo{number:D3}";
+
     [Fact]
     public void TheJobRunsThirdInThePassAsOrder30()
     {
@@ -268,6 +272,86 @@ public sealed class ImageRemovalJobTests
         foreign.LastFailureCode.ShouldBe("outside-folder");
         lookalike.LastFailureCode.ShouldBe("outside-folder");
         report.Lines.Single(line => line.Failed).Value.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task AFileInTheQuotesFolderIsRemovedThroughTheStorageAndItsRowDeleted()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(QuotePublicId(1));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBe([QuotePublicId(1)]);
+        harness.Queue.Rows.ShouldBeEmpty();
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value, line.Failed).ShouldBe((RemovedLabel, 1L, false));
+    }
+
+    [Fact]
+    public async Task AFileInTheContentFolderIsRemovedThroughTheStorageAndItsRowDeleted()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(ContentPublicId(1));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBe([ContentPublicId(1)]);
+        harness.Queue.Rows.ShouldBeEmpty();
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value, line.Failed).ShouldBe((RemovedLabel, 1L, false));
+    }
+
+    [Fact]
+    public async Task AQuotesRowStuckAsOutsideFolderIsRemovedOnTheNextRunWithNoAttentionLine()
+    {
+        var harness = new Harness();
+        var row = harness.Queue.Add(QuotePublicId(1), attempts: 7);
+        row.LastFailureCode = "outside-folder";
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBe([QuotePublicId(1)]);
+        harness.Queue.Rows.ShouldBeEmpty();
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value, line.Failed).ShouldBe((RemovedLabel, 1L, false));
+        harness.Log.DidNotReceiveWithAnyArgs().RemovalsNeedAttention(default);
+    }
+
+    [Fact]
+    public async Task AQueuedQuotesFileThatAPhotoRowStillNamesIsDroppedAndNeverSentToTheStorage()
+    {
+        var harness = new Harness();
+        harness.Queue.Add(QuotePublicId(1));
+        harness.Inventory.Photos.Add(QuotePublicId(1));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBeEmpty();
+        harness.Queue.Rows.ShouldBeEmpty();
+        report.Lines.Single(line => line.Label == "Queued removals dropped (photo still in use)").Value.ShouldBe(1);
+        report.Lines.ShouldNotContain(line => line.Failed);
+    }
+
+    [Theory]
+    [InlineData("csps-test-more/quotes/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps-test-more/content/lines/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps-test/quotes-old/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps-test/content-old/lines/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps-test/other/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps/quotes/00000000-0000-0000-0000-000000000001/photo001")]
+    [InlineData("csps/content/lines/00000000-0000-0000-0000-000000000001/photo001")]
+    public async Task AFileOutsideTheThreeOwnFoldersIsNeverRemovedAndTurnsTheRunRed(string publicId)
+    {
+        var harness = new Harness();
+        var outside = harness.Queue.Add(publicId);
+        harness.Queue.Add(PublicId(1));
+
+        var report = await harness.RunAsync();
+
+        harness.Storage.Removals.ShouldBe([PublicId(1)]);
+        outside.LastFailureCode.ShouldBe("outside-folder");
+        report.Lines.Single(line => line.Failed).Value.ShouldBe(1);
     }
 
     [Fact]
