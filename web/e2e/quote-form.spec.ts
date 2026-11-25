@@ -2,6 +2,7 @@
 // The host runs with the quote limits lifted and a one second minimum time (playwright.config.ts), so every project can send.
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
 import { freshMobile, press } from './helpers.ts';
+import { withPhotoHost } from './photo-host-lock.ts';
 import { drawJpeg } from './photos.ts';
 import { withSiteContentLock } from './site-content-lock.ts';
 import { seedDemoSiteContent } from './testing-api.ts';
@@ -40,6 +41,7 @@ test('@quote a visitor sends a text-only inquiry and sees Inquiry sent', async (
 test('@quote a visitor sends an inquiry with a photo: the create and the upload answer 200 and no photo is named missing', async ({
   page,
 }) => {
+  test.setTimeout(240_000);
   await page.goto('/contact');
 
   const form = page.getByRole('form', { name: 'Inquiry form' });
@@ -49,16 +51,19 @@ test('@quote a visitor sends an inquiry with a photo: the create and the upload 
   const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
   await form.locator('input[type="file"]').setInputFiles([photo]);
   await expect(form.getByRole('list', { name: 'Photos to send' }).getByRole('listitem')).toHaveCount(1);
-  const create = page.waitForResponse(
-    (response) => response.url().endsWith('/api/v1/public/quote-requests') && response.request().method() === 'POST',
-  );
-  const upload = page.waitForResponse((response) =>
-    /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
-  );
-  await form.getByRole('button', { name: 'Send Inquiry' }).click();
+  // The fail-next switch of the host is shared, so the upload runs under the photo host lock.
+  await withPhotoHost(async () => {
+    const create = page.waitForResponse(
+      (response) => response.url().endsWith('/api/v1/public/quote-requests') && response.request().method() === 'POST',
+    );
+    const upload = page.waitForResponse((response) =>
+      /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
+    );
+    await form.getByRole('button', { name: 'Send Inquiry' }).click();
 
-  expect((await create).status()).toBe(200);
-  expect((await upload).status()).toBe(200);
+    expect((await create).status()).toBe(200);
+    expect((await upload).status()).toBe(200);
+  });
   await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeVisible();
   await expect(page.getByText(/didn't upload/)).toHaveCount(0);
 });
@@ -66,6 +71,7 @@ test('@quote a visitor sends an inquiry with a photo: the create and the upload 
 // Review W5 CR-01: the form ticket is held, so the photo piece is still loading when Send is pressed. Send waits for it, and the
 // photo is declared and uploaded with the text.
 test('@quote a photo still loading when Send is pressed is sent with the text', async ({ page }) => {
+  test.setTimeout(240_000);
   let release = (): void => undefined;
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -82,18 +88,21 @@ test('@quote a photo still loading when Send is pressed is sent with the text', 
   await form.getByRole('textbox', { name: /Contact number/ }).fill(freshMobile());
   const photo = await drawJpeg(page, 'logo.jpg', 200, 600, 400);
   await form.locator('input[type="file"]').setInputFiles([photo]);
-  const create = page.waitForRequest(
-    (request) => request.url().endsWith('/api/v1/public/quote-requests') && request.method() === 'POST',
-  );
-  const upload = page.waitForResponse((response) =>
-    /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
-  );
-  await form.getByRole('button', { name: 'Send Inquiry' }).click();
-  await expect(form.getByRole('button', { name: 'Sending' })).toBeVisible();
-  release();
+  // The fail-next switch of the host is shared, so the send and the upload run under the photo host lock.
+  await withPhotoHost(async () => {
+    const create = page.waitForRequest(
+      (request) => request.url().endsWith('/api/v1/public/quote-requests') && request.method() === 'POST',
+    );
+    const upload = page.waitForResponse((response) =>
+      /\/api\/v1\/public\/quote-requests\/[0-9a-f-]{36}\/photos\/0$/.test(response.url()),
+    );
+    await form.getByRole('button', { name: 'Send Inquiry' }).click();
+    await expect(form.getByRole('button', { name: 'Sending' })).toBeVisible();
+    release();
 
-  expect((await create).postDataJSON()).toMatchObject({ photos: ['logo.jpg'] });
-  expect((await upload).status()).toBe(200);
+    expect((await create).postDataJSON()).toMatchObject({ photos: ['logo.jpg'] });
+    expect((await upload).status()).toBe(200);
+  });
   await expect(page.getByRole('heading', { level: 2, name: 'Inquiry sent' })).toBeVisible();
   await expect(page.getByText(/didn't upload/)).toHaveCount(0);
 });
