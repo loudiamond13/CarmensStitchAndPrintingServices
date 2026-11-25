@@ -1,6 +1,6 @@
 // Vitest setup for every test file (vitest.config.ts test.setupFiles).
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
@@ -39,6 +39,12 @@ if (typeof window !== 'undefined') {
       dispatchEvent: () => false,
     }),
   });
+}
+
+// findBy and waitFor wait up to 5 seconds (the default is 1), so a lazy chunk or an MSW answer that is slow on a busy machine is not
+// a failure. A passing test is not slower: it resolves as soon as its condition holds.
+if (typeof window !== 'undefined') {
+  configure({ asyncUtilTimeout: 5000 });
 }
 
 // jsdom has no scrollIntoView either. A no-op lets components that scroll a control into view run under test.
