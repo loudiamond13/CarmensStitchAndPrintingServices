@@ -76,9 +76,8 @@ export function QuotePhotoSlot({ photos, onChange, disabled, limits, handleRef }
     first.current = Promise.all([loadQuotePhotoKit(), limits()])
       .then(async ([kit, rules]) => {
         const pick = await kit.firstPick(files, rules);
-        // This button leaves the page when the picker shows, so focus goes on only if it was still here (or nowhere).
-        const active = document.activeElement;
-        const focusFirst = active === null || active === document.body || active === chooseRef.current;
+        // This button leaves the page when the picker shows, so focus goes on only if it was still on it.
+        const focusFirst = chooseRef.current !== null && document.activeElement === chooseRef.current;
         setLoaded({ kit, focusFirst, ...pick });
         onChange(pick.photos);
         return pick.photos;
