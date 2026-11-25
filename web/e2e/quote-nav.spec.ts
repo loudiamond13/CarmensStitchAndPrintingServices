@@ -53,16 +53,18 @@ test('@quote the nav shows the new count', async ({ page, request, guard }) => {
   const admin = await createStaff(request, 'Admin');
   const user = await signInAs(page, request, admin);
   await dashboardDrawn(page, user);
-  const before = await openWithCount(page, '/admin');
-  await dashboardDrawn(page, user);
 
-  for (let n = 0; n < 2; n += 1) {
-    await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
+  // Other specs send and move requests at the same time, so two reads of the count cannot be compared. The two requests made here stay
+  // New (no other spec touches them), so the count the page reads afterwards is at least 2.
+  const tag = uniqueName();
+  const visitors = [`${tag} One`, `${tag} Two`];
+  for (const customerName of visitors) {
+    await createQuoteRequest(request, { customerName, contactNumber: freshMobile() });
   }
   const after = await openWithCount(page, '/admin');
   await dashboardDrawn(page, user);
 
-  expect(after, 'the two new requests are counted').toBeGreaterThanOrEqual(before + 2);
+  expect(after, 'the two new requests are counted').toBeGreaterThanOrEqual(2);
   const side = page.locator('[data-ui="s-admin-side"]');
   const item = side.getByRole('link', { name: `Quote Requests, ${chip(after)} new`, exact: true });
   await expect(item).toBeVisible();
@@ -74,8 +76,12 @@ test('@quote the nav shows the new count', async ({ page, request, guard }) => {
     names.indexOf('Orders') + 1,
   );
 
-  // The inbox marks the item current. The count may have moved since, so the item is found by its address.
-  await page.goto('/admin/quote-requests');
+  // Both new requests are in the inbox, found by their own names.
+  await page.goto(`/admin/quote-requests?q=${encodeURIComponent(tag)}`);
+  for (const customerName of visitors) {
+    await expect(page.getByRole('link', { name: customerName })).toBeVisible();
+  }
+  // It marks the item current. The count may have moved since, so the item is found by its address.
   await expect(side.locator('a[href="/admin/quote-requests"]')).toHaveAttribute('aria-current', 'page');
 });
 
