@@ -201,6 +201,43 @@ describe('QuoteAlertsCard', () => {
     await expectNoAxeViolations(container);
   });
 
+  it('says the address cannot receive email after a 422, not the internet line (D-48)', async () => {
+    testSendBackend(() => problemAnswer(422, { code: 'site-settings.quote-alerts-address-undeliverable' }));
+    const user = userEvent.setup();
+    const { container } = render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    expect(await screen.findByText("That address can't receive email.")).toBeVisible();
+    expect(screen.getByText('Check it, save it, then try again.')).toBeVisible();
+    expect(screen.queryByText("Couldn't send the test email.")).not.toBeInTheDocument();
+    expect(screen.queryByText('Check your internet connection and try again.')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('asks for a saved address after a 409, not the internet line (D-48)', async () => {
+    testSendBackend(() => problemAnswer(409, { code: 'site-settings.no-quote-alerts-address' }));
+    const user = userEvent.setup();
+    const { container } = render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    expect(await screen.findByText('Save a Quote alerts address first, then send the test.')).toBeVisible();
+    expect(screen.queryByText("Couldn't send the test email.")).not.toBeInTheDocument();
+    expect(screen.queryByText('Check your internet connection and try again.')).not.toBeInTheDocument();
+    await expectNoAxeViolations(container);
+  });
+
+  it('keeps the generic line for another 422 or 409 code (D-48)', async () => {
+    testSendBackend(() => problemAnswer(409, { code: 'something-else' }));
+    const user = userEvent.setup();
+    render(<CardInForm address="quotes@example.com" />);
+
+    await user.click(screen.getByRole('button', { name: 'Send Test Email' }));
+
+    expect(await screen.findByText("Couldn't send the test email.")).toBeVisible();
+  });
+
   it('shows the send failed toast when the network drops or the server fails (R5 error)', async () => {
     let calls = 0;
     testSendBackend(() => {

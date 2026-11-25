@@ -17,6 +17,8 @@ import type { BusinessInfoInput } from '@/modules/admin/siteContentSchemas';
 
 const COPY = SITE_CONTENT_COPY.business;
 const TEST = COPY.quoteAlertTest;
+const UNDELIVERABLE = 'site-settings.quote-alerts-address-undeliverable';
+const NO_ADDRESS = 'site-settings.no-quote-alerts-address';
 
 export interface QuoteAlertsCardProps {
   control: Control<BusinessInfoInput>;
@@ -49,8 +51,17 @@ export function QuoteAlertsCard({ control, savedAddress }: QuoteAlertsCardProps)
       test.reset();
       return;
     }
-    const copy = isHttpError(outcome.error) && outcome.error.status === 429 ? TEST.limited : TEST.failed;
-    toast.show({ tone: 'danger', title: copy.title, message: copy.message });
+    const status = isHttpError(outcome.error) ? outcome.error.status : undefined;
+    const code = isHttpError(outcome.error) ? outcome.error.code : undefined;
+    let copy: { title: string; message?: string } = TEST.failed;
+    if (status === 429) {
+      copy = TEST.limited;
+    } else if (status === 422 && code === UNDELIVERABLE) {
+      copy = TEST.undeliverable;
+    } else if (status === 409 && code === NO_ADDRESS) {
+      copy = TEST.noSavedAddress;
+    }
+    toast.show({ tone: 'danger', title: copy.title, ...(copy.message === undefined ? {} : { message: copy.message }) });
   };
 
   return (

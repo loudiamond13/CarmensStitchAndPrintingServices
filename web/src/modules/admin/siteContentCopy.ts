@@ -84,6 +84,10 @@ export const SITE_CONTENT_COPY = {
         message: (address: string) => `It should reach ${address} within a few minutes. Check the spam folder too.`,
       },
       limited: { title: 'Too many test emails.', message: 'Wait a few minutes and try again.' },
+      /** 422: the saved address can never receive mail (D-48). */
+      undeliverable: { title: "That address can't receive email.", message: 'Check it, save it, then try again.' },
+      /** 409: another Manager cleared the saved address (D-48). */
+      noSavedAddress: { title: 'Save a Quote alerts address first, then send the test.' },
       failed: { title: "Couldn't send the test email.", message: 'Check your internet connection and try again.' },
     },
     /** The read-only rows of the Time zone and money card (OQ-6 A, D-35). */
