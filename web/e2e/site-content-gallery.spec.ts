@@ -60,7 +60,8 @@ async function addE2ePhoto(page: Page): Promise<void> {
   await expect(dialog.getByText('Only add photos the customer said you may show.')).toBeVisible();
   await expect(dialog.getByRole('checkbox', { name: 'Show on the website' })).toBeChecked();
   await dialog.locator('input[type="file"]:not([capture])').setInputFiles(photo);
-  await expect(dialog.getByText('Photo chosen')).toBeVisible({ timeout: SAVE_WAIT_MS });
+  // Exact: a loose match also finds "No photo chosen yet", so Save went before the photo was ready.
+  await expect(dialog.getByText('Photo chosen', { exact: true })).toBeVisible({ timeout: SAVE_WAIT_MS });
   await dialog.getByLabel(/^Team or name/).fill(E2E_TEAM);
   await dialog.getByLabel(/^Product line/).selectOption({ label: 'Moto Riding Jerseys' });
   await dialog.getByLabel(/^Pieces/).fill('12');

@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-26T01:44:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-26T06:10:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -475,6 +475,15 @@ What I did instead: pushed `gsd/phase-13-quote-inquiries` to GitHub (it had neve
 1. **Gate time limit 90 to 120 minutes.** The full gate now takes about 100 minutes (Phase 11 already took 89.5). Free on a public repo, and 120 still stops a hung run. Built: 120. To undo, set it back in `ci.yml` and `CiWorkflowTests`.
 2. **The public sweep allows the Email placeholder "you@gmail.com" on Contact** (chromium and Pixel). It is the same made-up address the build check already allows (P13-BL-11 item 7, built A). If you pick B there (change it to "you@example.com"), this allowance goes too.
 3. **Sidebar links stay 44px tall on a short screen** (Pixel landscape, 839x412: S7 and the showcase). With the new Quote Requests item, the tablet icon rail squeezed every link to 21px instead of scrolling, which axe flags as too small to tap. The links no longer shrink, so the list scrolls. Checked in the browser at 839x412, 412x839 and 1280x360 (Logout stays in view, axe finds nothing).
+4. **Two flaky end-to-end tests fixed in the test code only** (commit 5f0574f7 and the one after it). The phone tab bar test now waits for the long showcase page to settle before it checks the end. The gallery "add a photo" test waited for text that also matched "No photo chosen yet", so it pressed Save before the photo was ready; it now waits for the exact "Photo chosen". Details in `.planning/phases/13-quote-inquiries/deferred-items.md`.
+
+## P13-BL-44 · Save Photo pressed while the photo is still being prepared (2026-11-26)
+
+**Status:** waiting for you · **Blocks:** nothing. Found while fixing the gallery test above. In Site Content > Gallery > Add Photo, choosing a photo takes a moment (it is checked and shrunk in the browser, and the picker shows "Uploading"). If Save Photo is pressed in that moment, the form shows "Choose a photo" for a split second and nothing is saved, so the person has to press Save again. Nothing is lost, but it is confusing.
+
+- **A (recommended):** hold Save Photo (it shows "Uploading" and ignores presses) until the photo is ready. Why: it matches how the quote form's Send already waits for its photo.
+- **B:** let Save Photo wait for the photo and then save on its own.
+- **C:** leave it as it is.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 

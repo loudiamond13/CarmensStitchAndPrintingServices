@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-26T04:25:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-26T06:05:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -93,3 +93,9 @@ CI run 45777412323, attempt 1 (sha 9e630ab3): 2 failed, 1,044 passed, 22 skipped
 - Attempt 2, `[pixel] shell.spec.ts:78` at 414x896: last content at 834.5 px, tab bar top at 827 px. The miss changes from run to run (177 px, then 39 px short of the end), so it is timing, not layout. In the browser on the dev site at 414x896, at the true end the last section ends at 795 px and the tab bar starts at 827 px: the page is fine.
 
 Fixed in the test: the end check now scrolls to the true end (`scrollHeight - clientHeight`) and waits until the page height and the scroll position hold for 3 frames, instead of reading one frame after a single scroll. Checked in the browser: settles in 6 frames with the same 32 px gap. The gallery Save race stays a follow-up worth a quick task if it fails again: find why an Enter on Save Photo can be lost right after a photo is chosen.
+
+Run 45800279932 (sha 5f0574f7): 1 failed, 1,045 passed, 22 skipped. The shell test passed in every project. The gallery test failed again on chromium, so it was not a one-off.
+
+- Cause, from the trace: the screen recording at the moment Enter was pressed shows "No photo chosen yet" and the picker still saying "Uploading". The test waited for `getByText('Photo chosen')`, which is a loose match (any case, part of the text), so it was satisfied at once by "No photo chosen yet". Save was pressed while the photo was still being prepared, the form's "Choose a photo" check stopped the save, and the photo finished a moment later and cleared that message. No request was sent, which matches the trace.
+- Fixed in the test: it now waits for the exact text "Photo chosen". The app was not changed.
+- For the owner (not changed while away): a person who presses Save while a photo is still being prepared sees "Choose a photo" for a moment and nothing is saved. Save could instead wait for the photo, or be held until it is ready. This is a behavior choice, so it is parked as P13-BL-44.
