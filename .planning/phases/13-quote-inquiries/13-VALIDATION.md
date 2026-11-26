@@ -6,7 +6,7 @@ status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-21T20:34:24-06:00"
-updated: "2026-11-25T18:58:00-06:00"
+updated: "2026-11-26T00:10:00-06:00"
 ---
 
 # Phase 13: Validation Strategy
@@ -64,7 +64,7 @@ Task IDs are filled in by the planner and executor. The requirement map below is
 | INQ-06 / D-22 | Permanent order delete removes the linked request and queues its photos | integration | `*PermanentlyDeleteOrderTests` | ✅ | ✅ green |
 | INQ-07 | Unconverted older than 6 months purged with photos queued; converted kept | integration | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*QuoteRequestRetentionJobTests"` | ✅ | ✅ green |
 | INQ-07 | Stray sweep covers `{root}/quotes/`; inventory knows quote photo ids | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*StraySweepJobTests"` | ✅ | ✅ green |
-| INQ-08 | Notice text and link; Privacy 1.1 DRAFT in both `legalPages.ts` and `LegalPages.cs` | component + node | `npm --prefix web run test -- --run src/test/legal-pages.node.test.ts` | ✅ | ✅ green |
+| INQ-08 | Notice text and link; Privacy 1.1 approved 2026-11-25 (D-45) in `legalPages.ts`, `LegalPages.cs` and the fixture | component + node | `npm --prefix web run test -- --run src/test/legal-pages.node.test.ts` | ✅ | ✅ green (2026-11-25, quick 261125-w4m) |
 | INQ-05, INQ-07 / G-13-11 | Removal job accepts only the three own folders (`orders/`, `content/`, `quotes/`), refuses lookalike roots and folders; sweep and job share one folder list (13-27) | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*ImageRemovalJobTests"` and `"*PublicIdsTests"`, `"*StraySweepJobTests"` | ✅ | ✅ green (2026-11-25) |
 | INQ-05 / G-13-11 | Spam on a request with photos, then a maintenance run, removes the photos; content photos too (13-27) | integration | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*ImageCleanupRunTests"` | ✅ | ✅ green (10/10, 13-27-SUMMARY.md) |
 | INQ-02 / G1-WR-01 | An upload cut off mid-way queues its photo for removal and always finishes the slot write | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*UploadQuotePhotoHandlerTests"` | ✅ | ✅ green (2026-11-25) |
@@ -73,6 +73,7 @@ Task IDs are filled in by the planner and executor. The requirement map below is
 | INQ-04 / D-48 | Send Test Email says why it failed: address can't receive mail (422), no saved address (409), too many (429), other | component | `npm --prefix web run test -- --run src/modules/admin/components/QuoteAlertsCard.test.tsx` | ✅ | ✅ green (2026-11-25) |
 | INQ-01, INQ-02 / G5 | Failed-send box hidden while a retry runs; previews keep drawing when a photo is removed; focus moves into the picker after the first pick | component | `npm --prefix web run test -- --run src/modules/public/components/QuoteForm.test.tsx src/modules/public/components/QuoteFormPhotos.test.tsx src/modules/public/components/QuotePhotoPicker.test.tsx` | ✅ | ✅ green (2026-11-25) |
 | INQ-05 / G6-WR-01 | Inbox shows no empty state while a kept page waits for the next view | component | `npm --prefix web run test -- --run src/modules/admin/pages/QuoteRequestsPage.test.tsx` | ✅ | ✅ green (2026-11-25) |
+| INQ-08 / D-45 | Stray-photo sentence ends "How long we keep it"; /privacy leaves DRAFT, drops noindex and is back in sitemap.xml | node + component + integration | `npm --prefix web run test -- --run src/test/legal-content.node.test.ts src/modules/public/pages/PrivacyPolicyPage.test.tsx src/modules/public/pages/LegalPages.test.tsx` and `SeoEndpointTests` | ✅ | ✅ green (2026-11-25, quick 261125-w4m; `ShellHeadTests` needs LocalDB, runs in CI) |
 | PERF-01 | Contact within budget (per the OQ-2 ruling) | build gate | `npm --prefix web run build:budget` | ✅ | ✅ green (post-merge gate 2026-11-24, contact 148.42 of 150 KB) |
 | A11y, CSP | Contact, inbox, request page: zero axe, no CSP errors, 320 to 1920 px | e2e | `npm --prefix web run e2e -- --grep "@quote"` (after preflight) | ✅ | ✅ green (13-24 sweep: 150 of 150 across 5 projects, 2026-11-24) |
 
@@ -99,7 +100,7 @@ No framework install needed.
 |----------|-------------|------------|-------------------|
 | Quote alert reaches the live staff inbox | INQ-04 | Needs the real SMTP account and the owner's address | Owner sets the Quote alerts address on the live site, presses "Send test email", confirms it arrives |
 | First live Gallery photo loads on a phone (carry-over D-49 / D-133) | n/a | Live Cloudinary and a real phone | Owner adds one Gallery photo, opens it on a phone, checks it loads from res.cloudinary.com with no CSP error |
-| Privacy Policy 1.1 and the form notice approved (plan 13-25, D-28) | INQ-08 | Legal text goes final only by the owner's own approval | Owner reads the review package in `13-25-SUMMARY.md` and answers A, B or exact changes; then the five tests that pin the DRAFT state are updated |
+| Privacy Policy 1.1 and the form notice approved (plan 13-25, D-28) | INQ-08 | Legal text goes final only by the owner's own approval | Done: owner answered A (D-45, 2026-11-25); applied by quick 261125-w4m, the DRAFT-pinning tests now pin the approved state |
 | Lighthouse performance 0.92 to 0.94 against 0.95 (P13-BL-30) | PERF | Owner ruling needed; D-29 treats load time as report-only | Owner accepts the gap or asks for a load-time quick task |
 | Phone and screen-reader pass of the Contact form, inbox and request page | INQ-01, INQ-05, INQ-06 | axe and e2e cover the automated part only | Owner follows the manual checks list in the phase 999.9 DECISIONS.md |
 
@@ -114,7 +115,7 @@ No framework install needed.
 - [x] Feedback latency < 60s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** validated 2026-11-24, re-validated 2026-11-25 after 13-27 and the review fixes (every automated row green; the manual-only rows wait on the owner)
+**Approval:** validated 2026-11-24, re-validated 2026-11-25 after 13-27, the review fixes and quick 261125-w4m (D-45) (every automated row green; the manual-only rows wait on the owner)
 
 ## Validation Audit 2026-11-24
 
