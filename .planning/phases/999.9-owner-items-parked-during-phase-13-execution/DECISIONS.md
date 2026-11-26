@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T11:50:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:44:16-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -311,7 +311,7 @@ The delete docs no longer say a delete takes an Idempotency-Key, so that choice 
 
 ## P13-BL-27 · Privacy Policy 1.1 and the form notice: your approval (plan 13-25, D-28)
 
-**Status:** answered A (owner, 2026-11-25, ruling D-45 in 13-CONTEXT.md). Still to do: add the stray-photo sentence, flip the page to approved and update the five DRAFT-pinning tests.
+**Status:** done (owner answer A, 2026-11-25, ruling D-45 in 13-CONTEXT.md). Applied in quick 261125-w4m: the stray photo sentence (be04e909) and the approval flip (321898a4). The page is approved at 1.1, last updated 2026-11-25, shows no DRAFT notice, has no noindex and is in sitemap.xml.
 
 Read the review package in `.planning/phases/13-quote-inquiries/13-25-SUMMARY.md` (every added or reworded sentence next to the 1.0 wording, and the form notice). Then answer:
 

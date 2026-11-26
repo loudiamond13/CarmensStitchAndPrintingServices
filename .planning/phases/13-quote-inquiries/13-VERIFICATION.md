@@ -1,7 +1,7 @@
 ---
 phase: 13-quote-inquiries
 created: "2026-11-24T03:53:00-06:00"
-updated: "2026-11-25T16:58:00-06:00"
+updated: "2026-11-25T23:44:16-06:00"
 verified: 2026-11-25T22:58:00Z
 status: human_needed
 score: 5/5 must-haves verified
@@ -132,7 +132,7 @@ The phase goal is achieved in the code. All five roadmap success criteria are ba
 
 The status is `human_needed`, not `passed`, because two live-site checks cannot be done before the deploy: the real Quote alerts test email and the first public Gallery photo on a phone (UAT tests 22 and 23, both blocked on the release build). No code gap was found.
 
-One piece of owner-ruled code work is still open and is not a human item. See Warning W1: ruling D-45 (Privacy Policy 1.1 approved with option A) has not been applied to the code yet.
+The owner-ruled code work in Warning W1 (ruling D-45) was applied after this report, in quick 261125-w4m (be04e909, 321898a4).
 
 ## Goal Achievement
 
@@ -169,7 +169,7 @@ None. No gap matched a later phase.
 | `src/Csps.Server/Controllers/PublicQuoteRequestsController.cs`, `QuoteRequestsController.cs`, `SiteSettingsController.cs` | Public, staff and Quote alerts endpoints | VERIFIED | Explicit policies; error codes `site-settings.no-quote-alerts-address` and `...-undeliverable` exist in `SiteContentErrors.cs` |
 | `web/src/modules/public/components/QuoteForm*.tsx`, `QuotePhotoPicker.tsx`, `QuotePhotoSlot.tsx` | Public form and picker | VERIFIED | Wired from `ContactPage` through `QuoteFormSlot`; review fixes G5-WR-01 to 03 and G6-WR-01 in the code |
 | `web/src/modules/admin/pages/QuoteRequest(s)Page.tsx`, `QuoteAlertsCard.tsx`, `siteContentCopy.ts` | Staff inbox, detail, alerts card | VERIFIED | `QuoteAlertsCard` maps 422 and 409 to the D-48 words; `text-14` and `text-16` tokens exist (`app.css:53`) |
-| `web/src/modules/public/legalPrivacy.ts`, `legalPages.ts` | Privacy Policy 1.1 | PARTIAL, see W1 | Version 1.1 draft with `approved: false`; D-45 changes are not applied yet |
+| `web/src/modules/public/legalPrivacy.ts`, `legalPages.ts` | Privacy Policy 1.1 | VERIFIED (W1 resolved) | Version 1.1, approved, last updated 2026-11-25, with the stray photo sentence (quick 261125-w4m, be04e909, 321898a4) |
 
 ### Key Link Verification
 
@@ -243,7 +243,7 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 
 | # | Finding | Why a warning |
 |---|---|---|
-| W1 | **Ruling D-45 is not applied in the code.** The owner approved Privacy Policy 1.1 with option A on 2026-11-25. `web/src/modules/public/legalPages.ts` still has version 1.1 with `approved: false`, `legalPrivacy.ts` has no stray-photo sentence, and the DRAFT-pinning tests still pin the draft. `DECISIONS.md` P13-BL-27 lists it as "Still to do". | No success criterion needs the page approved, and the notice and link (INQ-08) work. But the owner's ruling is open code work, and until it lands the live Privacy Policy stays DRAFT, noindex and out of the sitemap while the form links to it. It should be done (a small plan or quick task) before `/gsd-ship 13`. I did not count it as a failed truth because it is not a roadmap criterion or a plan must-have |
+| W1 | **Resolved** (quick 261125-w4m, be04e909 and 321898a4, 2026-11-25): the stray photo sentence is in and Privacy Policy 1.1 is approved, so it shows no DRAFT notice, has no noindex and is in sitemap.xml. Was: **Ruling D-45 is not applied in the code.** The owner approved Privacy Policy 1.1 with option A on 2026-11-25. `web/src/modules/public/legalPages.ts` still has version 1.1 with `approved: false`, `legalPrivacy.ts` has no stray-photo sentence, and the DRAFT-pinning tests still pin the draft. `DECISIONS.md` P13-BL-27 lists it as "Still to do". | No success criterion needs the page approved, and the notice and link (INQ-08) work. But the owner's ruling is open code work, and until it lands the live Privacy Policy stays DRAFT, noindex and out of the sitemap while the form links to it. It should be done (a small plan or quick task) before `/gsd-ship 13`. I did not count it as a failed truth because it is not a roadmap criterion or a plan must-have |
 | W2 | Lighthouse performance 0.92 to 0.94 versus the 0.95 target | Owner accepted it as report-only under D-29 (ruling D-46). Not a defect |
 | W3 | `@layouts-public` parity has 14 failed rows from the Phase 12 footer Legal row | Not caused by Phase 13; parked in STATE.md (12-13) |
 | W4 | Recurring LocalDB connection flakes in the full .NET suite and slow-test timeouts in some web files under load | Each passed alone. Recorded in `deferred-items.md` with a follow-up. The 2026-11-25 fix pass raised the async timeout to 5 s and the full runs were green. Not a Phase 13 behavior defect |
@@ -267,7 +267,7 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 
 ### Gaps Summary
 
-No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `human_needed` because the two live-site checks (UAT 22 and 23) wait on the deploy. Separately, the orchestrator should schedule the D-45 code work (W1) so the Privacy Policy matches the owner's approval before shipping.
+No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `human_needed` because the two live-site checks (UAT 22 and 23) wait on the deploy. The D-45 code work (W1) is done in quick 261125-w4m (be04e909, 321898a4).
 
 ---
 
