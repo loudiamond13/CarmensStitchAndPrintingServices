@@ -127,6 +127,17 @@ describe('Sidebar markup (App. D.3)', () => {
     expect(ADMIN_NAV.map((item) => item.id)).toEqual(['dashboard', 'orders', 'expenses', 'users', 'profile']);
   });
 
+  it('keeps every item 44px tall in a short scrolling column, so the list scrolls instead of squeezing (A11Y-01 target size)', () => {
+    render(inRouter(<Sidebar role={MANAGER} withQuoteRequests withMoney withAuditLog />));
+
+    for (const collapsed of [false, true]) {
+      expect(tokens(navItemClasses({ collapsed }))).toContain('shrink-0');
+    }
+    for (const item of navLinks()) {
+      expect(item.classList.contains('shrink-0')).toBe(true);
+    }
+  });
+
   it('leaves out the manager-only Users section for an admin (the default role)', () => {
     const { rerender } = render(inRouter(<Sidebar role={ADMIN} />));
     expect(navLinks().map((item) => item.textContent)).toEqual([
