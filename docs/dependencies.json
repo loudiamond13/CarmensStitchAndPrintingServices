@@ -76,6 +76,11 @@
       "date": "2026-11-18",
       "by": "owner",
       "scope": "D-59 (Phase 12.1): web-vitals 6.2.3 removed. Uninstalled by plan 12.1-01. No package added."
+    },
+    {
+      "date": "2026-11-26",
+      "by": "owner",
+      "scope": "GitHub Actions updates from Dependabot PR #30, approved after a check of each exact version (age, advisories, open bugs, license, tag match). All MIT, all past the 14-day cool-down, no advisories, each commit is the one its release tag points to: actions/setup-node v7.1.0 (949feb2413d6458794dcd2491c4babbbce0c15c1, published 2026-10-08), actions/setup-dotnet v6.1.0 (0f4a354dd5547a28c70b7853dbd95d5b67886e73, 2026-11-03), actions/upload-artifact v7.0.2 (cf430e030ddbb5b0abf93d22962f4752f3646cd9, 2026-10-07), github/codeql-action init and analyze v4.39.3 (33d7b85da1a04171e211befe2c739303b9a4c066, 2026-11-04; bundles CodeQL 2.27.4), zizmorcore/zizmor-action v0.8.1 (45d7276c9ca790aabd705e31ca99c6185c3e76dd, 2026-11-03; the workflow still pins zizmor 1.30.1). Open bugs on these versions do not apply: setup-node #1662 needs the mirror input, which no workflow uses, and codeql-action #4307 only leaves an old diagnostic in a report. codeql-action v4.39.4 and v4.39.5 only update the CodeQL bundle and are inside the cool-down."
     }
   ],
   "packages": [

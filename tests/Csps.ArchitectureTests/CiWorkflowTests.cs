@@ -16,19 +16,19 @@ public sealed partial class CiWorkflowTests
     // The one secret reference allowed outside deploy.yml, as the exact env line (owner rulings 01 D-10 and 09 D-21, 2026-10-31).
     private const string MaintenanceKeyLine = "MAINTENANCE_KEY: ${{ secrets.MAINTENANCE_KEY }}";
 
-    // Owner-approved actions (plan 03-01 Task 1, 2026-10-15): "owner/repo@commit" to its version comment.
+    // Owner-approved actions (plan 03-01 Task 1, 2026-10-15; PR #30 updates 2026-11-26): "owner/repo@commit" to its version comment.
     private static readonly Dictionary<string, string> ApprovedActions = new(StringComparer.Ordinal)
     {
         ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"] = "v7.0.1",
-        ["actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68"] = "v6.0.0",
-        ["actions/setup-node@820762786026740c76f36085b0efc47a31fe5020"] = "v7.0.0",
+        ["actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73"] = "v6.1.0",
+        ["actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"] = "v7.1.0",
         ["actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9"] = "v6.1.0",
-        ["actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"] = "v7.0.1",
-        ["zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482"] = "v0.6.4",
+        ["actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9"] = "v7.0.2",
+        ["zizmorcore/zizmor-action@45d7276c9ca790aabd705e31ca99c6185c3e76dd"] = "v0.8.1",
 
         // Owner-approved 2026-10-16 (quick task 261016-pub): CodeQL (init and analyze only) and dependency review.
-        ["github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"] = "v4.38.2",
-        ["github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2"] = "v4.38.2",
+        ["github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066"] = "v4.39.3",
+        ["github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066"] = "v4.39.3",
         ["actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294"] = "v5.0.0",
     };
 
@@ -116,17 +116,18 @@ public sealed partial class CiWorkflowTests
         IsApprovedPin("evil/action@0123456789abcdef0123456789abcdef01234567 # v1.0.0").ShouldBeFalse();
         IsApprovedPin("docker://alpine:3.20").ShouldBeFalse();
 
-        IsApprovedPin("github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeTrue();
-        IsApprovedPin("github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeTrue();
+        IsApprovedPin("github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3").ShouldBeTrue();
+        IsApprovedPin("github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3").ShouldBeTrue();
         IsApprovedPin("actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0").ShouldBeTrue();
 
-        IsApprovedPin("github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.1").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.2").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeFalse();
         IsApprovedPin("github/codeql-action/init@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2").ShouldBeFalse();
         IsApprovedPin("github/codeql-action/init@v4").ShouldBeFalse();
-        IsApprovedPin("github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeFalse();
-        IsApprovedPin("github/codeql-action/autobuild@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3").ShouldBeFalse();
+        IsApprovedPin("github/codeql-action/autobuild@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3").ShouldBeFalse();
         IsApprovedPin("actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.1").ShouldBeFalse();
-        IsApprovedPin("actions/dependency-review-action@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v5.0.0").ShouldBeFalse();
+        IsApprovedPin("actions/dependency-review-action@33d7b85da1a04171e211befe2c739303b9a4c066 # v5.0.0").ShouldBeFalse();
     }
 
     [Fact]
