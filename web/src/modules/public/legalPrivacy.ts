@@ -155,6 +155,12 @@ export const PRIVACY_TEXT: LegalText = {
             },
           ],
         },
+        {
+          kind: 'p',
+          parts: [
+            'Rarely, a photo that finishes uploading at the moment its request is marked as spam or deleted, or its order is deleted, can stay in storage for up to 3 days before it is removed.',
+          ],
+        },
       ],
     },
     {

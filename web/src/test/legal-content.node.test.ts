@@ -208,6 +208,9 @@ function blockText(block: LegalBlock): string[] {
   }
 }
 
+const STRAY_PHOTO_SENTENCE =
+  'Rarely, a photo that finishes uploading at the moment its request is marked as spam or deleted, or its order is deleted, can stay in storage for up to 3 days before it is removed.';
+
 describe('the Privacy Policy covers quote requests (D-28, D-22, D-04, D-34, D-27)', () => {
   const section = (id: string) => {
     const found = PRIVACY_TEXT.sections.find((candidate) => candidate.id === id);
@@ -230,6 +233,12 @@ describe('the Privacy Policy covers quote requests (D-28, D-22, D-04, D-34, D-27
         ['Photos sent with a request we mark as spam', 'Deleted within a day.'],
       ]),
     );
+  });
+
+  it('ends How long we keep it with the rare stray photo sentence, word for word (D-45)', () => {
+    const blocks = section('how-long-we-keep-it').blocks;
+    expect(blocks.at(-1)).toEqual({ kind: 'p', parts: [STRAY_PHOTO_SENTENCE] });
+    expect(all.filter((line) => line === STRAY_PHOTO_SENTENCE)).toHaveLength(1);
   });
 
   it('words every cleanup row for the daily cleanup and never says "monthly cleanup" (D-34)', () => {
