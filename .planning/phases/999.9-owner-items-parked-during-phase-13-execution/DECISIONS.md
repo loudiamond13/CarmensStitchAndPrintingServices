@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:59:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:55:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -446,6 +446,27 @@ Quick task 261125-w4m applied D-45 on 2026-11-25 (commits be04e909, 321898a4, 36
 - **B:** leave 13-CONTEXT.md as written. P13-BL-27 and 13-VERIFICATION.md W1 already record that it is done.
 
 Also open from before you left: **P13-BL-35** (count the stuck photo backlog before the first live clean-up run).
+
+## P13-BL-41 · The ship gate waits on live-site tests 22 and 23, which can only run after the merge
+
+**Status:** open · **Blocks:** `/gsd-ship 13` (opening the pull request). Nothing was decided for you.
+
+You asked to ship Phase 13 on 2026-11-25. The ship step only lets a phase through when its verification reads `passed`. Phase 13 reads `human_needed` because UAT tests 22 (the Quote alerts test email on the live site) and 23 (the first Gallery photo on a phone) are live-site checks. A deploy needs a CI-passed `main` build, so those two tests cannot pass before the merge. Everything else is green: UAT 97 of 100, security 77 of 77 closed, validation has no gaps, and the review has 0 open findings.
+
+What I did instead: pushed `gsd/phase-13-quote-inquiries` to GitHub (it had never been pushed) and started CI on it by hand, so the database and end-to-end tests run. I did not open the pull request.
+
+- **A (recommended):** move tests 22 and 23 to an after-deploy checklist, as you did for Phases 11 and 12 (D-133, D-49). Record it as a ruling, mark the two rows deferred, and verification can pass. Then `/gsd-ship 13` opens the pull request, and you run the two checks after the deploy.
+- **B:** open the pull request now with verification still `human_needed`, as a one-time exception to the ship gate.
+- **C:** wait. Not workable on its own, because the deploy needs the merge first.
+
+## P13-BL-42 · Dependabot alert: minimatch below 11.0.1 (moderate, dev tools only)
+
+**Status:** open · **Blocks:** nothing. Not changed. Found 2026-11-25 when the branch was pushed (alert 6, open on `main` since 2026-11-06).
+
+`web/package-lock.json` has minimatch 10.2.6. Only dev and lint tools use it (eslint, eslint-plugin-jsx-a11y-x, license-checker); nothing in the shipped site does, and `npm audit --omit=dev` finds 0 problems. The fix is minimatch 11.0.1 or later, through updated parent packages.
+
+- **A (recommended):** a small quick task: check the newer eslint and plugin versions (the advisories, open bugs, the license, and that each is at least 14 days old), show you the findings, and bump them only after your yes.
+- **B:** dismiss the alert as dev-only, with that reason recorded.
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 

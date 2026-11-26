@@ -1,8 +1,8 @@
 ---
 phase: 13-quote-inquiries
 created: "2026-11-24T03:53:00-06:00"
-updated: "2026-11-25T23:44:16-06:00"
-verified: 2026-11-25T22:58:00Z
+updated: "2026-11-25T23:59:00-06:00"
+verified: 2026-11-26T05:58:00Z
 status: human_needed
 score: 5/5 must-haves verified
 covered_files:
@@ -70,6 +70,7 @@ covered_files:
   - "src/Csps.Application/QuoteRequests/CreateQuoteRequestHandler.cs"
   - "src/Csps.Application/QuoteRequests/GetOrderPrefillHandler.cs"
   - "src/Csps.Application/QuoteRequests/UploadQuotePhotoHandler.cs"
+  - "src/Csps.Domain/Content/LegalPages.cs"
   - "src/Csps.Domain/QuoteRequests/QuoteRequest.cs"
   - "src/Csps.Domain/QuoteRequests/QuoteRequestRetention.cs"
   - "src/Csps.Infrastructure/Maintenance/QuoteRequestRetentionJob.cs"
@@ -77,6 +78,7 @@ covered_files:
   - "src/Csps.Server/Controllers/PublicQuoteRequestsController.cs"
   - "src/Csps.Server/Controllers/QuoteRequestsController.cs"
   - "src/Csps.Server/Controllers/SiteSettingsController.cs"
+  - "tests/fixtures/legal-pages.json"
   - "web/e2e/quote-form.spec.ts"
   - "web/e2e/quote-nav.spec.ts"
   - "web/e2e/quote-request.spec.ts"
@@ -97,13 +99,14 @@ covered_files:
   - "web/src/modules/public/copy.ts"
   - "web/src/modules/public/legalPages.ts"
   - "web/src/modules/public/legalPrivacy.ts"
-covered_digest: "v4:sha256:b616a92295fd8cf677bd53f38b374235cde243ad99884c1354db2207415cf8d6"
+covered_digest: "v4:sha256:cb1d3aea5c66aacb36866274db42f2f1e16ad639e15e46291f9a1d979dca7137"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: human_needed
   previous_score: 5/5
   gaps_closed:
+    - "W1 (ruling D-45): the stray photo sentence is in the Privacy Policy and Privacy Policy 1.1 is approved (quick 261125-w4m, be04e909, 321898a4). Confirmed in the code on 2026-11-25"
     - "G-13-11 (UAT test 11 and review G2A-CR-01): queued quote and content photos were never removed because the removal job accepted only orders/. Fixed by plan 13-27; re-tested live on CSPS_Dev (UAT test 99)"
   gaps_remaining: []
   regressions: []
@@ -118,12 +121,12 @@ human_verification:
 
 # Phase 13: Quote Inquiries Verification Report
 
-*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-25T16:58:00-06:00*
+*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-25T23:59:00-06:00*
 
 **Phase Goal:** Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
-**Verified:** 2026-11-25T22:58:00Z (branch `gsd/phase-13-quote-inquiries`, HEAD `82c96d00`)
+**Verified:** 2026-11-26T05:58:00Z (branch `gsd/phase-13-quote-inquiries`, HEAD `bb7886de`)
 **Status:** human_needed
-**Re-verification:** Yes. The previous report (2026-11-24, HEAD `d6403f6c`) was stale: 12 implementation files and many tests changed after it. This run re-read every changed source file, re-ran targeted tests, and re-checked the carried-forward truths for regression.
+**Re-verification:** Yes. The previous run (2026-11-25, HEAD `82c96d00`) went stale when quick task 261125-w4m applied ruling D-45 (commits be04e909, 321898a4, 366b4dcb). This run confirmed warning W1 against the code, re-read the 11 changed files, re-ran targeted tests, and re-checked the five truths for regression. The only source files that changed since the last run are the legal page facts and the Privacy Policy text; nothing else under `src`, `web/src`, `web/e2e` or `.github` moved.
 **Mode:** MVP phase (ROADMAP `Mode: mvp`). The goal is an outcome sentence, not an "As a ..., I want to ..., so that ..." story, so no User Flow Coverage table is built (same as Phases 1 to 12.1). The five roadmap success criteria are verified instead.
 
 ## Verdict in plain words
@@ -132,7 +135,7 @@ The phase goal is achieved in the code. All five roadmap success criteria are ba
 
 The status is `human_needed`, not `passed`, because two live-site checks cannot be done before the deploy: the real Quote alerts test email and the first public Gallery photo on a phone (UAT tests 22 and 23, both blocked on the release build). No code gap was found.
 
-The owner-ruled code work in Warning W1 (ruling D-45) was applied after this report, in quick 261125-w4m (be04e909, 321898a4).
+Warning W1 from the earlier report (ruling D-45, Privacy Policy 1.1) is now confirmed closed in the code, in quick 261125-w4m (be04e909, 321898a4). I checked the wording, the three copies of the page facts, and the DRAFT, noindex and sitemap behavior myself.
 
 ## Goal Achievement
 
@@ -169,7 +172,7 @@ None. No gap matched a later phase.
 | `src/Csps.Server/Controllers/PublicQuoteRequestsController.cs`, `QuoteRequestsController.cs`, `SiteSettingsController.cs` | Public, staff and Quote alerts endpoints | VERIFIED | Explicit policies; error codes `site-settings.no-quote-alerts-address` and `...-undeliverable` exist in `SiteContentErrors.cs` |
 | `web/src/modules/public/components/QuoteForm*.tsx`, `QuotePhotoPicker.tsx`, `QuotePhotoSlot.tsx` | Public form and picker | VERIFIED | Wired from `ContactPage` through `QuoteFormSlot`; review fixes G5-WR-01 to 03 and G6-WR-01 in the code |
 | `web/src/modules/admin/pages/QuoteRequest(s)Page.tsx`, `QuoteAlertsCard.tsx`, `siteContentCopy.ts` | Staff inbox, detail, alerts card | VERIFIED | `QuoteAlertsCard` maps 422 and 409 to the D-48 words; `text-14` and `text-16` tokens exist (`app.css:53`) |
-| `web/src/modules/public/legalPrivacy.ts`, `legalPages.ts` | Privacy Policy 1.1 | VERIFIED (W1 resolved) | Version 1.1, approved, last updated 2026-11-25, with the stray photo sentence (quick 261125-w4m, be04e909, 321898a4) |
+| `web/src/modules/public/legalPrivacy.ts`, `legalPages.ts`, `src/Csps.Domain/Content/LegalPages.cs`, `tests/fixtures/legal-pages.json` | Privacy Policy 1.1 | VERIFIED (W1 resolved) | All three copies of the facts read `1.1`, `2026-11-25`, approved true. `legalPrivacy.ts` ends "How long we keep it" with the exact sentence from `13-25-SUMMARY.md` option A. `LegalPage.tsx` shows the DRAFT notice only when `approved` is false, and `LegalPageCatalog.IsDraft` reads `Approved: false`, so noindex and the sitemap follow the flag |
 
 ### Key Link Verification
 
@@ -196,7 +199,7 @@ None. No gap matched a later phase.
 | Contact form product list | product choices | Public product lines endpoint | Yes | FLOWING |
 | Photo removal queue | rows to remove | `ImageDeletions` claimed by `ImageRemovalJob` | Yes (UAT 99: 8 removed) | FLOWING |
 
-### Behavioral Spot-Checks (run by me, 2026-11-25)
+### Behavioral Spot-Checks (run by me, 2026-11-25 and 2026-11-26)
 
 | Behavior | Command | Result | Status |
 |---|---|---|---|
@@ -207,9 +210,12 @@ None. No gap matched a later phase.
 | Create handler: honeypot, ticket age, sender limit, save | same, `*CreateQuoteRequestHandlerTests` | 39 of 39 | PASS |
 | All quote request Application tests | same, `*QuoteRequest*` | 275 of 275 | PASS |
 | All quote request Domain tests | `--project tests/Csps.Domain.UnitTests --filter-class "*QuoteRequest*"` | 104 of 104 | PASS |
-| Web: form, photos, picker, schemas, alerts card, inbox page, legal pages, async timeout, recipe | `npx vitest run` over 9 files | 340 of 340 | PASS |
+| Web: form, photos, picker, schemas, alerts card, inbox page, legal pages, async timeout, recipe | `npx vitest run` over 9 files (earlier run, 2026-11-25) | 340 of 340 | PASS (earlier run) |
+| Privacy Policy facts equal in the web copy and fixture, sentence present, no DRAFT notice, no long dash (W1) | `npx vitest run` over `legal-pages.node`, `legal-content.node`, `no-long-dash.node`, `LegalPages`, `PrivacyPolicyPage`, `QuoteForm`, `QuoteAlertsCard` | 151 of 151 (7 files) | PASS |
+| Inbox page, photo picker, quote schemas | `npx vitest run` over `QuoteRequestsPage`, `QuotePhotoPicker`, `quoteSchemas` | 233 of 233 (3 files) | PASS |
+| Legal page facts in the Domain copy | `dotnet test --project tests/Csps.Domain.UnitTests/Csps.Domain.UnitTests.csproj --filter-class "*LegalPagesTests"` | 12 of 12 | PASS |
 
-**Not run by me today:** the LocalDB integration tests (`QuoteConversionTests`, `QuoteRequestRetentionJobTests`, `QuoteBotGuardTests`, `QuoteAlertCapTests`, `ImageCleanupRunTests`), Playwright, Lighthouse and the full suites. The preflight showed ports 5180, 5115 and 7028 held by this project's own dev servers (not another project's), and `(localdb)\MSSQLLocalDB` was Stopped and failed to start from this shell ("SQL Server process failed to start"). I did not force it. For those I rely on: my own runs on 2026-11-24 for source that has not changed since (`CreateQuoteRequestHandler`, `QuoteRequestRetentionJob`, `CreateOrderHandler` are not in the diff); the orchestrator's run at HEAD `7e58f159` (build 0 warnings; .NET Domain 2237, Application 3517, Architecture 290, Server integration 3235, Infrastructure 1341, HostProbe 9, LegacyFitCheck 276, all 0 failed; web lint and typecheck clean; web 12,214 of 12,214 with coverage thresholds met; the later G6-WR-02 fix tested in its own files, 444 of 444); and the hands-on UAT runs on CSPS_Dev (tests 1 to 21, 99, 100). These are reported or earlier observed, not re-observed today.
+**Not run here, LocalDB unreachable:** the DB-backed tests (`QuoteConversionTests`, `QuoteRequestRetentionJobTests`, `QuoteBotGuardTests`, `QuoteAlertCapTests`, `ImageCleanupRunTests`, and the Server integration tests `SeoEndpointTests` and `ShellHeadTests`, which the quick task changed for D-45). Also not run: Playwright, Lighthouse and the full suites. The preflight showed ports 5180, 5115 and 7028 held by this project's own dev servers, no TheBETSLLC test processes, and the LocalDB instance could not be reached from this shell ("SQL Server process failed to start"). I did not force it. The quick task reports `*SeoEndpointTests` 20 of 20 green and a clean `-warnaserror` build (which compiles `ShellHeadTests`); I did not re-observe that, so the noindex and sitemap behavior of the approved page is reported, not re-observed here. What I did read: `LegalPageCatalog.IsDraft` returns true only for `Approved: false`, and the approved flag is true. For the rest I rely on: my own runs on 2026-11-24 for source not in the diff (`CreateQuoteRequestHandler`, `QuoteRequestRetentionJob`, `CreateOrderHandler`); the orchestrator's earlier full run at HEAD `7e58f159` (build 0 warnings; .NET Domain 2237, Application 3517, Architecture 290, Server integration 3235, Infrastructure 1341, HostProbe 9, LegacyFitCheck 276, all 0 failed; web lint and typecheck clean; web 12,214 of 12,214 with coverage thresholds met); and the hands-on UAT runs on CSPS_Dev (tests 1 to 21, 99, 100). These are reported or earlier observed, not re-observed today. The quick task's changes to this run's inputs are small: 11 files, 51 lines added.
 
 ### Probe Execution
 
@@ -238,12 +244,13 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 |---|---|---|---|---|
 | All added lines in `src`, `web/src`, `web/e2e`, `tests`, `.github`, `docs` since `d6403f6c` | n/a | `TBD`, `FIXME`, `XXX`, `TODO`, `HACK` | none | The diff scan returned no match, so the debt-marker gate passes |
 | `src` diff since `d6403f6c` | n/a | Inline SQL (`FromSql`, `ExecuteSql`, `SqlQuery`) or `CREATE TRIGGER` | none | No match (OR-7 and the inline SQL rule hold) |
+| Added lines in `src`, `web/src` and `tests` since `82c96d00` (the quick task diff) | n/a | Debt markers, inline SQL, `CREATE TRIGGER` | none | No match. The `no-long-dash` web test passes |
 
 ### Warnings (not blockers)
 
 | # | Finding | Why a warning |
 |---|---|---|
-| W1 | **Resolved** (quick 261125-w4m, be04e909 and 321898a4, 2026-11-25): the stray photo sentence is in and Privacy Policy 1.1 is approved, so it shows no DRAFT notice, has no noindex and is in sitemap.xml. Was: **Ruling D-45 is not applied in the code.** The owner approved Privacy Policy 1.1 with option A on 2026-11-25. `web/src/modules/public/legalPages.ts` still has version 1.1 with `approved: false`, `legalPrivacy.ts` has no stray-photo sentence, and the DRAFT-pinning tests still pin the draft. `DECISIONS.md` P13-BL-27 lists it as "Still to do". | No success criterion needs the page approved, and the notice and link (INQ-08) work. But the owner's ruling is open code work, and until it lands the live Privacy Policy stays DRAFT, noindex and out of the sitemap while the form links to it. It should be done (a small plan or quick task) before `/gsd-ship 13`. I did not count it as a failed truth because it is not a roadmap criterion or a plan must-have |
+| W1 | **Resolved and confirmed against the code.** Ruling D-45 (Privacy Policy 1.1, option A) was applied in quick 261125-w4m. I checked: the sentence in `legalPrivacy.ts` is word for word the option A wording in `13-25-SUMMARY.md`; `legalPages.ts`, `LegalPages.cs` and `tests/fixtures/legal-pages.json` all say 1.1, 2026-11-25, approved true; the DRAFT notice shows only when `approved` is false; the draft-pinning tests now pin the approved state and pass (web 151 of 151 over 7 files, Domain `LegalPagesTests` 12 of 12). The Server-side noindex and sitemap tests are DB-backed and were not re-run here | Nothing is left to do for the ruling. One small leftover: line 81 of `13-CONTEXT.md` (D-45) still says "that code work is still to do". That is owner item P13-BL-40 in the parked list (option A adds a one-line "Applied" note). It is a planning note, not code |
 | W2 | Lighthouse performance 0.92 to 0.94 versus the 0.95 target | Owner accepted it as report-only under D-29 (ruling D-46). Not a defect |
 | W3 | `@layouts-public` parity has 14 failed rows from the Phase 12 footer Legal row | Not caused by Phase 13; parked in STATE.md (12-13) |
 | W4 | Recurring LocalDB connection flakes in the full .NET suite and slow-test timeouts in some web files under load | Each passed alone. Recorded in `deferred-items.md` with a follow-up. The 2026-11-25 fix pass raised the async timeout to 5 s and the full runs were green. Not a Phase 13 behavior defect |
@@ -265,11 +272,18 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 **Expected:** The photo shows, loads from `res.cloudinary.com`, and no CSP error appears.
 **Why human:** Real image host and a real phone. Owner only, no code. Blocked until the release build.
 
+### Evidence from the other phase reports (read, not re-run)
+
+- `13-UAT.md`: 97 of 100 pass. Gap G-13-11 (test 11) is resolved by plan 13-27 and re-tested live (test 99). Tests 22 and 23 are blocked (`release-build`); they are human items 1 and 2.
+- `13-SECURITY.md`: threats open 0 (77 of 77 closed, re-checked after the quick task).
+- `13-VALIDATION.md`: nyquist_compliant true, re-validated after the quick task.
+- `13-REVIEW-DISPOSITION.md`: 61 findings, open 0.
+
 ### Gaps Summary
 
-No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `human_needed` because the two live-site checks (UAT 22 and 23) wait on the deploy. The D-45 code work (W1) is done in quick 261125-w4m (be04e909, 321898a4).
+No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `human_needed` because the two live-site checks (UAT 22 and 23) wait on the deploy. The D-45 code work (W1) is done and confirmed against the code (quick 261125-w4m, be04e909, 321898a4). Tests 22 and 23 are live-site checks that need the deployed site, and deploys only run from a CI-passed `main` build, so they cannot pass before the merge.
 
 ---
 
-_Verified: 2026-11-25T22:58:00Z_
+_Verified: 2026-11-26T05:58:00Z_
 _Verifier: Claude (gsd-verifier)_
