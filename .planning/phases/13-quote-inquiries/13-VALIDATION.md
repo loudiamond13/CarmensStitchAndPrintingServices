@@ -6,7 +6,7 @@ status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-21T20:34:24-06:00"
-updated: "2026-11-24T07:28:18-06:00"
+updated: "2026-11-25T18:58:00-06:00"
 ---
 
 # Phase 13: Validation Strategy
@@ -38,7 +38,7 @@ updated: "2026-11-24T07:28:18-06:00"
 
 ## Per-Task Verification Map
 
-Task IDs are filled in by the planner and executor. The requirement map below is the contract each task must hit. Statuses audited 2026-11-24 by `/gsd-validate-phase 13` (targeted runs: Domain 116/116, Application 316/316, web 1407/1407 in 70 files, Server integration 740/740 in 17 classes, Infrastructure integration 37/37). Re-audited the same day after the UI review fixes: only `quoteRequests.recipe.ts` changed, and its new `quoteRequests.recipe.node.test.ts` plus `QuoteRequestsPage.test.tsx` and `no-long-dash.node.test.ts` pass, 44/44 in 3 files.
+Task IDs are filled in by the planner and executor. The requirement map below is the contract each task must hit. Statuses audited 2026-11-24 by `/gsd-validate-phase 13` (targeted runs: Domain 116/116, Application 316/316, web 1407/1407 in 70 files, Server integration 740/740 in 17 classes, Infrastructure integration 37/37). Re-audited the same day after the UI review fixes: only `quoteRequests.recipe.ts` changed, and its new `quoteRequests.recipe.node.test.ts` plus `QuoteRequestsPage.test.tsx` and `no-long-dash.node.test.ts` pass, 44/44 in 3 files. Re-audited 2026-11-25 after gap plan 13-27 and the 21 review fixes: every changed behavior has a test; run today: Application unit 3517/3517, web 245/245 in the 8 changed files; integration and e2e results come from the fix runs recorded earlier the same day (13-27-SUMMARY.md, 13-REVIEW-FIX-BACKEND.md, 13-REVIEW-FIX-E2E.md), because LocalDB was not reachable from this session.
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists | Status |
 |-------------|----------|-----------|-------------------|-------------|--------|
@@ -65,6 +65,14 @@ Task IDs are filled in by the planner and executor. The requirement map below is
 | INQ-07 | Unconverted older than 6 months purged with photos queued; converted kept | integration | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*QuoteRequestRetentionJobTests"` | ✅ | ✅ green |
 | INQ-07 | Stray sweep covers `{root}/quotes/`; inventory knows quote photo ids | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*StraySweepJobTests"` | ✅ | ✅ green |
 | INQ-08 | Notice text and link; Privacy 1.1 DRAFT in both `legalPages.ts` and `LegalPages.cs` | component + node | `npm --prefix web run test -- --run src/test/legal-pages.node.test.ts` | ✅ | ✅ green |
+| INQ-05, INQ-07 / G-13-11 | Removal job accepts only the three own folders (`orders/`, `content/`, `quotes/`), refuses lookalike roots and folders; sweep and job share one folder list (13-27) | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*ImageRemovalJobTests"` and `"*PublicIdsTests"`, `"*StraySweepJobTests"` | ✅ | ✅ green (2026-11-25) |
+| INQ-05 / G-13-11 | Spam on a request with photos, then a maintenance run, removes the photos; content photos too (13-27) | integration | `dotnet test --project tests/Csps.Server.IntegrationTests --filter-class "*ImageCleanupRunTests"` | ✅ | ✅ green (10/10, 13-27-SUMMARY.md) |
+| INQ-02 / G1-WR-01 | An upload cut off mid-way queues its photo for removal and always finishes the slot write | unit | `dotnet test --project tests/Csps.Application.UnitTests --filter-class "*UploadQuotePhotoHandlerTests"` | ✅ | ✅ green (2026-11-25) |
+| INQ-03 / G3-WR-02, G4 | Bot checks run before form validation; forged young ticket refused by signature; no-puzzle create route; parallel posts released together | unit + integration | `*CreateQuoteRequestHandlerTests`; `*QuoteBotGuardTests`, `*CreateQuoteRequestTests`, `*QuoteAlertCapTests`, `*QuoteSenderLimitTests`, `*QuoteRateLimitTests` | ✅ | ✅ green (45/45, 13-REVIEW-FIX-BACKEND.md) |
+| INQ-07 / G3-WR-01 | Retention job rolls back when a request is converted mid-batch | integration | `dotnet test --project tests/Csps.Infrastructure.IntegrationTests --filter-class "*QuoteRequestRetentionJobTests"` | ✅ | ✅ green (15/15, 13-REVIEW-FIX-BACKEND.md) |
+| INQ-04 / D-48 | Send Test Email says why it failed: address can't receive mail (422), no saved address (409), too many (429), other | component | `npm --prefix web run test -- --run src/modules/admin/components/QuoteAlertsCard.test.tsx` | ✅ | ✅ green (2026-11-25) |
+| INQ-01, INQ-02 / G5 | Failed-send box hidden while a retry runs; previews keep drawing when a photo is removed; focus moves into the picker after the first pick | component | `npm --prefix web run test -- --run src/modules/public/components/QuoteForm.test.tsx src/modules/public/components/QuoteFormPhotos.test.tsx src/modules/public/components/QuotePhotoPicker.test.tsx` | ✅ | ✅ green (2026-11-25) |
+| INQ-05 / G6-WR-01 | Inbox shows no empty state while a kept page waits for the next view | component | `npm --prefix web run test -- --run src/modules/admin/pages/QuoteRequestsPage.test.tsx` | ✅ | ✅ green (2026-11-25) |
 | PERF-01 | Contact within budget (per the OQ-2 ruling) | build gate | `npm --prefix web run build:budget` | ✅ | ✅ green (post-merge gate 2026-11-24, contact 148.42 of 150 KB) |
 | A11y, CSP | Contact, inbox, request page: zero axe, no CSP errors, 320 to 1920 px | e2e | `npm --prefix web run e2e -- --grep "@quote"` (after preflight) | ✅ | ✅ green (13-24 sweep: 150 of 150 across 5 projects, 2026-11-24) |
 
@@ -106,7 +114,7 @@ No framework install needed.
 - [x] Feedback latency < 60s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** validated 2026-11-24 (every automated row green; the manual-only rows wait on the owner)
+**Approval:** validated 2026-11-24, re-validated 2026-11-25 after 13-27 and the review fixes (every automated row green; the manual-only rows wait on the owner)
 
 ## Validation Audit 2026-11-24
 
