@@ -1,5 +1,5 @@
 // SPEC-GAP: LEGAL-01, D-01 to D-06, D-11, D-12, D-36. The Privacy Policy at /privacy: who runs the site (from the site settings) and the
-// retention list, character for character from the owner's rulings (the quote request rows are a draft, D-28).
+// retention list, character for character from the owner's rulings (the quote request rows are approved, D-45).
 import { render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
@@ -50,7 +50,7 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01)', { timeout: 20_000 }, () => 
     expect(scope.getByText(/Data Privacy Act of 2012/)).toBeInTheDocument();
   });
 
-  it('lists the six retention lines in order, the quote request rows being the draft of D-28', async () => {
+  it('lists the six retention lines in order, the quote request rows being approved (D-45)', async () => {
     await renderPrivacy();
     const section = await sectionOf('How long we keep it');
     const terms = [...section.querySelectorAll('dt')].map((node) => node.textContent);

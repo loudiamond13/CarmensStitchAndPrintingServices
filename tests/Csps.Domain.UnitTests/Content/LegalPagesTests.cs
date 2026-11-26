@@ -74,18 +74,18 @@ public sealed partial class LegalPagesTests
         Shared.Value.Pages.Where(row => row.Key != "privacy").ShouldAllBe(row => row.Version == "1.0" && row.Approved);
     }
 
-    // D-28: the quote request text makes the Privacy Policy version 1.1, a draft until the owner approves it (plan 13-25).
+    // D-45: the owner approved Privacy Policy 1.1 on 2026-11-25.
     [Fact]
-    public void ThePrivacyPolicyIsVersionOnePointOneAndStillADraft()
+    public void ThePrivacyPolicyIsVersionOnePointOneAndApproved()
     {
         LegalPages.Privacy.Version.ShouldBe("1.1");
-        LegalPages.Privacy.LastUpdated.ShouldBe(new DateOnly(2026, 11, 22));
-        LegalPages.Privacy.Approved.ShouldBeFalse();
+        LegalPages.Privacy.LastUpdated.ShouldBe(new DateOnly(2026, 11, 25));
+        LegalPages.Privacy.Approved.ShouldBeTrue();
 
         var row = Shared.Value.Pages.Single(page => page.Key == "privacy");
         row.Version.ShouldBe("1.1");
-        row.LastUpdated.ShouldBe("2026-11-22");
-        row.Approved.ShouldBeFalse();
+        row.LastUpdated.ShouldBe("2026-11-25");
+        row.Approved.ShouldBeTrue();
     }
 
     [GeneratedRegex(@"^[0-9]+\.[0-9]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
