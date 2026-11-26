@@ -1,9 +1,9 @@
 ---
 phase: 13-quote-inquiries
 created: "2026-11-24T03:53:00-06:00"
-updated: "2026-11-25T23:59:00-06:00"
+updated: "2026-11-26T07:20:00-06:00"
 verified: 2026-11-26T05:58:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 covered_files:
   - ".github/workflows/maintenance.yml"
@@ -110,7 +110,8 @@ re_verification:
     - "G-13-11 (UAT test 11 and review G2A-CR-01): queued quote and content photos were never removed because the removal job accepted only orders/. Fixed by plan 13-27; re-tested live on CSPS_Dev (UAT test 99)"
   gaps_remaining: []
   regressions: []
-human_verification:
+deferred_after_deploy:
+  # Ruling D-50 (owner, 2026-11-26): moved to the after-deploy checklist, not passed.
   - test: "Live Quote alerts test email (UAT test 22, plan 13-26, INQ-04, D-07, D-11): after the Phase 13 deploy, sign in as a Manager on the live site, set the Quote alerts address in Site Content > Business info, press Send Test Email, and check that 'Test: quote alerts work' arrives (spam folder too)"
     expected: "The email arrives at the saved address within a few minutes"
     why_human: "Needs the real mail account, the real inbox and the deployed site. Automated tests prove the alert row is saved with the request and sent through the outbox against fakes, not real delivery. Blocked until the release build and deploy"
@@ -121,11 +122,11 @@ human_verification:
 
 # Phase 13: Quote Inquiries Verification Report
 
-*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-25T23:59:00-06:00*
+*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-26T07:20:00-06:00*
 
 **Phase Goal:** Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
 **Verified:** 2026-11-26T05:58:00Z (branch `gsd/phase-13-quote-inquiries`, HEAD `bb7886de`)
-**Status:** human_needed
+**Status:** passed (ruling D-50: UAT 22 and 23 moved to the after-deploy checklist)
 **Re-verification:** Yes. The previous run (2026-11-25, HEAD `82c96d00`) went stale when quick task 261125-w4m applied ruling D-45 (commits be04e909, 321898a4, 366b4dcb). This run confirmed warning W1 against the code, re-read the 11 changed files, re-ran targeted tests, and re-checked the five truths for regression. The only source files that changed since the last run are the legal page facts and the Privacy Policy text; nothing else under `src`, `web/src`, `web/e2e` or `.github` moved.
 **Mode:** MVP phase (ROADMAP `Mode: mvp`). The goal is an outcome sentence, not an "As a ..., I want to ..., so that ..." story, so no User Flow Coverage table is built (same as Phases 1 to 12.1). The five roadmap success criteria are verified instead.
 
@@ -133,7 +134,7 @@ human_verification:
 
 The phase goal is achieved in the code. All five roadmap success criteria are backed by real, wired code and passing tests. The one gap found by UAT (photos staying in Cloudinary after Spam, G-13-11) is fixed by plan 13-27 and was proven live on CSPS_Dev (UAT test 99: 8 photos removed, no failing line). The 19 Critical and Warning review fixes are in the code and their tests pass.
 
-The status is `human_needed`, not `passed`, because two live-site checks cannot be done before the deploy: the real Quote alerts test email and the first public Gallery photo on a phone (UAT tests 22 and 23, both blocked on the release build). No code gap was found.
+The status is `passed` under ruling D-50 (owner, 2026-11-26). The two live-site checks that cannot be done before the deploy (the real Quote alerts test email and the first public Gallery photo on a phone, UAT tests 22 and 23) moved to the after-deploy checklist. They are not marked passed. No code gap was found.
 
 Warning W1 from the earlier report (ruling D-45, Privacy Policy 1.1) is now confirmed closed in the code, in quick 261125-w4m (be04e909, 321898a4). I checked the wording, the three copies of the page facts, and the DRAFT, noindex and sitemap behavior myself.
 
@@ -258,7 +259,9 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 | W6 | Review fix `G4-WR-02`: the test `TwoCreatesAtOnceAreBothSaved` cannot prove a race | Disclosed in `13-REVIEW-FIX.md`; the lock logic has its own unit tests (`ARaceLostOnce...`) |
 | W7 | The first live maintenance run will remove the whole stuck photo backlog at once (P13-BL-35) | Checked first against the photo rows, so a file in use is never removed. Owner choice, built as the plan |
 
-### Human Verification Required
+### Deferred to after the deploy (ruling D-50)
+
+These two checks moved to the after-deploy checklist in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md` ("Manual checks for the owner"). They are not marked passed.
 
 #### 1. Live Quote alerts test email (UAT test 22, plan 13-26, INQ-04, D-07, D-11)
 
@@ -274,14 +277,14 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 
 ### Evidence from the other phase reports (read, not re-run)
 
-- `13-UAT.md`: 97 of 100 pass. Gap G-13-11 (test 11) is resolved by plan 13-27 and re-tested live (test 99). Tests 22 and 23 are blocked (`release-build`); they are human items 1 and 2.
+- `13-UAT.md`: 97 of 100 pass. Gap G-13-11 (test 11) is resolved by plan 13-27 and re-tested live (test 99). Tests 22 and 23 are deferred to after the deploy (D-50); they are the two items above.
 - `13-SECURITY.md`: threats open 0 (77 of 77 closed, re-checked after the quick task).
 - `13-VALIDATION.md`: nyquist_compliant true, re-validated after the quick task.
 - `13-REVIEW-DISPOSITION.md`: 61 findings, open 0.
 
 ### Gaps Summary
 
-No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `human_needed` because the two live-site checks (UAT 22 and 23) wait on the deploy. The D-45 code work (W1) is done and confirmed against the code (quick 261125-w4m, be04e909, 321898a4). Tests 22 and 23 are live-site checks that need the deployed site, and deploys only run from a CI-passed `main` build, so they cannot pass before the merge.
+No gaps in the five success criteria. The phase goal is met by real, wired, tested code, and the one UAT gap (G-13-11) is closed and proven live. The report is `passed` under ruling D-50: the two live-site checks (UAT 22 and 23) wait on the deploy and are on the after-deploy checklist. The D-45 code work (W1) is done and confirmed against the code (quick 261125-w4m, be04e909, 321898a4). Tests 22 and 23 are live-site checks that need the deployed site, and deploys only run from a CI-passed `main` build, so they cannot pass before the merge.
 
 ---
 
