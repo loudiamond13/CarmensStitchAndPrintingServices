@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:44:16-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:59:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -435,6 +435,17 @@ The maintenance run removes each quote photo, but Cloudinary keeps the folder `q
 - **B (recommended):** leave them. They hold no data and cost nothing.
 
 Also found in test 99: the dev machine had no `Maintenance:Key` in user-secrets, so the dev maintenance call answered 401 until one was set. The runbook could say this for local runs.
+
+## P13-BL-40 · Add a done note to ruling D-45 in 13-CONTEXT.md (quick 261125-w4m)
+
+**Status:** open · **Blocks:** nothing. Not changed.
+
+Quick task 261125-w4m applied D-45 on 2026-11-25 (commits be04e909, 321898a4, 366b4dcb): the stray-photo sentence is in, and the Privacy Policy is approved, so it leaves DRAFT, drops noindex and is back in the sitemap. Line 81 of `.planning/phases/13-quote-inquiries/13-CONTEXT.md` still says the code work is still to do. You were away, so I left it as it is.
+
+- **A (recommended):** add one short note to D-45: "Applied 2026-11-25 by quick 261125-w4m." It keeps later readers from redoing the work.
+- **B:** leave 13-CONTEXT.md as written. P13-BL-27 and 13-VERIFICATION.md W1 already record that it is done.
+
+Also open from before you left: **P13-BL-35** (count the stuck photo backlog before the first live clean-up run).
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
