@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-25T10:05:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-26T00:12:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -78,5 +78,7 @@ Two full `npm run test:coverage` runs on a quiet machine (no other test run, abo
 
 - Run 1: 11 failed of 12,214. OrderFormPage.test.tsx (8: Idempotency-Key retry, four Public website card cases, three Turn into Order prefill cases), OrderItemModal.test.tsx (Saving ignores Esc), OrderRefundModal.test.tsx (customer credit), GalleryPage.test.tsx (focus on tile 30).
 - Run 2: 5 failed of 12,214. OrderFormPage.test.tsx (4: discard dialog while saving, two photo draft cases, description window), OrdersPage.test.tsx (axe).
+
+- Run 3 (2026-11-25, after quick 261125-w4m, `npx vitest run` while the verifier ran its own test runs on the same machine): 3 failed of 12,219. The failing names were cut off from the captured output, so they are not known. A second full run straight after, with nothing else running, passed 12,219 of 12,219. Same load pattern as runs 1 and 2.
 
 Follow-up worth a quick task: the per-test timeout (Vitest default 5 s) now equals the Testing Library wait timeout set by G7A-WR-01, and OrderFormPage.test.tsx is the file that runs out of time under load. A longer `testTimeout` for the jsdom project, or splitting OrderFormPage.test.tsx, would make the full suite steady.
