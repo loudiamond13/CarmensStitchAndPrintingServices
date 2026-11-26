@@ -7,7 +7,7 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-24T04:07:00-06:00"
-updated: "2026-11-25T19:02:00-06:00"
+updated: "2026-11-25T23:55:00-06:00"
 ---
 
 # Phase 13: Security
@@ -134,7 +134,7 @@ Evidence for each row (file:line, test names) is in the auditor's verdict record
 
 ### Warning outside the register (not counted in threats_open)
 
-A photo that finishes uploading at the moment its request is marked Spam, deleted by a Manager, or its order is deleted for good can stay in Cloudinary for about 2 to 3 days until the stray sweep removes it. The Privacy Policy draft, one confirm text and the API doc still say "within a day". This waits on the owner: P13-BL-21 item 3, P13-BL-24 item 2 and the Privacy Policy approval P13-BL-27 (A: add one sentence, recommended; B: lock the request in the upload and the deletes). The policy stays DRAFT until then.
+A photo that finishes uploading at the moment its request is marked Spam, deleted by a Manager, or its order is deleted for good can stay in Cloudinary for about 2 to 3 days until the stray sweep removes it. The owner chose A (D-45, 2026-11-25): the approved Privacy Policy 1.1 now says such a photo can stay in storage for up to 3 days (quick 261125-w4m). One confirm text and the API doc still say "within a day" (P13-BL-21 item 3, P13-BL-24 item 2, settled by the same ruling).
 
 ---
 
@@ -146,6 +146,7 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 | 2026-11-24 (re-check) | 73 | 73 | 0 | orchestrator, L1 short-circuit: only `quoteRequests.recipe.ts` class strings changed since the audit, no new attack surface |
 | 2026-11-25 (13-27) | 77 | 77 | 0 | gsd-security-auditor (ASVS L1, block_on high): gap plan 13-27, T-13-73 to T-13-76 added and closed, T-13-SC re-checked; unit tests 94 of 94; post-merge full suite green (orchestrator, away mode) |
 | 2026-11-25 (review fixes) | 77 | 77 | 0 | orchestrator, L1 short-circuit after the 21 review-fix commits: only `d9766207` (a cut-off upload now queues its photo, which strengthens T-13-24) and `d68f43c1` (test email failure toasts show no address or server detail, T-13-41 holds) touch code; key check, file check, metadata strip, private folder and own-folder check re-found in code; Application unit 3517 of 3517 and web 245 of 245 green |
+| 2026-11-25 (quick 261125-w4m) | 77 | 77 | 0 | orchestrator, L1 short-circuit: D-45 changes only legal page data, text and tests; `src/Csps.Server` is unchanged, so T-13-10 holds (a draft page still gets noindex and stays out of the sitemap, pinned by the stub cases in `ShellHeadTests` and `SeoEndpointTests`); `/privacy` is now approved, so it is indexed on purpose |
 
 ---
 
