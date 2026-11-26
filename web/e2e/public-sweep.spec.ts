@@ -125,6 +125,8 @@ test('@public-sweep the old Cookie Policy address shows Page not found', async (
 
 /** The text and markup the demo customer's private values would show up in. */
 const EMAIL_IN_MARKUP = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+\.[A-Za-z]{2,}/;
+/** The quote form's Email placeholder from the UI spec: a made-up address, allowed as the build check allows it (P13-BL-11 item 7). */
+const EMAIL_PLACEHOLDER_ATTRIBUTE = 'placeholder="you@gmail.com"';
 /** The seeded customer values all carry this marker (TestingSiteContentSeeder.PrivateMarker); the phone is the demo customer's. */
 const PRIVATE_VALUES = ['PRIVATE-DEMO', 'private-demo', '0917 999 0002'] as const;
 /** The demo tagline: only the full footer shows it. */
@@ -160,7 +162,7 @@ for (const sweepPage of PAGES) {
       const withoutShopEmail = (text: string): string =>
         sweepPage.legal === true ? text.replaceAll(`mailto:${SHOP_EMAIL}`, '').replaceAll(SHOP_EMAIL, '') : text;
       expect(withoutShopEmail(await page.locator('body').innerText()), 'the visible text has no @').not.toContain('@');
-      const markup = await page.content();
+      const markup = (await page.content()).replaceAll(EMAIL_PLACEHOLDER_ATTRIBUTE, '');
       expect(
         EMAIL_IN_MARKUP.exec(withoutShopEmail(markup))?.[0] ?? null,
         'the markup holds no email address',
