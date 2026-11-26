@@ -1,5 +1,5 @@
 # Phase 14: Hardening & Release Readiness - Context
-*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-26T13:45:00-06:00*
+*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-26T17:10:00-06:00*
 
 **Gathered:** 2026-11-26
 **Status:** Ready for planning
@@ -16,13 +16,13 @@ The complete app, still on an empty database, is proven ready for release:
 Requirements: SEC-05, A11Y-05, PERF-06, PERF-07, LEGAL-06.
 
 **Also in scope (owner, 2026-11-26, this discussion):**
-- the full end-to-end suite goes green on every browser (D-26);
-- every open "your review" item from earlier phases is closed through one review pack (D-27);
+- the full end-to-end suite goes green on every browser (D-25);
+- every open "your review" item from earlier phases is closed through one review pack (D-26);
 - a local restore drill of a real control-panel backup (D-07).
 
-**Owner decisions closed here:** OD-13 (D-24), C-32 (D-25) and the "no staging site" question (D-01 to D-05).
+**Owner decisions closed here:** OD-13 (D-23), C-32 (D-24) and the "no staging site" question (D-01 to D-05).
 - OD-10 was already closed by Phase 12 (12 D-01 to D-07, amended by 12.1 D-53, D-61, D-64).
-- No open OD-14 item is known. Any WCAG clash found in this phase goes into the D-27 review pack.
+- No open OD-14 item is known. Any WCAG clash found in this phase goes into the D-26 review pack.
 
 **Not in scope:**
 - automated database backups (D-51, chosen before the Phase 17 cutover);
@@ -153,6 +153,25 @@ All rulings below: owner, 2026-11-26, in this discussion. Cite them as "14 D-xx"
     - the cancelled-request logging quick task (06 D-59)
   - The planner adds any other open item it finds.
   - Excluded: items owned by later work (D-51 backup automation, the D-56 drop list, the legacy phases).
+
+### UI-SPEC rulings (owner, 2026-11-26, `/gsd-ui-phase 14`)
+These answer the open questions in `14-UI-SPEC.md` (OQ-1 to OQ-4) and the owner calls the UI checker found.
+- **D-27 (OQ-3):** the update banner adds a second line, "Save your work first, then reload." Only Site Content warns before leaving a page today, so this protects half-filled forms. Amends D-14's wording.
+- **D-28 (OQ-1):** no in-app "Install app" button. Staff install from the browser menu, and a short how-to page in `docs/operations/` shows the steps.
+- **D-29 (OQ-2):** no offline strip while the app is already open. Each action keeps today's failure message and every form keeps what was typed. The offline screen (D-15) shows only when a page opens with no signal.
+- **D-30 (OQ-4):** under reduced motion the loading spinner keeps its slow turn (one turn every 2.4 seconds, spec §10). Every other animation, transition and smooth scroll stops. Narrows PERF-07's "all motion stops" for this one indicator.
+- **D-31:** the offline screen button reads "Try Again" (Title Case, matching every other button and the existing error screen). Amends D-15's "Try again".
+- **D-32:** the offline screen uses the staff sign-in card look (the AuthFrame: "CSPS Admin" label, heading, one button). Amends D-15's "plain page". The D-15 words stay as written.
+- **D-33:** the smaller choices the UI-SPEC made are accepted as working defaults. The owner checks them for real at `/gsd-ui-review 14` and may change any of them then:
+  - a new version is checked for when the app opens and when it comes back to the front, at most once an hour;
+  - pending button text "Reloading" and "Checking";
+  - the failed-retry line "Still no signal. Check your mobile data or Wi-Fi, then try again.";
+  - no automatic retry on the offline screen;
+  - the offline screen also shows in an ordinary admin browser tab once the service worker is installed, and on `/admin/login`;
+  - the banner sits under the top bar, scrolls with the page, has no close button, also shows on the sign-in screens, and Reload in one tab updates every tab;
+  - the manifest settings beyond name, icons and colour (`id`, `start_url` `/admin/login`, `display: standalone`, `background_color`, no orientation, no shortcuts), the manifest description and the iPhone app title;
+  - no page fade for Back and Forward, the phone menu drawer, URL-only changes, dialogs or the lightbox;
+  - the admin head tags are added on entry to `/admin` and removed on leaving.
 
 ### Claude's Discretion
 - The installed app's name and short name, its icons (from `web/public/mark.svg`) and its theme colour. Final look goes through `/gsd-ui-phase 14`.
