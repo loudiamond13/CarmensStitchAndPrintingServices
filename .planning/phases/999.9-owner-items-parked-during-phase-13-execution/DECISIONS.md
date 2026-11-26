@@ -1,6 +1,6 @@
 # Owner items parked during Phase 13 execution
 
-*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-25T23:55:00-06:00*
+*Created: 2026-11-22T22:57:00-06:00 · Updated: 2026-11-26T01:44:00-06:00*
 
 The owner went away during the Phase 13 run (2026-11-22) and asked for the run to continue, then for `/gsd-secure-phase 13` and `/gsd-validate-phase 13`. Anything that needs the owner is parked here instead of blocking the run. Nothing here was decided for the owner: where code had to pick something, the pick is labelled "built" and can be changed.
 
@@ -467,6 +467,14 @@ What I did instead: pushed `gsd/phase-13-quote-inquiries` to GitHub (it had neve
 
 - **A (recommended):** a small quick task: check the newer eslint and plugin versions (the advisories, open bugs, the license, and that each is at least 14 days old), show you the findings, and bump them only after your yes.
 - **B:** dismiss the alert as dev-only, with that reason recorded.
+
+## P13-BL-43 · CI fixes made while you were away (2026-11-26)
+
+**Status:** done, for your review · **Blocks:** nothing. Branch CI run 45764612079 hit the 90-minute gate limit during Playwright and was cancelled, with 6 end-to-end failures already listed. Three fixes went in (commits 0eb1d95e, 342d0fb3, 9e630ab3), then CI was run again.
+
+1. **Gate time limit 90 to 120 minutes.** The full gate now takes about 100 minutes (Phase 11 already took 89.5). Free on a public repo, and 120 still stops a hung run. Built: 120. To undo, set it back in `ci.yml` and `CiWorkflowTests`.
+2. **The public sweep allows the Email placeholder "you@gmail.com" on Contact** (chromium and Pixel). It is the same made-up address the build check already allows (P13-BL-11 item 7, built A). If you pick B there (change it to "you@example.com"), this allowance goes too.
+3. **Sidebar links stay 44px tall on a short screen** (Pixel landscape, 839x412: S7 and the showcase). With the new Quote Requests item, the tablet icon rail squeezed every link to 21px instead of scrolling, which axe flags as too small to tap. The links no longer shrink, so the list scrolls. Checked in the browser at 839x412, 412x839 and 1280x360 (Logout stays in view, axe finds nothing).
 
 ## Manual checks for the owner (cannot be proven by automated tests)
 
