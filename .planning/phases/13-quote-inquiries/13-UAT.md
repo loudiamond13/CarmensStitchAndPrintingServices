@@ -4,11 +4,11 @@ phase: 13-quote-inquiries
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md, 13-03-SUMMARY.md, 13-04-SUMMARY.md, 13-05-SUMMARY.md, 13-06-SUMMARY.md, 13-07-SUMMARY.md, 13-08-SUMMARY.md, 13-09-SUMMARY.md, 13-10-SUMMARY.md, 13-11-SUMMARY.md, 13-12-SUMMARY.md, 13-13-SUMMARY.md, 13-14-SUMMARY.md, 13-15-SUMMARY.md, 13-16-SUMMARY.md, 13-17-SUMMARY.md, 13-18-SUMMARY.md, 13-19-SUMMARY.md, 13-20-SUMMARY.md, 13-21-SUMMARY.md, 13-22-SUMMARY.md, 13-23-SUMMARY.md, 13-24-SUMMARY.md, 13-25-SUMMARY.md, 13-26-SUMMARY.md]
 started: 2026-11-25T00:08:22-06:00
 created: 2026-11-25T00:08:22-06:00
-updated: 2026-11-26T14:20:00-06:00
+updated: 2026-11-26T17:10:00-06:00
 ---
 
 # Phase 13 UAT: Quote Inquiries
-*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-26T14:20:00-06:00*
+*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-26T17:10:00-06:00*
 
 All 26 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 11), then look, wording and screen reader (12 to 16), then rulings and reviews (17 to 21), then live-site steps (22 and 23).
 Tests 24 to 98 are passed by automated tests (coverage blocks); they are not asked.
@@ -74,7 +74,8 @@ result: pass
 ### 11. Removed requests take their photos with them
 expected: Mark a request that has photos as Spam (or delete it as a Manager), then run the maintenance job (Run now, or the daily run). The photos are gone from Cloudinary under `quotes/`, and the maintenance report shows no failing removals. Permanently deleting an order made from a request also removes that request and its photos. Note: the whole-phase code review (13-REVIEW.md G2A-CR-01) found the removal job only accepts `orders/`, so this is expected to fail until that fix lands.
 covers: INQ-05, INQ-06 D-22, INQ-07, D-04
-result: issue
+result: pass
+resolved: "Passed by the owner (D-53, 2026-11-26) after the plan 13-27 fix and the re-test in test 99. The first run below found the bug."
 note: Orchestrator check of CSPS_Dev: the photo queued by the Test 9 Manager delete sat in ImageDeletions with 0 attempts and no maintenance run had happened yet. Root cause already confirmed in code review 13-REVIEW.md G2A-CR-01: ImageRemovalJob.cs:91 accepts only {root}/orders/ and fails quotes/ and content/ rows as outside-folder.
 severity: major
 reported: "image are still in cloudinary after marking request spam"
@@ -608,8 +609,8 @@ result: pass
 ## Summary
 
 total: 100
-passed: 98
-issues: 1
+passed: 99
+issues: 0
 pending: 0
 skipped: 1
 blocked: 0

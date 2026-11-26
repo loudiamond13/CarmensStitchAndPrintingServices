@@ -1,7 +1,7 @@
 ---
 phase: 13-quote-inquiries
 created: "2026-11-24T03:53:00-06:00"
-updated: "2026-11-26T14:20:00-06:00"
+updated: "2026-11-26T17:10:00-06:00"
 verified: 2026-11-26T05:58:00Z
 status: passed
 score: 5/5 must-haves verified
@@ -122,7 +122,7 @@ deferred_after_deploy:
 
 # Phase 13: Quote Inquiries Verification Report
 
-*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-26T14:20:00-06:00*
+*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-26T17:10:00-06:00*
 
 **Phase Goal:** Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
 **Verified:** 2026-11-26T05:58:00Z (branch `gsd/phase-13-quote-inquiries`, HEAD `bb7886de`)
@@ -277,7 +277,7 @@ These two checks moved to the after-deploy checklist (the Gallery photo check, i
 
 ### Evidence from the other phase reports (read, not re-run)
 
-- `13-UAT.md`: 97 of 100 pass. Gap G-13-11 (test 11) is resolved by plan 13-27 and re-tested live (test 99). Tests 22 and 23 are deferred to after the deploy (D-50); they are the two items above.
+- `13-UAT.md`: 99 of 100 pass. Gap G-13-11 (test 11) is resolved by plan 13-27, re-tested live (test 99) and marked passed by the owner (D-53). Test 22 passed on the live site; test 23 moved to Phase 17 (D-52).
 - `13-SECURITY.md`: threats open 0 (77 of 77 closed, re-checked after the quick task).
 - `13-VALIDATION.md`: nyquist_compliant true, re-validated after the quick task.
 - `13-REVIEW-DISPOSITION.md`: 61 findings, open 0.
