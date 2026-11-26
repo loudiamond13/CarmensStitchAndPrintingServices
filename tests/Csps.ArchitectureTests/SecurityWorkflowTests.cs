@@ -13,8 +13,8 @@ public sealed class SecurityWorkflowTests
     private const string HygienePath = ".github/workflows/hygiene.yml";
     private const string WeeklyCron = "- cron: \"0 18 * * 0\"";
 
-    private const string CodeqlCommit = "2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2";
-    private const string CodeqlVersion = "v4.38.2";
+    private const string CodeqlCommit = "33d7b85da1a04171e211befe2c739303b9a4c066";
+    private const string CodeqlVersion = "v4.39.3";
     private const string DependencyReviewCommit = "a1d282b36b6f3519aa1f3fc636f609c47dddb294";
     private const string DependencyReviewVersion = "v5.0.0";
 
@@ -131,7 +131,7 @@ public sealed class SecurityWorkflowTests
                 $"github/codeql-action/analyze@{CodeqlCommit} # {CodeqlVersion}",
                 $"github/codeql-action/init@{CodeqlCommit} # {CodeqlVersion}",
             ],
-            "Only init and analyze are approved, at the commit the v4.38.2 tag points to (not the tag object).");
+            "Only init and analyze are approved, at the commit the v4.39.3 tag points to (not the tag object).");
     }
 
     [Fact]
@@ -171,17 +171,18 @@ public sealed class SecurityWorkflowTests
     public void ApprovalIsRecordedInTheRegistry()
     {
         using var document = JsonDocument.Parse(File.ReadAllText(RepoRoot.PathOf("docs/dependencies.json")));
+        // Each pinned action needs one owner approval that names its commit, its version and its license.
         var scopes = document.RootElement.GetProperty("approvals").EnumerateArray()
-            .Where(entry => entry.GetProperty("date").GetString() == "2026-10-16")
+            .Where(entry => entry.GetProperty("by").GetString() == "owner")
             .Select(entry => entry.GetProperty("scope").GetString() ?? string.Empty)
             .ToList();
 
-        scopes.ShouldNotBeEmpty("docs/dependencies.json needs an approvals entry dated 2026-10-16.");
-        var scope = string.Join('\n', scopes);
-        foreach (var expected in new[] { CodeqlCommit, CodeqlVersion, DependencyReviewCommit, DependencyReviewVersion, "MIT" })
-        {
-            scope.ShouldContain(expected);
-        }
+        scopes.ShouldContain(
+            scope => scope.Contains(CodeqlCommit, StringComparison.Ordinal) && scope.Contains(CodeqlVersion, StringComparison.Ordinal) && scope.Contains("MIT", StringComparison.Ordinal),
+            $"docs/dependencies.json needs an owner approval naming CodeQL {CodeqlVersion} at {CodeqlCommit}.");
+        scopes.ShouldContain(
+            scope => scope.Contains(DependencyReviewCommit, StringComparison.Ordinal) && scope.Contains(DependencyReviewVersion, StringComparison.Ordinal) && scope.Contains("MIT", StringComparison.Ordinal),
+            $"docs/dependencies.json needs an owner approval naming dependency review {DependencyReviewVersion} at {DependencyReviewCommit}.");
     }
 
     // The project allow-list: docs/dependencies.json policy, its two approved exceptions, and 0BSD (the web tools' extra, docs/dependencies.md).

@@ -1,6 +1,6 @@
 # Dependencies: what we use and why it costs nothing
 
-*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-18T19:15:00-06:00*
+*Created: 2026-10-07T08:46:51-05:00 · Updated: 2026-11-26T14:45:00-06:00*
 
 This page explains, in plain words, the outside software CSPS is built with and the rules for adding more. The machine-readable list is `docs/dependencies.json`. An automated test (`DependencyRegistryTests`) fails the build if that list and the project's actual pins ever disagree.
 
@@ -127,15 +127,17 @@ Phase 3 runs the checks on GitHub for every pull request. The owner approved the
 | Item | Version | Pinned as | License | What it does for the shop |
 |------|---------|-----------|---------|---------------------------|
 | actions/checkout | v7.0.1 | commit 3d3c42e5aac5ba805825da76410c181273ba90b1 | MIT | Fetches the code onto the build machine. |
-| actions/setup-dotnet | v6.0.0 | commit a98b56852c35b8e3190ac28c8c2271da59106c68 | MIT | Installs the .NET version named in `global.json`. |
-| actions/setup-node | v7.0.0 | commit 820762786026740c76f36085b0efc47a31fe5020 | MIT | Installs Node 24.21.0 for the web checks. The newer v7.1.0 is inside the 14-day wait. |
+| actions/setup-dotnet | v6.1.0 | commit 0f4a354dd5547a28c70b7853dbd95d5b67886e73 | MIT | Installs the .NET version named in `global.json`. Updated 2026-11-26 (PR #30). |
+| actions/setup-node | v7.1.0 | commit 949feb2413d6458794dcd2491c4babbbce0c15c1 | MIT | Installs Node 24.21.0 for the web checks. Updated 2026-11-26 (PR #30). |
 | actions/cache | v6.1.0 | commit 55cc8345863c7cc4c66a329aec7e433d2d1c52a9 | MIT | Reuses downloaded packages between runs to save free build minutes. |
-| actions/upload-artifact | v7.0.1 | commit 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a | MIT | Stores the deploy package and failure reports. The newer v7.0.2 is inside the 14-day wait. |
-| zizmorcore/zizmor-action | v0.6.4 (runs zizmor 1.30.1) | commit cc914d7f3750a2d13d75c7f184a1060aa0e9d482 | MIT | Scans the workflow files for known attack patterns. |
+| actions/upload-artifact | v7.0.2 | commit cf430e030ddbb5b0abf93d22962f4752f3646cd9 | MIT | Stores the deploy package and failure reports. Updated 2026-11-26 (PR #30). |
+| zizmorcore/zizmor-action | v0.8.1 (still runs zizmor 1.30.1) | commit 45d7276c9ca790aabd705e31ca99c6185c3e76dd | MIT | Scans the workflow files for known attack patterns. Updated 2026-11-26 (PR #30). |
 | gitleaks | 8.30.1 | release files checked by SHA-256 (Linux 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb, Windows d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e) | MIT | Looks for passwords and keys in the code before they can be committed (D-10). |
 | actionlint | 1.7.12 | release files checked by SHA-256 (Linux 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8, Windows 6e7241b51e6817ea6a047693d8e6fed13b31819c9a0dd6c5a726e1592d22f6e9) | MIT | Finds mistakes in the workflow files and their shell commands. |
 
 **zizmor carries a "suspicious" flag.** The automatic research check flagged it only because the newest zizmor release (1.31.1) is one day old. The pinned 1.30.1 is 36 days old, so it is past the 14-day wait. The owner approved it with that explanation.
+
+**Updated 2026-11-26 (Dependabot PR #30).** The owner approved five action updates after a check of each exact version: setup-node v7.1.0, setup-dotnet v6.1.0, upload-artifact v7.0.2, codeql-action v4.39.3 and zizmor-action v0.8.1. All are MIT, past the 14-day wait and free of known advisories, and each commit is the one its release tag points to. The two open bugs found do not affect this project (setup-node: only with the mirror option; codeql-action: an old diagnostic left in a report). The zizmor scanner itself stays at 1.30.1. The full record is the 2026-11-26 entry in `docs/dependencies.json`.
 
 **Not part of this approval.** The SQL Server image for the integration tests stays `mcr.microsoft.com/mssql/server:2025-CU9-ubuntu-24.04`, as CLAUDE.md pins it. A newer security build (`2025-CU9-GDR1-ubuntu-24.04`) exists, and switching to it is a separate owner decision. No npm, NuGet or PyPI package was added.
 
@@ -149,7 +151,7 @@ The repository is now public on GitHub. The owner approved the items below on **
 
 | Item | Version | Pinned as | License | What it does for the shop |
 |------|---------|-----------|---------|---------------------------|
-| github/codeql-action | v4.38.2 (bundles CodeQL 2.27.1) | commit 2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 | MIT (the action); CodeQL itself is free for open-source code | Scans the code for security mistakes. |
+| github/codeql-action | v4.39.3 (bundles CodeQL 2.27.4; updated 2026-11-26, PR #30) | commit 33d7b85da1a04171e211befe2c739303b9a4c066 | MIT (the action); CodeQL itself is free for open-source code | Scans the code for security mistakes. |
 | actions/dependency-review-action | v5.0.0 | commit a1d282b36b6f3519aa1f3fc636f609c47dddb294 | MIT | Blocks a pull request that adds a vulnerable or disallowed-license package. |
 
 Both are older than the 14-day wait and have no known advisories. They run only on GitHub's build machines and never ship to the website. `SecurityWorkflowTests` and `CiWorkflowTests` fail the build if a workflow uses either one at any other commit.

@@ -20,10 +20,10 @@ public sealed partial class HygieneWorkflowTests
     private const string WindowsSha256 = "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e";
     private const string LinuxAsset = "gitleaks_8.30.1_linux_x64.tar.gz";
 
-    // Owner-approved in plan 03-01 Task 1: actionlint 1.7.12 (linux tarball) and zizmor-action v0.6.4 (runs zizmor 1.30.1).
+    // Owner-approved in plan 03-01 Task 1: actionlint 1.7.12 (linux tarball) and zizmor-action v0.8.1 (still runs zizmor 1.30.1; action updated by PR #30, 2026-11-26).
     private const string ActionlintAsset = "actionlint_1.7.12_linux_amd64.tar.gz";
     private const string ActionlintLinuxSha256 = "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8";
-    private const string ZizmorActionCommit = "cc914d7f3750a2d13d75c7f184a1060aa0e9d482";
+    private const string ZizmorActionCommit = "45d7276c9ca790aabd705e31ca99c6185c3e76dd";
 
     // Patterns that would silence the scan for everything; the detector must catch each one.
     private static readonly string[] BroadSamples = ["", ".*", ".+", "^", "$", "^.*$", "^.+$", "(?s).*", "(?s).+", "[\\s\\S]*"];
