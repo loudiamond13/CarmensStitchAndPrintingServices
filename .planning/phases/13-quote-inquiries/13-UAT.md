@@ -4,11 +4,11 @@ phase: 13-quote-inquiries
 source: [13-01-SUMMARY.md, 13-02-SUMMARY.md, 13-03-SUMMARY.md, 13-04-SUMMARY.md, 13-05-SUMMARY.md, 13-06-SUMMARY.md, 13-07-SUMMARY.md, 13-08-SUMMARY.md, 13-09-SUMMARY.md, 13-10-SUMMARY.md, 13-11-SUMMARY.md, 13-12-SUMMARY.md, 13-13-SUMMARY.md, 13-14-SUMMARY.md, 13-15-SUMMARY.md, 13-16-SUMMARY.md, 13-17-SUMMARY.md, 13-18-SUMMARY.md, 13-19-SUMMARY.md, 13-20-SUMMARY.md, 13-21-SUMMARY.md, 13-22-SUMMARY.md, 13-23-SUMMARY.md, 13-24-SUMMARY.md, 13-25-SUMMARY.md, 13-26-SUMMARY.md]
 started: 2026-11-25T00:08:22-06:00
 created: 2026-11-25T00:08:22-06:00
-updated: 2026-11-26T07:20:00-06:00
+updated: 2026-11-26T14:20:00-06:00
 ---
 
 # Phase 13 UAT: Quote Inquiries
-*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-26T07:20:00-06:00*
+*Created: 2026-11-25T00:08:22-06:00 · Updated: 2026-11-26T14:20:00-06:00*
 
 All 26 plans are built. Tests 1 to 23 are hands-on checks for the owner: user flow first (1 to 11), then look, wording and screen reader (12 to 16), then rulings and reviews (17 to 21), then live-site steps (22 and 23).
 Tests 24 to 98 are passed by automated tests (coverage blocks); they are not asked.
@@ -136,14 +136,14 @@ note: Re-tested after /gsd-code-review 13 --fix (2026-11-25): disposition 19 fix
 ### 22. Live site: Quote alerts test email
 expected: After the Phase 13 deploy, sign in as a Manager on the live site, set the Quote alerts address, press Send Test Email, and check "Test: quote alerts work" arrives (look in spam too) within a few minutes. Full steps are in 13-26-SUMMARY.md.
 covers: INQ-04, 13-26 D1
-result: skipped
-reason: "Deferred to after the deploy by ruling D-50 (owner, 2026-11-26). Not passed: it is on the after-deploy checklist."
+result: pass
+note: "Owner ran it on the live site after deploy 777a428 (2026-11-26): the quote test on production works."
 
 ### 23. Live site: first Gallery photo on a phone
 expected: After the deploy, add one public Gallery photo. On a phone the photo shows, loads from res.cloudinary.com, and the browser shows no CSP error.
 covers: 13-26 D2, Phase 12 D-49, Phase 11 D-133
 result: skipped
-reason: "Deferred to after the deploy by ruling D-50 (owner, 2026-11-26). Not passed: it is on the after-deploy checklist."
+reason: "Moved to the last phase, Phase 17 (Legacy Data Cutover), by ruling D-52 (owner, 2026-11-26). Not passed: it is in the Phase 17 roadmap entry."
 
 ### 24. 13-01 D1: An anonymous POST with a name and a mobile number saves one QuoteRequest at status New and answers 200 with its id
 expected: An anonymous POST with a name and a mobile number saves one QuoteRequest at status New and answers 200 with its id
@@ -608,10 +608,10 @@ result: pass
 ## Summary
 
 total: 100
-passed: 97
+passed: 98
 issues: 1
 pending: 0
-skipped: 2
+skipped: 1
 blocked: 0
 
 ## Gaps

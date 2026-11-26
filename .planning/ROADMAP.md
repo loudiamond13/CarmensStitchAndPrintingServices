@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-25T01:05:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-26T14:20:00-06:00*
 
 ## Overview
 
@@ -1383,7 +1383,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 12 (Privacy Policy for the collection notice), Phase 8 (order creation), Phase 9 (private storage and jobs)
 **Requirements**: INQ-01, INQ-02, INQ-03, INQ-04, INQ-05, INQ-06, INQ-07, INQ-08
-**Carried over from Phase 12 (D-49, first D-133):** after the deploy, the owner adds the first public Gallery photo on the live site and checks it loads on a phone from res.cloudinary.com with no CSP error in the console (old plan 12-01; the gallery part of UAT 11-21). Owner only, no code.
+**Carried over from Phase 12 (D-49, first D-133):** after the deploy, the owner adds the first public Gallery photo on the live site and checks it loads on a phone from res.cloudinary.com with no CSP error in the console (old plan 12-01; the gallery part of UAT 11-21). Owner only, no code. Moved to Phase 17 by D-52 (owner, 2026-11-26).
 **Success Criteria** (what must be TRUE):
   1. **Quote form.** A visitor can submit "Get a Quote" (name, team, PH mobile, email, product type, quantity range, message), with the UI-spec validation copy and success state.
      - They see a privacy notice that links to the Privacy Policy.
@@ -1579,6 +1579,7 @@ Plans:
 **Mode:** mvp
 **Depends on**: Phase 16
 **Requirements**: CUT-01, CUT-02, CUT-03
+**Carried over from Phase 13 (D-52; first Phase 11 D-133, then Phase 12 D-49):** at the end of this phase, the owner adds the first public Gallery photo on the live site, opens `/gallery` on a phone and checks the photo shows, loads from res.cloudinary.com, and the browser shows no CSP error (Phase 13 UAT 23). Owner only, no code.
 **Success Criteria** (what must be TRUE):
   1. **Production ready.** Before the window, production has:
      - a least-privilege production SQL login

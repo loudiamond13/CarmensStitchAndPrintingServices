@@ -1,7 +1,7 @@
 ---
 phase: 13-quote-inquiries
 created: "2026-11-24T03:53:00-06:00"
-updated: "2026-11-26T07:20:00-06:00"
+updated: "2026-11-26T14:20:00-06:00"
 verified: 2026-11-26T05:58:00Z
 status: passed
 score: 5/5 must-haves verified
@@ -122,7 +122,7 @@ deferred_after_deploy:
 
 # Phase 13: Quote Inquiries Verification Report
 
-*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-26T07:20:00-06:00*
+*Created: 2026-11-24T03:53:00-06:00 · Updated: 2026-11-26T14:20:00-06:00*
 
 **Phase Goal:** Visitors can ask for a quote from the Contact page, and staff never lose a lead. Every inquiry is stored, announced, worked in an inbox and can be turned into an order.
 **Verified:** 2026-11-26T05:58:00Z (branch `gsd/phase-13-quote-inquiries`, HEAD `bb7886de`)
@@ -231,7 +231,7 @@ Every ID below appears in at least one plan's `requirements:` frontmatter (plans
 | INQ-01 | 13-01, 09, 12, 14, 23, 24 | Visitors submit the Get a Quote form with UI-spec validation and success state | SATISFIED | Truth 1; UAT 2, 4 |
 | INQ-02 | 13-02, 05, 12, 24 | Reference files within type, size, count, magic bytes, private storage | SATISFIED | Truth 1; UAT 3, 20 |
 | INQ-03 | 13-06, 12, 24 | Honeypot, minimum time, per-IP limits, no CAPTCHA | SATISFIED | Truth 2; UAT 5 |
-| INQ-04 | 13-07, 10, 13, 26 | Staff emailed per new inquiry, no attachments, persisted first | SATISFIED in code; live delivery NEEDS HUMAN | Truth 3; UAT 6 and 14 passed on dev; UAT 22 blocked on deploy |
+| INQ-04 | 13-07, 10, 13, 26 | Staff emailed per new inquiry, no attachments, persisted first | SATISFIED; live delivery confirmed by the owner after deploy 777a428 (UAT 22 passed, 2026-11-26) | Truth 3; UAT 6 and 14 passed on dev; UAT 22 blocked on deploy |
 | INQ-05 | 13-11, 15, 16, 17, 18, 19, 21, 23, 24, 27 | Admin inbox: badge, detail with attachments, status flow, note, URL state | SATISFIED | Truth 4; UAT 7 to 11; photo removal fixed by 13-27 |
 | INQ-06 | 13-20, 22, 24, 27 | Convert to an order, prefilled, linked | SATISFIED | Truth 4; UAT 10, 90 to 94 |
 | INQ-07 | 13-03, 08, 20, 27 | Unconverted inquiries and attachments purged after retention | SATISFIED | Truth 5; attachments now really removed (UAT 99) |
@@ -261,7 +261,7 @@ Note for the orchestrator: `.planning/REQUIREMENTS.md` still shows INQ-01 to INQ
 
 ### Deferred to after the deploy (ruling D-50)
 
-These two checks moved to the after-deploy checklist in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md` ("Manual checks for the owner"). They are not marked passed.
+These two checks moved to the after-deploy checklist (the Gallery photo check, item 2, then moved to Phase 17 by ruling D-52, owner 2026-11-26) in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md` ("Manual checks for the owner"). They are not marked passed.
 
 #### 1. Live Quote alerts test email (UAT test 22, plan 13-26, INQ-04, D-07, D-11)
 

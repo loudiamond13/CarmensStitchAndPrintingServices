@@ -1,5 +1,5 @@
 # Phase 13: Quote Inquiries - Context
-*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-26T14:30:00-06:00*
+*Created: 2026-11-21T19:50:00-06:00 · Updated: 2026-11-26T14:20:00-06:00*
 
 **Gathered:** 2026-11-21
 **Status:** Ready for planning
@@ -85,6 +85,7 @@ All rulings below: owner, 2026-11-21, in this discussion. Cite them as "13 D-xx"
 - **D-49:** **The TDD gate block on plan 13-27 is cleared by renaming its fix commit to `feat(13-27)`** (option A of P13-BL-37), before any push; the code did not change. The local branch history was rewritten from b368442f; the old history is kept in branch `backup/phase-13-before-tdd-rename`. (owner, 2026-11-25, UAT session)
 - **D-50:** **UAT tests 22 and 23 (the live Quote alerts test email and the first public Gallery photo on a phone) move to the after-deploy checklist** (option A of P13-BL-41). They need the deployed site, and a deploy needs the merge first. Phase 13 verification passes without them and ships; the two checks are not marked passed. They are listed under "Manual checks for the owner" in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md`, with the steps in `13-26-SUMMARY.md`. (owner, 2026-11-26)
 - **D-51:** **PR #29 Definition of Done is ticked with notes, as on PR #28 (D-139).** Three items carry a written note: no 320/768/1280 px screenshots (the UI review was code-only), the keyboard and screen-reader pass still on the owner manual-check list, and Lighthouse 0.92 to 0.94 accepted under D-46. PR #29 was then merged with `Merge-PullRequest.ps1 -KeepBranch` as 777a4283. (owner, 2026-11-26)
+- **D-52:** **The first public Gallery photo check (UAT 23) moves to the last phase, Phase 17 (Legacy Data Cutover).** Phase 13 is live (deploy 777a428), but the owner adds the first public Gallery photo and checks `/gallery` on a phone at the end of Phase 17 instead. The check is not marked passed. The Quote alerts test email (UAT 22) stays an after-deploy check now. Carried from Phase 11 D-133 and Phase 12 D-49. (owner, 2026-11-26)
 
 ### Claude's Discretion
 - Bot-guard details: the honeypot field, the minimum time to submit, and the rate-limit window and numbers (starting from D-26), all as settings with tests.
