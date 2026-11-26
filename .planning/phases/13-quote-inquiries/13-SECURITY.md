@@ -7,7 +7,7 @@ threats_open: 0
 asvs_level: 1
 block_on: high
 created: "2026-11-24T04:07:00-06:00"
-updated: "2026-11-25T01:55:00-06:00"
+updated: "2026-11-25T19:02:00-06:00"
 ---
 
 # Phase 13: Security
@@ -145,6 +145,7 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 | 2026-11-24 | 73 | 73 | 0 | gsd-security-auditor (ASVS L1, block_on high), orchestrator in away mode |
 | 2026-11-24 (re-check) | 73 | 73 | 0 | orchestrator, L1 short-circuit: only `quoteRequests.recipe.ts` class strings changed since the audit, no new attack surface |
 | 2026-11-25 (13-27) | 77 | 77 | 0 | gsd-security-auditor (ASVS L1, block_on high): gap plan 13-27, T-13-73 to T-13-76 added and closed, T-13-SC re-checked; unit tests 94 of 94; post-merge full suite green (orchestrator, away mode) |
+| 2026-11-25 (review fixes) | 77 | 77 | 0 | orchestrator, L1 short-circuit after the 21 review-fix commits: only `d9766207` (a cut-off upload now queues its photo, which strengthens T-13-24) and `d68f43c1` (test email failure toasts show no address or server detail, T-13-41 holds) touch code; key check, file check, metadata strip, private folder and own-folder check re-found in code; Application unit 3517 of 3517 and web 245 of 245 green |
 
 ---
 
@@ -163,4 +164,12 @@ A photo that finishes uploading at the moment its request is marked Spam, delete
 |---|---|
 | Threats found | 73 |
 | Closed | 73 |
+| Open | 0 |
+
+## Security Audit 2026-11-25
+
+| Metric | Count |
+|---|---|
+| Threats found | 77 |
+| Closed | 77 |
 | Open | 0 |
