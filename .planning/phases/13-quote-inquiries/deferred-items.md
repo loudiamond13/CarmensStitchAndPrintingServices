@@ -1,5 +1,5 @@
 # Phase 13 deferred items and flakes
-*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-26T00:12:00-06:00*
+*Created: 2026-11-22T22:47:00-06:00 · Updated: 2026-11-26T04:25:00-06:00*
 
 Items found while executing Phase 13 that are recorded here instead of being hidden.
 
@@ -82,3 +82,14 @@ Two full `npm run test:coverage` runs on a quiet machine (no other test run, abo
 - Run 3 (2026-11-25, after quick 261125-w4m, `npx vitest run` while the verifier ran its own test runs on the same machine): 3 failed of 12,219. The failing names were cut off from the captured output, so they are not known. A second full run straight after, with nothing else running, passed 12,219 of 12,219. Same load pattern as runs 1 and 2.
 
 Follow-up worth a quick task: the per-test timeout (Vitest default 5 s) now equals the Testing Library wait timeout set by G7A-WR-01, and OrderFormPage.test.tsx is the file that runs out of time under load. A longer `testTimeout` for the jsdom project, or splitting OrderFormPage.test.tsx, would make the full suite steady.
+
+## CI end-to-end flakes on the Phase 13 branch (2026-11-26)
+
+CI run 45777412323, attempt 1 (sha 9e630ab3): 2 failed, 1,044 passed, 22 skipped. Both tests passed on the run before (45764612079, sha bb7886de), and none of the changes between the two runs touches these screens. The end-to-end host cannot run on this machine (in-app shells cannot reach LocalDB), so the failed job was re-run in CI instead of alone here. Attempt 2: 1 failed, 1,045 passed, 22 skipped. The gallery test passed; the shell test failed again on pixel, this time at 414x896.
+
+- `[chromium] site-content-gallery.spec.ts:74` (a Manager adds E2E-Riders): "Photo chosen" showed, the Save Photo button had focus and Enter was pressed about 180 ms after the file was chosen, but no save request reached the server and the form showed no error. The test waited 20 s for "Photo added". The previous run passed this test in 4.1 s.
+- `[pixel] shell.spec.ts:78` (tab bar at 375x812): after scrolling to the end of /dev/components, the last content ended at 921 px while the tab bar's top was at 744 px. The page most likely grew after the scroll (late layout on the long showcase page). The same test passed at 320x568, 414x896 and 767x900 in the same run.
+
+- Attempt 2, `[pixel] shell.spec.ts:78` at 414x896: last content at 834.5 px, tab bar top at 827 px. The miss changes from run to run (177 px, then 39 px short of the end), so it is timing, not layout. In the browser on the dev site at 414x896, at the true end the last section ends at 795 px and the tab bar starts at 827 px: the page is fine.
+
+Fixed in the test: the end check now scrolls to the true end (`scrollHeight - clientHeight`) and waits until the page height and the scroll position hold for 3 frames, instead of reading one frame after a single scroll. Checked in the browser: settles in 6 frames with the same 32 px gap. The gallery Save race stays a follow-up worth a quick task if it fails again: find why an Enter on Save Photo can be lost right after a photo is chosen.

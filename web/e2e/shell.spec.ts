@@ -53,6 +53,33 @@ async function scrollToFraction(page: Page, fraction: number): Promise<void> {
   );
 }
 
+/**
+ * Scrolls to the true end of the page and waits until the page height and the scroll position hold for 3 frames. One
+ * frame after a single scroll was not enough in CI: the long showcase was still settling, so the end fell short.
+ */
+async function scrollToEnd(page: Page): Promise<void> {
+  const settled = await page.evaluate<boolean>(
+    `new Promise((resolve) => {
+      const root = document.documentElement;
+      let steady = 0;
+      let last = -1;
+      let frames = 0;
+      const step = () => {
+        const end = root.scrollHeight - root.clientHeight;
+        window.scrollTo(0, end);
+        steady = root.scrollHeight === last && Math.abs(window.scrollY - end) <= 1 ? steady + 1 : 0;
+        last = root.scrollHeight;
+        frames += 1;
+        if (steady >= 3) resolve(true);
+        else if (frames > 300) resolve(false);
+        else requestAnimationFrame(step);
+      };
+      step();
+    })`,
+  );
+  expect(settled, 'long page settles at its end').toBe(true);
+}
+
 async function openAt(page: Page, path: string, width: number, height: number): Promise<void> {
   await page.setViewportSize({ width, height });
   const response = await page.goto(path);
@@ -98,7 +125,7 @@ for (const { width, height } of PHONES) {
       'long page, middle: bar bottom',
     ).toBeLessThanOrEqual(1);
 
-    await scrollToFraction(page, 1);
+    await scrollToEnd(page);
     const end = await geometry(page);
     expect(Math.abs((end.tabBarBottom ?? 0) - end.innerHeight), 'long page, end: bar bottom').toBeLessThanOrEqual(1);
     expect(end.mainLastBottom ?? Infinity, 'last content clears the bar').toBeLessThanOrEqual((end.tabBarTop ?? 0) + 1);
