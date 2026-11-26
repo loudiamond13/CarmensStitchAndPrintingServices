@@ -26,6 +26,7 @@ public sealed record PhoneEntry(string? Number, string? Label, bool IsMain);
 /// <param name="InstagramUrl">An Instagram link.</param>
 /// <param name="TiktokUrl">A TikTok link.</param>
 /// <param name="ContactEmail">The shop email, for staff use only; at most 254 characters.</param>
+/// <param name="QuoteAlertsEmail">The staff inbox that gets an email for each quote request; at most 254 characters. Empty or missing clears it.</param>
 /// <param name="Phones">One to four numbers, exactly one of them the main one.</param>
 public sealed record UpdateSiteSettingsRequest(
     string? Version,
@@ -44,8 +45,9 @@ public sealed record UpdateSiteSettingsRequest(
     string? InstagramUrl,
     string? TiktokUrl,
     string? ContactEmail,
+    string? QuoteAlertsEmail,
     IReadOnlyList<PhoneEntry>? Phones)
 {
     /// <summary>Gets the request used when the body is empty or unreadable, so the validator reports every missing field.</summary>
-    public static UpdateSiteSettingsRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+    public static UpdateSiteSettingsRequest Empty { get; } = new(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 }

@@ -31,6 +31,7 @@ public sealed class UpdateSiteSettingsRequestValidatorTests
         InstagramUrl: "https://www.instagram.com/cspsdemo",
         TiktokUrl: "https://www.tiktok.com/@cspsdemo",
         ContactEmail: "shop-private@example.test",
+        QuoteAlertsEmail: "alerts-private@example.test",
         Phones: [new PhoneEntry("0917 123 4567", "Globe", IsMain: true), new PhoneEntry("02 8123 4567", null, IsMain: false)]);
 
     [Fact]
@@ -50,6 +51,7 @@ public sealed class UpdateSiteSettingsRequestValidatorTests
             InstagramUrl = null,
             TiktokUrl = null,
             ContactEmail = null,
+            QuoteAlertsEmail = null,
             Phones = [new PhoneEntry("0917 123 4567", null, IsMain: true)],
         }).ShouldBeEmpty();
 
@@ -302,6 +304,37 @@ public sealed class UpdateSiteSettingsRequestValidatorTests
 
     [Fact]
     public void AnEmptyEmailIsAllowed() => Fields(Valid with { ContactEmail = "  " }).ShouldBeEmpty();
+
+    [Theory]
+    [InlineData("nope")]
+    [InlineData("a@b@c.ph")]
+    [InlineData("name@[example].ph")]
+    [InlineData("@example.test")]
+    [InlineData("name@")]
+    [InlineData("[hello@yourdomain.ph]")]
+    public void ABadQuoteAlertsEmailIsRefusedWithTheEmailMessage(string email) =>
+        Fields(Valid with { QuoteAlertsEmail = email })["quoteAlertsEmail"].ShouldBe([EmailMessage]);
+
+    [Fact]
+    public void AQuoteAlertsEmailOver254CharactersGetsTheLengthMessageAndExactly254Fits()
+    {
+        var local = new string('a', 254 - "@example.test".Length);
+
+        Fields(Valid with { QuoteAlertsEmail = $"{local}@example.test" }).ShouldBeEmpty();
+        Fields(Valid with { QuoteAlertsEmail = $"{local}a@example.test" })["quoteAlertsEmail"].ShouldBe(["Keep the email to 254 characters or fewer."]);
+        Fields(Valid with { QuoteAlertsEmail = $"{new string('a', 250)}@b.ph" })["quoteAlertsEmail"].ShouldBe(["Keep the email to 254 characters or fewer."]);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void AnEmptyOrMissingQuoteAlertsEmailIsAllowed(string? blank) =>
+        Fields(Valid with { QuoteAlertsEmail = blank }).ShouldBeEmpty();
+
+    [Fact]
+    public void TheShopEmailIsAllowedAsTheQuoteAlertsEmail() =>
+        Fields(Valid with { QuoteAlertsEmail = Valid.ContactEmail }).ShouldBeEmpty();
 
     [Fact]
     public void ABracketPlaceholderInATextFieldIsRefused()

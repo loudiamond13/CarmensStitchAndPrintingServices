@@ -4,6 +4,7 @@ using Csps.Infrastructure.Images;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.IntegrationTests.Orders;
+using Csps.Server.IntegrationTests.QuoteRequests;
 using Csps.Testing;
 using Csps.Testing.Images;
 using Microsoft.Extensions.DependencyInjection;
@@ -150,6 +151,65 @@ public sealed class ImageUploadRateLimitTests(CspsDatabase database) : IClassFix
         }
 
         anonymous.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AFullPublicQuotePhotoPoolNeverRefusesAStaffUpload()
+    {
+        await database.ResetAsync();
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+        var manager = await TestSessions.StartAsync(factory, Roles.Manager);
+        var storage = factory.Services.GetRequiredService<TestingImageStorage>();
+        var order = await CreateOrderAsync(factory, client, manager.AccessToken);
+        var visitors = new List<(Guid Id, string Key)>();
+        for (var count = 0; count < ProcessedAtOnce + Waiting + 1; count++)
+        {
+            var key = QuoteRequestFixtures.NewUploadKey();
+            visitors.Add((await QuoteRequestFixtures.CreateWithPhotosAsync(client, ["a.jpg"], key), key));
+        }
+
+        storage.HoldUploadsStepwise();
+        var publicUploads = visitors.Select(visitor => Task.Run(() => QuoteRequestFixtures.PostPhotoAsync(client, visitor.Id, "0", visitor.Key, Photo), TestContext.Current.CancellationToken)).ToList();
+        var first = await Task.WhenAny(publicUploads).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        using var refused = await first;
+        await WaitForAsync(() => storage.Uploads.Count == ProcessedAtOnce);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+
+        refused.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests, "the public pool is full: 2 running, 4 waiting");
+        var staffUpload = Task.Run(() => UploadAsync(client, manager.AccessToken, order), TestContext.Current.CancellationToken);
+        await WaitForAsync(() => storage.Uploads.Count == ProcessedAtOnce + 1);
+
+        storage.Uploads.Count.ShouldBe(ProcessedAtOnce + 1, "the staff upload runs next to the two public ones");
+        staffUpload.IsCompleted.ShouldBeFalse();
+        var all = publicUploads.Append(staffUpload).ToList();
+        for (var step = 1; step <= publicUploads.Count; step++)
+        {
+            storage.ReleaseNext();
+            await WaitForAsync(() => all.Count(upload => upload.IsCompleted) == step + 1);
+        }
+
+        foreach (var answer in await Task.WhenAll(all).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken))
+        {
+            answer.Dispose();
+        }
+
+        (await staffUpload).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Theory]
+    [InlineData("UploadSlots:Public:AtOnce", "0", "UploadSlots:Public:AtOnce must be from 1 to 8.")]
+    [InlineData("UploadSlots:Public:AtOnce", "9", "UploadSlots:Public:AtOnce must be from 1 to 8.")]
+    [InlineData("UploadSlots:Public:Waiting", "-1", "UploadSlots:Public:Waiting must be from 0 to 20.")]
+    [InlineData("UploadSlots:Public:Waiting", "21", "UploadSlots:Public:Waiting must be from 0 to 20.")]
+    public async Task AnUnusablePublicPoolSizeStopsStartUpAndNamesTheSettingNotTheValue(string key, string value, string message)
+    {
+        await using var factory = new RealLimitsFactory(new Dictionary<string, string> { [key] = value });
+
+        var failure = Should.Throw<InvalidOperationException>(() => factory.CreateClient());
+
+        failure.Message.ShouldContain(message);
+        failure.Message.ShouldNotContain($"={value}");
     }
 
     private static async Task WaitForAsync(Func<bool> condition)

@@ -261,10 +261,10 @@ describe('AnchorPills (D-32)', () => {
 });
 
 describe('ProductArticle buttons (D-19)', () => {
-  it('"Get a Quote" goes to /contact', () => {
+  it('"Get a Quote" goes to /contact with the line in ?product= (Q4)', () => {
     renderArticle(BASKETBALL);
 
-    expect(screen.getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact');
+    expect(screen.getByRole('link', { name: 'Get a Quote' })).toHaveAttribute('href', '/contact?product=basketball');
   });
 
   it('shows "See basketball work" to the gallery filter when the line has gallery items', () => {

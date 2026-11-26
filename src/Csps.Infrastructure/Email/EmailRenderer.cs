@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using Csps.Application.Email;
 using Csps.Application.Ports;
+using Csps.Application.QuoteRequests;
 using Csps.Domain.Identity;
 using Microsoft.Extensions.Options;
 
@@ -58,6 +59,9 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
             EmailChangeNoticeEmail notice => EmailChangeNotice(notice, clock.Zone),
             ManagerEmailChangedEmail changed => ManagerEmailChanged(changed, clock.Zone),
             ManagerResetLinkEmail link => ManagerResetLink(link),
+            QuoteAlertEmail alert => QuoteAlert(alert),
+            QuoteAlertsOverflowEmail => QuoteAlertsOverflow(),
+            QuoteAlertTestEmail => QuoteAlertTest(),
             _ => throw new NotSupportedException($"The {email.Kind} email has no template."),
         });
     }
@@ -119,6 +123,65 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 new ParagraphBlock($"Didn't expect this? Ask {email.ManagerName} or another Manager."),
             ],
             Button: new EmailButton("Reset Password", links.Value.ResetPasswordLink(email.Token)));
+
+    // Visitor text is cleaned first: a name or team never adds a header or a line, and an empty value leaves its line out (D-32).
+    private EmailContent QuoteAlert(QuoteAlertEmail email)
+    {
+        var blocks = new List<EmailBlock>
+        {
+            new ParagraphBlock("A visitor sent a quote request on the website."),
+            new FieldBlock("Name", QuoteAlertText.OneLine(email.CustomerName)),
+        };
+        AddField(blocks, "Team", email.TeamName);
+        AddField(blocks, "Phone", email.PhoneDisplay);
+        AddField(blocks, "Product", email.ProductTitle);
+        AddField(blocks, "Quantity", email.QuantityLabel);
+        if (email.PhotoCount > 0)
+        {
+            blocks.Add(new FieldBlock("Photos", email.PhotoCount.ToString(CultureInfo.InvariantCulture)));
+        }
+
+        if (QuoteAlertText.Excerpt(email.MessageExcerpt) is { } message)
+        {
+            blocks.Add(new FieldBlock("Message", message));
+        }
+
+        return new(
+            Subject: QuoteAlertText.Subject(email.CustomerName),
+            Preheader: $"{QuoteAlertText.ShortName(email.CustomerName)} sent a quote request.",
+            Heading: "New quote request",
+            Blocks: blocks,
+            Button: new EmailButton("Open in admin", links.Value.QuoteRequestLink(email.RequestId)),
+            Reason: EmailHtmlLayout.QuoteAlertsFooterReason);
+    }
+
+    private EmailContent QuoteAlertsOverflow() =>
+        new(
+            Subject: "More quote requests are waiting",
+            Preheader: "Open Quote Requests to see them all.",
+            Heading: "More quote requests are waiting",
+            Blocks: [new ParagraphBlock("More quote requests came in this hour than we email about. Open Quote Requests to see them all.")],
+            Button: new EmailButton("Open Quote Requests", links.Value.QuoteRequestsPage()),
+            Reason: EmailHtmlLayout.QuoteAlertsFooterReason);
+
+    // The test carries no link: it only proves that mail reaches the address (D-11).
+    private static EmailContent QuoteAlertTest() =>
+        new(
+            Subject: "Test: quote alerts work",
+            Preheader: "Quote alerts reach this address.",
+            Heading: "Quote alerts work",
+            Blocks: [new ParagraphBlock("This is a test from your website. When a visitor sends a quote request, an email like this one tells you about it.")],
+            Button: null,
+            Reason: EmailHtmlLayout.QuoteAlertsFooterReason);
+
+    private static void AddField(List<EmailBlock> blocks, string label, string? value)
+    {
+        var line = value is null ? string.Empty : QuoteAlertText.OneLine(value);
+        if (line.Length > 0)
+        {
+            blocks.Add(new FieldBlock(label, line));
+        }
+    }
 
     private EmailContent Changed(PasswordChangedEmail email, TimeZoneInfo zone)
     {
@@ -239,6 +302,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
                 ParagraphBlock { LinkUrl: { } url } paragraph => $"{paragraph.Text} {url}",
                 ParagraphBlock paragraph => paragraph.Text,
                 MetaBlock meta => meta.Text,
+                FieldBlock field => $"{field.Label}: {field.Value}",
                 CodeBlock code => code.Code,
                 _ => throw new NotSupportedException($"{block.GetType().Name} has no text form."),
             }).Append(Gap);
@@ -250,7 +314,7 @@ internal sealed class EmailRenderer(IBusinessCalendar calendar, IOptions<AppLink
         }
 
         text.Append(EmailHtmlLayout.FooterBusiness).Append(" · ").Append(EmailHtmlLayout.FooterNote).Append('\n')
-            .Append(EmailHtmlLayout.FooterReason).Append('\n');
+            .Append(content.Reason ?? EmailHtmlLayout.FooterReason).Append('\n');
         return new RenderedEmail(content.Subject, text.ToString(), EmailHtmlLayout.Render(content));
     }
 

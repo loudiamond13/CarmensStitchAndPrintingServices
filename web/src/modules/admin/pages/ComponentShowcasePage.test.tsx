@@ -12,6 +12,7 @@ import { queryBranch, routes } from '@/core/routes/router';
 import { expectNoAxeViolations } from '@/test/axe';
 import { ToastProvider } from '@/components';
 import { ICONS } from '@/components/brand/icons';
+import type { ShowcaseSectionId } from '@/modules/admin/components/showcase/showcaseSections';
 import { ComponentShowcaseRoute, ShowcaseSection } from './ComponentShowcasePage';
 import { scenarios } from '@/dev/scenarios';
 
@@ -35,6 +36,7 @@ const SECTION_TITLES = [
   'Site content and public website',
   'Visitor stats',
   'Legal',
+  'Quote requests',
 ];
 
 /** Whole-page layouts are shown by their own routes (/, /admin/…), never inside the showcase page. */
@@ -184,21 +186,24 @@ describe('ComponentShowcase page (D-22)', FULL_PAGE, () => {
     expect(section('Orders')).toContainElement(caseFrame('orders-status-menu'));
     expect(section('Visitor stats')).toContainElement(caseFrame('visitor-trend-30-days'));
     expect(section('Legal')).toContainElement(caseFrame('legal-notice'));
+    expect(section('Quote requests')).toContainElement(caseFrame('quote-form-empty'));
+    expect(section('Quote requests')).toContainElement(caseFrame('showcase-quote-requests'));
   });
 
   it('gives a one-theme scenario its theme and lets two-theme scenarios take the shell theme', () => {
     renderShowcase();
 
     expect(caseFrame('site-header-home')).toHaveAttribute('data-theme', 'light');
+    expect(caseFrame('quote-form-empty')).toHaveAttribute('data-theme', 'light');
     expect(caseFrame('topbar-dark')).toHaveAttribute('data-theme', 'dark');
     expect(caseFrame('button-primary-md')).not.toHaveAttribute('data-theme');
   });
 
-  it('shows all 73 icons in a grid with their names', () => {
+  it('shows all 74 icons in a grid with their names', () => {
     renderShowcase();
 
     const names = Object.keys(ICONS);
-    expect(names).toHaveLength(73);
+    expect(names).toHaveLength(74);
     const grid = within(caseFrame('showcase-icon-names'));
     for (const name of names) {
       expect(grid.getByText(name)).toBeInTheDocument();
@@ -443,6 +448,145 @@ describe('ComponentShowcase live demos (real handlers; nothing is saved or delet
 
     await user.click(frame.getByRole('button', { name: 'Show this example' }));
     expect(await frame.findByRole('menu')).toBeInTheDocument();
+  });
+
+  it.each(['quote-form-field-errors', 'quote-form-sent', 'quote-form-sent-photos-missing'] as const)(
+    'shows %s only on request, because the form moves focus when it gets there',
+    async (id) => {
+      const user = userEvent.setup();
+      renderQuoteSection();
+      const frame = caseFrame(id);
+      expect(within(frame).queryByRole('form')).toBeNull();
+
+      await user.click(within(frame).getByRole('button', { name: 'Show this example' }));
+      await QUOTE_READY[id](frame);
+
+      await waitFor(() => {
+        expect(frame).toContainElement(document.activeElement as HTMLElement | null);
+      });
+    },
+  );
+
+  it.each(['quote-form-photos-refused', 'quote-form-rate-limited', 'quote-form-send-failed'] as const)(
+    'shows %s only on request, so its alert is not read out when the page opens',
+    async (id) => {
+      const user = userEvent.setup();
+      renderQuoteSection();
+      const frame = caseFrame(id);
+      expect(within(frame).queryByRole('alert')).toBeNull();
+
+      await user.click(within(frame).getByRole('button', { name: 'Show this example' }));
+
+      await QUOTE_READY[id](frame);
+      expect(within(frame).getByRole('alert')).toBeInTheDocument();
+    },
+  );
+
+  it('leaves focus alone while the quote cases shown on load reach their states', async () => {
+    renderQuoteSection();
+    const eager = QUOTE_CASES.filter(
+      (id) => within(caseFrame(id)).queryByRole('button', { name: 'Show this example' }) === null,
+    );
+    expect(eager.length).toBeGreaterThan(0);
+
+    for (const id of eager) {
+      await QUOTE_READY[id](caseFrame(id));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+const QUOTE_CASES = [
+  'quote-form-empty',
+  'quote-form-field-errors',
+  'quote-form-photos-refused',
+  'quote-form-sending',
+  'quote-form-sent',
+  'quote-form-sent-photos-missing',
+  'quote-form-rate-limited',
+  'quote-form-send-failed',
+] as const;
+
+/** What each quote case shows once it has reached its own state (the form's title alone is not enough). */
+const QUOTE_READY: Readonly<Record<(typeof QUOTE_CASES)[number], (frame: HTMLElement) => Promise<unknown>>> = {
+  'quote-form-empty': (frame) => within(frame).findByRole('form', { name: 'Inquiry form' }, { timeout: 10_000 }),
+  'quote-form-field-errors': (frame) => within(frame).findByText('Enter your name.', {}, { timeout: 10_000 }),
+  'quote-form-photos-refused': (frame) =>
+    within(frame).findByText(/isn't a photo we can take/, {}, { timeout: 10_000 }),
+  'quote-form-sending': (frame) =>
+    within(frame).findByText('Sending your photos. This can take a minute on mobile data.', {}, { timeout: 10_000 }),
+  'quote-form-sent': (frame) =>
+    within(frame).findByRole('heading', { level: 2, name: 'Inquiry sent' }, { timeout: 10_000 }),
+  'quote-form-sent-photos-missing': (frame) => within(frame).findByText(/didn't upload/, {}, { timeout: 10_000 }),
+  'quote-form-rate-limited': (frame) => within(frame).findByText(/You've sent a few requests/, {}, { timeout: 10_000 }),
+  'quote-form-send-failed': (frame) => within(frame).findByText(/Couldn't send your inquiry/, {}, { timeout: 10_000 }),
+};
+
+/** The Quote requests section alone, as the showcase renders it. */
+function renderQuoteSection() {
+  return render(
+    <MemoryRouter>
+      <ToastProvider>
+        <ShowcaseSection id="quotes" title="Quote requests" />
+      </ToastProvider>
+    </MemoryRouter>,
+  );
+}
+
+/** Some showcase sections at /admin/components, with every other path showing "Left the showcase". */
+function renderAtShowcase(...ids: ShowcaseSectionId[]) {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/admin/components',
+        element: (
+          <ToastProvider>
+            {ids.map((id) => (
+              <ShowcaseSection key={id} id={id} title={id} />
+            ))}
+          </ToastProvider>
+        ),
+      },
+      { path: '*', element: <p>Left the showcase</p> },
+    ],
+    { initialEntries: ['/admin/components'] },
+  );
+  render(<RouterProvider router={router} />);
+  return router;
+}
+
+describe('ComponentShowcase links stay on the showcase (CR-01, WR-01)', FULL_PAGE, () => {
+  it.each([
+    ['buttons', 'buttonlink-primary-md', 'View Products'],
+    ['navigation', 'site-header-home', 'Products'],
+    ['quotes', 'quote-form-empty', 'Privacy Policy'],
+  ] as const)('a press on a link in the %s section (%s, "%s") does not leave the page', async (id, caseId, name) => {
+    const user = userEvent.setup();
+    const router = renderAtShowcase(id);
+    const frame = within(caseFrame(caseId));
+    const [link] = await frame.findAllByRole('link', { name }, { timeout: 10_000 });
+    if (link === undefined) throw new Error(`No "${name}" link.`);
+
+    await user.click(link);
+
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(screen.queryByText('Left the showcase')).toBeNull();
+  });
+
+  it('gives the quote cases an inert Messenger link that stays on the page', async () => {
+    const user = userEvent.setup();
+    const router = renderAtShowcase('quotes');
+    const frame = within(caseFrame('quote-form-rate-limited'));
+    await user.click(frame.getByRole('button', { name: 'Show this example' }));
+    const link = await frame.findByRole('link', { name: 'Message Us on Messenger' }, { timeout: 10_000 });
+
+    expect(link.getAttribute('href')).toBe('#');
+    await user.click(link);
+
+    expect(router.state.location.pathname).toBe('/admin/components');
+    expect(router.state.location.hash).toBe('');
   });
 });
 

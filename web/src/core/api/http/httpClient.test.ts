@@ -160,6 +160,22 @@ describe('createHttpClient: GET round trip', () => {
     await expect(client.request({ method: 'HEAD', url: '/b' })).resolves.toBeUndefined();
   });
 
+  it('resolves an empty 200 to undefined only when the request allows an empty body', async () => {
+    const fake = createFakeFetch([{ status: 200 }, { status: 200 }, { status: 200 }]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    await expect(client.post('/a', {}, { allowEmptyBody: true })).resolves.toBeUndefined();
+    expect((await rejection(client.post('/a', {}))).kind).toBe('parse');
+    expect((await rejection(client.post('/a', {}, { allowEmptyBody: false }))).kind).toBe('parse');
+  });
+
+  it('still reads the JSON of an answer when an empty body is allowed', async () => {
+    const fake = createFakeFetch([{ status: 200, body: { id: 'x' } }]);
+    const client = createHttpClient({ fetch: fake.fetch });
+
+    await expect(client.post('/a', {}, { allowEmptyBody: true })).resolves.toEqual({ id: 'x' });
+  });
+
   it('still parses a 202 that carries JSON', async () => {
     const fake = createFakeFetch([{ status: 202, body: { queued: true } }]);
     const client = createHttpClient({ fetch: fake.fetch });

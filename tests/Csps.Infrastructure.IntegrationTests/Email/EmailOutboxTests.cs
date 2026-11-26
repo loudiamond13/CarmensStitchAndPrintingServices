@@ -208,7 +208,7 @@ public sealed class EmailOutboxTests(CspsDatabase database) : IClassFixture<Csps
         await using (scope)
         {
             var outbox = scope.ServiceProvider.GetRequiredService<IEmailOutbox>();
-            var refused = await Should.ThrowAsync<ArgumentException>(async () => await outbox.EnqueueAsync(CodeEmail(to), TestContext.Current.CancellationToken));
+            var refused = await Should.ThrowAsync<UndeliverableRecipientException>(async () => await outbox.EnqueueAsync(CodeEmail(to), TestContext.Current.CancellationToken));
             refused.Message.ShouldNotContain("someone");
             refused.Message.ShouldNotContain("invalid", Case.Insensitive);
             await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(TestContext.Current.CancellationToken);

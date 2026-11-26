@@ -38,7 +38,9 @@ export interface OrdersService {
   /**
    * `POST /api/v1/orders`: saves a new order with its items (and any payments, discounts and expenses) in one call. The caller
    * supplies one Idempotency-Key per submission, so a double press or a retry saves it once. `400` lists the field errors,
-   * `409 orders.busy` means saving is busy and nothing was saved, `201` answers the order with its number and version.
+   * `409 orders.busy` means saving is busy and nothing was saved, `201` answers the order with its number and version. With
+   * `quoteRequestId` the same save turns that request Converted (D-20); `404 quote-requests.not-found` and
+   * `409 quote-requests.already-converted` (with `orderId` and `orderNumber`) save nothing.
    */
   create(body: CreateOrderRequest, idempotencyKey: string, signal?: AbortSignal): Promise<OrderDetailResponse>;
   /**

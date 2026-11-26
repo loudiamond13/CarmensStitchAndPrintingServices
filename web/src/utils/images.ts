@@ -172,6 +172,72 @@ function previewOf(parts: BrowserImageParts, bitmap: DecodedBitmap): string | nu
 }
 
 /**
+ * A small data: preview of one picked file, for the screen only: the file is decoded and drawn, never changed or re-encoded.
+ * Null when the browser cannot draw it (HEIC in most browsers) or the photo is too large to decode safely.
+ */
+export async function previewImage(
+  file: Blob,
+  parts: BrowserImageParts = defaultBrowserImageParts,
+): Promise<string | null> {
+  let bitmap: DecodedBitmap;
+  try {
+    bitmap = await parts.decode(file);
+  } catch {
+    return null;
+  }
+  try {
+    if (!(bitmap.width > 0 && bitmap.height > 0) || bitmap.width * bitmap.height > MAX_ORIGINAL_PIXELS) return null;
+    return previewOf(parts, bitmap);
+  } finally {
+    bitmap.close();
+  }
+}
+
+const FILE_NAME_LIMIT = 80;
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = 1_048_576;
+
+function isControl(character: string): boolean {
+  const code = character.charCodeAt(0);
+  return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+}
+
+/** Half of a surrogate pair on its own: `Array.from` yields one when a name holds a broken emoji. */
+function isLoneSurrogate(character: string): boolean {
+  const code = character.charCodeAt(0);
+  return character.length === 1 && code >= 0xd800 && code <= 0xdfff;
+}
+
+/**
+ * The name as the server cleans it for a message: no folders, no control characters, no half emoji, at most 80 characters. The cut
+ * never splits an emoji, because half of one makes the JSON body unreadable on the server.
+ */
+export function cleanFileName(name: string): string {
+  const cut = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
+  const leaf = cut >= 0 ? name.slice(cut + 1) : name;
+  const cleaned = Array.from(leaf)
+    .filter((character) => !isControl(character) && !isLoneSurrogate(character))
+    .join('')
+    .trim();
+  let limited = cleaned.slice(0, FILE_NAME_LIMIT);
+  if (/[\ud800-\udbff]$/.test(limited)) limited = limited.slice(0, -1);
+  return limited === '' ? 'This file' : limited;
+}
+
+/** The size limit in whole MB, or KB or bytes for a small configured limit, as the server writes it. */
+export function sizeText(bytes: number): string {
+  if (bytes >= BYTES_PER_MB) return `${String(Math.floor(bytes / BYTES_PER_MB))} MB`;
+  if (bytes >= BYTES_PER_KB) return `${String(Math.floor(bytes / BYTES_PER_KB))} KB`;
+  return `${String(bytes)} bytes`;
+}
+
+/** The size of one picked file: MB with one decimal ("2.4 MB"), or whole KB, or bytes. */
+export function fileSizeText(bytes: number): string {
+  if (bytes >= BYTES_PER_MB) return `${String(Number((bytes / BYTES_PER_MB).toFixed(1)))} MB`;
+  return sizeText(bytes);
+}
+
+/**
  * Checks, rights, redraws and previews one picked file before any request (IMG-05, D-18; OR-3 mirror of the server's
  * type, size and pixel rules). Every photo the browser can decode is redrawn. The pixel and side limits apply to the
  * redrawn size (D-53) and the size limit to the file that is sent. Keeps no state, so calls may overlap.

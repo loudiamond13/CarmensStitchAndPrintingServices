@@ -125,6 +125,10 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'order.shown-on-website', label: 'Order shown on the website', group: ORDERS },
   { code: 'order.taken-off-website', label: 'Order taken off the website', group: ORDERS },
   { code: 'order.public-details-changed', label: 'Order public details changed', group: ORDERS },
+  { code: 'quote-request.status-changed', label: 'Quote request status changed', group: ORDERS },
+  { code: 'quote-request.note-added', label: 'Quote request note added', group: ORDERS },
+  { code: 'quote-request.deleted', label: 'Quote request deleted', group: ORDERS },
+  { code: 'quote-request.converted', label: 'Quote request turned into an order', group: ORDERS },
   { code: 'product-type.added', label: 'Product type added', group: ORDER_LISTS },
   { code: 'product-type.renamed', label: 'Product type renamed', group: ORDER_LISTS },
   { code: 'product-type.recolored', label: 'Product type color changed', group: ORDER_LISTS },
@@ -149,6 +153,7 @@ export const AUDIT_ACTIONS: readonly AuditActionLabel[] = [
   { code: 'money-transfer.handed-over', label: 'Money handed over', group: STAFF_MONEY },
   { code: 'site-settings.changed', label: 'Site settings changed', group: SITE_CONTENT },
   { code: 'site-settings.share-picture-changed', label: 'Link preview picture changed', group: SITE_CONTENT },
+  { code: 'quote-alerts.test-sent', label: 'Quote alerts test email sent', group: SITE_CONTENT },
   { code: 'opening-hours.changed', label: 'Opening hours changed', group: SITE_CONTENT },
   { code: 'shop-closure.added', label: 'Closure added', group: SITE_CONTENT },
   { code: 'shop-closure.changed', label: 'Closure changed', group: SITE_CONTENT },
@@ -620,6 +625,7 @@ const SITE_SETTINGS_FIELDS: ReadonlyMap<string, FieldRule> = new Map([
   ['instagramUrl', shown('Instagram link', 'instagramUrl')],
   ['tiktokUrl', shown('TikTok link', 'tiktokUrl')],
   ['contactEmail', named('Shop email')],
+  ['quoteAlertsEmail', named('Quote alerts email')],
   ['phones', named('Phone numbers')],
 ]);
 

@@ -24,6 +24,14 @@ export interface ProblemDetails {
   readonly traceId: string | undefined;
   /** The stable machine code of a 4xx, such as `auth.resend-cap`. */
   readonly code: string | undefined;
+  /** The ready replacement ticket of an expired quote form ticket (D-38). */
+  readonly replacementTicket?: string | undefined;
+  /** How many seconds a client waits after a ticket (QuoteRequests:MinimumSeconds), sent with the replacement ticket (D-41). */
+  readonly minimumSeconds?: number | undefined;
+  /** The order a quote request already became, sent with `409 quote-requests.already-converted` (D-23). */
+  readonly orderId?: string | undefined;
+  /** That order's number, such as `ORD-2026-0160`, sent with `orderId`. */
+  readonly orderNumber?: string | undefined;
   readonly errors: FieldErrors;
 }
 
@@ -84,6 +92,10 @@ function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+function numberOrUndefined(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 function parseFieldErrors(value: unknown): FieldErrors {
   if (!isRecord(value)) {
     return noFieldErrors;
@@ -110,6 +122,10 @@ export function parseProblemDetails(value: unknown): ProblemDetails | undefined 
     instance: stringOrUndefined(value.instance),
     traceId: stringOrUndefined(value.traceId),
     code: stringOrUndefined(value.code),
+    replacementTicket: stringOrUndefined(value.replacementTicket),
+    minimumSeconds: numberOrUndefined(value.minimumSeconds),
+    orderId: stringOrUndefined(value.orderId),
+    orderNumber: stringOrUndefined(value.orderNumber),
     errors: parseFieldErrors(value.errors),
   });
 }

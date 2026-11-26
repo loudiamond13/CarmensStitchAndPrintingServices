@@ -122,21 +122,31 @@ public static class SiteLinks
     public static bool IsPostalCode(string? value) => value is { Length: PostalCodeLength } && value.All(char.IsAsciiDigit);
 
     /// <summary>
-    /// Tells whether the text is one <c>@</c> with text on both sides, within the 254-character column, and not a bracket placeholder.
-    /// No regular expression is used (CWE-1333).
+    /// Tells whether the text is a usable email for the shop and the Quote alerts (D-42): exactly one <c>@</c> with text on both sides,
+    /// a dotted domain with text on both sides of every dot, no white space or control character (so no line break), none of
+    /// <c>, ; &lt; &gt; ( ) "</c>, within the 254-character column, and not a bracket placeholder. No regular expression is used (CWE-1333).
     /// </summary>
     /// <param name="value">The email, exactly as typed.</param>
     /// <returns>True when the email is allowed.</returns>
     public static bool IsContactEmail(string? value)
     {
-        if (value is null || value.Length > SiteSettings.ContactEmailMaxLength || HasBracketPlaceholder(value))
+        if (value is null || value.Length > SiteSettings.ContactEmailMaxLength || HasBracketPlaceholder(value) || value.Any(IsRefusedInEmail))
         {
             return false;
         }
 
         var at = value.IndexOf('@', StringComparison.Ordinal);
-        return at > 0 && at < value.Length - 1 && value.IndexOf('@', at + 1) < 0;
+        if (at <= 0 || at >= value.Length - 1 || value.IndexOf('@', at + 1) >= 0)
+        {
+            return false;
+        }
+
+        var domain = value.AsSpan(at + 1);
+        return domain.Contains('.') && domain[0] != '.' && domain[^1] != '.' && !domain.Contains("..", StringComparison.Ordinal);
     }
+
+    private static bool IsRefusedInEmail(char character) =>
+        char.IsWhiteSpace(character) || char.IsControl(character) || character is ',' or ';' or '<' or '>' or '(' or ')' or '"';
 
     /// <summary>Tells whether the text holds a square-bracket placeholder such as <c>[Shop address]</c>.</summary>
     /// <param name="value">The text.</param>

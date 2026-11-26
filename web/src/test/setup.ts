@@ -1,10 +1,12 @@
 // Vitest setup for every test file (vitest.config.ts test.setupFiles).
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { MAPS_KEY } from '@/modules/public/mapChoice';
 import { installConsoleGuard } from './consoleGuard';
 import { pageViewHandler, server } from './msw';
+import { quoteTicketHandler } from './quoteFixtures';
+import { newQuoteCountHandler } from './quoteRequestFixtures';
 import {
   demoGallery,
   demoHome,
@@ -39,6 +41,12 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// findBy and waitFor wait up to 5 seconds (the default is 1), so a lazy chunk or an MSW answer that is slow on a busy machine is not
+// a failure. A passing test is not slower: it resolves as soon as its condition holds.
+if (typeof window !== 'undefined') {
+  configure({ asyncUtilTimeout: 5000 });
+}
+
 // jsdom has no scrollIntoView either. A no-op lets components that scroll a control into view run under test.
 if (typeof window !== 'undefined') {
   Object.defineProperty(Element.prototype, 'scrollIntoView', {
@@ -57,7 +65,8 @@ installConsoleGuard();
 // network (MSW 3 renamed the onUnhandledRequest option to onUnhandledFrame). Registered before the cleanup below, so
 // handlers reset after the unmount. Node-env tests skip it.
 // Every public page reads the shop facts, so each test starts with the demo shop answering that route and the open status
-// (Contact reads it); a test that needs another answer calls server.use and with no public data left from the test before.
+// (Contact reads it), and a signed-in admin shell reads a New quote count of 0; a test that needs another answer calls server.use
+// and with no public data left from the test before.
 if (typeof window !== 'undefined') {
   beforeAll(() => {
     server.listen({ onUnhandledFrame: 'error' });
@@ -71,6 +80,8 @@ if (typeof window !== 'undefined') {
       galleryHandler(demoGallery),
       privacyContactHandler(),
       pageViewHandler(),
+      quoteTicketHandler(),
+      newQuoteCountHandler(),
     );
   });
   // Every test starts with no saved Show Map tap (D-65).

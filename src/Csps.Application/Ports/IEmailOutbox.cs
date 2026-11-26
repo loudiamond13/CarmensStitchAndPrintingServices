@@ -15,6 +15,7 @@ public interface IEmailOutbox
     /// <param name="email">The email to queue.</param>
     /// <param name="cancellationToken">Cancels the rendering.</param>
     /// <returns>A task that completes when the row is added to the unit of work.</returns>
+    /// <exception cref="UndeliverableRecipientException">The recipient is in a domain that can never receive mail.</exception>
     ValueTask EnqueueAsync(AuthEmail email, CancellationToken cancellationToken);
 
     /// <summary>Counts the committed emails of one kind to one address since a moment, for per-account email caps.</summary>

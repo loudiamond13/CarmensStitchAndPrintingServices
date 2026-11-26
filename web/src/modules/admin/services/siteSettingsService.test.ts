@@ -26,6 +26,7 @@ const settings: SiteSettings = {
   instagramUrl: null,
   tiktokUrl: null,
   contactEmail: 'hello@example.ph',
+  quoteAlertsEmail: 'quotes@example.ph',
   phones: [{ number: '0917 123 4567', label: 'Globe', isMain: true }],
   timeZoneId: 'Asia/Manila',
   currencyCode: 'PHP',
@@ -127,6 +128,7 @@ const saveRequest: UpdateSiteSettingsRequest = {
   instagramUrl: null,
   tiktokUrl: null,
   contactEmail: null,
+  quoteAlertsEmail: null,
   phones: [{ number: '0917 123 4567', label: null, isMain: true }],
 };
 
@@ -238,6 +240,37 @@ describe('siteSettingsService.removeSharePicture (PUB-04, D-26)', () => {
     expect(await rejection(createSiteSettingsService(client).removeSharePicture())).toMatchObject({
       kind: 'http',
       status: 404,
+    });
+  });
+});
+
+describe('siteSettingsService.sendQuoteAlertTest (D-11)', () => {
+  it('posts with no body to /site-settings/quote-alerts/test under the given key and resolves on 202', async () => {
+    const fake = createFakeFetch([{ status: 202 }]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    await expect(createSiteSettingsService(client).sendQuoteAlertTest('key-9')).resolves.toBeUndefined();
+
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0]?.method).toBe('POST');
+    expect(fake.calls[0]?.url).toBe('/api/v1/site-settings/quote-alerts/test');
+    expect(fake.calls[0]?.headers.get('Idempotency-Key')).toBe('key-9');
+  });
+
+  it('no saved address rejects with the 409 HttpError and its code', async () => {
+    const fake = createFakeFetch([
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+        body: { title: 'x', status: 409, code: 'site-settings.no-quote-alerts-address' },
+      },
+    ]);
+    const client = createHttpClient({ baseURL: '/api/v1', fetch: fake.fetch });
+
+    expect(await rejection(createSiteSettingsService(client).sendQuoteAlertTest('key-1'))).toMatchObject({
+      kind: 'http',
+      status: 409,
+      code: 'site-settings.no-quote-alerts-address',
     });
   });
 });

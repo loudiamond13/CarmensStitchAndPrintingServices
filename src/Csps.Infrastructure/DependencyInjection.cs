@@ -15,6 +15,7 @@ using Csps.Infrastructure.Money;
 using Csps.Infrastructure.Orders;
 using Csps.Infrastructure.Passwords;
 using Csps.Infrastructure.Persistence;
+using Csps.Infrastructure.QuoteRequests;
 using Csps.Infrastructure.Time;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -93,6 +94,7 @@ public static class DependencyInjection
         services.AddCspsIdentity();
         services.AddCspsExpenses();
         services.AddCspsOrders();
+        services.AddCspsQuoteRequests(configuration);
         services.AddCspsDashboard();
         services.AddCspsMoney();
         services.AddCspsIdempotency();

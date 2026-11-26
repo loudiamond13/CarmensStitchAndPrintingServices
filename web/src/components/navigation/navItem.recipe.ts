@@ -12,12 +12,13 @@
 //   - The tablet icon rail of the admin shell (App. C `.s-admin-side .csp-nav`, plan 02-31): a 52px centred item with
 //     no padding and the current marker at -8px, as `pg-tablet:in-data-[ui=s-admin-side]:` variants. The collapsed
 //     layout already centres with no padding, and App. C's collapsed rule outranks the rail there.
+//   - SPEC-GAP: `shrink-0` keeps the 44px height when the pinned side column is short, so its nav scrolls instead.
 import clsx from 'clsx';
 import { tw } from '@/ui/tw';
 
 /** `.csp-nav`, its hover, and `.csp-nav.is-on` with its `::before` accent marker bar just outside the left edge. */
 const base = tw(
-  "group/nav relative flex h-11 items-center gap-3 rounded-sm text-[14px] font-semibold whitespace-nowrap text-nav-ink no-underline transition-[background-color,color] duration-150 ease-[ease] hover:not-aria-[current=page]:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)] aria-[current=page]:bg-primary aria-[current=page]:font-bold aria-[current=page]:text-on-primary aria-[current=page]:before:absolute aria-[current=page]:before:top-2.5 aria-[current=page]:before:bottom-2.5 aria-[current=page]:before:-left-3 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-[0_3px_3px_0] aria-[current=page]:before:bg-accent aria-[current=page]:before:content-[''] pg-tablet:in-data-[ui=s-admin-side]:w-[52px] pg-tablet:in-data-[ui=s-admin-side]:aria-[current=page]:before:-left-2",
+  "group/nav relative flex h-11 shrink-0 items-center gap-3 rounded-sm text-[14px] font-semibold whitespace-nowrap text-nav-ink no-underline transition-[background-color,color] duration-150 ease-[ease] hover:not-aria-[current=page]:bg-[color-mix(in_srgb,var(--nav-ink)_12%,transparent)] aria-[current=page]:bg-primary aria-[current=page]:font-bold aria-[current=page]:text-on-primary aria-[current=page]:before:absolute aria-[current=page]:before:top-2.5 aria-[current=page]:before:bottom-2.5 aria-[current=page]:before:-left-3 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-[0_3px_3px_0] aria-[current=page]:before:bg-accent aria-[current=page]:before:content-[''] pg-tablet:in-data-[ui=s-admin-side]:w-[52px] pg-tablet:in-data-[ui=s-admin-side]:aria-[current=page]:before:-left-2",
 );
 
 /** `padding: 0 var(--space-3)`, and on the collapsed sidebar `justify-content: center; padding: 0`. */
@@ -47,3 +48,22 @@ export const navLabelHiddenClasses = tw('hidden');
 
 /** `.s-admin-side .csp-nav-label { display: none }` on the tablet rail: the label stays the item's accessible name. */
 export const navLabelRailClasses = tw('pg-tablet:in-data-[ui=s-admin-side]:hidden');
+
+// SPEC-GAP: NavCount (UI-SPEC R4). The New count on an item: a chip at the row's end with the `tabCountClasses` geometry, and a dot
+// at the icon's top right where the label is hidden (the collapsed sidebar and the tablet rail).
+
+/** The chip: 20px tall, at least 22px wide, 12/20 tabular, 600, accent ground. Hidden on the tablet rail, where the dot shows. */
+export const navCountClasses = tw(
+  'ml-auto h-5 min-w-[22px] shrink-0 rounded-xs bg-accent px-1.5 text-center text-[12px] leading-5 font-semibold text-on-accent tabular-nums pg-tablet:in-data-[ui=s-admin-side]:hidden',
+);
+
+/** The icon's box, so the dot can sit at its top right. */
+export const navIconBoxClasses = tw('relative inline-flex shrink-0');
+
+/** The 10px dot with a 2px nav-ground ring: always on the collapsed sidebar, only on the tablet rail otherwise. */
+export const navCountDotClasses = {
+  expanded: tw(
+    'absolute -top-1 -right-1 hidden size-2.5 rounded-pill bg-accent ring-2 ring-nav-bg pg-tablet:in-data-[ui=s-admin-side]:block',
+  ),
+  collapsed: tw('absolute -top-1 -right-1 size-2.5 rounded-pill bg-accent ring-2 ring-nav-bg'),
+} as const;

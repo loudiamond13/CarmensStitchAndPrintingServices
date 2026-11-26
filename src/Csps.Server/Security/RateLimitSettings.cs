@@ -30,8 +30,25 @@ public static class RateLimitPolicies
     /// <summary>Anonymous reads of <c>/api/v1/public/*</c> (SEC-03, P-10): a generous per-address window. The shell, robots.txt and sitemap.xml have no limit.</summary>
     public const string PublicRead = "public-read";
 
+    /// <summary>The anonymous quote create (INQ-03, D-26): a per-address window so one address cannot flood the inbox.</summary>
+    public const string QuoteCreate = "quote-create";
+
     /// <summary>The anonymous page view beacon (ANL-06, T-12-28): a per-address window so the counts cannot be inflated by one address.</summary>
     public const string AnalyticsCollect = "analytics-collect";
+
+    /// <summary>The Manager's Quote alerts test email (D-11, T-13-40): a per-address window so the button cannot flood the inbox.</summary>
+    public const string QuoteAlertTest = "quote-alerts-test";
+}
+
+/// <summary>The per-address limit on the Quote alerts test email, read from <c>RateLimits:QuoteAlertTest</c>: 3 in 10 minutes by default (D-11).</summary>
+public static class QuoteAlertTestRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteAlertTest";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 3, Window = TimeSpan.FromMinutes(10) };
 }
 
 /// <summary>The per-address limit on page view beacons, read from <c>RateLimits:AnalyticsCollect</c>: 120 a minute by default.</summary>
@@ -54,6 +71,28 @@ public static class AnalyticsCeilingRateLimit
     /// <summary>Creates the rule with its default numbers.</summary>
     /// <returns>A new rule.</returns>
     public static RateLimitRule Default() => new() { PermitLimit = 600, Window = TimeSpan.FromMinutes(1) };
+}
+
+/// <summary>The per-address limit on sending the quote form, read from <c>RateLimits:QuoteCreate</c>: 5 an hour by default (D-26).</summary>
+public static class QuoteCreateRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteCreate";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 5, Window = TimeSpan.FromHours(1) };
+}
+
+/// <summary>The one site-wide limit on sending the quote form, read from <c>RateLimits:QuoteCeiling</c>: 60 an hour by default.</summary>
+public static class QuoteCeilingRateLimit
+{
+    /// <summary>The configuration section the rule binds from.</summary>
+    public const string SectionName = "RateLimits:QuoteCeiling";
+
+    /// <summary>Creates the rule with its default numbers.</summary>
+    /// <returns>A new rule.</returns>
+    public static RateLimitRule Default() => new() { PermitLimit = 60, Window = TimeSpan.FromHours(1) };
 }
 
 /// <summary>The per-address limit on the public reads, read from <c>RateLimits:PublicRead</c>: 600 reads per minute by default.</summary>

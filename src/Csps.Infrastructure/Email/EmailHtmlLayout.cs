@@ -16,6 +16,11 @@ internal sealed record ParagraphBlock(string Text, string? LinkUrl = null, strin
 /// <param name="Text">The line.</param>
 internal sealed record MetaBlock(string Text) : EmailBlock;
 
+/// <summary>A labelled line, such as "Name: Juan". The value is visitor text: it is encoded, and its line breaks are kept.</summary>
+/// <param name="Label">The label, without the colon.</param>
+/// <param name="Value">The value.</param>
+internal sealed record FieldBlock(string Label, string Value) : EmailBlock;
+
 /// <summary>The sign-in code, shown selectable and never as a link.</summary>
 /// <param name="Code">The code.</param>
 internal sealed record CodeBlock(string Code) : EmailBlock;
@@ -26,7 +31,9 @@ internal sealed record CodeBlock(string Code) : EmailBlock;
 /// <param name="Heading">The heading.</param>
 /// <param name="Blocks">The body, in order.</param>
 /// <param name="Button">The one button, or null.</param>
-internal sealed record EmailContent(string Subject, string Preheader, string Heading, IReadOnlyList<EmailBlock> Blocks, EmailButton? Button);
+/// <param name="Reason">The footer's reason line; null keeps the staff-account sentence.</param>
+internal sealed record EmailContent(
+    string Subject, string Preheader, string Heading, IReadOnlyList<EmailBlock> Blocks, EmailButton? Button, string? Reason = null);
 
 /// <summary>
 /// The branded HTML frame of every auth email (UI-SPEC "Email Design Contract", D-30): inline styles, role=presentation
@@ -45,6 +52,9 @@ internal static class EmailHtmlLayout
 
     /// <summary>The footer's reason line.</summary>
     internal const string FooterReason = "You're getting this because you have a staff account at CSPS.";
+
+    /// <summary>The footer's reason line for the quote alert emails.</summary>
+    internal const string QuoteAlertsFooterReason = "You get this because this address is set as Quote alerts in Site Content.";
 
     private const string LogoSource = "cid:csps-logo";
     private const string LogoAlt = "CSPS — Carmen's Stitch & Printing Services";
@@ -99,7 +109,7 @@ internal static class EmailHtmlLayout
             .Append("<tr><td style=\"padding:16px 0 0 0;font-family:").Append(BodyFont)
             .Append(";font-size:14px;line-height:20px;font-weight:400;color:#7a5248;background-color:#f6dfd1\">")
             .Append(Encode(FooterBusiness)).Append(" &middot; ").Append(Encode(FooterNote)).Append("<br>")
-            .Append(Encode(FooterReason)).Append("</td></tr>\n</table>\n")
+            .Append(Encode(content.Reason ?? FooterReason)).Append("</td></tr>\n</table>\n")
             .Append("</td></tr>\n</table>\n</body>\n</html>\n");
         return html.ToString();
     }
@@ -122,6 +132,13 @@ internal static class EmailHtmlLayout
             case MetaBlock meta:
                 html.Append("<p style=\"margin:0 0 16px 0;font-family:").Append(BodyFont)
                     .Append(";font-size:14px;line-height:20px;font-weight:400;color:#6b443c\">").Append(Encode(meta.Text)).Append("</p>\n");
+                break;
+            case FieldBlock field:
+                html.Append("<p style=\"margin:0 0 8px 0;font-family:").Append(BodyFont)
+                    .Append(";font-size:16px;line-height:24px;font-weight:400;color:").Append(Ink).Append("\"><span style=\"font-weight:700\">")
+                    .Append(Encode(field.Label)).Append(":</span> ")
+                    .Append(Encode(field.Value).Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "<br>", StringComparison.Ordinal))
+                    .Append("</p>\n");
                 break;
             case CodeBlock code:
                 html.Append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:0 0 16px 0\"><tr>")

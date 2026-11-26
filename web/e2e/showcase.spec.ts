@@ -8,7 +8,7 @@
 // Plan 05-42 adds the Staff and audit section (UI-SPEC C1): its panels, dialogs and tabs are live demos on made-up data.
 // Since plan 05-35 (D-30..D-33) the same page also ships at /admin/components for Managers, marked as demo data; the
 // tests at the end of this file prove it on the real host: banner and badge first, no CSP or console finding, no API call
-// other than the session refresh, no sideways scroll at 320 and 1920 px, and an Admin sent on to /admin.
+// other than the admin shell's own reads (SHELL_CALLS), no sideways scroll at 320 and 1920 px, and an Admin sent on to /admin.
 import type { Page } from '@playwright/test';
 import { signInAs } from './auth.ts';
 import { expect, expectNoAxeViolations, test } from './fixtures.ts';
@@ -34,6 +34,7 @@ const SECTIONS = [
   'Site content and public website',
   'Visitor stats',
   'Legal',
+  'Quote requests',
 ];
 
 /** WebKit and Firefox can take several seconds to show this page of about 210 cases (as in shell.spec.ts, plan 12-31). */
@@ -211,7 +212,13 @@ test('@showcase the Delete Order demo opens an axe-clean dialog and deletes noth
 const DEMO_BANNER =
   'Demo data. Every order, name and amount on this page is made up to show the design. Nothing here is a real record.';
 
-test('@showcase a Manager opens /admin/components: Demo data badge and banner first, axe-clean, and no API call but the session refresh (D-30, D-32, D-33)', async ({
+/**
+ * The admin shell's own reads on any admin page: the session refresh and the sidebar's Quote Requests New count (plan
+ * 13-17). The showcase cases add none.
+ */
+const SHELL_CALLS = ['/api/v1/auth/refresh', '/api/v1/quote-requests/new-count'];
+
+test('@showcase a Manager opens /admin/components: Demo data badge and banner first, axe-clean, and no API call but the admin shell reads (D-30, D-32, D-33)', async ({
   page,
   request,
   guard,
@@ -249,7 +256,7 @@ test('@showcase a Manager opens /admin/components: Demo data badge and banner fi
   await expect(page.locator('a[href="/admin/components"]')).toHaveCount(0);
 
   await expectNoAxeViolations(page);
-  expect([...new Set(calls)]).toEqual(['/api/v1/auth/refresh']);
+  expect([...new Set(calls)]).toEqual(SHELL_CALLS);
 });
 
 for (const width of [320, 1920]) {
@@ -290,7 +297,7 @@ test('@showcase an Admin who opens /admin/components is sent on to /admin and ne
 
 const PASSWORD_SAMPLE = /^[A-Za-z]+-[A-Za-z]+-\d{4}$/;
 
-test('@showcase the Staff and audit demos open and close for a Manager, show a sample password once, and call no API but the session refresh (D-32, D-33)', async ({
+test('@showcase the Staff and audit demos open and close for a Manager, show a sample password once, and call no API but the admin shell reads (D-32, D-33)', async ({
   page,
   request,
   guard,
@@ -341,7 +348,7 @@ test('@showcase the Staff and audit demos open and close for a Manager, show a s
   await staff.getByRole('tab', { name: 'Security' }).click();
   await expect(staff.getByRole('tabpanel', { name: 'Security' })).toBeVisible();
 
-  expect([...new Set(calls)]).toEqual(['/api/v1/auth/refresh']);
+  expect([...new Set(calls)]).toEqual(SHELL_CALLS);
 });
 
 // Plan 10-21: the Dashboard and staff money cases load on request, make no API call, fit 320, 390 and 1440 px in both themes, and every

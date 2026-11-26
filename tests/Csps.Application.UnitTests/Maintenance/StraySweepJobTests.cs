@@ -1,3 +1,4 @@
+using Csps.Application.Images;
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
 using Microsoft.Extensions.Time.Testing;
@@ -14,11 +15,14 @@ public sealed class StraySweepJobTests
     private const string StrayLabel = "Stray files removed (older than 2 days)";
     private const string Folder = "csps-test/orders/";
     private const string ContentFolder = "csps-test/content/";
+    private const string QuotesFolder = "csps-test/quotes/";
     private static readonly DateTimeOffset Now = new(2026, 11, 3, 12, 0, 0, TimeSpan.Zero);
 
     private static string PublicId(string name) => $"{Folder}00000000-0000-0000-0000-000000000001/{name}";
 
     private static string ContentId(string name) => $"{ContentFolder}lines/00000000-0000-0000-0000-000000000002/{name}";
+
+    private static string QuoteId(string name) => $"{QuotesFolder}00000000-0000-0000-0000-000000000003/{name}";
 
     private static StoredImageEntry Entry(string publicId, TimeSpan age) => new(publicId, Now - age);
 
@@ -454,9 +458,19 @@ public sealed class StraySweepJobTests
 
         var report = await harness.RunAsync();
 
-        harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe([Folder, ContentFolder]);
+        harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe([Folder, ContentFolder, QuotesFolder]);
         harness.Queue.Queued.Select(queued => queued.PublicId).ShouldBe([PublicId("order-stray"), ContentId("content-stray")]);
         report.Lines.ShouldHaveSingleItem().Value.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task TheSweepListsExactlyTheFoldersTheRemovalJobAccepts()
+    {
+        var harness = new Harness();
+
+        await harness.RunAsync();
+
+        harness.Storage.Listings.Select(listing => listing.Prefix).ShouldBe(PublicIds.OwnFolders("csps-test"));
     }
 
     [Fact]
@@ -539,6 +553,121 @@ public sealed class StraySweepJobTests
         report.Lines.Single(line => line.Failed).Text.ShouldBe("The stray file sweep could not read the photo storage.");
     }
 
+    // -- the quotes folder (INQ-07, Pitfall 3) ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheQuotesFolderIsSweptWithItsOwnCursor()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(QuotesFolder, null, new StoredImagePage([Entry(QuoteId("a"), TimeSpan.FromDays(5))], "quotes-next"));
+        harness.Storage.Page(QuotesFolder, "quotes-next", new StoredImagePage([Entry(QuoteId("b"), TimeSpan.FromDays(5))], null));
+        harness.Storage.OnList = () =>
+        {
+            if (harness.Storage.Listings.Any(listing => listing.Prefix == QuotesFolder))
+            {
+                harness.Time.Advance(TimeSpan.FromSeconds(2));
+            }
+        };
+
+        var first = await harness.RunAsync(new MaintenanceBudget(harness.Time, TimeSpan.FromSeconds(1)));
+        var savedAfterFirst = new Dictionary<string, string>(harness.Cursors.Saved);
+        harness.Storage.OnList = null;
+        var second = await harness.RunAsync();
+
+        first.More.ShouldBeTrue();
+        StraySweepJob.QuotesCursorName.ShouldBe("stray-sweep-quotes");
+        savedAfterFirst.ShouldBe(new Dictionary<string, string> { ["stray-sweep-quotes"] = "quotes-next" });
+        harness.QuotesListings.ShouldBe([(QuotesFolder, null), (QuotesFolder, "quotes-next")]);
+        harness.Queue.Queued.ShouldBe([(QuoteId("a"), ImageDeletionReason.Stray), (QuoteId("b"), ImageDeletionReason.Stray)]);
+        second.More.ShouldBeFalse();
+        harness.Cursors.Saved.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ALiveQuotePhotoIsNeverAStrayAndAFailedUploadIs()
+    {
+        var harness = new Harness();
+        harness.Inventory.Photos.Add(QuoteId("live"));
+        harness.Storage.Page(QuotesFolder, null, new StoredImagePage(
+            [
+                Entry(QuoteId("live"), TimeSpan.FromDays(30)),
+                Entry(QuoteId("failed-upload"), TimeSpan.FromDays(3)),
+                Entry(QuoteId("young"), TimeSpan.FromDays(1)),
+            ],
+            null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.ShouldBe([(QuoteId("failed-upload"), ImageDeletionReason.Stray)]);
+        var line = report.Lines.ShouldHaveSingleItem();
+        (line.Label, line.Value, line.Failed).ShouldBe((StrayLabel, 1L, false));
+    }
+
+    [Fact]
+    public async Task OnlyFilesUnderTheOwnQuotesFolderWithTheTrailingSlashAreEverChecked()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(QuotesFolder, null, new StoredImagePage(
+            [
+                Entry("csps-test/quotes-old/x/old", TimeSpan.FromDays(30)),
+                Entry("csps-test-dev/quotes/x/old", TimeSpan.FromDays(30)),
+                Entry("csps-test/quotes", TimeSpan.FromDays(30)),
+                Entry(QuoteId("old"), TimeSpan.FromDays(30)),
+            ],
+            null));
+
+        await harness.RunAsync();
+
+        harness.Inventory.Asked.ShouldHaveSingleItem().ShouldBe([QuoteId("old")]);
+        harness.Queue.Queued.ShouldBe([(QuoteId("old"), ImageDeletionReason.Stray)]);
+    }
+
+    [Fact]
+    public async Task ASavedQuotesCursorIsUsedAndTheOtherCursorsAreNotTouched()
+    {
+        var harness = new Harness();
+        harness.Cursors.Saved["stray-sweep-quotes"] = "quotes-7";
+        harness.Cursors.Saved["stray-sweep-content"] = "content-7";
+        harness.Storage.Page(QuotesFolder, "quotes-7", new StoredImagePage([Entry(QuoteId("a"), TimeSpan.FromDays(5))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.QuotesListings.ShouldBe([(QuotesFolder, "quotes-7")]);
+        harness.ContentListings.ShouldBe([(ContentFolder, "content-7")]);
+        harness.OrderListings.ShouldBe([(Folder, null)]);
+        harness.Cursors.Saved.ShouldBeEmpty();
+        report.Lines.ShouldHaveSingleItem().Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheCapIsSharedByAllThreePassesSoAQuoteStrayPastItTurnsTheRunRed()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(Folder, null, new StoredImagePage(Strays(0, 50), null));
+        harness.Storage.Page(QuotesFolder, null, new StoredImagePage([Entry(QuoteId("a"), TimeSpan.FromDays(5))], null));
+
+        var report = await harness.RunAsync();
+
+        harness.Queue.Queued.Count.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        harness.Queue.Queued.ShouldNotContain(queued => queued.PublicId == QuoteId("a"));
+        report.Lines.Single(line => line.Label == StrayLabel).Value.ShouldBe(StraySweepJob.MaxStraysPerRun);
+        report.Lines.Single(line => line.Failed).Label.ShouldBe("Stray file limit");
+    }
+
+    [Fact]
+    public async Task AContentListingThatCannotBeReadSkipsTheQuotesPass()
+    {
+        var harness = new Harness();
+        harness.Storage.Page(Folder, null, new StoredImagePage([Entry(PublicId("a"), TimeSpan.FromDays(5))], null));
+        harness.Storage.OnList = () => harness.Storage.ListFailure = new ImageStorageException(ImageFailureCodes.Transient);
+
+        var report = await harness.RunAsync();
+
+        harness.ContentListings.ShouldHaveSingleItem();
+        harness.QuotesListings.ShouldBeEmpty();
+        report.Lines.ShouldContain(line => line.Failed);
+    }
+
     private static List<StoredImageEntry> Strays(int first, int count) =>
         [.. Enumerable.Range(first, count).Select(number => Entry(PublicId($"stray{number:D3}"), TimeSpan.FromDays(5)))];
 
@@ -567,6 +696,8 @@ public sealed class StraySweepJobTests
         public List<(string Prefix, string? Cursor)> OrderListings => [.. Storage.Listings.Where(listing => listing.Prefix == Folder)];
 
         public List<(string Prefix, string? Cursor)> ContentListings => [.. Storage.Listings.Where(listing => listing.Prefix == ContentFolder)];
+
+        public List<(string Prefix, string? Cursor)> QuotesListings => [.. Storage.Listings.Where(listing => listing.Prefix == QuotesFolder)];
 
         public Task<MaintenanceJobReport> RunAsync(MaintenanceBudget? budget = null) =>
             Job.RunAsync(budget ?? new MaintenanceBudget(Time), TestContext.Current.CancellationToken);

@@ -4,7 +4,14 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDeferred } from '@/test/fakeFetch';
 import { putBootBlock, resetPublicData, demoSite } from '@/test/publicFixtures';
-import { createPublicResource, invalidatePublicContent, type PublicResourceState } from './publicResource';
+import type { ReactNode } from 'react';
+import {
+  createPublicResource,
+  fixedAnswer,
+  invalidatePublicContent,
+  PublicDataScope,
+  type PublicResourceState,
+} from './publicResource';
 
 const STALE_MS = 1000;
 
@@ -261,5 +268,42 @@ describe('createPublicResource', () => {
     unmount();
 
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+describe('PublicDataScope (the showcase and parity previews)', () => {
+  it('shows the fixed answer inside the scope with no load, and leaves the shared store unloaded', async () => {
+    const load = vi.fn(() => Promise.resolve('shared'));
+    const resource = createPublicResource<string>({ load, staleMs: STALE_MS });
+    const fixed = new Map([fixedAnswer(resource, 'fixed')]);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <PublicDataScope value={fixed}>{children}</PublicDataScope>
+    );
+
+    const inside = renderHook(() => resource.useResource(), { wrapper });
+    expect(inside.result.current).toEqual({ status: 'success', data: 'fixed' });
+    expect(load).not.toHaveBeenCalled();
+    inside.unmount();
+
+    const outside = renderHook(() => resource.useResource());
+    expect(outside.result.current.status).toBe('loading');
+    await waitFor(() => {
+      expect(data(outside.result.current)).toBe('shared');
+    });
+  });
+
+  it('loads as usual a resource the scope does not list', async () => {
+    const listed = createPublicResource<string>({ load: () => Promise.resolve('listed'), staleMs: STALE_MS });
+    const other = createPublicResource<string>({ load: () => Promise.resolve('other'), staleMs: STALE_MS });
+    const fixed = new Map([fixedAnswer(listed, 'fixed')]);
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <PublicDataScope value={fixed}>{children}</PublicDataScope>
+    );
+
+    const { result } = renderHook(() => other.useResource(), { wrapper });
+
+    await waitFor(() => {
+      expect(data(result.current)).toBe('other');
+    });
   });
 });

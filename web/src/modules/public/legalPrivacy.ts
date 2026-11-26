@@ -3,7 +3,7 @@
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
 // It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134). The owner approved
-// the wording at version 1.0 (D-73, D-135). Quote requests are left out until the form returns (D-82).
+// the wording at version 1.0 (D-73, D-135). Quote requests are covered; draft 1.1, wording for the owner to approve (D-28).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
 
@@ -37,6 +37,9 @@ export const PRIVACY_TEXT: LegalText = {
             ],
             ['Photos of your order that our staff add to it.'],
             [
+              'When you send a quote request: the details you type into the form (name, team, mobile number, email, product, quantity and message) and any photos you attach.',
+            ],
+            [
               'A daily page count: each time a page is opened, we add one to the count for that page and that day. We keep only the page and the day, and nothing about who opened it.',
             ],
             [
@@ -57,6 +60,12 @@ export const PRIVACY_TEXT: LegalText = {
               term: 'Orders and payments',
               parts: [
                 'To make your order, keep track of payments and tell you about it. Our basis is the contract with you. We also keep our bookkeeping and tax records because the law says we must.',
+              ],
+            },
+            {
+              term: 'Quote requests',
+              parts: [
+                'Only to reply to your request and prepare your quote. Our basis is that you asked us to, as a step before a contract.',
               ],
             },
             {
@@ -102,8 +111,10 @@ export const PRIVACY_TEXT: LegalText = {
           kind: 'ul',
           items: [
             ['The web host that runs this website.'],
-            ['Cloudinary, which stores and shows our photos.'],
-            ['The email sender, which delivers the emails we send.'],
+            ['Cloudinary, which stores and shows our photos, including the photos you attach to a quote request.'],
+            [
+              'The email sender, which delivers the emails we send, including the alert our staff get about a quote request.',
+            ],
             [
               'Google, for the map on the Contact page. This happens when you tap Show Map. After your first tap, this browser loads the map by itself until you clear the saved setting.',
             ],
@@ -123,13 +134,31 @@ export const PRIVACY_TEXT: LegalText = {
               parts: ['Kept for good. They are our bookkeeping and tax records.'],
             },
             {
+              term: "Quote requests that didn't become an order, and their photos",
+              parts: ['Deleted 6 months after we receive them.'],
+            },
+            {
+              term: 'Quote requests that became an order, and their photos',
+              parts: ['Kept as long as the order.'],
+            },
+            {
+              term: 'Photos sent with a request we mark as spam',
+              parts: ['Deleted within a day.'],
+            },
+            {
               term: 'Daily page counts',
-              parts: ['Kept for about 3 years; removed at the next monthly cleanup.'],
+              parts: ['Deleted about 3 years after the day they count.'],
             },
             {
               term: 'Staff account activity log',
-              parts: ['Kept for about 8 months; removed at the next monthly cleanup.'],
+              parts: ['Deleted about 8 months after it is recorded.'],
             },
+          ],
+        },
+        {
+          kind: 'p',
+          parts: [
+            'Rarely, a photo that finishes uploading at the moment its request is marked as spam or deleted, or its order is deleted, can stay in storage for up to 3 days before it is removed.',
           ],
         },
       ],
@@ -324,17 +353,3 @@ export const PRIVACY_TEXT: LegalText = {
     },
   ],
 };
-
-/** The quote-request lines held out of the policy until the quote request form returns in Phase 13 (D-82). */
-export const PRIVACY_QUOTE_REQUEST_LINES = {
-  collect: 'When you send a quote request: the details you type into the form, and any files you attach.',
-  purpose: {
-    term: 'Quote requests',
-    text: 'To read your request and send you a quote. Our basis is that you asked us to, as a step before a contract.',
-  },
-  retention: {
-    term: "Quote requests that didn't become an order, and their files",
-    text: 'Kept for about 6 months after we receive them; removed at the next monthly cleanup.',
-  },
-  object: 'You can say no to some uses of your information, such as the details of a quote request.',
-} as const;

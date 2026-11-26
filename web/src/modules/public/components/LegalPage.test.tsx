@@ -171,7 +171,12 @@ describe('LegalPage article (UI-SPEC L1 item 2)', () => {
 
 describe('LegalPage head (D-14)', () => {
   const DRAFT = DRAFT_TERMS;
-  const APPROVED: LegalPageMeta = { ...LEGAL_PAGES.privacy, lastUpdated: '2026-11-18', approved: true };
+  const APPROVED: LegalPageMeta = {
+    ...LEGAL_PAGES.privacy,
+    version: '1.0',
+    lastUpdated: '2026-11-18',
+    approved: true,
+  };
 
   function wrap(page: LegalPageMeta, sections?: readonly LegalSectionData[]) {
     return (

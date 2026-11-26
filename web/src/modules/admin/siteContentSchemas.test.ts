@@ -26,6 +26,7 @@ import {
   HOURS_TIME_OPTIONS,
   hoursSchema,
   hoursValuesOf,
+  isContactEmail,
   isDirectionsLink,
   isFacebookLink,
   isInstagramLink,
@@ -86,6 +87,14 @@ const linkCases = JSON.parse(
   readFileSync(new URL('../../../../tests/fixtures/site-link-cases.json', import.meta.url), 'utf8'),
 ) as LinkCases;
 
+interface EmailCases {
+  contactEmail: { accept: string[]; refuse: string[] };
+}
+
+const emailCases = JSON.parse(
+  readFileSync(new URL('../../../../tests/fixtures/email-cases.json', import.meta.url), 'utf8'),
+) as EmailCases;
+
 const GOOD: BusinessInfoInput = businessInfoValuesOf(demoSiteSettings);
 
 type PathPart = string | number;
@@ -128,6 +137,7 @@ describe('the saved settings pass every rule', () => {
       instagramUrl: '',
       tiktokUrl: '',
       contactEmail: '',
+      quoteAlertsEmail: '',
       phones: [{ number: '0917 123 4567', label: '', isMain: true }],
     });
 
@@ -232,6 +242,36 @@ describe('the shared link cases (tests/fixtures/site-link-cases.json)', () => {
   });
 });
 
+describe('the shared email cases (tests/fixtures/email-cases.json, D-42)', () => {
+  it.each(emailCases.contactEmail.accept)('accepts %j', (email) => {
+    expect(isContactEmail(email)).toBe(true);
+  });
+
+  it.each(emailCases.contactEmail.refuse)('refuses %j', (email) => {
+    expect(isContactEmail(email)).toBe(false);
+  });
+
+  it.each(['contactEmail', 'quoteAlertsEmail'] as const)(
+    'gives %s the same answer in the form as the rule',
+    (field) => {
+      for (const email of emailCases.contactEmail.accept) {
+        expect(messagesFor(withValue({ [field]: email }), field)).toEqual([]);
+      }
+      for (const email of emailCases.contactEmail.refuse.filter((text) => text.trim() === text && text !== '')) {
+        expect(messagesFor(withValue({ [field]: email }), field)).toEqual(['Enter a valid email, like name@gmail.com']);
+      }
+    },
+  );
+
+  it('refuses an email with a line break inside even after the trim', () => {
+    const email = '  a@b.com\r\nBcc: z@y.com  ';
+
+    expect(messagesFor(withValue({ quoteAlertsEmail: email }), 'quoteAlertsEmail')).toEqual([
+      'Enter a valid email, like name@gmail.com',
+    ]);
+  });
+});
+
 describe('every UI-SPEC Business Info row (the same list as the server validator)', () => {
   it.each([
     ['businessName', '', 'Enter the business name.'],
@@ -255,6 +295,12 @@ describe('every UI-SPEC Business Info row (the same list as the server validator
     ['contactEmail', 'a@b@c.ph', 'Enter a valid email, like name@gmail.com'],
     ['contactEmail', `${'a'.repeat(250)}@b.ph`, 'Enter a valid email, like name@gmail.com'],
     ['contactEmail', 'name@[example].ph', 'Enter a valid email, like name@gmail.com'],
+    ['quoteAlertsEmail', 'nope', 'Enter a valid email, like name@gmail.com'],
+    ['quoteAlertsEmail', 'a@b@c.ph', 'Enter a valid email, like name@gmail.com'],
+    ['quoteAlertsEmail', 'name@[example].ph', 'Enter a valid email, like name@gmail.com'],
+    ['quoteAlertsEmail', '@example.ph', 'Enter a valid email, like name@gmail.com'],
+    ['quoteAlertsEmail', `${'a'.repeat(250)}@b.ph`, 'Keep the email to 254 characters or fewer.'],
+    ['quoteAlertsEmail', `${'a'.repeat(255)}@example.ph`, 'Keep the email to 254 characters or fewer.'],
   ] as const)('gives %s the message for %j', (field, value, message) => {
     expect(messagesFor(withValue({ [field]: value }), field)).toEqual([message]);
   });
@@ -268,6 +314,11 @@ describe('every UI-SPEC Business Info row (the same list as the server validator
     ['postalCode', ' 8600 '],
     ['contactEmail', 'name@gmail.com'],
     ['contactEmail', ''],
+    ['quoteAlertsEmail', 'name@gmail.com'],
+    ['quoteAlertsEmail', ''],
+    ['quoteAlertsEmail', '   '],
+    ['quoteAlertsEmail', 'shop@example.test'],
+    ['quoteAlertsEmail', `${'a'.repeat(254 - '@example.ph'.length)}@example.ph`],
   ] as const)('accepts %s as %j', (field, value) => {
     expect(messagesFor(withValue({ [field]: value }), field)).toEqual([]);
   });
@@ -419,6 +470,22 @@ describe('the save request (CONT-01)', () => {
     expect(request.phones).toEqual(demoSiteSettings.phones);
     expect(request.tiktokUrl).toBeNull();
     expect(request.turnaroundLine).toBeNull();
+  });
+
+  it('always carries quoteAlertsEmail: the trimmed address, or null when it is empty', () => {
+    const empty = toSiteSettingsRequest(withValue({ quoteAlertsEmail: '  ' }), 'v1');
+    const typed = toSiteSettingsRequest(withValue({ quoteAlertsEmail: ' quotes@example.com ' }), 'v1');
+
+    expect(Object.keys(empty)).toContain('quoteAlertsEmail');
+    expect(empty.quoteAlertsEmail).toBeNull();
+    expect(typed.quoteAlertsEmail).toBe('quotes@example.com');
+  });
+
+  it('fills the field from the saved address and leaves an unset one empty', () => {
+    expect(businessInfoValuesOf({ ...demoSiteSettings, quoteAlertsEmail: 'quotes@example.com' }).quoteAlertsEmail).toBe(
+      'quotes@example.com',
+    );
+    expect(businessInfoValuesOf(demoSiteSettings).quoteAlertsEmail).toBe('');
   });
 
   it('trims every text and sends an empty optional value as null', () => {

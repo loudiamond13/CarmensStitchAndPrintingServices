@@ -120,7 +120,7 @@ public sealed class SiteLinksTests
 
     [Theory]
     [InlineData("shop@example.test", true)]
-    [InlineData("a@b", true)]
+    [InlineData("a@b.co", true)]
     [InlineData("name", false)]
     [InlineData("a@b@c.test", false)]
     [InlineData("@example.test", false)]

@@ -1,12 +1,13 @@
 using Csps.Application.Images;
 using Csps.Application.Maintenance;
 using Csps.Application.Ports;
+using Csps.Domain.Time;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 
 namespace Csps.Application.UnitTests.Maintenance;
 
-/// <summary>JOB-01, JOB-02, D-24, D-36: every run says how full the free Cloudinary plan is, and turns red above 80%.</summary>
+/// <summary>JOB-01, JOB-02, D-24, D-34, D-36: the first run of each business month says how full the free Cloudinary plan is, and turns red above 80%.</summary>
 public sealed class CloudinaryUsageJobTests
 {
     private const string StorageLabel = "Cloudinary storage used";
@@ -18,6 +19,10 @@ public sealed class CloudinaryUsageJobTests
     private const string NotCheckedText = "photo storage is not set up.";
     private const long OneAndAHalfGigabytes = 1_610_612_736;
     private const long FiveMegabytes = 5_242_880;
+    private const string CursorName = "cloudinary-usage-month";
+
+    private static readonly TimeZoneInfo Manila = TimeZoneInfo.CreateCustomTimeZone("Manila", TimeSpan.FromHours(8), "Manila", "Manila");
+    private static readonly DateTimeOffset NovemberDay = new(2026, 11, 22, 10, 0, 0, TimeSpan.Zero);
 
     private static StorageUsage Usage(double creditsPercent = 20.8, double storagePercent = 10, long storageBytes = OneAndAHalfGigabytes, double used = 5.2, double limit = 25, long imageMax = 0) =>
         new(storagePercent, creditsPercent, storageBytes, used, limit, imageMax);
@@ -30,21 +35,38 @@ public sealed class CloudinaryUsageJobTests
         return await RunAsync(storage, maxBytes);
     }
 
-    private static async Task<IReadOnlyList<MaintenanceLine>> RunAsync(IImageStorage storage, int maxBytes = ImageUploadLimits.MaxFileBytes, IMaintenanceJobLog? log = null)
+    private static async Task<IReadOnlyList<MaintenanceLine>> RunAsync(
+        IImageStorage storage,
+        int maxBytes = ImageUploadLimits.MaxFileBytes,
+        IMaintenanceJobLog? log = null,
+        FakeMaintenanceCursors? cursors = null,
+        DateTimeOffset? now = null)
     {
-        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings { MaxBytes = maxBytes }, log ?? Substitute.For<IMaintenanceJobLog>());
+        var job = NewJob(storage, cursors ?? new FakeMaintenanceCursors(), now ?? NovemberDay, maxBytes, log);
         var report = await job.RunAsync(new MaintenanceBudget(new FakeTimeProvider()), TestContext.Current.CancellationToken);
         report.More.ShouldBeFalse();
         return report.Lines;
     }
 
+    private static CloudinaryUsageJob NewJob(IImageStorage storage, IMaintenanceCursors cursors, DateTimeOffset now, int maxBytes = ImageUploadLimits.MaxFileBytes, IMaintenanceJobLog? log = null) =>
+        new(storage, new ImageUploadSettings { MaxBytes = maxBytes }, cursors, new FixedCalendar(now), log ?? Substitute.For<IMaintenanceJobLog>());
+
+    private static IImageStorage StorageWith(StorageUsage usage)
+    {
+        var storage = Substitute.For<IImageStorage>();
+        storage.IsConfigured.Returns(true);
+        storage.GetUsageAsync(Arg.Any<CancellationToken>()).Returns(usage);
+        return storage;
+    }
+
     [Fact]
     public void TheJobRunsLastInThePassAsOrder40()
     {
-        var job = new CloudinaryUsageJob(Substitute.For<IImageStorage>(), new ImageUploadSettings(), Substitute.For<IMaintenanceJobLog>());
+        var job = NewJob(Substitute.For<IImageStorage>(), new FakeMaintenanceCursors(), NovemberDay);
 
         job.Order.ShouldBe(40);
         job.Name.ShouldBe("cloudinary-usage");
+        CloudinaryUsageJob.CursorName.ShouldBe(CursorName);
     }
 
     [Fact]
@@ -172,8 +194,100 @@ public sealed class CloudinaryUsageJobTests
         var storage = Substitute.For<IImageStorage>();
         storage.IsConfigured.Returns(true);
         storage.GetUsageAsync(Arg.Any<CancellationToken>()).Returns<Task<StorageUsage>>(_ => throw new OperationCanceledException(cancelled.Token));
-        var job = new CloudinaryUsageJob(storage, new ImageUploadSettings(), Substitute.For<IMaintenanceJobLog>());
+        var job = NewJob(storage, new FakeMaintenanceCursors(), NovemberDay);
 
         await Should.ThrowAsync<OperationCanceledException>(() => job.RunAsync(new MaintenanceBudget(new FakeTimeProvider()), cancelled.Token));
+    }
+
+    [Fact]
+    public async Task ChecksOnTheFirstRunOfAMonth()
+    {
+        var cursors = new FakeMaintenanceCursors();
+        var storage = StorageWith(Usage());
+
+        var lines = await RunAsync(storage, cursors: cursors);
+
+        lines.ShouldContain(candidate => candidate.Label == StorageLabel);
+        lines.ShouldContain(candidate => candidate.Label == CreditsLabel);
+        await storage.Received(1).GetUsageAsync(Arg.Any<CancellationToken>());
+        cursors.Saved[CursorName].ShouldBe("2026-11");
+    }
+
+    [Fact]
+    public async Task AddsNoLineLaterTheSameMonth()
+    {
+        var cursors = new FakeMaintenanceCursors();
+        cursors.Saved[CursorName] = "2026-11";
+        var storage = StorageWith(Usage(creditsPercent: 95));
+
+        var lines = await RunAsync(storage, cursors: cursors);
+
+        lines.ShouldBeEmpty();
+        await storage.DidNotReceive().GetUsageAsync(Arg.Any<CancellationToken>());
+        cursors.Writes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ChecksAgainInANewMonth()
+    {
+        var cursors = new FakeMaintenanceCursors();
+        cursors.Saved[CursorName] = "2026-10";
+        var storage = StorageWith(Usage());
+
+        var lines = await RunAsync(storage, cursors: cursors);
+
+        lines.ShouldContain(candidate => candidate.Label == StorageLabel);
+        await storage.Received(1).GetUsageAsync(Arg.Any<CancellationToken>());
+        cursors.Saved[CursorName].ShouldBe("2026-11");
+    }
+
+    [Fact]
+    public async Task TheMonthIsTheBusinessMonthNotTheUtcMonth()
+    {
+        var cursors = new FakeMaintenanceCursors();
+        cursors.Saved[CursorName] = "2026-10";
+        var lateOctoberInUtc = new DateTimeOffset(2026, 10, 31, 17, 0, 0, TimeSpan.Zero);
+
+        await RunAsync(StorageWith(Usage()), cursors: cursors, now: lateOctoberInUtc);
+
+        cursors.Saved[CursorName].ShouldBe("2026-11");
+    }
+
+    [Theory]
+    [InlineData("transient")]
+    [InlineData("unauthorized")]
+    [InlineData("refused")]
+    public async Task AFailedReadDoesNotMoveTheCursor(string code)
+    {
+        var cursors = new FakeMaintenanceCursors();
+        cursors.Saved[CursorName] = "2026-10";
+        var storage = Substitute.For<IImageStorage>();
+        storage.IsConfigured.Returns(true);
+        storage.GetUsageAsync(Arg.Any<CancellationToken>()).Returns<Task<StorageUsage>>(_ => throw new ImageStorageException(code));
+
+        var lines = await RunAsync(storage, cursors: cursors);
+
+        lines.Single(candidate => candidate.Failed).Text.ShouldBe(UnreadableText);
+        cursors.Saved[CursorName].ShouldBe("2026-10");
+        cursors.Writes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task StorageThatIsNotSetUpDoesNotMoveTheCursor()
+    {
+        var cursors = new FakeMaintenanceCursors();
+        var storage = Substitute.For<IImageStorage>();
+        storage.IsConfigured.Returns(false);
+
+        await RunAsync(storage, cursors: cursors);
+
+        cursors.Saved.ShouldBeEmpty();
+        cursors.Writes.ShouldBeEmpty();
+    }
+
+    private sealed class FixedCalendar(DateTimeOffset now) : IBusinessCalendar
+    {
+        public ValueTask<BusinessClock> GetClockAsync(CancellationToken cancellationToken) =>
+            ValueTask.FromResult(new BusinessClock(Manila, ZoneSource.Stored, now));
     }
 }

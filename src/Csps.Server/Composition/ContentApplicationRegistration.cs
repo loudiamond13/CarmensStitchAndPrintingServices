@@ -18,6 +18,7 @@ public static class ContentApplicationRegistration
         services.AddScoped<UpdateSiteSettingsHandler>();
         services.AddScoped<UploadSharePictureHandler>();
         services.AddScoped<RemoveSharePictureHandler>();
+        services.AddScoped<SendQuoteAlertTestHandler>();
         services.AddSingleton<IValidator<UpdateSiteSettingsRequest>, UpdateSiteSettingsRequestValidator>();
         services.AddScoped<GetPublicProductLinesHandler>();
         services.AddScoped<GetOpenStatusHandler>();

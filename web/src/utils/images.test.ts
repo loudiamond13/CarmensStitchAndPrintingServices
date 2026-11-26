@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  cleanFileName,
   defaultBrowserImageParts,
+  fileSizeText,
   planDownscale,
   prepareImage,
+  previewImage,
+  sizeText,
   sniffImageType,
   type BrowserImageParts,
   type DecodedBitmap,
@@ -573,5 +577,85 @@ describe('defaultBrowserImageParts', () => {
     stubCanvas({ dataUrl: 'data:,' });
 
     expect(defaultBrowserImageParts.preview(bitmap, 176, 132)).toBeNull();
+  });
+});
+
+// The file name and size helpers every picker shares (moved from the admin photo schemas; behavior unchanged).
+describe('cleanFileName (the server cleans the name the same way)', () => {
+  it.each([
+    ['C:\\Users\\Staff\\front.jpg', 'front.jpg'],
+    ['/photos/back.png', 'back.png'],
+    ['  side\u0007.jpg  ', 'side.jpg'],
+    ['', 'This file'],
+    ['a'.repeat(100), 'a'.repeat(80)],
+    ['a'.repeat(79) + '\u{1F600}b.jpg', 'a'.repeat(79)],
+    ['a'.repeat(78) + '\u{1F600}b.jpg', 'a'.repeat(78) + '\u{1F600}'],
+    ['x\ud83d.jpg', 'x.jpg'],
+    ['x\ude00.jpg', 'x.jpg'],
+  ])('%j becomes %j', (name, expected) => {
+    expect(cleanFileName(name)).toBe(expected);
+  });
+
+  it('never leaves half of an emoji, so the name always reads as JSON on the server', () => {
+    const name = cleanFileName('a'.repeat(79) + '\u{1F600}'.repeat(3));
+    expect(JSON.stringify(name)).not.toMatch(/\\ud[89a-f]/i);
+  });
+});
+
+describe('sizeText (the limit as the server writes it)', () => {
+  it.each([
+    [10_485_760, '10 MB'],
+    [5 * 1_048_576, '5 MB'],
+    [1_048_576, '1 MB'],
+    [1_572_864, '1 MB'],
+    [524_288, '512 KB'],
+    [1024, '1 KB'],
+    [500, '500 bytes'],
+  ])('%j bytes reads %j', (bytes, expected) => {
+    expect(sizeText(bytes)).toBe(expected);
+  });
+});
+
+describe('fileSizeText (the size of one picked file)', () => {
+  it.each([
+    [2_516_582, '2.4 MB'],
+    [1_572_864, '1.5 MB'],
+    [10_485_760, '10 MB'],
+    [524_288, '512 KB'],
+    [500, '500 bytes'],
+  ])('%j bytes reads %j', (bytes, expected) => {
+    expect(fileSizeText(bytes)).toBe(expected);
+  });
+});
+
+describe('previewImage (the small data: preview of one picked file, nothing else)', () => {
+  it('draws the preview at the preview size and closes the bitmap', async () => {
+    const fake = fakeParts({ head: PNG_HEAD, width: 1000, height: 500 });
+    const preview = vi.spyOn(fake.parts, 'preview');
+
+    await expect(previewImage(fileOf('logo.png'), fake.parts)).resolves.toBe('data:image/jpeg;base64,AAAA');
+    expect(preview).toHaveBeenCalledWith(fake.bitmap, 176, 88);
+    expect(fake.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('never re-encodes the file', async () => {
+    const fake = fakeParts({ head: PNG_HEAD, width: 1000, height: 500 });
+
+    await previewImage(fileOf('logo.png'), fake.parts);
+
+    expect(fake.encode).not.toHaveBeenCalled();
+  });
+
+  it('gives null for a file the browser cannot decode (HEIC in most browsers)', async () => {
+    const fake = fakeParts({ head: PNG_HEAD, decodeFails: true });
+
+    await expect(previewImage(fileOf('photo.heic'), fake.parts)).resolves.toBeNull();
+  });
+
+  it('gives null when the preview cannot be drawn', async () => {
+    const fake = fakeParts({ head: PNG_HEAD, width: 100, height: 100, preview: null });
+
+    await expect(previewImage(fileOf('logo.png'), fake.parts)).resolves.toBeNull();
+    expect(fake.close).toHaveBeenCalledTimes(1);
   });
 });

@@ -9,6 +9,7 @@
 //   - While the layout is shown, the page (html) gets top scroll padding for the sticky header, one value at every width,
 //     so a focused control stops 24px below it (WCAG 2.4.11); on /products and /gallery it also clears the sticky pill bar.
 //   - Home and Products show the full footer; Gallery, Contact and the 404 page show the base row (UI-SPEC Footer).
+//   - On /contact the header "Get a Quote" scrolls to the quote form and focuses its first field, since the visitor is already there.
 //   - On /contact the phone-only ContactBar sits after the footer (sticky to the bottom of the page root), and the page gets
 //     a bottom scroll padding at 767px and below, so a focused control stops clear of the bar (PUB-06, WCAG 2.4.11).
 //   - PERF-01: the components come from their own modules, not the `@/components/*` barrels. A barrel re-exports admin-only
@@ -25,6 +26,7 @@ import { SiteFooter } from '@/modules/public/components/SiteFooter';
 import { usePageViewBeacon } from '@/modules/public/hooks/usePageViewBeacon';
 import { useSiteQuery } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicOutletContext } from '@/modules/public/outletContext';
+import { requestQuoteFormFocus } from '@/modules/public/quoteFormEvent';
 import { tw } from '@/ui/tw';
 import { withoutTrailingSlash } from '@/utils/urlPath';
 
@@ -68,7 +70,7 @@ export function PublicLayout() {
     <div data-theme="light" data-fill="viewport" className={pageRootClasses}>
       <ToastProvider>
         <SkipLink />
-        <SiteHeader active={link} />
+        <SiteHeader active={link} onQuote={onContact ? requestQuoteFormFocus : undefined} />
         <main
           id="main"
           tabIndex={-1}

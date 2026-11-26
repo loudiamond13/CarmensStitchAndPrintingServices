@@ -22,6 +22,7 @@ public static class MaintenanceRegistration
         services.AddScoped<IImageInventory, ImageInventory>();
         services.AddScoped<IMaintenanceJob, PurgeExpiredRecordsJob>();
         services.AddScoped<IMaintenanceJob, AnalyticsRetentionJob>();
+        services.AddScoped<IMaintenanceJob, QuoteRequestRetentionJob>();
         return services;
     }
 }

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { ORDER_PHOTOS_COPY } from '@/modules/admin/orderPhotosCopy';
 import {
   buildPickSchema,
-  cleanFileName,
   descriptionSchema,
   pickFailureMessage,
   toImageRules,
@@ -40,18 +39,6 @@ describe('toImageRules', () => {
       types: ['jpeg'],
       descriptionMaxLength: 200,
     });
-  });
-});
-
-describe('cleanFileName (the server cleans the name the same way)', () => {
-  it.each([
-    ['C:\\Users\\Staff\\front.jpg', 'front.jpg'],
-    ['/photos/back.png', 'back.png'],
-    ['  side\u0007.jpg  ', 'side.jpg'],
-    ['', 'This file'],
-    ['a'.repeat(100), 'a'.repeat(80)],
-  ])('%j becomes %j', (name, expected) => {
-    expect(cleanFileName(name)).toBe(expected);
   });
 });
 

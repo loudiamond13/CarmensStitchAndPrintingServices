@@ -988,8 +988,11 @@ export interface paths {
          *     optional size or variant, a quantity from 1 to 10,000 and a unit price from 0.00 to 1,000,000.00 with two decimal places.
          *     The order number, `ORD-{YYYY}-{NNNN}`, takes its year from the business year of the save, and the money figures
          *     are worked out by the server. Who recorded the order and when come from the token and the clock; any such member, a number
-         *     or totals in the body are ignored. The first status history row is written with the order. A retry with the same
-         *     `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
+         *     or totals in the body are ignored. The first status history row is written with the order. An order made from a quote request
+         *     sends its id as `quoteRequestId`: the same save turns the request Converted, links the two and records it, and an unknown
+         *     request is a 404 `quote-requests.not-found` that saves nothing. A request that already became an order is a
+         *     409 `quote-requests.already-converted` with `orderId` and `orderNumber` of that order, and saves nothing. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored 201 and creates nothing more.
          */
         post: operations["CreateOrder"];
         delete?: never;
@@ -1106,7 +1109,9 @@ export interface paths {
          *     `confirm` must be the order number typed exactly (same letters, no extra spaces), or nothing is removed. The audit log
          *     keeps one entry with the number, status, money figures and the user ids of the people who took payments, paid expenses and
          *     handed refunds back, and never customer details or notes. It takes no version, and removing an order that is already gone
-         *     is a 404 that changes nothing. Image cleanup joins this delete when orders have images.
+         *     is a 404 that changes nothing. Image cleanup joins this delete when orders have images. A quote request the order was made
+         *     from goes in the same save, with its photo places, notes and history; its stored photos are queued for removal and a
+         *     quote-request.deleted entry is recorded (D-22). Deleting without "for good" keeps the request and its link.
          */
         delete: operations["PermanentlyDeleteOrder"];
         options?: never;
@@ -1324,7 +1329,7 @@ export interface paths {
          *     and decided again once. The other photos close up so the places stay 0 to n-1, and the next photo becomes the cover when the
          *     cover was deleted. A photo id that is not on this order, or was already deleted, answers 404 `orders.image-not-found`. A
          *     Completed or Cancelled order answers 422 `orders.locked` and changes nothing. The photo's file is queued for removal in the
-         *     same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The delete is
+         *     same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The delete is
          *     recorded in the audit log.
          */
         delete: operations["RemoveOrderImage"];
@@ -1811,7 +1816,7 @@ export interface paths {
         post: operations["UploadProductLinePhoto"];
         /**
          * Takes the photo out of a slot. The slot then shows the drawn jersey or the empty placeholder again. The file is queued for removal
-         *     in the same save and leaves the storage on the next monthly cleanup run; nothing calls the storage during the request. The
+         *     in the same save and leaves the storage on the next daily cleanup run; nothing calls the storage during the request. The
          *     change is recorded in the audit log. A line or a slot word that does not exist, or a slot that is already empty, answers 404.
          */
         delete: operations["RemoveProductLinePhoto"];
@@ -2154,6 +2159,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/quote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Saves a quote request. The name and a Philippine mobile number are required; every other field is optional. The request is
+         *     saved at status New. Who made it, when, its status and any order link come from the server, so any such member in the body
+         *     is ignored. The body must carry the `ticket` from the ticket call; without a good one the answer is a 400 with the code
+         *     `quote-requests.ticket-expired`, nothing is saved, and the answer carries a new ticket in `replacementTicket`: send once more with it (and a new `Idempotency-Key`). The member `subjectLine` is reserved and must be left empty. A visitor who will send photos names up to 5 files in `photos` and sends an `uploadKey` the browser made
+         *     (32 random bytes as base64url text); the server keeps only the key's SHA-256 and the answer lists one `photoSlots` entry per
+         *     file and never echoes the key. A retry with the same `Idempotency-Key` and body answers with the stored 200 and saves
+         *     nothing more.
+         */
+        post: operations["CreateQuoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/quote-requests/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gives the quote form its ticket when the form opens (INQ-03). The ticket is signed by the server and holds the time it was
+         *     issued, so the server can tell how old it is; the create call must carry it in `ticket`. A ticket can be used for any number of sends during
+         *     its lifetime, so it only stops a bot that sends at once: the rate limits are the real guard. The answer also
+         *     lists the photo rules the form checks before it sends a file, and `minimumSeconds`, how long the form waits after it gets the ticket before it sends (D-41). A ticket is good for 24 hours by default; the form uses the
+         *     `replacementTicket` of the create answer when it is 400 with the code `quote-requests.ticket-expired`, or asks for a new one here. Never cached.
+         */
+        get: operations["GetQuoteFormTicket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/quote-requests/{id}/photos/{slot}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends one photo to a place the request declared, as a multipart form with the file in the `file` part. The header
+         *     `X-Upload-Key` must carry the key sent when the request was saved. The type is read from the first bytes of the file
+         *     (JPG, PNG, WEBP or HEIC), never from its name or content type; the photo's location and camera data is removed and the file
+         *     is kept as sent otherwise, in private storage under the quotes folder. A wrong key, a wrong id, an expired key, a place that
+         *     is outside the declared ones or already filled, and a request marked Spam all answer the same 404, so nothing tells which part
+         *     was wrong. When photo storage fails the request stays saved and the place stays empty. A retry with the same
+         *     `Idempotency-Key` and body answers with the stored answer and stores nothing more.
+         */
+        post: operations["UploadQuotePhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/site": {
         parameters: {
             query?: never;
@@ -2169,6 +2247,152 @@ export interface paths {
         get: operations["GetPublicSite"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists quote requests for both roles, newest received first with the id breaking ties. By default it keeps the open requests:
+         *     New, Contacted and Quoted. The answer also carries the count behind each filter pill, over the whole table, which the search
+         *     and the page do not change. The email and the message are not in the list.
+         */
+        get: operations["ListQuoteRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests/new-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Counts the requests at status New, for the badge on the menu. It is one number for every staff member of either role: nothing is
+         *     kept per person.
+         */
+        get: operations["GetNewQuoteCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads one quote request in full for both roles: every field, the photos that arrived with their private addresses (thumb, viewer
+         *     and the 2000 px "Open Full Size"), the names of the photos that never arrived, when the photos were removed for Spam, the status
+         *     history newest first ending with the arrival, who last changed it, and the row version a status change must send back.
+         */
+        get: operations["GetQuoteRequest"];
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a quote request for good, Managers only (D-16), for example on a visitor's data-removal request. The `version` query
+         *     parameter is the request's version as the Manager last saw it. The request goes with its photo places, notes and history, and
+         *     each stored photo is queued for the daily maintenance run, which deletes the files. A request that became an order cannot be
+         *     deleted this way (400 `quote-requests.converted-locked`). The audit log records who and when with the status and the photo
+         *     count, never the visitor's details. This cannot be undone.
+         */
+        delete: operations["DeleteQuoteRequest"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests/{id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adds an internal note to a quote request, for both roles. The body is `{ "text": "..." }` with 1 to 1,000 characters after
+         *     trimming. Notes only append: there is no way to change or remove a single note, and a note leaves only with its request. Who wrote
+         *     it and when come from the token and the clock; any other member in the body is ignored. No version is sent, but the note moves the
+         *     request's version, so a status change sent from before it is a 409. The audit log records the note id only, never the text. A
+         *     retry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the request id, the note
+         *     id, when it was written and the new row version, so no visitor details or note text are stored with it; read the request again
+         *     for the notes.
+         */
+        post: operations["AddQuoteRequestNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests/{id}/order-prefill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reads the values the New Order form starts with when staff turn a quote request into an order, for both roles (D-20): the
+         *     customer name, team, the phone in its display form, email, the message as notes, the business day it arrived, and the
+         *     suggested product type of the first item, which is the first active type filed under the chosen product line by name, or null
+         *     for Custom design, Not sure yet or no choice. Nothing is saved; send `quoteRequestId` with the new order to convert the
+         *     request. A request that is already Converted still answers; the order save refuses a second order.
+         */
+        get: operations["GetQuoteRequestOrderPrefill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quote-requests/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Moves a quote request to another status, for both roles. The body is `{ "status": "...", "version": "..." }` with one of new,
+         *     contacted, quoted, closed or spam, and the row version the page was opened with. Moves among those five are free in any
+         *     direction. Converted is set only by turning the request into an order: it is refused as a target (400
+         *     `quote-requests.validation`), and a Converted request cannot change status by hand (400
+         *     `quote-requests.converted-locked`). A move to the status the request already has is a 400. Every move is recorded in the
+         *     history with who made it and when, and in the audit log with the two statuses only. Leaving New takes the request off the New
+         *     count for everyone. Moving to Spam queues every stored photo for removal and removes the photo places in the same save; the
+         *     daily maintenance run deletes the files, and moving back out of Spam does not restore them. Any other member in the body is
+         *     ignored. A retry with the same `Idempotency-Key` and body answers with the stored answer. The answer holds only the id, the
+         *     new status, when it changed and the new row version, so no visitor details are stored with it; read the request again for the
+         *     history.
+         */
+        post: operations["ChangeQuoteRequestStatus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2290,6 +2514,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/site-settings/quote-alerts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sends a test email to the saved Quote alerts address, Managers only (D-11). It goes to the saved address, never to one in the
+         *     request, and is recorded in the audit log as `quote-alerts.test-sent` with no address. No saved address answers 409
+         *     `site-settings.no-quote-alerts-address` and sends nothing; an address that can never receive mail answers 422
+         *     `site-settings.quote-alerts-address-undeliverable`. One address may send 3 tests in 10 minutes (`RateLimits:QuoteAlertTest`);
+         *     the next answers 429 with `Retry-After`. Needs an `Idempotency-Key`.
+         */
+        post: operations["SendQuoteAlertTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/site-settings/share-picture": {
         parameters: {
             query?: never;
@@ -2311,7 +2558,7 @@ export interface paths {
         post: operations["UploadSharePicture"];
         /**
          * Takes the default link preview picture away. Shared links to pages with no picture of their own then show no picture, and the pages
-         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next monthly cleanup run;
+         *     carry the small card. The file is queued for removal in the same save and leaves the storage on the next daily cleanup run;
          *     nothing calls the storage during the request. The change is recorded in the audit log. When no picture is set the answer is 404.
          */
         delete: operations["RemoveSharePicture"];
@@ -2978,6 +3225,14 @@ export interface components {
             /** @description The base64 of the eight-byte row version of the order the form was opened with. */
             version: null | string;
         };
+        /**
+         * @description The Add Note action on a quote request (D-17). Any other member in the body, such as a forged `createdById`, is ignored: who
+         *     wrote the note and when come from the token and the clock (SEC-08).
+         */
+        AddQuoteRequestNoteRequest: {
+            /** @description The note, 1 to 1,000 characters after trimming. */
+            text: null | string;
+        };
         /** @description One "What changed" line of an expense, order or list entry (D-27, D-31). Text fields carry no text, only the fact that they changed. */
         AuditChangeLine: {
             /**
@@ -3115,6 +3370,16 @@ export interface components {
             currentPassword: null | string;
             /** @description The new password as typed. */
             newPassword: null | string;
+        };
+        /**
+         * @description The Change Status action on a quote request (D-15). Any other member in the body, such as a forged `updatedById`, is ignored:
+         *     who moved the request and when come from the token and the clock (SEC-08).
+         */
+        ChangeQuoteRequestStatusRequest: {
+            /** @description The status key: new, contacted, quoted, closed or spam. Converted is set only by turning the request into an order. */
+            status: null | string;
+            /** @description The base64 of the eight-byte row version the page was opened with. */
+            version: null | string;
         };
         /** @description One company expense with who recorded it, who last changed it, its version and whether the caller may edit it (CEXP-02, CEXP-04). */
         CompanyExpenseDetailResponse: {
@@ -3352,10 +3617,59 @@ export interface components {
             /** @description The payments already received, none to 100; saved in the same transaction as the order. Their sum may not pass the total after discounts. */
             payments?: null | components["schemas"]["OrderPaymentRequest"][];
             publicWebsite?: null | components["schemas"]["OrderPublicWebsiteFields"];
+            /**
+             * Format: uuid
+             * @description The quote request this order is made from (INQ-06, D-20); the save turns it Converted and links the two. None when absent.
+             */
+            quoteRequestId?: null | string;
             /** @description The status to start in: pending, mockup, production, ready or delivered; pending when not sent. */
             status: null | string;
             /** @description The team or club name. */
             teamName: null | string;
+        };
+        /**
+         * @description The "Get a Quote" form a visitor sends (INQ-01). Any other member in the body, such as a forged `createdById`,
+         *     `createdAtUtc`, `status` or `orderId`, is ignored: who made the request, when, its status and its order link come
+         *     from the server, never from the visitor (SEC-08, CWE-915).
+         */
+        CreateQuoteRequestRequest: {
+            /** @description A Philippine mobile number. */
+            contactNumber: null | string;
+            /** @description The visitor's name. */
+            customerName: null | string;
+            /** @description The email address. */
+            email: null | string;
+            /** @description What the visitor wants made. */
+            message: null | string;
+            /** @description The file names of up to 5 photos the visitor will send next, one call each; none when null or empty. */
+            photos?: null | string[];
+            /** @description `line`, `custom` or `not-sure`; empty when nothing was chosen. */
+            productChoice: null | string;
+            /** @description The key of the chosen product line, when the choice is `line`. */
+            productLineKey: null | string;
+            /** @description The estimated quantity: `1-9`, `10-20`, `21-50`, `51-100` or `100+`. */
+            quantity: null | string;
+            /** @description A hidden field no visitor sees. When it holds text the send looks like a success and nothing is saved (D-25). */
+            subjectLine?: null | string;
+            /** @description The team or organization. */
+            teamName: null | string;
+            /** @description The signed ticket from `GET /api/v1/public/quote-requests/ticket`; the send is a 400 without a good one (INQ-03). */
+            ticket?: null | string;
+            /** @description A key the browser made (32 random bytes as base64url). The server keeps only its SHA-256, and each photo call must send the same key. Required with photos. */
+            uploadKey?: null | string;
+        };
+        /**
+         * @description The answer to a saved quote request. It names the request and the photo places the visitor declared, so each photo can be sent
+         *     to its own place, and nothing more. It holds no secret: the upload key is never sent back.
+         */
+        CreateQuoteRequestResponse: {
+            /**
+             * Format: uuid
+             * @description The id of the new request.
+             */
+            id: string;
+            /** @description One entry per declared photo, in slot order; empty when none were declared. */
+            photoSlots: components["schemas"]["QuotePhotoSlotResponse"][];
         };
         /**
          * @description The Add User form (USER-02, C-4): who the person is, their role, and how they get access. Any other member in the
@@ -4096,6 +4410,14 @@ export interface components {
             /** @description "up" or "down". */
             direction: null | string;
         };
+        /** @description The number of quote requests still at status New, the same for every staff member (D-14). */
+        NewQuoteCountResponse: {
+            /**
+             * Format: int32
+             * @description How many requests are at status New.
+             */
+            count: number | string;
+        };
         /** @description When the shop opens next, as facts the page turns into words (D-22). */
         NextOpeningDto: {
             /** @description The business date of the opening, "yyyy-MM-dd". */
@@ -4203,6 +4525,11 @@ export interface components {
             payments: components["schemas"]["OrderPaymentResponse"][];
             /** @description The order's place on the public website. */
             publicWebsite: components["schemas"]["OrderPublicWebsiteDto"];
+            /**
+             * Format: uuid
+             * @description The quote request the order was made from (D-21), so the page can link to it and its photos; null when none.
+             */
+            quoteRequestId?: null | string;
             /**
              * Format: date-time
              * @description When it was created.
@@ -4691,6 +5018,34 @@ export interface components {
             recordedBy: null | components["schemas"]["ActorRef"];
             /** @description The reference, such as a transfer number; null when none. */
             reference: null | string;
+        };
+        /** @description The values the New Order form starts with when staff turn a quote request into an order (INQ-06, D-20). Nothing is saved. */
+        OrderPrefillResponse: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`, which the order number rule accepts. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /** @description The email; null when none. */
+            email: null | string;
+            /** @description The visitor's message, for the order notes; null when none. */
+            notes: null | string;
+            /**
+             * Format: uuid
+             * @description The suggested product type of the first item; null for Custom design, Not sure yet, no choice or a line with no active type.
+             */
+            productTypeId: null | string;
+            /**
+             * Format: uuid
+             * @description The request, sent back as `quoteRequestId` when the order is saved.
+             */
+            quoteRequestId: string;
+            /**
+             * Format: date
+             * @description The business day the request arrived.
+             */
+            receivedOn: string;
+            /** @description The team; null when none. */
+            teamName: null | string;
         };
         /**
          * @description An order's place on the public website (D-09 to D-16, D-38): the customer's OK with who recorded it and when, whether the order is
@@ -5405,6 +5760,303 @@ export interface components {
             /** @description The team or role line; null when not set. */
             teamOrRole: null | string;
         };
+        /** @description The answer to a form ticket request: the ticket and the photo rules the form checks before sending (OR-3). */
+        QuoteFormTicketResponse: {
+            /**
+             * Format: int32
+             * @description How long the form waits after it gets the ticket before it sends (QuoteRequests:MinimumSeconds, D-41).
+             */
+            minimumSeconds: number | string;
+            /** @description The limits the form applies to photos. */
+            photoRules: components["schemas"]["QuotePhotoRulesResponse"];
+            /** @description The signed ticket the create call must carry. */
+            ticket: string;
+        };
+        /** @description The photo limits the browser checks before it sends a file. */
+        QuotePhotoRulesResponse: {
+            /**
+             * Format: int32
+             * @description The largest file in bytes.
+             */
+            maxBytes: number | string;
+            /**
+             * Format: int32
+             * @description The most photos one request may have.
+             */
+            maxPhotos: number | string;
+            /**
+             * Format: int64
+             * @description The most pixels (width times height) a photo may have.
+             */
+            maxPixels: number | string;
+        };
+        /** @description One declared photo place. */
+        QuotePhotoSlotResponse: {
+            /** @description The cleaned file name the visitor declared. */
+            fileName: string;
+            /**
+             * Format: int32
+             * @description The place, from 0 to 4; the photo is sent to `/photos/{slot}`.
+             */
+            slot: number | string;
+        };
+        /** @description The number of requests behind each filter pill, over the whole table: the search and the page do not change them. */
+        QuoteRequestCountsResponse: {
+            /**
+             * Format: int32
+             * @description Every request.
+             */
+            all: number | string;
+            /**
+             * Format: int32
+             * @description Closed with no order.
+             */
+            closed: number | string;
+            /**
+             * Format: int32
+             * @description Converted into an order.
+             */
+            converted: number | string;
+            /**
+             * Format: int32
+             * @description New, Contacted and Quoted.
+             */
+            open: number | string;
+            /**
+             * Format: int32
+             * @description Marked Spam.
+             */
+            spam: number | string;
+        };
+        /** @description One quote request in full for staff (INQ-05, D-13). */
+        QuoteRequestDetailResponse: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /** @description The email address; null when none. */
+            email: null | string;
+            /** @description The status history, newest first, ending with the arrival. */
+            history: components["schemas"]["QuoteRequestStatusChangeResponse"][];
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the request was last changed; null when never.
+             */
+            lastChangedAt: null | string;
+            lastChangedBy: null | components["schemas"]["ActorRef"];
+            /** @description What the visitor wrote; null when nothing. */
+            message: null | string;
+            /** @description The file names of the photos that never arrived (D-03), in slot order. */
+            missingPhotos: string[];
+            /** @description The staff notes, newest first. */
+            notes: components["schemas"]["QuoteRequestNoteResponse"][];
+            /**
+             * Format: uuid
+             * @description The order the request became (D-21); null until it is converted.
+             */
+            orderId: null | string;
+            /** @description That order's number, such as `ORD-2026-0148`; null until it is converted. */
+            orderNumber: null | string;
+            /**
+             * Format: int32
+             * @description How many photo places the request holds.
+             */
+            photoCount: number | string;
+            /** @description The photos that arrived, in slot order. */
+            photos: components["schemas"]["QuoteRequestPhotoResponse"][];
+            /**
+             * Format: date-time
+             * @description When the photos were removed because the request was marked Spam (D-04); null while kept.
+             */
+            photosRemovedAtUtc: null | string;
+            product: null | components["schemas"]["QuoteRequestProduct"];
+            /** @description The estimated quantity key such as `21-50`; null when none was chosen. */
+            quantity: null | string;
+            /**
+             * Format: date-time
+             * @description When the request was received, in UTC.
+             */
+            receivedAtUtc: string;
+            /** @description The status key: new, contacted, quoted, converted, closed or spam. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status last changed.
+             */
+            statusChangedAtUtc: string;
+            /** @description The team or organization; null when none. */
+            teamName: null | string;
+            /** @description The row version to send with a status change. */
+            version: string;
+        };
+        /** @description One request in the staff inbox (INQ-05). It carries no email and no message. */
+        QuoteRequestListItem: {
+            /** @description The mobile number in its display form, such as `0917 123 4567`. */
+            contactNumber: string;
+            /** @description The visitor's name. */
+            customerName: string;
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: int32
+             * @description How many photos the visitor declared.
+             */
+            photoCount: number | string;
+            /** @description True when the stored photos were removed because the request was marked Spam. */
+            photosRemoved: boolean;
+            product: null | components["schemas"]["QuoteRequestProduct"];
+            /** @description The estimated quantity key such as `21-50`; null when none was chosen. */
+            quantity: null | string;
+            /**
+             * Format: date-time
+             * @description When the request was received, in UTC.
+             */
+            receivedAtUtc: string;
+            /** @description The status key: new, contacted, quoted, converted, closed or spam. */
+            status: string;
+            /**
+             * Format: int32
+             * @description How many of the declared photos arrived.
+             */
+            storedPhotoCount: number | string;
+            /** @description The team or organization; null when none. */
+            teamName: null | string;
+        };
+        /** @description One page of the staff inbox (INQ-05). */
+        QuoteRequestListResponse: {
+            /** @description The count of each filter pill. */
+            counts: components["schemas"]["QuoteRequestCountsResponse"];
+            /** @description The rows of this page. */
+            items: components["schemas"]["QuoteRequestListItem"][];
+            /**
+             * Format: int32
+             * @description The page number asked for.
+             */
+            page: number | string;
+            /**
+             * Format: int32
+             * @description The page size asked for.
+             */
+            size: number | string;
+            /**
+             * Format: int32
+             * @description How many requests match the status and search, across all pages.
+             */
+            total: number | string;
+        };
+        /**
+         * @description The answer to an added note (D-17). It holds no visitor details and no note text, because the idempotency gate keeps it for 24
+         *     hours where the purge and the delete cannot reach it. The page reads the request again for the notes.
+         */
+        QuoteRequestNoteAddedResponse: {
+            /**
+             * Format: date-time
+             * @description When the note was written.
+             */
+            createdAtUtc: string;
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /**
+             * Format: uuid
+             * @description The new note's id.
+             */
+            noteId: string;
+            /** @description The request's new row version to send with the next change. */
+            version: string;
+        };
+        /** @description One internal staff note (D-17). The author's name is read from their own row, so it stays after the account is deleted. */
+        QuoteRequestNoteResponse: {
+            /**
+             * Format: date-time
+             * @description When it was written.
+             */
+            createdAtUtc: string;
+            createdBy: null | components["schemas"]["ActorRef"];
+            /**
+             * Format: uuid
+             * @description The note id.
+             */
+            id: string;
+            /** @description The note. */
+            text: string;
+        };
+        /** @description One stored photo of a quote request (INQ-05, D-36). The addresses are built when the request is read and are never stored. */
+        QuoteRequestPhotoResponse: {
+            /** @description The file name the visitor declared. */
+            fileName: string;
+            /** @description The address of the 2000 px JPEG behind "Open Full Size". */
+            fullSize: string;
+            /**
+             * Format: int32
+             * @description The height in pixels, as the photo is shown upright.
+             */
+            height: number | string;
+            /**
+             * Format: int32
+             * @description The place, from 0.
+             */
+            slot: number | string;
+            /** @description The tile thumb, with a 2x candidate. */
+            thumb: components["schemas"]["ImageSourceResponse"];
+            /** @description The whole photo for the viewer, with width candidates. */
+            viewer: components["schemas"]["ImageSourceResponse"];
+            /**
+             * Format: int32
+             * @description The width in pixels, as the photo is shown upright.
+             */
+            width: number | string;
+        };
+        /** @description What the visitor chose in the product list (D-24). */
+        QuoteRequestProduct: {
+            /** @description One of `line`, `custom` or `not-sure`. */
+            choice: string;
+            /** @description The line title at the moment of the request; null for another choice. */
+            title: null | string;
+        };
+        /** @description One row of the status history (D-15). The last row is the arrival: from null to new, by nobody (SEC-08). */
+        QuoteRequestStatusChangeResponse: {
+            /**
+             * Format: date-time
+             * @description When it moved.
+             */
+            changedAt: string;
+            changedBy: null | components["schemas"]["ActorRef"];
+            /** @description The status the request left; null for the arrival. */
+            from: null | string;
+            /** @description The status the request entered. */
+            to: string;
+        };
+        /**
+         * @description The answer to a status change (D-15). It holds no visitor details or photo addresses, because the idempotency gate keeps it for 24
+         *     hours where the purge and the delete cannot reach it. The page reads the request again for the history.
+         */
+        QuoteRequestStatusChangedResponse: {
+            /**
+             * Format: uuid
+             * @description The request id.
+             */
+            id: string;
+            /** @description The new status key. */
+            status: string;
+            /**
+             * Format: date-time
+             * @description When the status changed.
+             */
+            statusChangedAtUtc: string;
+            /** @description The new row version to send with the next change. */
+            version: string;
+        };
         /** @description One row of the most viewed pages list (ANL-08, D-67): a page key with its count and share. */
         RankedItemDto: {
             /**
@@ -5663,6 +6315,8 @@ export interface components {
             postalCode: null | string;
             /** @description Province. */
             province: null | string;
+            /** @description The staff inbox that gets an email for each quote request, for staff use only; null when not set. */
+            quoteAlertsEmail: null | string;
             sharePicture: null | components["schemas"]["SharePictureDto"];
             /** @description Street and barangay. */
             street: null | string;
@@ -6083,6 +6737,8 @@ export interface components {
             postalCode: null | string;
             /** @description Province; required, at most 60 characters. */
             province: null | string;
+            /** @description The staff inbox that gets an email for each quote request; at most 254 characters. Empty or missing clears it. */
+            quoteAlertsEmail: null | string;
             /** @description Street and barangay; required, at most 120 characters. */
             street: null | string;
             /** @description The tagline; required, at most 160 characters. */
@@ -9472,6 +10128,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13503,6 +14168,177 @@ export interface operations {
             };
         };
     };
+    CreateQuoteRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["CreateQuoteRequestRequest"];
+                "application/json": null | components["schemas"]["CreateQuoteRequestRequest"];
+                "text/json": null | components["schemas"]["CreateQuoteRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateQuoteRequestResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteFormTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteFormTicketResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadQuotePhoto: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Upload-Key"?: string;
+            };
+            path: {
+                /** @description The quote request id from the create answer. */
+                id: string;
+                /** @description The place from the create answer, from 0 to 4. */
+                slot: number;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     GetPublicSite: {
         parameters: {
             query?: never;
@@ -13532,6 +14368,367 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListQuoteRequests: {
+        parameters: {
+            query?: {
+                /** @description `open` (the default), `converted`, `closed`, `spam` or `all`. */
+                status?: string;
+                /** @description Search text for the name, the team or the digits of the phone number; up to 100 characters. */
+                q?: string;
+                /** @description The page number, from 1 to 100000. */
+                page?: number | string;
+                /** @description Rows per page: 10, 20, 50 or 100; 20 when not sent. */
+                size?: number | string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetNewQuoteCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewQuoteCountResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestDetailResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteQuoteRequest: {
+        parameters: {
+            query?: {
+                /** @description The version text the Manager last saw; required. */
+                version?: string;
+            };
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddQuoteRequestNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+                "application/json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+                "text/json": null | components["schemas"]["AddQuoteRequestNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestNoteAddedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetQuoteRequestOrderPrefill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderPrefillResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeQuoteRequestStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The request id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description Cancels the request. */
+        requestBody?: {
+            content: {
+                "application/*+json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+                "application/json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+                "text/json": null | components["schemas"]["ChangeQuoteRequestStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestStatusChangedResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13938,6 +15135,71 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SendQuoteAlertTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

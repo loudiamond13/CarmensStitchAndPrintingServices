@@ -5,6 +5,7 @@
 // the date says when they are from, with Try Again.
 // The Income vs. expenses card reads its own query (the chart), so a failed chart never blanks the cards that the summary feeds.
 // The money strip under the header (D-46) reads the caller's own money on hand, so a failed summary never blanks it either.
+// Under it the quote requests strip (D-19) reads the shared New count, the same answer the nav and the Quotes tab show.
 import clsx from 'clsx';
 import { useEffect } from 'react';
 import { Button, ButtonLink, hitAreaClasses } from '@/components/actions';
@@ -26,11 +27,13 @@ import {
 import { IncomeExpenseCard } from '@/modules/admin/components/IncomeExpenseCard';
 import { MoneyStrip } from '@/modules/admin/components/MoneyStrip';
 import { OrdersByStatusCard } from '@/modules/admin/components/OrdersByStatusCard';
+import { QuoteRequestsStrip } from '@/modules/admin/components/QuoteRequestsStrip';
 import { RecentOrdersCard } from '@/modules/admin/components/RecentOrdersCard';
 import { ADMIN_COPY } from '@/modules/admin/copy';
 import { DASHBOARD_COPY } from '@/modules/admin/dashboardCopy';
 import { useDashboardSummaryQuery } from '@/modules/admin/hooks/useDashboardSummaryQuery';
 import { useMyMoneyQuery } from '@/modules/admin/hooks/useMyMoneyQuery';
+import { useNewQuoteCountQuery } from '@/modules/admin/hooks/useNewQuoteCountQuery';
 import { formatBusinessTime, formatCalendarDate, formatCalendarWeekday } from '@/utils/format';
 
 const COPY = DASHBOARD_COPY;
@@ -38,6 +41,7 @@ const COPY = DASHBOARD_COPY;
 export function DashboardRoute() {
   const summary = useDashboardSummaryQuery();
   const money = useMyMoneyQuery();
+  const quotes = useNewQuoteCountQuery();
 
   useEffect(() => {
     document.title = `${COPY.title}${ADMIN_COPY.titleSuffix}`;
@@ -90,6 +94,7 @@ export function DashboardRoute() {
         </div>
       </div>
       <MoneyStrip query={money} />
+      <QuoteRequestsStrip query={quotes} />
       <DashboardKpiRow query={summary} />
       <div className={dashboardRowClasses}>
         <IncomeExpenseCard />

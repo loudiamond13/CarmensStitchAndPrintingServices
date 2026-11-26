@@ -22,6 +22,9 @@ internal static class DatabaseLocks
     /// <summary>The lock that serializes changes that depend on the whole site-content list, such as closures that must not overlap (CONT-04).</summary>
     public const string SiteContent = "site-content";
 
+    /// <summary>The lock that serializes the per-sender count and the insert of a quote request, so parallel sends never pass the daily limit (D-37).</summary>
+    public const string QuoteRequests = "quote-requests";
+
     /// <summary>How many fixed per-person lock rows exist.</summary>
     public const int AccountStripeCount = 64;
 
@@ -30,13 +33,14 @@ internal static class DatabaseLocks
 
     private const string AccountPrefix = "account-token:";
 
-    /// <summary>Gets every standing lock name: the roster lock, the order number lock, the staff money lock, the site-content lock, then the 64 account locks in order.</summary>
+    /// <summary>Gets every standing lock name: the roster lock, the order number lock, the staff money lock, the site-content lock, the quote requests lock, then the 64 account locks in order.</summary>
     public static IReadOnlyList<string> StandingNames { get; } =
     [
         ActiveManagers,
         OrderNumbers,
         StaffMoney,
         SiteContent,
+        QuoteRequests,
         .. Enumerable.Range(0, AccountStripeCount).Select(index => AccountPrefix + index.ToString("D2", CultureInfo.InvariantCulture)),
     ];
 

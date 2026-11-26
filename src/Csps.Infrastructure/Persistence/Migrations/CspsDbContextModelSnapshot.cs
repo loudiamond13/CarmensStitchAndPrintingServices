@@ -820,6 +820,12 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(60)");
 
+                    b.Property<string>("QuoteAlertsEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(254)");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -903,6 +909,7 @@ namespace Csps.Infrastructure.Persistence.Migrations
                             CurrencyCode = "PHP",
                             FacebookUrl = "",
                             Locale = "en-PH",
+                            QuoteAlertsEmail = "",
                             Tagline = "Custom tailoring and full-sublimation printing for teams, leagues and riding groups.",
                             TimeZoneId = "Asia/Manila"
                         });
@@ -2474,6 +2481,251 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.ToTable("OrderStatusChanges", (string)null);
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactNumberE164")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(13)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("EditVersion")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(254)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PhotosRemovedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte?>("ProductChoice")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid?>("ProductLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductTitle")
+                        .HasMaxLength(60)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<byte?>("QuantityRange")
+                        .HasColumnType("tinyint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<byte>("Status")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateTimeOffset>("StatusChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(100)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("UpdatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UploadKeyExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("UploadKeyHash")
+                        .HasColumnType("varbinary(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequests_CreatedAtUtc");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_QuoteRequests_CreatedById");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_QuoteRequests_OrderId")
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("ProductLineId")
+                        .HasDatabaseName("IX_QuoteRequests_ProductLineId");
+
+                    b.HasIndex("UpdatedById")
+                        .HasDatabaseName("IX_QuoteRequests_UpdatedById");
+
+                    b.HasIndex("ContactNumberE164", "CreatedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequests_ContactNumberE164_CreatedAtUtc");
+
+                    b.HasIndex("Email", "CreatedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequests_Email_CreatedAtUtc");
+
+                    b.HasIndex("Status", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_QuoteRequests_Status_CreatedAtUtc");
+
+                    b.ToTable("QuoteRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_QuoteRequests_ProductChoice", "[ProductChoice] IS NULL OR [ProductChoice] BETWEEN 1 AND 3");
+
+                            t.HasCheckConstraint("CK_QuoteRequests_QuantityRange", "[QuantityRange] IS NULL OR [QuantityRange] BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_QuoteRequests_Status", "[Status] BETWEEN 1 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById")
+                        .HasDatabaseName("IX_QuoteRequestNotes_CreatedById");
+
+                    b.HasIndex("QuoteRequestId", "CreatedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequestNotes_QuoteRequestId_CreatedAtUtc");
+
+                    b.ToTable("QuoteRequestNotes", (string)null);
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
+                {
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<int?>("Bytes")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .HasMaxLength(8)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(8)");
+
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("StoredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("QuoteRequestId", "Slot");
+
+                    b.HasIndex("PublicId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_QuoteRequestPhotos_PublicId")
+                        .HasFilter("[PublicId] IS NOT NULL");
+
+                    b.ToTable("QuoteRequestPhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_QuoteRequestPhotos_Slot", "[Slot] BETWEEN 0 AND 4");
+                        });
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ChangedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("FromStatus")
+                        .HasColumnType("tinyint");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("QuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte>("ToStatus")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedById")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_ChangedById");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_OrderId");
+
+                    b.HasIndex("QuoteRequestId", "ChangedAtUtc")
+                        .HasDatabaseName("IX_QuoteRequestStatusChanges_QuoteRequestId_ChangedAtUtc");
+
+                    b.ToTable("QuoteRequestStatusChanges", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_QuoteRequestStatusChanges_FromStatus", "[FromStatus] BETWEEN 1 AND 6");
+
+                            t.HasCheckConstraint("CK_QuoteRequestStatusChanges_ToStatus", "[ToStatus] BETWEEN 1 AND 6");
+                        });
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Email.EmailOutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2870,6 +3122,10 @@ namespace Csps.Infrastructure.Persistence.Migrations
                         new
                         {
                             Name = "site-content"
+                        },
+                        new
+                        {
+                            Name = "quote-requests"
                         },
                         new
                         {
@@ -3709,6 +3965,72 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Content.ProductLine", null)
+                        .WithMany()
+                        .HasForeignKey("ProductLineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestNote", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("Notes")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestPhoto", b =>
+                {
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("Photos")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequestStatusChange", b =>
+                {
+                    b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("Csps.Domain.QuoteRequests.QuoteRequest", null)
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("QuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Csps.Infrastructure.Identity.ApplicationUser", b =>
                 {
                     b.HasOne("Csps.Infrastructure.Identity.ApplicationUser", null)
@@ -3791,6 +4113,15 @@ namespace Csps.Infrastructure.Persistence.Migrations
                     b.Navigation("Payments");
 
                     b.Navigation("Refunds");
+
+                    b.Navigation("StatusChanges");
+                });
+
+            modelBuilder.Entity("Csps.Domain.QuoteRequests.QuoteRequest", b =>
+                {
+                    b.Navigation("Notes");
+
+                    b.Navigation("Photos");
 
                     b.Navigation("StatusChanges");
                 });

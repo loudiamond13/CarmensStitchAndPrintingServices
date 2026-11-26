@@ -96,12 +96,20 @@ public static class AuthorizationMatrix
         new("POST", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 400),
         // Removing it: a Manager meets 404 when no picture is set. The Testing seed row in the same run can put a demo picture in place, and then the first removal answers 204.
         new("DELETE", "/api/v1/site-settings/share-picture", "/api/v1/site-settings/share-picture", Anonymous: 401, Admin: 403, Manager: 404, ManagerAlso: 204),
+        // The Quote alerts test email (D-11): Manager only. The matrix database has no saved Quote alerts address, so a Manager meets 409 site-settings.no-quote-alerts-address.
+        new("POST", "/api/v1/site-settings/quote-alerts/test", "/api/v1/site-settings/quote-alerts/test", Anonymous: 401, Admin: 403, Manager: 409),
         new("GET", "/api/v1/public/site", "/api/v1/public/site", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/open-status", "/api/v1/public/open-status", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/privacy-contact", "/api/v1/public/privacy-contact", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/product-lines", "/api/v1/public/product-lines", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/home", "/api/v1/public/home", Anonymous: 200, Admin: 200, Manager: 200),
         new("GET", "/api/v1/public/gallery", "/api/v1/public/gallery", Anonymous: 200, Admin: 200, Manager: 200),
+        // The form ticket (INQ-03): anyone may fetch one; it is signed by the server and never cached.
+        new("GET", "/api/v1/public/quote-requests/ticket", "/api/v1/public/quote-requests/ticket", Anonymous: 200, Admin: 200, Manager: 200),
+        // The public quote form (INQ-01): anyone may send it. The matrix sends an Idempotency-Key and no body, so every caller meets the 400 field errors.
+        new("POST", "/api/v1/public/quote-requests", "/api/v1/public/quote-requests", Anonymous: 400, Admin: 400, Manager: 400),
+        // One quote photo (INQ-02): anyone may send it with the request's upload key. The matrix sends an Idempotency-Key and no form body, so every caller meets 400 images.file-missing before the request is looked up.
+        new("POST", "/api/v1/public/quote-requests/{id:guid}/photos/{slot:int}", "/api/v1/public/quote-requests/7c4a9e12-3b60-4d85-a1f7-e92d0c58b436/photos/0", Anonymous: 400, Admin: 400, Manager: 400),
         // The weekly opening hours (CONT-01, D-21): Managers only. With no body a Manager meets the 400 field errors.
         new("GET", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 200),
         new("PUT", "/api/v1/opening-hours", "/api/v1/opening-hours", Anonymous: 401, Admin: 403, Manager: 400),
@@ -316,6 +324,20 @@ public static class AuthorizationMatrix
 
         // Listing orders (ORD-01, ORD-02): both roles read every order.
         new("GET", "/api/v1/orders", "/api/v1/orders", Anonymous: 401, Admin: 200, Manager: 200),
+        // Listing quote requests (INQ-05, D-13): both roles read every request; anonymous gets 401.
+        new("GET", "/api/v1/quote-requests", "/api/v1/quote-requests", Anonymous: 401, Admin: 200, Manager: 200),
+        // The shared New count for the badge (D-14): the same number for both roles.
+        new("GET", "/api/v1/quote-requests/new-count", "/api/v1/quote-requests/new-count", Anonymous: 401, Admin: 200, Manager: 200),
+        // Reading one quote request (INQ-05, D-13): both roles. A fresh random id is no request, so both meet 404 quote-requests.not-found.
+        new("GET", "/api/v1/quote-requests/{id:guid}", "/api/v1/quote-requests/6e2b9d40-5c17-4a83-9f61-0d4c8a7e3b25", Anonymous: 401, Admin: 404, Manager: 404),
+        // Changing a quote request's status (D-13, D-15): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 quote-requests.validation before the request is looked up.
+        new("POST", "/api/v1/quote-requests/{id:guid}/status", "/api/v1/quote-requests/2d8f6a13-9b47-4c05-a1e8-7c3b5d0e4f96/status", Anonymous: 401, Admin: 400, Manager: 400),
+        // Deleting a quote request for good (D-16): Managers only, so an Admin meets 403. A fresh random id is no request, so a Manager meets 404 quote-requests.not-found.
+        new("DELETE", "/api/v1/quote-requests/{id:guid}", "/api/v1/quote-requests/3f7b2c58-6e14-4d09-b8a3-1c5e9d4a7f20?version=AAAAAAAAB9E%3D", Anonymous: 401, Admin: 403, Manager: 404),
+        // Adding an internal note to a quote request (INQ-05, D-17): both roles. The matrix sends an Idempotency-Key and no body, so both meet 400 quote-requests.validation before the request is looked up.
+        new("POST", "/api/v1/quote-requests/{id:guid}/notes", "/api/v1/quote-requests/5a1c7e94-2d38-4b6f-8e05-9c3f1a7d2b64/notes", Anonymous: 401, Admin: 400, Manager: 400),
+        // The New Order prefill of a quote request (INQ-06, D-20): both roles. A fresh random id is no request, so both meet 404 quote-requests.not-found.
+        new("GET", "/api/v1/quote-requests/{id:guid}/order-prefill", "/api/v1/quote-requests/8d3e1b72-4f09-4c6a-a5d8-2b7e9f1c0a43/order-prefill", Anonymous: 401, Admin: 404, Manager: 404),
         // Reading the photo rules (ORD-04, IMG-02): both roles read the limits the upload enforces.
         new("GET", "/api/v1/orders/image-rules", "/api/v1/orders/image-rules", Anonymous: 401, Admin: 200, Manager: 200),
         // Creating an order (ORD-03): Staff only. The matrix sends an Idempotency-Key and no body, so both roles meet 400 orders.invalid-request.
@@ -421,6 +443,9 @@ public static class AuthorizationMatrix
             "GET /api/v1/public/product-lines",
             "GET /api/v1/public/home",
             "GET /api/v1/public/gallery",
+            "GET /api/v1/public/quote-requests/ticket",
+            "POST /api/v1/public/quote-requests",
+            "POST /api/v1/public/quote-requests/{id:guid}/photos/{slot:int}",
             "* /api/{**path}",
             "GET {*path:nonfile}",
             "HEAD {*path:nonfile}",

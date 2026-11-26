@@ -12,6 +12,7 @@ export type UpdateSiteSettingsRequest = components['schemas']['UpdateSiteSetting
 const UPLOAD_TIMEOUT_MS = 120_000;
 
 const SHARE_PICTURE_PATH = '/site-settings/share-picture';
+const QUOTE_ALERT_TEST_PATH = '/site-settings/quote-alerts/test';
 
 export interface SiteSettingsService {
   /** `GET /api/v1/site-settings`. */
@@ -31,6 +32,12 @@ export interface SiteSettingsService {
   uploadSharePicture(file: Blob, fileName: string, idempotencyKey: string, signal?: AbortSignal): Promise<SharePicture>;
   /** `DELETE /api/v1/site-settings/share-picture`: takes the picture off. No body, no Idempotency-Key. 404 when none is set. */
   removeSharePicture(signal?: AbortSignal): Promise<void>;
+  /**
+   * `POST /api/v1/site-settings/quote-alerts/test` (Manager only, D-11): emails a test to the saved Quote alerts address and answers 202
+   * with no body. The caller supplies one Idempotency-Key per press. 409 `site-settings.no-quote-alerts-address` when none is saved,
+   * 422 when the address can never receive mail, 429 after 3 tests in 10 minutes.
+   */
+  sendQuoteAlertTest(idempotencyKey: string, signal?: AbortSignal): Promise<void>;
 }
 
 export function createSiteSettingsService(client: HttpClient): SiteSettingsService {
@@ -47,6 +54,8 @@ export function createSiteSettingsService(client: HttpClient): SiteSettingsServi
       });
     },
     removeSharePicture: (signal) => client.delete(SHARE_PICTURE_PATH, { signal }),
+    sendQuoteAlertTest: (idempotencyKey, signal) =>
+      client.post(QUOTE_ALERT_TEST_PATH, undefined, { idempotencyKey, signal }),
   };
 }
 

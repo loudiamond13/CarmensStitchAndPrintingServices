@@ -18,7 +18,7 @@ public sealed class SiteSettingsEndpointTests(CspsDatabase database) : IClassFix
     private static readonly string[] DtoPropertyNames =
     [
         "businessName", "tagline", "aboutText", "turnaroundLine", "street", "townOrCity", "province", "postalCode", "directionsUrl",
-        "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "contactEmail", "phones", "timeZoneId", "currencyCode",
+        "mapEmbedUrl", "messengerUrl", "facebookUrl", "instagramUrl", "tiktokUrl", "contactEmail", "quoteAlertsEmail", "phones", "timeZoneId", "currencyCode",
         "locale", "version", "updatedByName", "updatedAtUtc", "sharePicture",
     ];
 

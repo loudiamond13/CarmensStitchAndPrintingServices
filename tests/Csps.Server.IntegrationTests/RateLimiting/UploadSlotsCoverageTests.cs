@@ -25,7 +25,7 @@ public sealed class UploadSlotsCoverageTests
             .Where(method => method.GetParameters().Any(parameter => CarriesFile(parameter.ParameterType, [])))
             .ToList();
 
-        uploadActions.Count.ShouldBe(5, "the order photo, the gallery upload and replace, the product line photo and the share picture");
+        uploadActions.Count.ShouldBe(6, "the order photo, the gallery upload and replace, the product line photo, the share picture and the quote photo");
         uploadActions.Where(method => !Has<EnableRateLimitingAttribute>(method, attribute => attribute.PolicyName == RateLimitPolicies.ImageUpload))
             .Select(Name)
             .ShouldBeEmpty("every file upload action carries the image upload rate limit");
@@ -105,6 +105,7 @@ public sealed class UploadSlotsCoverageTests
     public async Task AnEndpointWithTheSlotMetadataIsHeldToTheCapWhateverItsName()
     {
         using var slots = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        using var publicSlots = NewPublicSlots();
         using var taken = await slots.AcquireAsync(1, TestContext.Current.CancellationToken);
         var reached = false;
         var middleware = new UploadSlotsMiddleware(_ =>
@@ -114,7 +115,7 @@ public sealed class UploadSlotsCoverageTests
         });
         var context = ContextFor(new EndpointNameMetadata("CreateGalleryUpload"), new UploadSlotAttribute());
 
-        await middleware.InvokeAsync(context, slots);
+        await middleware.InvokeAsync(context, slots, publicSlots);
 
         taken.IsAcquired.ShouldBeTrue();
         reached.ShouldBeFalse();
@@ -125,6 +126,7 @@ public sealed class UploadSlotsCoverageTests
     public async Task AnEndpointWithoutTheSlotMetadataPassesThroughEvenWhenTheCapIsFull()
     {
         using var slots = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        using var publicSlots = NewPublicSlots();
         using var taken = await slots.AcquireAsync(1, TestContext.Current.CancellationToken);
         var reached = false;
         var middleware = new UploadSlotsMiddleware(_ =>
@@ -134,11 +136,105 @@ public sealed class UploadSlotsCoverageTests
         });
         var context = ContextFor(new EndpointNameMetadata("UploadOrderImage"));
 
-        await middleware.InvokeAsync(context, slots);
+        await middleware.InvokeAsync(context, slots, publicSlots);
 
         taken.IsAcquired.ShouldBeTrue();
         reached.ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task AFullPublicPoolRefusesAPublicUploadButNeverAStaffUpload()
+    {
+        using var staff = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        using var publicSlots = NewPublicSlots(atOnce: 1, waiting: 0);
+        using var publicTaken = await publicSlots.Limiter.AcquireAsync(1, TestContext.Current.CancellationToken);
+        var reached = 0;
+        var middleware = new UploadSlotsMiddleware(_ =>
+        {
+            reached++;
+            return Task.CompletedTask;
+        });
+        var publicContext = ContextFor(new UploadSlotAttribute { Pool = UploadSlotPool.Public });
+        var staffContext = ContextFor(new UploadSlotAttribute());
+
+        await middleware.InvokeAsync(publicContext, staff, publicSlots);
+        await middleware.InvokeAsync(staffContext, staff, publicSlots);
+
+        publicContext.Response.StatusCode.ShouldBe(StatusCodes.Status429TooManyRequests);
+        staffContext.Response.StatusCode.ShouldBe(StatusCodes.Status200OK);
+        reached.ShouldBe(1, "only the staff upload went on");
+    }
+
+    [Fact]
+    public async Task AFullStaffPoolNeverRefusesAPublicUpload()
+    {
+        using var staff = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 1, QueueLimit = 0 });
+        using var staffTaken = await staff.AcquireAsync(1, TestContext.Current.CancellationToken);
+        using var publicSlots = NewPublicSlots();
+        var reached = false;
+        var middleware = new UploadSlotsMiddleware(_ =>
+        {
+            reached = true;
+            return Task.CompletedTask;
+        });
+        var context = ContextFor(new UploadSlotAttribute { Pool = UploadSlotPool.Public });
+
+        await middleware.InvokeAsync(context, staff, publicSlots);
+
+        reached.ShouldBeTrue();
+        context.Response.StatusCode.ShouldBe(StatusCodes.Status200OK);
+    }
+
+    [Fact]
+    public async Task APublicUploadHoldsAPublicSlotAndNoStaffSlot()
+    {
+        using var staff = new ConcurrencyLimiter(new ConcurrencyLimiterOptions { PermitLimit = 2, QueueLimit = 0 });
+        using var publicSlots = NewPublicSlots();
+        long? staffFree = null;
+        long? publicFree = null;
+        var middleware = new UploadSlotsMiddleware(_ =>
+        {
+            staffFree = staff.GetStatistics()!.CurrentAvailablePermits;
+            publicFree = publicSlots.Limiter.GetStatistics()!.CurrentAvailablePermits;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(ContextFor(new UploadSlotAttribute { Pool = UploadSlotPool.Public }), staff, publicSlots);
+
+        staffFree.ShouldBe(2);
+        publicFree.ShouldBe(1);
+        publicSlots.Limiter.GetStatistics()!.CurrentAvailablePermits.ShouldBe(2, "the public slot is given back");
+    }
+
+    [Fact]
+    public void OnlyTheAnonymousQuotePhotoActionUsesThePublicPool()
+    {
+        var publicActions = typeof(OrderImagesController).Assembly.GetTypes()
+            .Where(type => typeof(ControllerBase).IsAssignableFrom(type))
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
+            .Where(method => method.GetCustomAttributes<UploadSlotAttribute>(inherit: true).Any(attribute => attribute.Pool == UploadSlotPool.Public))
+            .Select(Name)
+            .ToList();
+
+        publicActions.ShouldBe([$"{nameof(PublicQuoteRequestsController)}.{nameof(PublicQuoteRequestsController.UploadPhoto)}"]);
+    }
+
+    [Fact]
+    public void ThePublicPoolDefaultsToTwoAtOnceWithFourWaitingAndItsSettingsAreChecked()
+    {
+        var rule = PublicUploadSlotRule.Default();
+
+        (rule.AtOnce, rule.Waiting).ShouldBe((2, 4));
+        PublicUploadSlotRule.SectionName.ShouldBe("UploadSlots:Public");
+        PublicUploadSlotRule.Problems(rule).ShouldBeEmpty();
+        PublicUploadSlotRule.Problems(new PublicUploadSlotRule { AtOnce = 0, Waiting = 21 })
+            .ShouldBe(["UploadSlots:Public:AtOnce must be from 1 to 8.", "UploadSlots:Public:Waiting must be from 0 to 20."]);
+        PublicUploadSlotRule.Problems(new PublicUploadSlotRule { AtOnce = 8, Waiting = 0 }).ShouldBeEmpty();
+        PublicUploadSlotRule.Problems(null).Count.ShouldBe(2);
+    }
+
+    private static PublicUploadSlots NewPublicSlots(int atOnce = 2, int waiting = 4) =>
+        PublicUploadSlots.Create(new PublicUploadSlotRule { AtOnce = atOnce, Waiting = waiting });
 
     private static DefaultHttpContext ContextFor(params object[] metadata)
     {

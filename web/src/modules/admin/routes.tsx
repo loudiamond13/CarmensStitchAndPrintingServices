@@ -99,6 +99,14 @@ const deletedOrderPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/DeletedOrderPage')).default,
 }));
 
+const quoteRequestsPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/QuoteRequestsPage')).default,
+}));
+
+const quoteRequestPage = /* @__PURE__ */ lazyRoute(async () => ({
+  Component: (await import('@/modules/admin/pages/QuoteRequestPage')).default,
+}));
+
 const moneyPage = /* @__PURE__ */ lazyRoute(async () => ({
   Component: (await import('@/modules/admin/pages/MoneyPage')).MoneyRoute,
 }));
@@ -187,6 +195,10 @@ export const adminRoutes: RouteObject[] = [
           { path: 'orders/:id', lazy: orderPage },
           // ORD-15: Edit Order, the customer details, dates and notes of one order (D-28, D-46). The same lazy page as orders/new.
           { path: 'orders/:id/edit', lazy: orderFormPage },
+          // INQ-05, D-13: the Quote Requests inbox, for both roles.
+          { path: 'quote-requests', lazy: quoteRequestsPage },
+          // INQ-05, D-13: one quote request, for both roles; the inbox name link opens it.
+          { path: 'quote-requests/:id', lazy: quoteRequestPage },
           { path: 'expenses', lazy: expensesPage },
           // D-03, D-07: a Manager-only page under Company Expenses; an Admin is sent back to the list by the loader.
           { path: 'expenses/deleted', loader: requireManagerOrExpenses, lazy: deletedExpensesPage },

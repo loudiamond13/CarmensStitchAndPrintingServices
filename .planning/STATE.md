@@ -1,21 +1,21 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 9
-current_phase_name: Order Images & Maintenance Jobs
-status: verifying
-stopped_at: Phase 12.1 complete, ready to verify Phase 9
-last_updated: "2026-11-21T22:47:56.101Z"
-last_activity: 2026-11-21
-last_activity_desc: "Phases 12 and 12.1 shipped together as PR #28"
-state_head: 537613586431106ffa4274159f349cf21132a973
+current_phase: 13
+current_phase_name: Quote Inquiries
+status: executing
+stopped_at: Phase 13 verification passed under D-50 (UAT 22 and 23 moved to the after-deploy checklist); SECURITY verified (0 open), VALIDATION nyquist-compliant; branch CI green (run 45813576102); ready for /gsd-ship 13
+last_updated: "2026-11-26T17:40:59.097Z"
+last_activity: 2026-11-26
+last_activity_desc: "Phase 13 shipped as PR #29"
+state_head: f72c5e519ce585f288ef7e182c79afc28a07413c
 progress:
   total_phases: 19
   completed_phases: 10
-  total_plans: 390
-  completed_plans: 390
+  total_plans: 417
+  completed_plans: 416
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
-updated: "2026-11-21T20:40:00-06:00"
+updated: "2026-11-25T23:58:00-06:00"
 ---
 
 # Project State
@@ -25,14 +25,14 @@ updated: "2026-11-21T20:40:00-06:00"
 See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Staff can record every order (items, payments, discounts, expenses, images) and always see correct, server-computed totals and balances. Existing production data is carried over with zero loss.
-**Current focus:** Phase 12.1 — Analytics simplification: daily page tally only, no cookie banner
+**Current focus:** Phase 13 — Quote Inquiries
 
 ## Current Position
 
-Phase: 9 — Order Images & Maintenance Jobs
-Plan: 33
-Status: Phase complete — ready for verification
-Last activity: 2026-11-21 -- Phases 12 and 12.1 shipped together as PR #28
+Phase: 13 (Quote Inquiries) — EXECUTING
+Plan: 1 of 26
+Status: Executing Phase 13
+Last activity: 2026-11-26 -- Phase 13 shipped as PR #29
 
 Progress: [█████░░░░░] 53%
 
@@ -926,6 +926,11 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 
 ### Pending Todos
 
+Phase 13 owner backlog (away mode, parked 2026-11-23; nothing here was auto-approved; the full list of owner choices is in `.planning/phases/999.9-owner-items-parked-during-phase-13-execution/DECISIONS.md`):
+
+- 13 D-28 Privacy Policy approval (parked 2026-11-23): open http://localhost:5180/privacy and the Contact form; read the changes listed in .planning/phases/13-quote-inquiries/13-25-SUMMARY.md (added: what the quote form collects, used only to reply and prepare a quote, Cloudinary stores the photos, three keep-time rows; reworded: the staff log and page count rows now match the daily cleanup). Question: approve A (with one sentence about the rare stray photo, recommended), approve B (as written), or give exact changes? Also settles P13-BL-07, P13-BL-21 item 3 and P13-BL-24 item 2. The page stays DRAFT until then.
+- 13 live checks (parked 2026-11-24): after the Phase 13 deploy, (1) on the live site sign in as a Manager, open Site Content, Business info, type the shop's Quote alerts address in the Quote alerts card and press Save Business Info; (2) press Send Test Email and check that "Test: quote alerts work" arrives at that inbox within a few minutes, spam folder too; (3) add the first public Gallery photo in Site Content, Gallery; (4) on a phone open the public Gallery page, check the photo loads from res.cloudinary.com and that the browser shows no CSP error (ask Claude how to check this on a phone); (5) reply with what you saw for steps 2 and 4. Full steps and what counts as a pass: .planning/phases/13-quote-inquiries/13-26-SUMMARY.md. Open owner item, not a pass (INQ-04; Phase 12 D-49, Phase 11 D-133).
+
 Phase 12.1 owner backlog (away mode, parked 2026-11-19; nothing here was auto-approved):
 
 - [x] **Done (D-134, owner, 2026-11-21; UAT 12.1 test 1 passed).** D-73 review corrections to settle before you approve (code review, 2026-11-19): (1) WR-G2-01: Privacy Policy `legalPrivacy.ts` lines 78 and 114 say the map loads "only after you tap Show Map", but since D-65 a returning browser loads it by itself and the page's own saved settings section says so. Suggested: "after your first tap, this browser loads the map by itself until you clear the saved setting." (2) IN-G2-02: "These two settings" when three stored keys are listed; drop the count. (3) IN-G1-02: the site-wide page view limit's 429 text says "from this address"; suggested "The site is busy. Please try again in a minute." (4) IN-G2-01: the one Visitor Stats card keeps a 3-column grid (same as the 12.1-08 layout question). Also: WR-G1-01 was fixed (rate limit chain), and the fixer asks for a human look at it; see `12.1-REVIEW-DISPOSITION.md`.
@@ -1176,6 +1181,7 @@ Phase 12.1 execution backlog (2026-11-18):
 | 44 | Format nine web files so the CI Prettier step passes (D-39-1) | 2026-11-15 | da6e311e | — |
 | 261121-9qz | Fix UI review findings for phases 12 and 12.1 (D-134) | 2026-11-21 | 4ec26662 | [261121-9qz-fix-ui-review-findings-for-phases-12-and](./quick/261121-9qz-fix-ui-review-findings-for-phases-12-and/) |
 | 261121-hxs | IN-G1-03 guard test: the page view ceiling and its route share one endpoint name (D-138) | 2026-11-21 | 8b62d8dc | [261121-hxs-in-g1-03-guard-test-for-the-page-view-ce](./quick/261121-hxs-in-g1-03-guard-test-for-the-page-view-ce/) |
+| 261125-w4m | Apply D-45: approve Privacy Policy 1.1 with the stray-photo sentence | 2026-11-25 | 36cfe03a | [261125-w4m-apply-d-45-approve-privacy-policy-1-1-wi](./quick/261125-w4m-apply-d-45-approve-privacy-policy-1-1-wi/) |
 
 ### Roadmap Evolution
 
@@ -1191,9 +1197,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T22:22:43.862Z
-Stopped at: Phase 12.1 complete, ready to verify Phase 9
-Resume file: .planning/phases/12.1-analytics-simplification-daily-page-tally-only-no-cookie-ban/12.1-CONTEXT.md
+Last session: 2026-11-22T02:15:58.731Z
+Stopped at: Phase 13 UI-SPEC approved
+Resume file: .planning/phases/13-quote-inquiries/13-UI-SPEC.md
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 

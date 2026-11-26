@@ -1,6 +1,6 @@
 # The order photos API
 
-*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-04T00:50:00-06:00*
+*Created: 2026-11-03T11:43:44-06:00 · Updated: 2026-11-22T23:55:00-06:00*
 
 This is the contract for the photos on an order, and the one a future Android app will use. Everything is under `/api/v1`. The
 OpenAPI document (Development only, at `/openapi/v1.json`, viewer at `/scalar`) is the machine-readable twin of this page; the web
@@ -19,7 +19,7 @@ photo, reading the photo rules, moving a photo (which also chooses the cover), d
 5. Every answer is the whole order, with its photos in display order.
 6. The cover is the photo at place 0. There is no separate cover flag, so the cover can never disagree with the order of the photos.
 7. Deleting a photo never calls the photo store. The photo leaves the order at once, and its file is queued for removal in the same
-   save. The file leaves the store on the next monthly cleanup run.
+   save. The file leaves the store on the next daily cleanup run.
 
 ## Routes
 
@@ -97,7 +97,8 @@ photo is held in memory only, never in a temp file.
 
 **Note on the pace.** One address may upload 30 times in 10 minutes. The whole server works on two photo uploads at a time (order photos,
 gallery photos, product line photos and the share picture count together) and lets up
-to four more wait their turn. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
+to four more wait their turn. Photos that visitors send with a quote request have their own separate pool (`UploadSlots:Public`, 2 at a
+time with 4 waiting by default) and never take these places. A seventh at the same moment answers `429` at once with `Retry-After: 60`. After a `429`, wait
 that long, then send the same request again with the same `Idempotency-Key`.
 
 ### The Idempotency-Key
@@ -167,7 +168,7 @@ race is read again and decided again once.
   is deleted, the next photo becomes the cover.
 - In the same save, the photo's stored file is added to the removal queue with the reason "photo deleted". Nothing calls the photo
   store during the request, so a slow or failing store can never block a delete or leave it half done.
-- The file leaves the store on the next monthly cleanup run. Until then it stays in the store, but nothing points at it and no
+- The file leaves the store on the next daily cleanup run. Until then it stays in the store, but nothing points at it and no
   address for it is ever given out again.
 - The photo is looked up on the order in the route only. A photo id from another order is `404`, and nothing is queued.
 - Deleting the same photo twice answers `200` and then `404 orders.image-not-found`. Only the first delete queues the file.

@@ -1,9 +1,9 @@
 # Maintenance run: what it does, the key and how to rotate it
 
-*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-05T22:55:00-05:00*
+*Created: 2026-11-03T12:20:00-06:00 · Updated: 2026-11-25T01:20:00-06:00*
 
 The maintenance run is one web call that cleans up the database and the photo storage (JOB-01, D-21). The GitHub
-Actions workflow `.github/workflows/maintenance.yml` makes the call once a month. That workflow also has a manual "Run now" button. Nobody else uses it, and
+Actions workflow `.github/workflows/maintenance.yml` makes the call every day (D-34). That workflow also has a manual "Run now" button. Nobody else uses it, and
 it is not part of the public API description.
 
 The call is protected by a secret key. This page says where the key lives and how to change it. It never shows a key,
@@ -16,9 +16,10 @@ One run does every job once, in this order. The number is the job's place in the
 | Order | Job | What it reports |
 |---|---|---|
 | 10 | Purge of expired records | One count per purge rule (see the table below) |
+| 12 | Old quote requests | How many quote requests it removed (see "What the quote request purge removes" below). It runs before the photo removals, so the photos leave in the same run |
 | 20 | Stray file sweep | How many stray files it queued for removal |
 | 30 | Photo removals | How many photos it removed from storage, how many are still failing, and how many need attention |
-| 40 | Usage report | Storage and credit use against the free plan |
+| 40 | Usage report | Storage and credit use against the free plan. It reports on the first run of each business month and adds no line on the other days (see "The usage check" below) |
 
 Later plans add their jobs to this table. Jobs with a lower number run first.
 
@@ -43,24 +44,39 @@ The request keys and the claims share one line, so five lines come back in all. 
 
 Each run has a time budget of 90 seconds. A job that runs out of time stops cleanly and says there is more to do.
 
+## What the quote request purge removes
+
+Quote requests from the Contact page are kept for 6 calendar months (INQ-07). The purge job removes every request that
+never became an order and was received before the cut: the start of the business day (Asia/Manila) 6 months before
+today. A request received exactly at the cut stays. Status does not matter, so old New, Contacted, Quoted, Closed and
+Spam requests all go. A request that was **converted** into an order is never removed by age, and neither are its photos.
+
+For each batch of 200 requests the job first queues every stored photo for removal (reason "quote purged"), then
+deletes the requests and their photo places in the same database transaction. If the delete fails, nothing is queued and
+nothing is removed, and the line turns red with "The old quote requests could not be removed." The photo removals job
+then takes the queued files out of Cloudinary in the same run. The line "Old quote requests removed: n" holds a count
+only, never a name, number or file id. When the 90 second budget is spent the job stops and says there is more, and the
+next run carries on.
+
 ## What the photo jobs do
 
 Deleting a photo, or deleting an order for good, never calls Cloudinary while staff wait. It adds a row to a removal queue
-in the database. Two jobs in the monthly run look after the files (JOB-02). Both only touch this site's own orders folder
-(for example `csps/orders/` on the live site, with the trailing slash, so `csps` never matches another environment's
-folder).
+in the database. Two jobs in the daily run look after the files (JOB-02). Both only touch this site's own folders: orders,
+content (the photos of the public pages) and quotes (the photos visitors attach to a quote request). For example
+`csps/orders/`, `csps/content/` and `csps/quotes/` on the live site, each with the trailing slash, so `csps` never
+matches another environment's folder and `csps/quotes-old/` is never matched.
 
 | Job | What it does |
 |---|---|
-| Stray file sweep (20) | Lists the orders folder, 500 files at a time. A file is **kept** when a photo row names it (this includes photos of orders that are only soft-deleted, because those orders can be restored), when it is already in the removal queue, or when it is less than 2 days old (an upload may still be saving). Every other file is queued as a stray, but at most 50 files per run (D-52). If it finds more than 50, it queues the first 50 and the run turns red, so you can check before more photos are removed (for example after an older backup was restored) |
+| Stray file sweep (20) | Lists the orders folder, then the content folder, then the quotes folder, 500 files at a time. A file is **kept** when a photo row names it (this includes photos of orders that are only soft-deleted, because those orders can be restored, and every stored quote request photo), when it is already in the removal queue, or when it is less than 2 days old (an upload may still be saving). A quote photo whose upload never got its row saved is therefore queued as a stray after 2 days. Every other file is queued as a stray, but at most 50 files per run (D-52). If it finds more than 50, it queues the first 50 and the run turns red, so you can check before more photos are removed (for example after an older backup was restored) |
 | Photo removals (30) | Takes up to 25 due queue rows at a time and holds each for 5 minutes, so two runs never work on the same row. It asks Cloudinary to remove the file and its cached copies, then deletes the row. A file Cloudinary no longer has counts as removed. When Cloudinary is busy it tries again up to 3 times in all, after 2 and then 8 seconds. A row that still fails stays in the queue with one more attempt and its failure code, and the next run tries it again. A row that has failed 5 times (D-55) no longer turns the run red: it is tried again every run, but only counted on the "needing attention" line |
 
 The sweep runs first, so the strays it queues are removed in the same run. A queued file that a photo row still names is
 **never** removed: the job drops only the queue row. That can happen when an upload's reply was lost after the photo was
-saved. A file outside the site's own orders folder is never removed either.
+saved. A file outside the site's own folders (orders, content and quotes) is never removed either: its row fails with the code `outside-folder` and stays queued.
 
 Each job stops when the 90 second budget is spent and says there is more. The next call carries on from the database.
-The sweep keeps its place in the listing in a small table (`MaintenanceCursors`, one row for the sweep, D-54). The next
+The sweep keeps its place in the listing in a small table (`MaintenanceCursors`, one row for each of its three folders, D-54). The next
 call resumes from that page, so a large folder is finished over several calls. The row is cleared when a pass reaches the
 last page, and the next pass starts again from the first page. If the sweep stops at the 50 file limit, the row keeps the
 page it was on, so that page is read again. If Cloudinary refuses the saved place, the sweep clears it and starts over next
@@ -74,7 +90,7 @@ time. The purge job never touches this row.
 | Stray files removed (older than 2 days): n | No | n stray files were queued. The removal job removes them in the same run | Nothing. A large number the first time is normal |
 | Queued removals dropped (photo still in use): n | No | n queue rows named a file that a photo still uses. The files were kept | Nothing. It is rare |
 | Stray file limit: More than 50 stray files were found, so only the first 50 were queued for removal. Check the photo storage and the database before the next run. | Yes | The sweep found more than 50 strays in one run. It queued the first 50 only | Check that the database is the right and current one (a restore from an older backup makes every newer photo look stray). If the files really are strays, press Run now again: each run queues up to 50 more |
-| Photo removals still failing: n | Yes | n removals failed 3 tries, or named a file outside the site's own folder, and each of those rows has failed fewer than 5 times in all. The rows stay queued | The host log has one line per failure, "A queued photo removal failed", with the row number and a code (`transient` means Cloudinary was busy, `refused` means it said no, `outside-folder` means the file is not in this site's folder). Press Run now later. If it keeps failing, check the Cloudinary account |
+| Photo removals still failing: n | Yes | n removals failed 3 tries, or named a file outside the site's own folders, and each of those rows has failed fewer than 5 times in all. The rows stay queued | The host log has one line per failure, "A queued photo removal failed", with the row number and a code (`transient` means Cloudinary was busy, `refused` means it said no, `outside-folder` means the file is not in one of this site's own folders). Press Run now later. If it keeps failing, check the Cloudinary account |
 | Photo removals needing attention: n | No | n queued removals have now failed 5 times or more. They stay queued and are tried again every run, but they no longer turn the run red (D-55). A common case is production photo rows copied into a dev database, where every file is outside the dev folder | The host log has a warning "queued photo removals have failed too often" and one "A queued photo removal failed" line per row, with the row number and a code. Look at the codes. If the files are really gone or belong to another site, delete the rows by hand in the database. If Cloudinary keeps refusing, check the Cloudinary account |
 | Cloudinary refused the keys. Check the Cloudinary settings. | Yes | Cloudinary did not accept the cloud name, key or secret. The job stopped and left every row for the next run | Check the three `Cloudinary__...` values on the host against the Cloudinary dashboard (see `cloudinary-setup.md`), then press Run now |
 | The stray file sweep could not read the photo storage. | Yes | The listing failed, for example because Cloudinary was busy or the keys are wrong | Press Run now later. If it repeats, check the keys as above |
@@ -82,13 +98,13 @@ time. The purge job never touches this row.
 
 Nothing is lost when a line is red. The rows stay queued, and no file is removed until Cloudinary answers.
 
-## The monthly schedule and Run now
+## The daily schedule and Run now
 
-The workflow is called **Maintenance** (job `monthly maintenance`). It has two triggers and no others.
+The workflow is called **Maintenance** (job `daily maintenance`). It has two triggers and no others.
 
 | Trigger | When | Notes |
 |---|---|---|
-| Schedule | Cron `17 19 1 * *`: 19:17 UTC on the 1st of each month, which is 03:17 on the 2nd in Manila | The minute is off the top of the hour, when GitHub is busiest |
+| Schedule | Cron `17 19 * * *`: 19:17 UTC every day, which is 03:17 the next day in Manila | The minute is off the top of the hour, when GitHub is busiest |
 | Run now | Whenever the owner presses it | Actions tab, **Maintenance**, **Run workflow**, or `gh workflow run maintenance.yml --ref main` |
 
 Run now works only from `main`: the job is skipped on any other branch, so an accidental run from a branch never gets the maintenance key. Someone with write access could still remove the guard on their own branch, because the key is a repository secret. Pressing Run now twice does not run two calls together. The second waits for the first (the workflow's `maintenance` queue), and a running call is never cancelled.
@@ -100,7 +116,7 @@ Both are set once by the owner, in the GitHub repository under Settings, Secrets
 1. The repository **secret** `MAINTENANCE_KEY`. It holds the same value as the host's `Maintenance__Key` (see "The key" below). Paste it from the password manager. Never type it into a chat, a commit or an issue.
 2. The repository **variable** `SITE_ORIGIN`. The Deploy workflow already uses it. It must be the live site's `https` address with no path, for example `https://example.test`. The script refuses anything else before it sends the key.
 
-The workflow uses a repository secret, not the `production` environment. An environment with a required reviewer would hold every monthly run until someone approved it.
+The workflow uses a repository secret, not the `production` environment. An environment with a required reviewer would hold every daily run until someone approved it.
 
 ### What the workflow does
 
@@ -113,9 +129,13 @@ The workflow uses a repository secret, not the `production` environment. An envi
 
 ### Things to know about GitHub schedules
 
-- GitHub runs a schedule only from the default branch (`main`). The first monthly run happens only after this workflow is merged to `main`. Until then use Run now from `main`.
-- A scheduled run can be delayed. GitHub says the start can slip by minutes in busy hours, and sometimes a run is skipped. If the 2nd of the month passes with no run, press Run now.
-- In a public repository GitHub switches scheduled workflows off after 60 days with no repository activity (no commits, pull requests or issues). A month is shorter than that, but a quiet repository can still hit it. GitHub usually sends an email when it happens, but do not rely on that. To turn it back on: Actions tab, pick **Maintenance**, press **Enable workflow**, then press Run now to catch up. Once a quarter, look at the Actions tab and check that last month's run is there.
+- GitHub runs a schedule only from the default branch (`main`). The first daily run happens only after this workflow is merged to `main`. Until then use Run now from `main`.
+- A scheduled run can be delayed. GitHub says the start can slip by minutes in busy hours, and sometimes a run is skipped. If a few days pass with no run, press Run now.
+- In a public repository GitHub switches scheduled workflows off after 60 days with no repository activity (no commits, pull requests or issues). A daily schedule does not count as repository activity, so a quiet repository can still hit it. GitHub usually sends an email when it happens, but do not rely on that. To turn it back on: Actions tab, pick **Maintenance**, press **Enable workflow**, then press Run now to catch up. Once a month, look at the Actions tab and check that last week's runs are there.
+
+### The usage check
+
+The run is daily, but the Cloudinary usage check keeps a monthly pace (D-34). It reports on the first run of each business month (Manila time) and adds no line on the other days. A nearly full plan therefore turns at most one run red per month. The job keeps the month it last checked in the `MaintenanceCursors` table under the name `cloudinary-usage-month`. It moves that month only after a successful read, so a failed read is tried again on the next daily run. Every other job runs on every daily run, and each is safe to repeat.
 
 ### What a red run means
 

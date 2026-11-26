@@ -1,5 +1,5 @@
-// Small helpers shared by the Phase 6 specs and the owner-review script: the seeded category ids, the business date, a unique
-// word, a keyboard press and the sideways-scroll check. One copy, so a fix reaches every caller.
+// Small helpers shared by the specs and the owner-review script: the seeded category ids, the business date, a unique word, a
+// fresh mobile number, a keyboard press and the sideways-scroll check. One copy, so a fix reaches every caller.
 import { randomUUID } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 
@@ -76,6 +76,12 @@ export function manilaDate(offsetDays: number): string {
   const shifted = new Date(`${today}T00:00:00Z`);
   shifted.setUTCDate(shifted.getUTCDate() + offsetDays);
   return shifted.toISOString().slice(0, 10);
+}
+
+/** A Philippine mobile number nobody used before in this run, so the per-sender limit never meets it. */
+export function freshMobile(): string {
+  const tail = String(Math.floor(Math.random() * 1_000_000_000)).padStart(9, '0');
+  return `09${tail}`;
 }
 
 /** Days back for money a sweep only needs on a person's hand: always before the current business month (a month is at most 31 days). */

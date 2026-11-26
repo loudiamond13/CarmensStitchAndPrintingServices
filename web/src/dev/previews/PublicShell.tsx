@@ -1,21 +1,22 @@
-// Dev-only scenario wrapper (plan 02-29; never shipped, D-20): the public frame as the PublicLayout renders it, with the
-// real components: the SiteHeader, the inner-page head (the Gallery head, App. E.3) and the SiteFooter, side by side in the
-// case frame (the frame itself is the page root). It leaves out what has no counterpart in App. E.1: the visually hidden
-// skip link, the unstyled `main` wrapper with its min-height, and the toast layer. The parity page already provides the
-// router. The reference side renders the App. E.1 header and footer and the App. E.3 page head with the same copy
-// (web/visual/reference/fragments/PublicShell.tsx).
-// Plan 11-10: the footer reads the shop facts from the public site store, so this file primes that store with fixed, made-up
-// facts before anything renders (no request is made). The reference fragment writes the same text. `footer="base"` shows the
-// one-row footer of Gallery, Contact and the 404 page.
+// Scenario wrapper (plan 02-29; it ships in the Manager showcase chunks, so made-up data only): the public frame as the
+// PublicLayout renders it, with the real components: the SiteHeader, the inner-page head (the Gallery head, App. E.3) and the
+// SiteFooter, side by side in the case frame (the frame itself is the page root). It leaves out what has no counterpart in App.
+// E.1: the visually hidden skip link, the unstyled `main` wrapper with its min-height, and the toast layer. The parity page
+// already provides the router. The reference side renders the App. E.1 header and footer and the App. E.3 page head with the same
+// copy (web/visual/reference/fragments/PublicShell.tsx).
+// Plan 11-10: the footer reads the shop facts with fixed, made-up ones from a PublicDataScope, so no request is made and the app's
+// shared store is left alone. The reference fragment writes the same text. `footer="base"` shows the one-row footer of Gallery,
+// Contact and the 404 page.
 import { SiteHeader } from '@/components/navigation';
 import { PageHead } from '@/modules/public/components/PageHead';
 import { SiteFooter } from '@/modules/public/components/SiteFooter';
+import { fixedAnswer, PublicDataScope } from '@/lib/public-data/publicResource';
 import { PUBLIC_COPY } from '@/modules/public/copy';
 import { siteResource } from '@/modules/public/hooks/useSiteQuery';
 import type { PublicSite } from '@/modules/public/services/siteService';
 
 /** The made-up shop facts of the parity footer. The reference fragment repeats them as text. */
-const PARITY_SITE: PublicSite = {
+export const PARITY_SITE: PublicSite = {
   businessName: 'Sample Shop',
   tagline: 'Custom tailoring and full-sublimation printing for teams, leagues and riding groups.',
   aboutText: null,
@@ -38,7 +39,7 @@ const PARITY_SITE: PublicSite = {
   upcomingClosures: [],
 };
 
-siteResource.prime(PARITY_SITE);
+const SHELL_DATA = new Map([fixedAnswer(siteResource, PARITY_SITE)]);
 
 export interface PublicShellProps {
   /** The current header link's label. */
@@ -50,10 +51,10 @@ export interface PublicShellProps {
 export function PublicShell({ active = 'Home', footer = 'full' }: PublicShellProps) {
   const { eyebrow, headline, lead } = PUBLIC_COPY.gallery;
   return (
-    <>
+    <PublicDataScope value={SHELL_DATA}>
       <SiteHeader active={active} />
       <PageHead flat crumb={PUBLIC_COPY.crumbs.gallery} eyebrow={eyebrow} headline={headline} lead={lead} />
       <SiteFooter variant={footer} />
-    </>
+    </PublicDataScope>
   );
 }

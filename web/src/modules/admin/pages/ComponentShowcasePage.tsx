@@ -15,7 +15,7 @@
 //   - the skip link alone in place of its focusing wrapper (no second `main`, no focus move on load);
 //   - the extra cases no scenario has: the icon names, the toast triggers, dates and a loaded LazyImage.
 // The seed data is spec §12's (Carmen Reyes, Jomar Santos inactive, ORD-2026-0148, ORD-2026-0151), from the scenarios.
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react';
 import { Button, Note, overlineClasses } from '@/components';
 import {
   pageHeadClasses,
@@ -48,8 +48,20 @@ import { BLOCK_REPLACEMENTS, EXTRA_CASES, VIEWPORT_DEMOS } from '@/modules/admin
 
 const BY_SECTION = scenariosBySection(scenarios);
 
-/** Cases whose wrapper acts on mount and moves focus (the open user menu): shown only when asked for. */
-const ON_DEMAND: ReadonlySet<string> = new Set(['user-menu-open', 'session-menu-open']);
+/**
+ * Cases shown only when asked for: those whose wrapper moves focus on mount (the open user menu, a quote form that sends or shows
+ * its errors) and the quote forms that raise an alert, so the page reads none out when it opens.
+ */
+const ON_DEMAND: ReadonlySet<string> = new Set([
+  'user-menu-open',
+  'session-menu-open',
+  'quote-form-field-errors',
+  'quote-form-photos-refused',
+  'quote-form-sent',
+  'quote-form-sent-photos-missing',
+  'quote-form-rate-limited',
+  'quote-form-send-failed',
+]);
 
 interface CaseFrameProps {
   id: string;
@@ -60,11 +72,18 @@ interface CaseFrameProps {
   children?: ReactNode;
 }
 
+/** A press on a link in a case is not followed, so no case leaves the showcase; buttons work as usual. */
+function stayOnShowcase(event: MouseEvent): void {
+  if (event.target instanceof Element && event.target.closest('a[href]') !== null) {
+    event.preventDefault();
+  }
+}
+
 /** One case: its id in the overline look, over its `[data-case]` frame (a scrollable region named by the id). */
 function CaseFrame({ id, theme, demo = false, children }: CaseFrameProps) {
   const labelId = useId();
   return (
-    <div className={caseClasses}>
+    <div className={caseClasses} onClickCapture={stayOnShowcase} onAuxClickCapture={stayOnShowcase}>
       <p id={labelId} className={overlineClasses}>
         {id}
       </p>

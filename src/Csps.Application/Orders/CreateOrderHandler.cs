@@ -1,6 +1,7 @@
 using Csps.Application.Auth;
 using Csps.Application.Common;
 using Csps.Application.Ports;
+using Csps.Application.QuoteRequests;
 using Csps.Domain.Auditing;
 using Csps.Domain.Common;
 using Csps.Domain.Orders;
@@ -18,7 +19,10 @@ namespace Csps.Application.Orders;
 /// count and total, never customer details or notes (D-31). Who recorded the order and when come from the token and the clock,
 /// never from the request (SEC-08). When the form carries a public website block that sets something, the same transaction takes the
 /// site-content lock and applies it through <see cref="OrderPublicWebsiteWriter"/> (which calls <c>Order.SetPublicSettings</c>) before the number is taken, so a refused block
-/// allocates no number; the customer's OK and Show on the website then save with the order (UI-SPEC F1, D-11).
+/// allocates no number; the customer's OK and Show on the website then save with the order (UI-SPEC F1, D-11). When the form names
+/// the quote request it was made from, the same transaction locks that request before the number is taken, turns it Converted with
+/// a link to the order and a history row, and records <c>quote-request.converted</c>, so a request that is missing allocates no
+/// number and one request makes one order: a second save is a 409 that names the first order (INQ-06, D-20, D-23).
 /// </summary>
 public sealed class CreateOrderHandler(
     IOrders orders,
@@ -31,12 +35,13 @@ public sealed class CreateOrderHandler(
     IUnitOfWork unitOfWork,
     IRequestContext requestContext,
     IValidator<CreateOrderRequest> validator,
-    OrderPublicWebsiteWriter publicWebsite)
+    OrderPublicWebsiteWriter publicWebsite,
+    IQuoteRequestStore quoteRequests)
 {
     /// <summary>Creates the order.</summary>
     /// <param name="request">The form.</param>
     /// <param name="cancellationToken">Cancels the work.</param>
-    /// <returns>The new order, a 400 listing every field that failed, a 409 when the number lock timed out or the save was a deadlock victim, or a 401 when the token names no usable account.</returns>
+    /// <returns>The new order, a 400 listing every field that failed, a 404 when the quote request does not exist, a 409 <c>quote-requests.already-converted</c> (with <c>orderId</c> and <c>orderNumber</c>) when the quote request already became an order, a 409 when the number lock timed out or the save was a deadlock victim, or a 401 when the token names no usable account.</returns>
     public async Task<Result<OrderDetailResponse>> HandleAsync(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -84,6 +89,15 @@ public sealed class CreateOrderHandler(
                         publicChanges = applied.Value;
                     }
 
+                    if (request.QuoteRequestId is { } quoteRequestId)
+                    {
+                        var converted = await ConvertQuoteRequestAsync(quoteRequestId, order.Id, callerId, clock.UtcNow, token).ConfigureAwait(false);
+                        if (converted.IsFailure)
+                        {
+                            return Result.Failure<Guid>(converted.Error);
+                        }
+                    }
+
                     order.AssignNumber(await numbers.NextAsync(clock.Year, clock.UtcNow, token).ConfigureAwait(false));
                     orders.Add(order);
                     audit.Record(AuditActions.OrderCreated, OrderAuditDetail.OrderTarget, AuditKey.Of(order.Id), OrderAuditDetail.Created(order));
@@ -122,6 +136,33 @@ public sealed class CreateOrderHandler(
 
         var view = await reader.GetDetailAsync(order.Id, cancellationToken).ConfigureAwait(false);
         return view is null ? Result.Failure<OrderDetailResponse>(OrderErrors.NotFound) : Result.Success(view);
+    }
+
+    // The lock comes last before the number, so no failure after it leaves the request's row changed. A second save of the same
+    // request waits on the lock and then matches nothing.
+    private async Task<Result> ConvertQuoteRequestAsync(Guid quoteRequestId, Guid orderId, Guid callerId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (!await quoteRequests.LockForConversionAsync(quoteRequestId, cancellationToken).ConfigureAwait(false))
+        {
+            // Nothing matched: the request is gone, or it is already Converted (D-23) and the answer names its order.
+            var state = await quoteRequests.FindConversionAsync(quoteRequestId, cancellationToken).ConfigureAwait(false);
+            return Result.Failure(state is null ? QuoteRequestErrors.NotFound : QuoteRequestErrors.AlreadyConverted(state.OrderId, state.OrderNumber));
+        }
+
+        var quote = await quoteRequests.FindAsync(quoteRequestId, cancellationToken).ConfigureAwait(false);
+        if (quote is null)
+        {
+            return Result.Failure(QuoteRequestErrors.NotFound);
+        }
+
+        var marked = quote.MarkConverted(orderId, callerId, now);
+        if (marked.IsFailure)
+        {
+            return marked;
+        }
+
+        audit.Record(AuditActions.QuoteRequestConverted, QuoteRequestAuditDetail.Target, AuditKey.Of(quote.Id), QuoteRequestAuditDetail.Converted(orderId));
+        return Result.Success();
     }
 
     // The validator has passed, so the dates parse, the status is active or absent, and every item, discount, payment and expense is present and complete.

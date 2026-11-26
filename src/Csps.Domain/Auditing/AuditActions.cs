@@ -222,6 +222,21 @@ public static class AuditActions
     /// <summary>A Manager added, replaced or removed the default link preview picture; the detail holds the change and never the address (D-26).</summary>
     public const string SharePictureChanged = "site-settings.share-picture-changed";
 
+    /// <summary>A Manager sent a test email to the Quote alerts address (D-11). No detail: the address is never written (CWE-532).</summary>
+    public const string QuoteAlertsTestSent = "quote-alerts.test-sent";
+
+    /// <summary>Staff moved a quote request to another status (D-15). The detail holds the old and new status only, never customer details.</summary>
+    public const string QuoteRequestStatusChanged = "quote-request.status-changed";
+
+    /// <summary>Staff added an internal note to a quote request (D-17). The detail holds the note id only, never the note text (CWE-532).</summary>
+    public const string QuoteRequestNoteAdded = "quote-request.note-added";
+
+    /// <summary>A Manager deleted a quote request for good (D-16). The detail holds the status and the photo count, never customer details.</summary>
+    public const string QuoteRequestDeleted = "quote-request.deleted";
+
+    /// <summary>Staff saved an order made from a quote request, which became Converted (D-20). The detail holds the order id only.</summary>
+    public const string QuoteRequestConverted = "quote-request.converted";
+
     /// <summary>Staff recorded that the customer said OK to show an order on the website (D-11). The detail names the order, never the customer.</summary>
     public const string OrderPublicConsentRecorded = "order.public-consent-recorded";
 
@@ -650,5 +665,10 @@ public static class AuditActions
         GalleryPhotoDeleted,
         GalleryItemMoved,
         SharePictureChanged,
+        QuoteAlertsTestSent,
+        QuoteRequestStatusChanged,
+        QuoteRequestNoteAdded,
+        QuoteRequestDeleted,
+        QuoteRequestConverted,
     ];
 }

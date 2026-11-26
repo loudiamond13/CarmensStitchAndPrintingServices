@@ -9,7 +9,7 @@ namespace Csps.Domain.Common;
 [SuppressMessage("Naming", "CA1716:Identifiers should not match keywords", Justification = "C#-only solution; 'Error' is the PRD section 3.3 name and is only a keyword in VB.")]
 public sealed record Error
 {
-    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors, TimeSpan? retryAfter = null)
+    private Error(ErrorKind kind, string code, string message, IReadOnlyDictionary<string, string[]>? fieldErrors, TimeSpan? retryAfter = null, IReadOnlyDictionary<string, object>? extensions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
@@ -19,6 +19,7 @@ public sealed record Error
         Message = message;
         FieldErrors = fieldErrors;
         RetryAfter = retryAfter;
+        Extensions = extensions;
     }
 
     /// <summary>The kind of failure, which decides the HTTP status.</summary>
@@ -36,14 +37,18 @@ public sealed record Error
     /// <summary>How long the caller should wait. Set by <see cref="TooManyRequests"/> only.</summary>
     public TimeSpan? RetryAfter { get; }
 
+    /// <summary>Extra members (text or numbers) the answer carries next to the code, such as a ticket to use on the next try. Set by <see cref="Validation"/> and <see cref="Conflict(string, string, IReadOnlyDictionary{string, object})"/> only.</summary>
+    public IReadOnlyDictionary<string, object>? Extensions { get; }
+
     /// <summary>The input breaks field rules. At least one field error is required, so a 400 always explains itself.</summary>
     /// <param name="code">A stable machine-readable code.</param>
     /// <param name="message">A short plain-English message.</param>
     /// <param name="fieldErrors">Messages per field; must contain at least one entry.</param>
+    /// <param name="extensions">Extra members for the answer; none when null.</param>
     /// <returns>The validation error.</returns>
     /// <exception cref="ArgumentNullException">When <paramref name="fieldErrors"/> is null.</exception>
     /// <exception cref="ArgumentException">When <paramref name="fieldErrors"/> is empty, or the code or message is blank.</exception>
-    public static Error Validation(string code, string message, IReadOnlyDictionary<string, string[]> fieldErrors)
+    public static Error Validation(string code, string message, IReadOnlyDictionary<string, string[]> fieldErrors, IReadOnlyDictionary<string, object>? extensions = null)
     {
         ArgumentNullException.ThrowIfNull(fieldErrors);
         if (fieldErrors.Count == 0)
@@ -51,7 +56,7 @@ public sealed record Error
             throw new ArgumentException("A validation error needs at least one field error.", nameof(fieldErrors));
         }
 
-        return new Error(ErrorKind.Validation, code, message, fieldErrors);
+        return new Error(ErrorKind.Validation, code, message, fieldErrors, extensions: extensions);
     }
 
     /// <summary>The thing asked for does not exist.</summary>
@@ -65,6 +70,13 @@ public sealed record Error
     /// <param name="message">A short plain-English message.</param>
     /// <returns>The error.</returns>
     public static Error Conflict(string code, string message) => new(ErrorKind.Conflict, code, message, null);
+
+    /// <summary>Someone else changed the thing first, with extra members that say what is there now.</summary>
+    /// <param name="code">A stable machine-readable code.</param>
+    /// <param name="message">A short plain-English message.</param>
+    /// <param name="extensions">Extra members for the answer.</param>
+    /// <returns>The error.</returns>
+    public static Error Conflict(string code, string message, IReadOnlyDictionary<string, object> extensions) => new(ErrorKind.Conflict, code, message, null, extensions: extensions);
 
     /// <summary>A business rule forbids the action.</summary>
     /// <param name="code">A stable machine-readable code.</param>

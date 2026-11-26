@@ -116,7 +116,7 @@ public sealed class SeoEndpointTests
 
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         document.Root.ShouldNotBeNull().Elements(ns + "url").Select(url => url.Element(ns + "lastmod")?.Value).ShouldBe(
-            ["2026-11-01", "2026-11-01", "2026-11-01", "2026-11-01", "2026-11-21", "2026-11-18", "2026-11-18"]);
+            ["2026-11-01", "2026-11-01", "2026-11-01", "2026-11-01", "2026-11-25", "2026-11-18", "2026-11-18"]);
     }
 
     [Fact]

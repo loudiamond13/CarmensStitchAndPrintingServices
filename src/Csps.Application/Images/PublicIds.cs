@@ -10,8 +10,40 @@ namespace Csps.Application.Images;
 public static class PublicIds
 {
     private const int RandomBytes = 16;
+    private const string OrdersSegment = "orders";
     private const string ContentSegment = "content";
+    private const string QuotesSegment = "quotes";
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+
+    /// <summary>Gets the prefix of every order photo id: the root, <c>orders</c> and a trailing slash.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <returns>The prefix, such as <c>csps/orders/</c>.</returns>
+    public static string OrdersPrefix(string root) => Prefix(root, OrdersSegment);
+
+    /// <summary>Gets the prefix of every content photo id: the root, <c>content</c> and a trailing slash.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <returns>The prefix, such as <c>csps/content/</c>.</returns>
+    public static string ContentPrefix(string root) => Prefix(root, ContentSegment);
+
+    /// <summary>Gets the prefix of every quote photo id: the root, <c>quotes</c> and a trailing slash.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <returns>The prefix, such as <c>csps/quotes/</c>.</returns>
+    public static string QuotesPrefix(string root) => Prefix(root, QuotesSegment);
+
+    /// <summary>Gets the three folders this environment owns, in the order orders, content, quotes. The sweep lists them and the removal job accepts them.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <returns>The three prefixes, each with a trailing slash.</returns>
+    public static IReadOnlyList<string> OwnFolders(string root) => [OrdersPrefix(root), ContentPrefix(root), QuotesPrefix(root)];
+
+    /// <summary>Tells whether a public id sits inside one of this environment's own folders (Phase 9 D-07). The match is ordinal and the prefix ends with a slash.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <param name="publicId">The public id to check.</param>
+    /// <returns><see langword="true"/> when the id starts with one of the own folders.</returns>
+    public static bool IsInOwnFolder(string root, string publicId)
+    {
+        ArgumentNullException.ThrowIfNull(publicId);
+        return OwnFolders(root).Any(folder => publicId.StartsWith(folder, StringComparison.Ordinal));
+    }
 
     /// <summary>Gets the storage folder of an order's photos.</summary>
     /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
@@ -20,7 +52,7 @@ public static class PublicIds
     public static string Folder(string root, Guid orderId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
-        return $"{root}/orders/{orderId:D}";
+        return $"{root}/{OrdersSegment}/{orderId:D}";
     }
 
     /// <summary>Makes a new random public id inside the order's folder.</summary>
@@ -28,6 +60,22 @@ public static class PublicIds
     /// <param name="orderId">The order id.</param>
     /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
     public static string New(string root, Guid orderId) => $"{Folder(root, orderId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
+
+    /// <summary>Gets the storage folder of a quote request's photos. It sits beside <c>orders</c> and <c>content</c>, so the stray sweep tells the three apart.</summary>
+    /// <param name="root">The environment's root folder, such as <c>csps</c>.</param>
+    /// <param name="requestId">The quote request id.</param>
+    /// <returns>The folder, without a trailing slash.</returns>
+    public static string QuoteFolder(string root, Guid requestId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        return $"{root}/{QuotesSegment}/{requestId:D}";
+    }
+
+    /// <summary>Makes a new random public id inside the quote request's folder.</summary>
+    /// <param name="root">The environment's root folder.</param>
+    /// <param name="requestId">The quote request id.</param>
+    /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
+    public static string NewQuote(string root, Guid requestId) => $"{QuoteFolder(root, requestId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
 
     /// <summary>
     /// Gets the storage folder of the content photos of one owner, such as a product line. Content photos live under <c>{root}/content/</c>,
@@ -56,6 +104,12 @@ public static class PublicIds
     /// <returns>The folder, a slash and 26 lowercase base32 characters.</returns>
     public static string NewContent(string root, string area, Guid ownerId) =>
         $"{ContentFolder(root, area, ownerId)}/{Base32(RandomNumberGenerator.GetBytes(RandomBytes))}";
+
+    private static string Prefix(string root, string segment)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        return $"{root}/{segment}/";
+    }
 
     // RFC 4648 base32 in lowercase without padding: 16 bytes make 26 characters.
     private static string Base32(ReadOnlySpan<byte> bytes)

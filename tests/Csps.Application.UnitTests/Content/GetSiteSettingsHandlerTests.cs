@@ -26,6 +26,7 @@ public sealed class GetSiteSettingsHandlerTests
         InstagramUrl: null,
         TikTokUrl: "https://www.tiktok.com/@cspsdemo",
         ContactEmail: "shop-private@example.test",
+        QuoteAlertsEmail: "alerts-private@example.test",
         Phones: [new SitePhoneView("+639171234567", "Globe", IsMain: true), new SitePhoneView("+63281234567", null, IsMain: false)],
         TimeZoneId: "Asia/Manila",
         CurrencyCode: "PHP",
@@ -57,6 +58,7 @@ public sealed class GetSiteSettingsHandlerTests
         dto.InstagramUrl.ShouldBeNull();
         dto.TiktokUrl.ShouldBe("https://www.tiktok.com/@cspsdemo");
         dto.ContactEmail.ShouldBe("shop-private@example.test");
+        dto.QuoteAlertsEmail.ShouldBe("alerts-private@example.test");
         dto.TimeZoneId.ShouldBe("Asia/Manila");
         dto.CurrencyCode.ShouldBe("PHP");
         dto.Locale.ShouldBe("en-PH");
@@ -68,12 +70,13 @@ public sealed class GetSiteSettingsHandlerTests
     [Fact]
     public async Task AValueStoredAsAnEmptyStringReadsAsNotSet()
     {
-        var handler = new GetSiteSettingsHandler(Store(View with { FacebookUrl = string.Empty, ContactEmail = string.Empty }), Delivery);
+        var handler = new GetSiteSettingsHandler(Store(View with { FacebookUrl = string.Empty, ContactEmail = string.Empty, QuoteAlertsEmail = string.Empty }), Delivery);
 
         var dto = (await handler.HandleAsync(TestContext.Current.CancellationToken)).Value;
 
         dto.FacebookUrl.ShouldBeNull();
         dto.ContactEmail.ShouldBeNull();
+        dto.QuoteAlertsEmail.ShouldBeNull();
     }
 
     [Fact]

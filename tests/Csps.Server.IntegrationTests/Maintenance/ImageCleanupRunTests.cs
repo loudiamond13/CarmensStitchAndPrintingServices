@@ -4,11 +4,13 @@ using System.Text.Json;
 using Csps.Application.Ports;
 using Csps.Application.Security;
 using Csps.Domain.Orders;
+using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Images;
 using Csps.Server.IntegrationTests.Auth;
 using Csps.Server.IntegrationTests.Http;
 using Csps.Server.IntegrationTests.Logging;
 using Csps.Server.IntegrationTests.Orders;
+using Csps.Server.IntegrationTests.QuoteRequests;
 using Csps.Testing;
 using Csps.Testing.Images;
 using Microsoft.AspNetCore.Hosting;
@@ -205,6 +207,50 @@ public sealed class ImageCleanupRunTests(CspsDatabase database) : IClassFixture<
         run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(2);
         scene.Storage.Removals.Count.ShouldBe(2);
         scene.Storage.TryGet(scene.LastSegment, out _).ShouldBeFalse();
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AQuoteRequestMarkedSpamHasItsPhotosRemovedFromTheStorageByTheNextRun()
+    {
+        await using var rig = await QuoteRequestStaffRig.StartAsync(database, factory => factory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey)));
+        var storage = rig.Factory.Services.GetRequiredService<TestingImageStorage>();
+        var now = TimeProvider.System.GetUtcNow();
+        var id = await rig.SeedAsync(new QuoteSeed("Spam Sid", QuoteRequestStatus.New, now - TimeSpan.FromDays(1), PhotoNames: ["a.jpg", "b.jpg"], StoredSlots: [0, 1]));
+        var photos = new[] { QuoteRequestStaffRig.PublicIdOf(id, 0), QuoteRequestStaffRig.PublicIdOf(id, 1) };
+        photos.ToList().ForEach(photo => storage.Seed(photo, now));
+        var version = (await rig.ReadAsync(id)).GetProperty("version").GetString();
+        using var spam = await rig.PostStatusAsync(rig.Admin.AccessToken, id, new { status = "spam", version });
+        await QuoteRequestStaffRig.BodyAsync(spam, HttpStatusCode.OK);
+
+        var run = await RunAsync(rig.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(2);
+        run.HasLine("Photo removals still failing").ShouldBeFalse(run.Text);
+        storage.Removals.ShouldBe(photos, ignoreOrder: true);
+        foreach (var photo in photos)
+        {
+            storage.TryGet(photo[(photo.LastIndexOf('/') + 1)..], out _).ShouldBeFalse();
+        }
+        (await QueueRowsAsync()).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task AQueuedContentPhotoIsRemovedFromTheStorageByTheNextRun()
+    {
+        await using var scene = await StartSceneAsync();
+        var content = $"csps-test/content/lines/{Guid.NewGuid():D}/{Guid.NewGuid():N}";
+        scene.Storage.Seed(content, TimeProvider.System.GetUtcNow());
+        await QueueAsync([content], ImageDeletionReason.PhotoDeleted);
+
+        var run = await RunAsync(scene.Client);
+
+        run.Ok.ShouldBeTrue(run.Text);
+        run.Line(RemovedLabel).GetProperty("value").GetInt64().ShouldBe(1);
+        run.HasLine("Photo removals still failing").ShouldBeFalse(run.Text);
+        scene.Storage.Removals.ShouldBe([content]);
+        scene.Storage.TryGet(content[(content.LastIndexOf('/') + 1)..], out _).ShouldBeFalse();
         (await QueueRowsAsync()).ShouldBeEmpty();
     }
 

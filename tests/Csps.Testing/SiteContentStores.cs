@@ -34,6 +34,7 @@ public sealed class FixedSiteContentStore : ISiteContentStore
             null,
             null,
             string.Empty,
+            string.Empty,
             [],
             "Asia/Manila",
             "PHP",
@@ -41,6 +42,9 @@ public sealed class FixedSiteContentStore : ISiteContentStore
             Version,
             null,
             null));
+
+    /// <inheritdoc />
+    public Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) => Task.FromResult(string.Empty);
 
     /// <inheritdoc />
     public Task<IReadOnlyList<OpeningHours>> GetHoursForUpdateAsync(CancellationToken cancellationToken) =>
@@ -83,6 +87,10 @@ public sealed class ThrowingSiteContentStore(string message) : ISiteContentStore
 
     /// <inheritdoc />
     public Task<SiteSettingsView> GetViewAsync(CancellationToken cancellationToken) =>
+        throw new InvalidOperationException(message);
+
+    /// <inheritdoc />
+    public Task<string> GetQuoteAlertsEmailAsync(CancellationToken cancellationToken) =>
         throw new InvalidOperationException(message);
 
     /// <inheritdoc />

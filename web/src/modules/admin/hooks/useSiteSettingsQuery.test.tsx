@@ -71,6 +71,7 @@ const body: UpdateSiteSettingsRequest = {
   instagramUrl: demoSiteSettings.instagramUrl,
   tiktokUrl: null,
   contactEmail: demoSiteSettings.contactEmail,
+  quoteAlertsEmail: demoSiteSettings.quoteAlertsEmail,
   phones: demoSiteSettings.phones,
 };
 

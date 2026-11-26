@@ -1,0 +1,154 @@
+// Quote Requests nav count E2E (INQ-05, D-14, D-19; UI-SPEC R4). The shared CSPS_E2E database keeps what earlier runs made, and
+// other specs may send requests at the same time, so each check compares the page with the count answer it just read.
+import { randomUUID } from 'node:crypto';
+import type { Page } from '@playwright/test';
+import { dashboardHeading, type SignedInUser, signInAs } from './auth.ts';
+import { expect, expectNoAxeViolations, test } from './fixtures.ts';
+import { freshMobile, holdsItsContent, NO_SIDEWAYS_SCROLL } from './helpers.ts';
+import { createQuoteRequest, createStaff } from './testing-api.ts';
+
+/** A fake visitor name no other run used. */
+function uniqueName(): string {
+  return `E2E Visitor ${randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()}`;
+}
+
+/** The chip text for a count: the number, or "99+" above 99. */
+function chip(count: number): string {
+  return count > 99 ? '99+' : String(count);
+}
+
+/** Opens an admin path and returns the New count the shell read with it. */
+async function openWithCount(page: Page, path: string): Promise<number> {
+  const read = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/v1/quote-requests/new-count' && response.request().method() === 'GET',
+  );
+  await page.goto(path);
+  const response = await read;
+  expect(response.status(), 'GET /api/v1/quote-requests/new-count').toBe(200);
+  const body: unknown = await response.json();
+  const count = typeof body === 'object' && body !== null && 'count' in body ? Number(body.count) : Number.NaN;
+  if (!Number.isInteger(count)) {
+    throw new Error('GET /api/v1/quote-requests/new-count returned an unexpected body.');
+  }
+  return count;
+}
+
+/**
+ * Waits until the dashboard has drawn its figures and their fonts have arrived. The peso sign sits in a font file of its own that loads
+ * as the figures draw, and Firefox logs a download the next navigation cancels as a console error.
+ */
+async function dashboardDrawn(page: Page, user: SignedInUser): Promise<void> {
+  await expect(page.locator('h1')).toHaveText(dashboardHeading(user));
+  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await page.evaluate('document.fonts.ready.then(() => true)');
+}
+
+test('@quote the nav shows the new count', async ({ page, request, guard }) => {
+  test.setTimeout(120_000);
+  // Opening the sign-in page asks the refresh cookie for a session first; with none that answer is a 401.
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  // The sidebar shows from the tablet width up; the phone tab bar has its own test below.
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const admin = await createStaff(request, 'Admin');
+  const user = await signInAs(page, request, admin);
+  await dashboardDrawn(page, user);
+
+  // Other specs send and move requests at the same time, so two reads of the count cannot be compared. The two requests made here stay
+  // New (no other spec touches them), so the count the page reads afterwards is at least 2.
+  const tag = uniqueName();
+  const visitors = [`${tag} One`, `${tag} Two`];
+  for (const customerName of visitors) {
+    await createQuoteRequest(request, { customerName, contactNumber: freshMobile() });
+  }
+  const after = await openWithCount(page, '/admin');
+  await dashboardDrawn(page, user);
+
+  expect(after, 'the two new requests are counted').toBeGreaterThanOrEqual(2);
+  const side = page.locator('[data-ui="s-admin-side"]');
+  const item = side.getByRole('link', { name: `Quote Requests, ${chip(after)} new`, exact: true });
+  await expect(item).toBeVisible();
+  await expect(item).toHaveAttribute('href', '/admin/quote-requests');
+  await expect(item).toContainText(chip(after));
+  // It sits right after Orders.
+  const names = await side.getByRole('navigation', { name: 'Admin' }).getByRole('link').allTextContents();
+  expect(names.indexOf(names.find((name) => name.startsWith('Quote Requests')) ?? '')).toBe(
+    names.indexOf('Orders') + 1,
+  );
+
+  // Both new requests are in the inbox, found by their own names.
+  await page.goto(`/admin/quote-requests?q=${encodeURIComponent(tag)}`);
+  for (const customerName of visitors) {
+    await expect(page.getByRole('link', { name: customerName })).toBeVisible();
+  }
+  // It marks the item current. The count may have moved since, so the item is found by its address.
+  await expect(side.locator('a[href="/admin/quote-requests"]')).toHaveAttribute('aria-current', 'page');
+});
+
+test('@quote at 320px the five tabs share the bar, nothing scrolls sideways and axe finds nothing', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const manager = await createStaff(request, 'Manager');
+  await signInAs(page, request, manager);
+  await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
+
+  await page.setViewportSize({ width: 320, height: 800 });
+  const count = await openWithCount(page, '/admin');
+  const bar = page.locator('[data-ui="s-admin-main"] nav[aria-label="Admin"]');
+  const tabs = bar.getByRole('link');
+  await expect(tabs).toHaveCount(5);
+  expect(await tabs.allTextContents()).toEqual([
+    'Dashboard',
+    'Orders',
+    expect.stringContaining('Quotes'),
+    'Expenses',
+    'Profile',
+  ]);
+  await expect(bar.getByRole('link', { name: `Quotes, ${chip(count)} new`, exact: true })).toBeVisible();
+
+  const widths: number[] = [];
+  for (const tab of await tabs.all()) {
+    widths.push((await tab.boundingBox())?.width ?? 0);
+    expect(await tab.evaluate(holdsItsContent), 'no tab label is cut off').toBe(true);
+  }
+  for (const width of widths) {
+    expect(width, 'each tab is at least a 44px target').toBeGreaterThanOrEqual(44);
+    expect(Math.abs(width - (widths[0] ?? 0)), 'the tabs share the bar equally').toBeLessThan(1);
+  }
+  expect(await page.evaluate(NO_SIDEWAYS_SCROLL)).toBe(true);
+  await expectNoAxeViolations(page);
+});
+
+test('@quote the dashboard strip shows the new count under the money strip and opens the inbox', async ({
+  page,
+  request,
+  guard,
+}) => {
+  test.setTimeout(120_000);
+  guard.expectStatus('/api/v1/auth/refresh', 401);
+  const admin = await createStaff(request, 'Admin');
+  await signInAs(page, request, admin);
+  await createQuoteRequest(request, { customerName: uniqueName(), contactNumber: freshMobile() });
+
+  const count = await openWithCount(page, '/admin');
+  const strip = page.getByRole('region', { name: 'New quote requests' });
+  await expect(strip).toBeVisible();
+  await expect(strip).toContainText(count.toLocaleString('en-PH'));
+  // It sits directly under the money strip.
+  const after = await page
+    .getByRole('region', { name: 'Your money on hand' })
+    .evaluate(
+      (money: { nextElementSibling: { getAttribute(name: string): string | null } | null }) =>
+        money.nextElementSibling?.getAttribute('aria-labelledby') ?? null,
+    );
+  expect(after).toBe(await strip.getAttribute('aria-labelledby'));
+  await expectNoAxeViolations(page);
+
+  await strip.getByRole('link', { name: 'Open Quote Requests' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Quote Requests' })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/quote-requests$/);
+});

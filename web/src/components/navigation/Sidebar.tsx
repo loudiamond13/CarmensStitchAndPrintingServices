@@ -18,7 +18,9 @@ import { useId, useState } from 'react';
 import type { Role } from '@/utils/csps';
 import { targetAreaClasses, UiLink } from '@/components/actions';
 import { Icon, Logo, type IconName } from '@/components/brand';
+import { srOnlyClasses } from '@/components/layout/layout.recipe';
 import { Avatar } from '@/components/status';
+import { formatCount } from '@/utils/format';
 import {
   navTagClasses,
   sidebarClasses,
@@ -35,6 +37,9 @@ import {
 } from './navigation.recipe';
 import {
   navButtonClasses,
+  navCountClasses,
+  navCountDotClasses,
+  navIconBoxClasses,
   navIconClasses,
   navItemClasses,
   navLabelHiddenClasses,
@@ -43,9 +48,19 @@ import {
 
 // SPEC-DEVIATION: OQ-2 (contract default) 'audit' joins the sections for the Manager-only Audit Log item (USER-08); OQ-3 'settings' joins
 // them for the Manager-only Settings item (D-14); 'content' joins them for the Manager-only Site Content item (D-27); 'stats' for the
-// Manager-only Visitor Stats item (D-23).
+// Manager-only Visitor Stats item (D-23); 'quotes' for the Quote Requests item (D-19).
 export type AdminSection =
-  'dashboard' | 'orders' | 'expenses' | 'money' | 'users' | 'audit' | 'settings' | 'content' | 'stats' | 'profile';
+  | 'dashboard'
+  | 'orders'
+  | 'quotes'
+  | 'expenses'
+  | 'money'
+  | 'users'
+  | 'audit'
+  | 'settings'
+  | 'content'
+  | 'stats'
+  | 'profile';
 
 /** One admin section: its id, label, 20px icon, path, and whether only a manager sees it. */
 export interface AdminNavItem {
@@ -125,6 +140,27 @@ export const VISITOR_STATS_NAV_ITEM: AdminNavItem = {
   manager: true,
 };
 
+/**
+ * SPEC-DEVIATION: D-19 the Quote Requests item (plan 13-17): both roles, right after Orders, in the sidebar and the phone drawer, with
+ * the New count. Like My Money it is not in ADMIN_NAV; the Sidebar adds it with `withQuoteRequests`.
+ */
+export const QUOTE_REQUESTS_NAV_ITEM: AdminNavItem = {
+  id: 'quotes',
+  label: 'Quote Requests',
+  icon: 'inbox',
+  to: '/admin/quote-requests',
+};
+
+/** A count as the chip shows it: the number, or "99+" above 99. */
+export function formatNavCount(count: number): string {
+  return count > 99 ? '99+' : formatCount(count);
+}
+
+/** An item's name with its count: "Quote Requests, 3 new". It is one hidden text, so no browser puts a space before the comma. */
+export function navCountName(label: string, shown: string): string {
+  return `${label}, ${shown} new`;
+}
+
 export interface SidebarProps {
   /**
    * The current section (`aria-current="page"`); Dashboard when not given. SPEC-DEVIATION (A11Y-01, plan 02-34): null
@@ -145,6 +181,10 @@ export interface SidebarProps {
   withAuditLog?: boolean | undefined;
   /** Adds the My Money item after Company Expenses, for both roles. The real admin shell sets it. */
   withMoney?: boolean | undefined;
+  /** Adds the Quote Requests item after Orders, for both roles (D-19). The real admin shell sets it. */
+  withQuoteRequests?: boolean | undefined;
+  /** A count per section; above 0 the item shows it as a chip (a dot where the label is hidden) and in its name. */
+  counts?: Partial<Record<AdminSection, number>> | undefined;
 }
 
 export function Sidebar({
@@ -157,16 +197,20 @@ export function Sidebar({
   user,
   withAuditLog = false,
   withMoney = false,
+  withQuoteRequests = false,
+  counts,
 }: SidebarProps) {
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
   const layout = collapsed ? 'collapsed' : 'expanded';
   const labelClasses = collapsed ? navLabelHiddenClasses : navLabelRailClasses;
   const idBase = useId();
-  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log, Settings, Site Content and Visitor Stats (D-23) follow Users.
+  // SPEC-DEVIATION: D-39, D-40 My Money follows Company Expenses; the Audit Log, Settings, Site Content and Visitor Stats (D-23) follow Users;
+  // D-19 Quote Requests follows Orders.
   const items =
-    withAuditLog || withMoney
+    withAuditLog || withMoney || withQuoteRequests
       ? ADMIN_NAV.flatMap((item) => {
+          if (withQuoteRequests && item.id === 'orders') return [item, QUOTE_REQUESTS_NAV_ITEM];
           if (withMoney && item.id === 'expenses') return [item, MONEY_NAV_ITEM];
           if (withAuditLog && item.id === 'users')
             return [item, AUDIT_NAV_ITEM, SETTINGS_NAV_ITEM, CONTENT_NAV_ITEM, VISITOR_STATS_NAV_ITEM];
@@ -198,31 +242,53 @@ export function Sidebar({
       <nav className={sidebarNavClasses} aria-label="Admin">
         {items
           .filter((item) => item.manager !== true || role === 'manager')
-          .map((item) => (
-            <UiLink
-              key={item.id}
-              to={item.to}
-              onClick={() => onNavigate?.(item.id)}
-              className={navItemClasses({ collapsed })}
-              aria-current={active === item.id ? 'page' : undefined}
-              aria-labelledby={
-                item.manager === true && !collapsed && active !== item.id
-                  ? `${idBase}-${item.id} ${idBase}-${item.id}-tag`
-                  : `${idBase}-${item.id}`
-              }
-              title={collapsed ? item.label : undefined}
-            >
-              <Icon name={item.icon} size={20} className={navIconClasses} />
-              <span id={`${idBase}-${item.id}`} className={labelClasses}>
-                {item.label}
-              </span>
-              {item.manager === true && !collapsed && (
-                <span id={`${idBase}-${item.id}-tag`} className={navTagClasses}>
-                  Manager
+          .map((item) => {
+            const count = counts?.[item.id] ?? 0;
+            const shown = count > 0 ? formatNavCount(count) : null;
+            const labelId = `${idBase}-${item.id}`;
+            const nameId = shown === null ? labelId : `${labelId}-count`;
+            const icon = <Icon name={item.icon} size={20} className={navIconClasses} />;
+            return (
+              <UiLink
+                key={item.id}
+                to={item.to}
+                onClick={() => onNavigate?.(item.id)}
+                className={navItemClasses({ collapsed })}
+                aria-current={active === item.id ? 'page' : undefined}
+                aria-labelledby={
+                  item.manager === true && !collapsed && active !== item.id ? `${nameId} ${labelId}-tag` : nameId
+                }
+                title={collapsed ? item.label : undefined}
+              >
+                {shown === null ? (
+                  icon
+                ) : (
+                  <span className={navIconBoxClasses}>
+                    {icon}
+                    <span aria-hidden="true" className={navCountDotClasses[layout]} />
+                  </span>
+                )}
+                <span id={labelId} className={labelClasses}>
+                  {item.label}
                 </span>
-              )}
-            </UiLink>
-          ))}
+                {shown !== null && (
+                  <span id={nameId} className={srOnlyClasses}>
+                    {navCountName(item.label, shown)}
+                  </span>
+                )}
+                {item.manager === true && !collapsed && (
+                  <span id={`${labelId}-tag`} className={navTagClasses}>
+                    Manager
+                  </span>
+                )}
+                {shown !== null && !collapsed && (
+                  <span aria-hidden="true" className={navCountClasses}>
+                    {shown}
+                  </span>
+                )}
+              </UiLink>
+            );
+          })}
       </nav>
       <div className={sidebarFootClasses}>
         {user !== undefined && !collapsed && (

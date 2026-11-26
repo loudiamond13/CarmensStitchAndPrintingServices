@@ -77,7 +77,7 @@ test('@contact at 1440px there is no sticky bar', async ({ page, request }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/contact');
 
-    await expect(page.getByRole('heading', { level: 2, name: 'Message us' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Inquiry form' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Call us' })).toBeHidden();
     await expect(page.getByRole('link', { name: 'Messenger', exact: true })).toBeHidden();
   });

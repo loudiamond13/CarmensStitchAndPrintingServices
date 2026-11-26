@@ -19,21 +19,27 @@ public static class RateLimitingRegistration
     /// <summary>The endpoint name the site-wide page view ceiling keys on. The page view action takes its name from it.</summary>
     public const string PageViewEndpointName = "RecordPageView";
 
+    /// <summary>The endpoint name the quote create limits key on. The create action takes its name from it.</summary>
+    public const string QuoteCreateEndpointName = "CreateQuoteRequest";
+
     internal const string UploadsBusyDetail = "Too many uploads right now. Wait a minute, then try again.";
     internal const string SiteBusyDetail = "The site is busy. Please try again in a minute.";
     private const string AttemptsDetail = "Too many attempts from this address. Please wait and try again.";
     private const string UnknownAddressKey = "unknown";
-    private const string SiteWidePartitionKey = "analytics-site";
+    private const string PageViewSitePartitionKey = "analytics-site";
+    private const string QuoteSitePartitionKey = "quote-site";
     private const string NoSiteWideLimitKey = "no-site-wide-limit";
     private const int SegmentsPerWindow = 6;
     private const int IPv6PrefixBytes = 8;
 
     /// <summary>
-    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy and the
-    /// <c>analytics-collect</c> policy.
-    /// It also adds the one site-wide limit on the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51). That limit runs after
+    /// Adds the six auth policies, the maintenance policy, the photo upload policy, the <c>public-read</c> policy, the
+    /// <c>analytics-collect</c> policy and the <c>quote-alerts-test</c> policy (D-11).
+    /// It also adds the <c>quote-create</c> policy and one site-wide limit on each of the page view route (<c>RateLimits:AnalyticsCeiling</c>, D-51)
+    /// and the quote create route (<c>RateLimits:QuoteCeiling</c>, 60 an hour). Each site-wide limit runs after
     /// the per-address limit, so a call refused per address never uses a ceiling permit (D-74). A ceiling refusal answers that the site is busy.
-    /// The slot limiter behind the app-wide cap of two uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>).
+    /// The slot limiter behind the app-wide cap of two staff uploads at a time is added too (<see cref="UploadSlotsMiddleware"/>), with the
+    /// separate pool of anonymous quote photo uploads (<c>UploadSlots:Public</c>, D-39).
     /// The address is read from <c>Connection.RemoteIpAddress</c> only, until the hosting record proves the proxy topology
     /// (D-39, Phase 3); behind a shared proxy every visitor would share one bucket.
     /// </summary>
@@ -57,8 +63,20 @@ public static class RateLimitingRegistration
         configuration.GetSection(AnalyticsCollectRateLimit.SectionName).Bind(collect);
         var ceiling = AnalyticsCeilingRateLimit.Default();
         configuration.GetSection(AnalyticsCeilingRateLimit.SectionName).Bind(ceiling);
+        var quoteCreate = QuoteCreateRateLimit.Default();
+        configuration.GetSection(QuoteCreateRateLimit.SectionName).Bind(quoteCreate);
+        var quoteCeiling = QuoteCeilingRateLimit.Default();
+        configuration.GetSection(QuoteCeilingRateLimit.SectionName).Bind(quoteCeiling);
+        var quoteAlertTest = QuoteAlertTestRateLimit.Default();
+        configuration.GetSection(QuoteAlertTestRateLimit.SectionName).Bind(quoteAlertTest);
+        var publicSlots = PublicUploadSlotRule.Default();
+        configuration.GetSection(PublicUploadSlotRule.SectionName).Bind(publicSlots);
         var problems = settings.Validate()
+            .Concat(PublicUploadSlotRule.Problems(publicSlots))
             .Concat(RateLimitRule.Problems(ceiling, AnalyticsCeilingRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(quoteCreate, QuoteCreateRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(quoteCeiling, QuoteCeilingRateLimit.SectionName))
+            .Concat(RateLimitRule.Problems(quoteAlertTest, QuoteAlertTestRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(collect, AnalyticsCollectRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(maintenance, MaintenanceRateLimit.SectionName))
             .Concat(RateLimitRule.Problems(images, ImageUploadRateLimit.SectionName))
@@ -81,16 +99,19 @@ public static class RateLimitingRegistration
             [RateLimitPolicies.ImageUpload] = images.Window,
             [RateLimitPolicies.PublicRead] = publicRead.Window,
             [RateLimitPolicies.AnalyticsCollect] = collect.Window,
+            [RateLimitPolicies.QuoteCreate] = quoteCreate.Window,
+            [RateLimitPolicies.QuoteAlertTest] = quoteAlertTest.Window,
         };
 
         services.AddSingleton(_ => UploadSlotsMiddleware.CreateLimiter());
+        services.AddSingleton(_ => PublicUploadSlots.Create(publicSlots));
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = (context, cancellationToken) => WriteRejectionAsync(context, windows, cancellationToken);
             options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
-                CreatePageViewAddressLimiter(collect),
-                CreateSiteWideLimiter(ceiling));
+                CreateRouteAddressLimiter(collect, quoteCreate),
+                CreateSiteWideLimiter(ceiling, quoteCeiling));
             AddPolicy(options, RateLimitPolicies.SignIn, settings.SignIn);
             AddPolicy(options, RateLimitPolicies.Verify, settings.Verify);
             AddPolicy(options, RateLimitPolicies.Resend, settings.Resend);
@@ -101,6 +122,8 @@ public static class RateLimitingRegistration
             AddPolicy(options, RateLimitPolicies.ImageUpload, images);
             AddPolicy(options, RateLimitPolicies.PublicRead, publicRead);
             AddPolicy(options, RateLimitPolicies.AnalyticsCollect, collect);
+            AddPolicy(options, RateLimitPolicies.QuoteCreate, quoteCreate);
+            AddPolicy(options, RateLimitPolicies.QuoteAlertTest, quoteAlertTest);
         });
         return services;
     }
@@ -139,27 +162,31 @@ public static class RateLimitingRegistration
         return $"{new IPAddress(bytes)}/64";
     }
 
-    // The page view route's per-address limit, repeated inside the global chain so it is taken before the site-wide
-    // ceiling: a call refused here never reaches the ceiling. Every other route gets no global limit.
-    // The analytics-collect policy on the route repeats this window as a fallback; a ceiling refusal still uses one address permit.
-    private static PartitionedRateLimiter<HttpContext> CreatePageViewAddressLimiter(RateLimitRule rule) =>
-        PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            IsPageView(context)
-                ? RateLimitPartition.GetSlidingWindowLimiter(PartitionKey(context.Connection.RemoteIpAddress), _ => WindowOptions(rule))
-                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey));
+    // The per-address limits of the page view and quote create routes, repeated inside the global chain so they are taken before the
+    // site-wide ceilings: a call refused here never reaches a ceiling. Each route keeps its own window per address (the key names the
+    // route). Every other route gets no global limit. The policy on each action repeats its window as a fallback; a ceiling refusal
+    // still uses one address permit.
+    private static PartitionedRateLimiter<HttpContext> CreateRouteAddressLimiter(RateLimitRule pageView, RateLimitRule quoteCreate) =>
+        PartitionedRateLimiter.Create<HttpContext, string>(context => EndpointName(context) switch
+        {
+            PageViewEndpointName => RateLimitPartition.GetSlidingWindowLimiter(
+                $"{PageViewEndpointName}:{PartitionKey(context.Connection.RemoteIpAddress)}", _ => WindowOptions(pageView)),
+            QuoteCreateEndpointName => RateLimitPartition.GetSlidingWindowLimiter(
+                $"{QuoteCreateEndpointName}:{PartitionKey(context.Connection.RemoteIpAddress)}", _ => WindowOptions(quoteCreate)),
+            _ => RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey),
+        });
 
-    // One shared window for the page view route, whatever the address; every other route has no site-wide limit.
-    private static SiteWideCeilingLimiter CreateSiteWideLimiter(RateLimitRule rule) =>
-        new(PartitionedRateLimiter.Create<HttpContext, string>(context =>
-            IsPageView(context)
-                ? RateLimitPartition.GetSlidingWindowLimiter(SiteWidePartitionKey, _ => WindowOptions(rule))
-                : RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey)));
+    // One shared window for each of the two routes, whatever the address; every other route has no site-wide limit.
+    private static SiteWideCeilingLimiter CreateSiteWideLimiter(RateLimitRule pageView, RateLimitRule quoteCreate) =>
+        new(PartitionedRateLimiter.Create<HttpContext, string>(context => EndpointName(context) switch
+        {
+            PageViewEndpointName => RateLimitPartition.GetSlidingWindowLimiter(PageViewSitePartitionKey, _ => WindowOptions(pageView)),
+            QuoteCreateEndpointName => RateLimitPartition.GetSlidingWindowLimiter(QuoteSitePartitionKey, _ => WindowOptions(quoteCreate)),
+            _ => RateLimitPartition.GetNoLimiter(NoSiteWideLimitKey),
+        }));
 
-    private static bool IsPageView(HttpContext context) =>
-        string.Equals(
-            context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName,
-            PageViewEndpointName,
-            StringComparison.Ordinal);
+    private static string? EndpointName(HttpContext context) =>
+        context.GetEndpoint()?.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName;
 
     private static SlidingWindowRateLimiterOptions WindowOptions(RateLimitRule rule) =>
         new()

@@ -43,6 +43,7 @@ public sealed class UpdateSiteSettingsHandlerTests
         "https://www.instagram.com/oldpage",
         "https://www.tiktok.com/@oldpage",
         "old-private@example.test",
+        "old-alerts@example.test",
         [new BusinessPhone("0917 123 4567", "Globe", IsMain: true), new BusinessPhone("02 8123 4567", null, IsMain: false)]);
 
     [Fact]
@@ -124,6 +125,31 @@ public sealed class UpdateSiteSettingsHandlerTests
         detail.ShouldBe("fields=aboutText,turnaroundLine,contactEmail");
         detail.ShouldNotContain("@");
         detail.ShouldNotContain("about text");
+    }
+
+    [Fact]
+    public async Task AQuoteAlertsEmailChangeNamesOnlyTheFieldAndKeepsTheAddressOutOfTheEntry()
+    {
+        var harness = new Harness();
+
+        var result = await harness.Handler.HandleAsync(
+            RequestFrom(Stored) with { QuoteAlertsEmail = "new-alerts@example.test" },
+            TestContext.Current.CancellationToken);
+
+        result.IsSuccess.ShouldBeTrue();
+        harness.Settings.QuoteAlertsEmail.ShouldBe("new-alerts@example.test");
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("fields=quoteAlertsEmail");
+    }
+
+    [Fact]
+    public async Task ABodyWithoutAQuoteAlertsEmailClearsTheSavedOne()
+    {
+        var harness = new Harness();
+
+        await harness.Handler.HandleAsync(RequestFrom(Stored) with { QuoteAlertsEmail = null }, TestContext.Current.CancellationToken);
+
+        harness.Settings.QuoteAlertsEmail.ShouldBeEmpty();
+        harness.Audit.Entries.ShouldHaveSingleItem().Detail.ShouldBe("fields=quoteAlertsEmail");
     }
 
     [Fact]
@@ -338,6 +364,7 @@ public sealed class UpdateSiteSettingsHandlerTests
         info.InstagramUrl,
         info.TikTokUrl,
         info.ContactEmail,
+        info.QuoteAlertsEmail,
         [.. info.Phones.Select(static phone => new PhoneEntry(phone.Number, phone.Label, phone.IsMain))]);
 
     private sealed class Harness
@@ -389,6 +416,7 @@ public sealed class UpdateSiteSettingsHandlerTests
             string.Empty,
             null,
             null,
+            string.Empty,
             string.Empty,
             [new SitePhoneView("+639171234567", null, IsMain: true)],
             "Asia/Manila",

@@ -150,6 +150,11 @@ const API_ACTIONS = [
   'gallery-photo.deleted',
   'gallery-item.moved',
   'site-settings.share-picture-changed',
+  'quote-alerts.test-sent',
+  'quote-request.status-changed',
+  'quote-request.note-added',
+  'quote-request.deleted',
+  'quote-request.converted',
 ] as const;
 
 describe('the action labels (D-28)', () => {
@@ -173,8 +178,33 @@ describe('the action labels (D-28)', () => {
   });
 
   it('mirrors every code of the API', () => {
-    expect(API_ACTIONS).toHaveLength(132);
-    expect(AUDIT_ACTION_CODES).toHaveLength(132);
+    expect(API_ACTIONS).toHaveLength(137);
+    expect(AUDIT_ACTION_CODES).toHaveLength(137);
+  });
+
+  it('reads a quote request status change under Orders (D-15)', () => {
+    expect(auditActionLabel('quote-request.status-changed')).toBe('Quote request status changed');
+    expect(auditActionGroup('quote-request.status-changed')).toBe('Orders');
+  });
+
+  it('reads a quote request note under Orders (D-17)', () => {
+    expect(auditActionLabel('quote-request.note-added')).toBe('Quote request note added');
+    expect(auditActionGroup('quote-request.note-added')).toBe('Orders');
+  });
+
+  it('reads a quote request delete under Orders (D-16)', () => {
+    expect(auditActionLabel('quote-request.deleted')).toBe('Quote request deleted');
+    expect(auditActionGroup('quote-request.deleted')).toBe('Orders');
+  });
+
+  it('reads a quote request turned into an order under Orders (D-20)', () => {
+    expect(auditActionLabel('quote-request.converted')).toBe('Quote request turned into an order');
+    expect(auditActionGroup('quote-request.converted')).toBe('Orders');
+  });
+
+  it('reads the Quote alerts test email under Site content (D-11)', () => {
+    expect(auditActionLabel('quote-alerts.test-sent')).toBe('Quote alerts test email sent');
+    expect(auditActionGroup('quote-alerts.test-sent')).toBe('Site content');
   });
 
   it('reads the four money events in plain words under Staff money (AUDIT-01, MONEY-06; plan 10-20)', () => {
@@ -413,6 +443,7 @@ describe('describeAuditDetail for the Phase 11 site content events (AUDIT-01, AU
       'About text changed. Shop email changed. Phone numbers changed. Tagline changed',
     ],
     ['site-settings.changed', 'fields=businessName;businessName=carmen@example.ph>Carmen', 'Business name changed'],
+    ['site-settings.changed', 'fields=quoteAlertsEmail', 'Quote alerts email changed'],
     ['site-settings.changed', 'fields=shoe-size', 'Other detail changed'],
     ['site-settings.share-picture-changed', 'change=added', 'Picture added'],
     ['site-settings.share-picture-changed', 'change=replaced', 'Picture replaced'],

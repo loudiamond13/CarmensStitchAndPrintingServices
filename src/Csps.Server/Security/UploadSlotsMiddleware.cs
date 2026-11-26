@@ -5,8 +5,11 @@ using Csps.Server.Http;
 namespace Csps.Server.Security;
 
 /// <summary>
-/// The app-wide cap of two photo uploads at a time, with four waiting (T-09-27, CWE-770). It runs after authorization, so a refused
-/// anonymous request never takes a slot. A full cap is answered with the same 429 the address limits give.
+/// The app-wide caps on photo uploads at a time (T-09-27, CWE-770). Staff uploads share one pool of two at a time with four waiting.
+/// The anonymous quote photo upload has its own pool (<see cref="PublicUploadSlots"/>, D-39), so visitors can never take a staff slot
+/// and a full staff pool never refuses a visitor. It runs after authorization, so a refused staff request never takes a slot; a
+/// public upload takes one before its key is checked, which is why its pool is small and apart. A full pool is answered with the same
+/// 429 the address limits give.
 /// </summary>
 /// <param name="next">The next middleware.</param>
 public sealed class UploadSlotsMiddleware(RequestDelegate next)
@@ -15,7 +18,7 @@ public sealed class UploadSlotsMiddleware(RequestDelegate next)
     private const int UploadsWaiting = 4;
     private const int BusyRetrySeconds = 60;
 
-    /// <summary>Creates the limiter that holds the slots; one per app.</summary>
+    /// <summary>Creates the limiter that holds the staff slots; one per app.</summary>
     /// <returns>The slot limiter.</returns>
     public static ConcurrencyLimiter CreateLimiter() => new(new ConcurrencyLimiterOptions
     {
@@ -26,19 +29,23 @@ public sealed class UploadSlotsMiddleware(RequestDelegate next)
 
     /// <summary>Holds a slot for an endpoint marked <see cref="UploadSlotAttribute"/> until the response is written; any other request passes through.</summary>
     /// <param name="context">The request.</param>
-    /// <param name="slots">The app's slot limiter.</param>
+    /// <param name="staffSlots">The app's staff slot limiter.</param>
+    /// <param name="publicSlots">The slots of anonymous visitors.</param>
     /// <returns>A task that completes when the request is done.</returns>
-    public async Task InvokeAsync(HttpContext context, ConcurrencyLimiter slots)
+    public async Task InvokeAsync(HttpContext context, ConcurrencyLimiter staffSlots, PublicUploadSlots publicSlots)
     {
         ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(slots);
+        ArgumentNullException.ThrowIfNull(staffSlots);
+        ArgumentNullException.ThrowIfNull(publicSlots);
 
-        if (context.GetEndpoint()?.Metadata.GetMetadata<UploadSlotAttribute>() is null)
+        var mark = context.GetEndpoint()?.Metadata.GetMetadata<UploadSlotAttribute>();
+        if (mark is null)
         {
             await next(context).ConfigureAwait(false);
             return;
         }
 
+        var slots = mark.Pool == UploadSlotPool.Public ? publicSlots.Limiter : staffSlots;
         using var lease = await slots.AcquireAsync(1, context.RequestAborted).ConfigureAwait(false);
         if (!lease.IsAcquired)
         {

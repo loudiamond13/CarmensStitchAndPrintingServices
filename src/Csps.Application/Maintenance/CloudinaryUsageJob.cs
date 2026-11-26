@@ -5,15 +5,22 @@ using Csps.Application.Ports;
 namespace Csps.Application.Maintenance;
 
 /// <summary>
-/// Reports how full the free Cloudinary plan is in every run (JOB-01, JOB-02, D-24, D-36). Above 80% of the plan, or when the plan's
+/// Reports how full the free Cloudinary plan is, once per business month (JOB-01, JOB-02, D-24, D-34, D-36). The run is daily, so the job
+/// reports on the first run of each month and adds no line on the other days. Above 80% of the plan, or when the plan's
 /// photo size limit is below the app's upload limit, or when usage cannot be read, a line fails so the run turns red before an upload
-/// breaks. Lines hold counts and fixed sentences only: never an address, a cloud name or a key.
+/// breaks. A failed read leaves the month unchecked, so the next run tries again. Lines hold counts and fixed sentences only: never an
+/// address, a cloud name or a key.
 /// </summary>
 /// <param name="storage">The photo storage.</param>
 /// <param name="uploadSettings">The upload limits, for the plan limit check.</param>
+/// <param name="cursors">Keeps the month that was last checked.</param>
+/// <param name="calendar">The business calendar, for the current business month.</param>
 /// <param name="log">The server log for a storage read that failed.</param>
-public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSettings uploadSettings, IMaintenanceJobLog log) : IMaintenanceJob
+public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSettings uploadSettings, IMaintenanceCursors cursors, IBusinessCalendar calendar, IMaintenanceJobLog log) : IMaintenanceJob
 {
+    /// <summary>The name the last checked month is kept under.</summary>
+    public const string CursorName = "cloudinary-usage-month";
+
     /// <summary>The label of the storage line.</summary>
     public const string StorageLabel = "Cloudinary storage used";
 
@@ -57,6 +64,13 @@ public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSetting
             return Report(new MaintenanceLine(NotCheckedLabel, null, false, NotCheckedText));
         }
 
+        var clock = await calendar.GetClockAsync(cancellationToken).ConfigureAwait(false);
+        var month = clock.Today.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        if (string.Equals(await cursors.GetAsync(CursorName, cancellationToken).ConfigureAwait(false), month, StringComparison.Ordinal))
+        {
+            return new MaintenanceJobReport([], false);
+        }
+
         StorageUsage usage;
         try
         {
@@ -67,6 +81,8 @@ public sealed class CloudinaryUsageJob(IImageStorage storage, ImageUploadSetting
             log.StorageReadFailed(Name, failure.FailureCode);
             return Report(Failed(UnreadableText));
         }
+
+        await cursors.SaveAsync(CursorName, month, cancellationToken).ConfigureAwait(false);
 
         var lines = new List<MaintenanceLine>
         {

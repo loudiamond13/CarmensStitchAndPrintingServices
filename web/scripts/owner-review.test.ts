@@ -262,6 +262,10 @@ describe('planReview: the run', () => {
       RateLimits__Images__PermitLimit: '100000',
       RateLimits__AnalyticsCollect__PermitLimit: '100000',
       RateLimits__AnalyticsCeiling__PermitLimit: '100000',
+      RateLimits__QuoteCreate__PermitLimit: '100000',
+      RateLimits__QuoteCeiling__PermitLimit: '100000',
+      QuoteRequests__PerSenderPerDay: '50',
+      QuoteRequests__MinimumSeconds: '1',
     });
   });
 

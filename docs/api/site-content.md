@@ -1,6 +1,6 @@
 ---
 created: 2026-11-11T23:50:00-06:00
-updated: 2026-11-15T11:08:17-06:00
+updated: 2026-11-23T11:20:00-06:00
 ---
 
 # The site content API
@@ -29,6 +29,7 @@ line photos, testimonials and gallery routes join this page in later plans.
 | `PUT /api/v1/site-settings` | Manager | `200` the settings as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `POST /api/v1/site-settings/share-picture` | Manager | `200` the picture below; `400` no file or a file that is not a photo we can use; `401`; `403` for an Admin; `409` when two saves lost a race; `413` for a body over the limit; `429`; `503` when photo storage is not set up. Needs an `Idempotency-Key`. |
 | `DELETE /api/v1/site-settings/share-picture` | Manager | `204`; `401`; `403` for an Admin; `404` when no picture is set; `409` when two saves lost a race. |
+| `POST /api/v1/site-settings/quote-alerts/test` | Manager | `202` the test email is queued; `401`; `403` for an Admin; `409` when no Quote alerts address is saved; `422` when the saved address can never get mail; `429` after 3 tests in 10 minutes. Needs an `Idempotency-Key`. |
 | `GET /api/v1/opening-hours` | Manager | `200` the seven days below; `401`; `403` for an Admin. |
 | `PUT /api/v1/opening-hours` | Manager | `200` the hours as saved; `400` field errors; `401`; `403` for an Admin; `409 edit.stale`. |
 | `GET /api/v1/shop-closures` | Manager | `200` the upcoming closures below; `401`; `403` for an Admin. |
@@ -66,6 +67,7 @@ settings. A value that is not set is `null`.
 | `directionsUrl`, `mapEmbedUrl` | The Google Maps links. |
 | `messengerUrl`, `facebookUrl`, `instagramUrl`, `tiktokUrl` | The contact and social links. |
 | `contactEmail` | The shop email, for staff only. It is never sent to a public page. |
+| `quoteAlertsEmail` | The inbox that gets an email for each quote request, for staff only (13 D-07). `null` when not set. It is never sent to a public page. |
 | `phones` | `[{ number, label, isMain }]`, the main number first. `number` is written as people read it, such as `0917 123 4567`. |
 | `sharePicture` | The default link preview picture as `{ src320, src640, width, height }`, or `null` when none is set. See "The link preview picture" below. |
 | `timeZoneId`, `currencyCode`, `locale` | Fixed and read-only: `Asia/Manila`, `PHP`, `en-PH`. They are not part of the save. |
@@ -94,6 +96,7 @@ settings. A value that is not set is `null`.
   "instagramUrl": "https://www.instagram.com/yourpage",
   "tiktokUrl": "https://www.tiktok.com/@yourpage",
   "contactEmail": "name@example.test",
+  "quoteAlertsEmail": "quotes@example.test",
   "phones": [
     { "number": "0917 123 4567", "label": "Globe", "isMain": true },
     { "number": "02 8123 4567", "label": null, "isMain": false }
@@ -102,6 +105,14 @@ settings. A value that is not set is `null`.
 ```
 
 - An empty optional value is stored as not set and is left out of the public site.
+- `quoteAlertsEmail` follows the same rule: a value that is empty, blank or missing from the body clears the saved address. The
+  web form always sends the field (`null` when it is empty), so a form save never clears it by accident. An API caller that
+  leaves it out clears it, as with every other optional value.
+- `quoteAlertsEmail` is set by a Manager only (the save is Manager only). It never appears in `GET /api/v1/public/site`, in
+  `GET /api/v1/public/privacy-contact`, in the public snapshot or in any page head. Tests assert that. An Admin can read it in
+  the staff read above, as with the shop email.
+- A change to it writes the usual `site-settings.changed` audit entry with the field name `quoteAlertsEmail` and no address in
+  the detail. The audit viewer reads it as "Quote alerts email changed".
 - Text is trimmed. Lengths count UTF-16 code units, the same unit as a JavaScript string length.
 - The answer is the settings as saved, in the shape of the read above.
 - Any other member in the body is ignored, including `createdById`, `updatedById`, `createdAtUtc` and `updatedAtUtc`. The server
@@ -128,12 +139,19 @@ keyed `phones`.
 | `facebookUrl` | Optional: https on `facebook.com`, `www.facebook.com`, `m.facebook.com` or `fb.com`. |
 | `instagramUrl` | Optional: https on `instagram.com` or `www.instagram.com`. |
 | `tiktokUrl` | Optional: https on `tiktok.com` or `www.tiktok.com`. |
-| `contactEmail` | Optional, a valid email, at most 254. |
+| `contactEmail` | Optional, a valid email (the email rule below), at most 254. |
+| `quoteAlertsEmail` | Optional, a valid email (the email rule below), at most 254. Over 254 answers "Keep the email to 254 characters or fewer."; a wrong shape answers "Enter a valid email, like name@gmail.com". The shop email is allowed. |
 | `phones` | 1 to 4 numbers, exactly one main. Each is a Philippine mobile or landline number, not listed twice, with a label of at most 20. |
 
 A link must be https on its exact host, with no sign-in part, no odd port, no space and no square bracket. A `javascript:` or
 `http:` link is refused, and so is text that still holds a bracket placeholder such as `[Shop address]`. The accept and refuse cases
 for the links are in `tests/fixtures/site-link-cases.json`, which both the .NET tests and the web tests read.
+
+The email rule (D-42) is the same for the shop email and the Quote alerts address. The email must have exactly one `@` with text on
+both sides, and a dotted domain with text on both sides of every dot (`name@gmail.com`; `x@y` is refused). It may not hold a space,
+a line break or any other control character, none of `, ; < > ( ) "`, or a bracket placeholder. A name with a display part, such as
+`Juan<juan@gmail.com>`, is refused. A value already saved under the older, looser rule is left as it is and is flagged only the next
+time it is saved. The cases are in `tests/fixtures/email-cases.json`, which both the .NET tests and the web tests read.
 
 The link, postal code and email rules live in the domain (`SiteLinks`), and the request check calls the same code. So a value
 that comes from any other writer, such as a tool or an import, is refused with the same words and never reaches the public page.
@@ -165,7 +183,7 @@ apply, with the same messages: the type is read from the first bytes (JPG, PNG, 
 25 megapixels, and the location and camera data are removed before the file is stored. The picture is stored under a **new random id
 every time**, in this environment's share folder, `{root}/content/share/00000000-0000-0000-0000-000000000001/`, never in the orders
 folder, and the client never chooses the id. Facebook keeps a picture by its address, so a reused address would keep showing the old
-picture. The file the settings named before is queued for removal in the same save and leaves the storage on the next monthly cleanup
+picture. The file the settings named before is queued for removal in the same save and leaves the storage on the next daily cleanup
 run. Nothing calls the storage to delete during the request. The save is serialized with the other site content writes by the
 `site-content` lock. A save changes the settings row, so its `version` moves: the Business Info screen reads the settings again after
 a picture change.
@@ -202,6 +220,31 @@ The 1200 x 630 and the two preview sizes are Cloudinary named sizes, created by 
 
 Each set, replace or removal writes `site-settings.share-picture-changed` in the same save. The target type is `SiteSettings` and the
 target id is `1`. The detail is `change=added`, `change=replaced` or `change=removed`. It never holds an address or a file id.
+
+## The Quote alerts test email
+
+A Manager can check that quote alerts reach the saved Quote alerts address (D-11). `POST /api/v1/site-settings/quote-alerts/test`
+takes no body and answers `202` with no body once the email is queued. The email goes to the **saved** address only, never to an
+address in the request, so a change in the form must be saved first. Its subject is "Test: quote alerts work" and it has the Quote
+alerts footer and no link.
+
+| Answer | When |
+|---|---|
+| `202` | The test email is queued. |
+| `401` | No valid token. |
+| `403` | The caller is an Admin. |
+| `409 site-settings.no-quote-alerts-address` | No address is saved. Nothing is sent. The detail is "Save an address first, then send a test." |
+| `422 site-settings.quote-alerts-address-undeliverable` | The saved address is in a domain that never gets mail (such as `.invalid`). Nothing is sent. |
+| `429 rate-limited` | One address sent 3 tests in 10 minutes. `Retry-After` says how many whole seconds to wait. Nothing is sent. |
+
+The limit is per connection address and is set in `RateLimits:QuoteAlertTest` (`PermitLimit` 3, `Window` 10 minutes). A value that is
+not usable (a limit below 1, a window under 6 seconds) stops start-up with a message that names the setting, never the value. The
+call needs an `Idempotency-Key`: a repeat with the same key answers the stored `202` and sends nothing more.
+
+### The test email audit entry
+
+Each queued test writes `quote-alerts.test-sent` in the same save as the email. The target type is `SiteSettings` and the target id
+is `1`. There is no detail, so the address is never written to the audit log or the app log (CWE-532). A refused test writes nothing.
 
 ## The opening hours
 
@@ -467,7 +510,7 @@ The slot in the path is `main`, `back` or `fabric`; any other word is `404`.
 type is read from the first bytes (JPG, PNG, WEBP or HEIC, never SVG), the file is at most 10 MB and 25 megapixels, and the location and
 camera data are removed before the file is stored. The photo is stored under a random id in this environment's content folder,
 `{root}/content/lines/{lineId}/`, never in the orders folder, and the client never chooses the id. A slot that already holds a photo is
-replaced: the row stays, and the old file is queued for removal in the same save and leaves the storage on the next monthly cleanup run.
+replaced: the row stays, and the old file is queued for removal in the same save and leaves the storage on the next daily cleanup run.
 Nothing calls the storage to delete during the request.
 
 ```json
@@ -502,7 +545,7 @@ Every public fill size cuts from the centre of the photo (D-130). The 44 px list
   lock, so an upload and a delete of the same line at the same moment end as a `422` for the delete or a `404` for the upload, never a
   `500`. A file uploaded just before the line vanished is queued for removal.
 - Every upload is rate limited with the same cap as the order photo upload (30 in 10 minutes for one address), shares its server-wide
-  limit of two uploads at a time (four more wait, then `429`), and is bounded by the same body limit.
+  limit of two uploads at a time (four more wait, then `429`; visitors' quote photos have a separate pool and never use it), and is bounded by the same body limit.
 - Photo addresses are never written to the audit log or the server log.
 
 ### The photo audit entry

@@ -1,4 +1,4 @@
-// The Contact parts (UI-SPEC C1; PUB-02, PUB-06, D-17, D-18, D-20, D-23): ContactNowCard, BigContactButton, PhoneListCard,
+// The Contact parts (UI-SPEC C1; PUB-02, PUB-06, D-17, D-18, D-20, D-23): ContactBigButtons, BigContactButton, PhoneListCard,
 // MapCard and ContactBar, each from the stored shop facts.
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,7 +9,7 @@ import { closedWeek, demoSite, mixedWeek, siteWithoutOptionals, siteWithThreePho
 import { BigContactButton } from './BigContactButton';
 import CallHoursNote from './CallHoursNote';
 import { ContactBar } from './ContactBar';
-import { ContactNowCard } from './ContactNowCard';
+import { ContactBigButtons } from './ContactBigButtons';
 import { MapCard } from './MapCard';
 import { PhoneListCard } from './PhoneListCard';
 
@@ -49,41 +49,34 @@ describe('BigContactButton', () => {
   });
 });
 
-describe('ContactNowCard (D-18)', () => {
-  it('shows "Message us", the intro, both big buttons and "What to send" with its three rows', () => {
-    inRouter(<ContactNowCard site={demoSite} />);
+describe('ContactBigButtons (UI-SPEC Q1, App. E.4, D-18)', () => {
+  it('shows the Messenger button and the Call button, and nothing else (no title, no "What to send")', () => {
+    inRouter(<ContactBigButtons site={demoSite} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
-    expect(screen.getByText('The fastest way to get a mockup and a price.')).toBeInTheDocument();
     const messenger = screen.getByRole('link', { name: /^Message us on Messenger/ });
     expect(messenger).toHaveAttribute('href', 'https://m.me/cspsdemo');
     expect(messenger).not.toHaveAttribute('target');
     expect(screen.getByRole('link', { name: /^Call 0917 123 4567/ })).toHaveAttribute('href', 'tel:+639171234567');
-    expect(screen.getByRole('heading', { level: 3, name: 'What to send' })).toBeInTheDocument();
-    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
-      'Your team or group name',
-      'What you need and about how many pieces',
-      'Your design, logo or a rough idea. A phone photo is fine.',
-    ]);
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    expect(screen.queryByText('What to send')).not.toBeInTheDocument();
   });
 
   it('leaves out the Messenger button when no Messenger link is set', () => {
-    inRouter(<ContactNowCard site={siteWithoutOptionals} />);
+    inRouter(<ContactBigButtons site={siteWithoutOptionals} />);
 
     expect(screen.queryByRole('link', { name: /Messenger/ })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Call 0917 123 4567' })).toBeInTheDocument();
   });
 
   it('shows two skeleton blocks in place of the buttons while the facts load', () => {
-    const { container } = inRouter(<ContactNowCard site={undefined} />);
+    const { container } = inRouter(<ContactBigButtons site={undefined} />);
 
-    expect(screen.getByRole('heading', { level: 2, name: 'Message us' })).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
     expect(container.querySelectorAll('span[aria-hidden="true"]').length).toBeGreaterThanOrEqual(2);
   });
 
   it('adds the open days to the Call button as a second line', async () => {
-    inRouter(<ContactNowCard site={demoSite} />);
+    inRouter(<ContactBigButtons site={demoSite} />);
 
     expect(await screen.findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' })).toHaveAttribute(
       'href',
@@ -92,7 +85,7 @@ describe('ContactNowCard (D-18)', () => {
   });
 
   it('joins mixed hours with a semicolon on the Call button', async () => {
-    inRouter(<ContactNowCard site={{ ...demoSite, hours: mixedWeek }} />);
+    inRouter(<ContactBigButtons site={{ ...demoSite, hours: mixedWeek }} />);
 
     expect(
       await screen.findByRole('link', {
@@ -103,7 +96,7 @@ describe('ContactNowCard (D-18)', () => {
 
   it('leaves the second line out of the Call button when no day is open', async () => {
     vi.mocked(CallHoursNote).mockClear();
-    inRouter(<ContactNowCard site={{ ...demoSite, hours: closedWeek }} />);
+    inRouter(<ContactBigButtons site={{ ...demoSite, hours: closedWeek }} />);
 
     await waitFor(() => {
       expect(vi.mocked(CallHoursNote)).toHaveBeenCalled();
@@ -113,7 +106,7 @@ describe('ContactNowCard (D-18)', () => {
   });
 
   it('has no axe violations', async () => {
-    const { container } = inRouter(<ContactNowCard site={demoSite} />);
+    const { container } = inRouter(<ContactBigButtons site={demoSite} />);
     await screen.findByRole('link', { name: 'Call 0917 123 4567 Mon-Sat, 9:00 AM - 6:00 PM' });
 
     await expectNoAxeViolations(container);

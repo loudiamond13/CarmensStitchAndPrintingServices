@@ -2,6 +2,7 @@ using Csps.Application.Ports;
 using Csps.Domain.Content;
 using Csps.Domain.OrderLists;
 using Csps.Domain.Orders;
+using Csps.Domain.QuoteRequests;
 using Csps.Infrastructure.Identity;
 using Csps.Infrastructure.Images;
 using Csps.Testing;
@@ -104,6 +105,29 @@ public sealed class ImageInventoryTests(CspsDatabase database) : IClassFixture<C
 
         known.OrderBy(id => id, StringComparer.Ordinal).ShouldBe([galleryPhoto, LivePhoto]);
         named.ShouldBe([galleryPhoto]);
+    }
+
+    [Fact]
+    public async Task AQuoteRequestPhotoIsKnownAndNamedByAPhotoAndAnEmptyPlaceNamesNothing()
+    {
+        await SeedAsync();
+        var requestId = Guid.CreateVersion7(Now);
+        var quotePhoto = $"csps-test/quotes/{requestId:D}/quotequotequotequotequot2";
+        var request = QuoteRequest.Receive(requestId, new QuoteRequestInput("Juan Dela Cruz", null, "0917 123 4567", null, null, null, null, null, null), Now).Value;
+        request.DeclarePhotos(["front.jpg", "back.jpg"], new byte[QuoteRequestRules.UploadKeyHashLength], Now.AddHours(2)).IsSuccess.ShouldBeTrue();
+        await using var context = database.CreateContext();
+        context.QuoteRequests.Add(request);
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        await context.QuoteRequestPhotos
+            .Where(photo => photo.QuoteRequestId == requestId && photo.Slot == 0)
+            .ExecuteUpdateAsync(set => set.SetProperty(photo => photo.PublicId, quotePhoto), TestContext.Current.CancellationToken);
+        var inventory = new ImageInventory(context);
+
+        var known = await inventory.KnownAsync([quotePhoto, LivePhoto, Unknown], TestContext.Current.CancellationToken);
+        var named = await inventory.NamedByPhotosAsync([quotePhoto, Unknown, QueuedOnly], TestContext.Current.CancellationToken);
+
+        known.ShouldBe([quotePhoto, LivePhoto], ignoreOrder: true);
+        named.ShouldBe([quotePhoto]);
     }
 
     [Fact]

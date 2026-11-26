@@ -86,6 +86,22 @@ public sealed class OpenApiOrderWriteContractTests
         operation.GetProperty("responses").TryGetProperty("409", out _).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task CreatingAnOrderTakesTheQuoteRequestItIsMadeFromAndDeclaresItsAnswers()
+    {
+        using var document = await ReadDocumentAsync();
+
+        var schema = document.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("CreateOrderRequest");
+        schema.GetProperty("properties").TryGetProperty("quoteRequestId", out _).ShouldBeTrue("the create form takes quoteRequestId");
+        var operation = document.RootElement.GetProperty("paths").GetProperty("/api/v1/orders").GetProperty("post");
+        operation.GetProperty("responses").TryGetProperty("404", out _).ShouldBeTrue("an unknown quote request is a 404");
+        var summary = operation.GetProperty("summary").GetString().ShouldNotBeNull();
+        summary.ShouldContain("quoteRequestId");
+        summary.ShouldContain("quote-requests.not-found");
+        summary.ShouldContain("409 `quote-requests.already-converted`");
+        summary.ShouldContain("`orderId` and `orderNumber`");
+    }
+
     private static async Task<JsonDocument> ReadDocumentAsync()
     {
         await using var baseFactory = new CspsApiFactory();

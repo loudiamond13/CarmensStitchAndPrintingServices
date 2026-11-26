@@ -29,6 +29,11 @@
     <Content Include="..\fixtures\site-link-cases.json" Link="Fixtures\site-link-cases.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The email cases (D-42) are shared with the web zod tests and linked the same way. -->
+  <ItemGroup>
+    <Content Include="..\fixtures\email-cases.json" Link="Fixtures\email-cases.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- The legal page facts (LEGAL-05, D-10) are shared with the web node test and linked the same way. -->
   <ItemGroup>
     <Content Include="..\fixtures\legal-pages.json" Link="Fixtures\legal-pages.json" CopyToOutputDirectory="PreserveNewest" />

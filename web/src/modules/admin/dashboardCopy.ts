@@ -94,6 +94,15 @@ export const DASHBOARD_COPY = {
     emptyTitle: 'No open orders',
     emptyMessage: 'New orders show here by status.',
   },
+  /** SPEC-GAP: quote requests strip (D-19, UI-SPEC R4). */
+  quotes: {
+    label: 'New quote requests',
+    open: 'Open Quote Requests',
+    /** The noun of the loading region: "Loading the new quote requests…". */
+    things: 'the new quote requests',
+    failed: "Couldn't load the new requests.",
+    retry: 'Try Again',
+  },
   /** Recent orders (DASH-05, D-38). */
   recent: {
     title: 'Recent orders',

@@ -79,6 +79,12 @@ describe('PrivacyPolicyPage at /privacy (LEGAL-01, LEGAL-05, D-14)', { timeout: 
     expect(within(crumbs).getByText('Privacy Policy')).toHaveAttribute('aria-current', 'page');
   });
 
+  it('is approved at version 1.1 with no DRAFT notice (D-45)', async () => {
+    await renderLegal('/privacy', 'Privacy policy.');
+    expect(screen.queryAllByText(DRAFT_NOTICE)).toHaveLength(0);
+    expect(screen.getByText('Version 1.1 · Last updated Nov 25, 2026')).toBeInTheDocument();
+  });
+
   it('shows the version line exactly, after the h1 and before the lead', async () => {
     await renderLegal('/privacy', 'Privacy policy.');
     const version = screen.getByText(versionLine('privacy'));

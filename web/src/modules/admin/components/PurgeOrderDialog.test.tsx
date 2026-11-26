@@ -7,6 +7,7 @@ import { ToastProvider } from '@/components/feedback';
 import { createQueryClient } from '@/lib/query/queryClient';
 import { PurgeOrderDialog } from '@/modules/admin/components/PurgeOrderDialog';
 import { ordersKey } from '@/modules/admin/hooks/useOrdersQuery';
+import { quoteRequestsKey } from '@/modules/admin/hooks/useQuoteRequestsQuery';
 import { ordersDeletedKey } from '@/modules/admin/hooks/useRefreshOrders';
 import { acceptSession, clearSession } from '@/modules/admin/services/session';
 import { expectNoAxeViolations } from '@/test/axe';
@@ -285,6 +286,49 @@ describe('deleting for good', () => {
     expect(await screen.findByText('Already gone')).toBeVisible();
     expect(handlers.onDone).toHaveBeenCalledWith('gone');
     expect(handlers.onClose).toHaveBeenCalled();
+  });
+
+  // A purge also removes the quote request the order came from (13 D-22), so the inbox, count and detail read again.
+  function seedQuoteRequestQueries() {
+    const keys = [
+      [...quoteRequestsKey, 'list', { page: 1 }],
+      [...quoteRequestsKey, 'new-count'],
+      [...quoteRequestsKey, 'detail', 'a1b2c3d4-0000-4000-8000-000000000001'],
+    ];
+    for (const key of keys) {
+      queryClient.setQueryData(key, { seeded: true });
+    }
+    return () => keys.map((key) => queryClient.getQueryState(key)?.isInvalidated);
+  }
+
+  it('marks every quote request query stale after a purge (13 D-22)', async () => {
+    const user = userEvent.setup();
+    deletedOrdersBackend({ list: deletedOrderList([]) });
+    const invalidatedStates = seedQuoteRequestQueries();
+    const handlers = renderDialog();
+
+    await typeAndConfirm(user);
+
+    await waitFor(() => {
+      expect(handlers.onDone).toHaveBeenCalledWith('purged');
+    });
+    await waitFor(() => {
+      expect(invalidatedStates()).toEqual([true, true, true]);
+    });
+  });
+
+  it('marks every quote request query stale when the order is already gone (404)', async () => {
+    const user = userEvent.setup();
+    deletedOrdersBackend({ list: deletedOrderList([]), purge: () => deletedProblem(404) });
+    const invalidatedStates = seedQuoteRequestQueries();
+    renderDialog();
+
+    await typeAndConfirm(user);
+
+    expect(await screen.findByText('Already gone')).toBeVisible();
+    await waitFor(() => {
+      expect(invalidatedStates()).toEqual([true, true, true]);
+    });
   });
 
   it('sends one request for a double press', async () => {

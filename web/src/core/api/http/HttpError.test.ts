@@ -122,6 +122,35 @@ describe('parseProblemDetails', () => {
     });
   });
 
+  it('reads the replacementTicket extension of an expired quote ticket (D-38) and drops one that is not text', () => {
+    expect(
+      parseProblemDetails({ code: 'quote-requests.ticket-expired', replacementTicket: 'ticket-2' })?.replacementTicket,
+    ).toBe('ticket-2');
+    expect(parseProblemDetails({ replacementTicket: 7 })?.replacementTicket).toBeUndefined();
+    expect(parseProblemDetails({ title: 'Not found' })?.replacementTicket).toBeUndefined();
+  });
+
+  it('reads the minimumSeconds extension of an expired quote ticket (D-41) and drops one that is not a number', () => {
+    expect(parseProblemDetails({ minimumSeconds: 7 })?.minimumSeconds).toBe(7);
+    expect(parseProblemDetails({ minimumSeconds: '7' })?.minimumSeconds).toBeUndefined();
+    expect(parseProblemDetails({ title: 'Not found' })?.minimumSeconds).toBeUndefined();
+  });
+
+  it('reads the orderId and orderNumber extensions of an already-converted quote request (D-23) and drops ones that are not text', () => {
+    const parsed = parseProblemDetails({
+      code: 'quote-requests.already-converted',
+      orderId: '00000000-0000-4000-8000-000000000160',
+      orderNumber: 'ORD-2026-0160',
+    });
+    expect(parsed?.orderId).toBe('00000000-0000-4000-8000-000000000160');
+    expect(parsed?.orderNumber).toBe('ORD-2026-0160');
+    expect(parseProblemDetails({ orderId: 160, orderNumber: null })).toMatchObject({
+      orderId: undefined,
+      orderNumber: undefined,
+    });
+    expect(parseProblemDetails({ title: 'Not found' })?.orderNumber).toBeUndefined();
+  });
+
   it('keeps only string messages in each field-error list', () => {
     const parsed = parseProblemDetails({
       errors: { Amount: ['Enter an amount.', 5, null], Name: 'not a list', Qty: ['Enter a quantity.'] },

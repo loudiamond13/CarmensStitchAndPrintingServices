@@ -23,7 +23,7 @@ internal static class PublicPageHeads
 
     private static readonly PageHead Contact = new(
         "Contact Us and Get a Quote · CSPS",
-        "Message us on Messenger or call the shop. See our hours, address and map.");
+        "Ask for a quote, message us on Messenger or call the shop. See our hours, address and map.");
 
     private static readonly PageHead Privacy = new(
         "Privacy Policy · CSPS",

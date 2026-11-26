@@ -1,6 +1,6 @@
 ---
 created: 2026-11-03T20:30:00-06:00
-updated: 2026-11-15T11:08:17-06:00
+updated: 2026-11-22T23:55:00-06:00
 ---
 
 # Cloudinary setup: where the photo keys go
@@ -104,9 +104,9 @@ A size that is `different` is never changed by the command. Live photos already 
 
 Development and the live site use one Cloudinary account, so they share the same 13 names. You run the setup once for the account. Both environments then use the same sizes. Their photos stay apart because each uses its own root folder.
 
-### What the monthly run tells you
+### What the usage check tells you
 
-Every monthly maintenance run now prints two lines: the storage used in GB and the credits used this month, for example `5.2 of 25 (20.8%)`. The run turns red in three cases:
+The maintenance run prints two lines once a month (on its first run of each business month): the storage used in GB and the credits used this month, for example `5.2 of 25 (20.8%)`. The run turns red in three cases:
 
 - Over 80% of the free plan is used (credits or storage).
 - The plan's photo size limit is below `Images:MaxBytes`. Lower `Images:MaxBytes` in that case.
@@ -188,7 +188,7 @@ This costs nothing beyond the free plan's normal use: a named size is a saved re
 first asked for in that size. The command never prints your keys or your cloud name.
 
 Photos that Managers add to product lines are kept in their own folder, `{root}/content/`, apart from the order photos in
-`{root}/orders/`. The monthly cleanup looks at both folders and queues any old file that no photo row names.
+`{root}/orders/`. The daily cleanup looks at both folders and queues any old file that no photo row names.
 
 ## Centre-cut public sizes (D-130)
 

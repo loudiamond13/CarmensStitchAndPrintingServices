@@ -107,6 +107,10 @@ export const SHOWCASE_COPY = {
     refusedFile: 'front-view.heic',
     refusedReason: 'This photo is 12.4 MB. The limit is 10 MB.',
   },
+  /** SPEC-GAP dev wording: the Quote requests demos (plan 13-23). Made-up counts only; nothing is sent. */
+  quotes: {
+    show: 'Show the Quote requests cases',
+  },
   /** The ORD-2026-0148 dates (spec §12.2 "Ordered" and "Due"). */
   dates: { ordered: 'Ordered', due: 'Due' },
   /** The loaded LazyImage shows the brand mark (web/public/mark.svg). */

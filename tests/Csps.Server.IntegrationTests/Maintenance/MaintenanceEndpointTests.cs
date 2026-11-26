@@ -223,6 +223,32 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
     }
 
     [Fact]
+    public async Task ASecondRunInTheSameMonthHasNoCloudinaryUsageLinesAndEveryOtherJobStillReports()
+    {
+        await database.ResetAsync();
+        await StoreRecordsAsync();
+        await using var baseFactory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        await using var factory = baseFactory.WithWebHostBuilder(builder => builder.UseSetting(KeySetting, TestKey));
+        factory.Services.GetRequiredService<TestingImageStorage>().Usage = new StorageUsage(10, 90, 1_610_612_736, 22.5, 25);
+        using var client = factory.CreateClient();
+
+        using var first = await RunAsync(client, TestKey);
+        using var second = await RunAsync(client, TestKey);
+
+        first.StatusCode.ShouldBe(HttpStatusCode.OK);
+        second.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var firstLabels = await LabelsAsync(first);
+        firstLabels.ShouldContain("Cloudinary storage used");
+
+        using var document = JsonDocument.Parse(await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("ok").GetBoolean().ShouldBeTrue("The usage check is quiet after its monthly report, so a full plan turns one run red.");
+        var secondLabels = document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString()).ToList();
+        secondLabels.ShouldNotContain("Cloudinary storage used");
+        secondLabels.ShouldNotContain("Cloudinary credits this month");
+        secondLabels.ShouldBe(firstLabels.Where(label => label is not ("Cloudinary storage used" or "Cloudinary credits this month" or "Photo storage")).ToList());
+    }
+
+    [Fact]
     public async Task TwoKeyedCallsAtOnceGiveOne200AndOne409AndAThirdCallAfterBothAnswers200()
     {
         await database.ResetAsync();
@@ -317,6 +343,12 @@ public sealed class MaintenanceEndpointTests(CspsDatabase database) : IClassFixt
         }
 
         return client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<List<string?>> LabelsAsync(HttpResponseMessage response)
+    {
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return [.. document.RootElement.GetProperty("lines").EnumerateArray().Select(static line => line.GetProperty("label").GetString())];
     }
 
     // Two records that ended 2 days ago and one that is live; returns the live record's key.

@@ -1,6 +1,7 @@
 // Helpers for the Testing-only API routes (QUAL-05, D-37). They exist only on the E2E host, which runs in the Testing
 // environment of a Debug build. Every test makes its own staff user, so the resend cooldown, caps and lockouts of one
 // test never reach another (Pitfall 8). Mail is read from the sink; nothing is ever sent (D-27).
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { APIRequestContext } from '@playwright/test';
 import { expect } from './fixtures.ts';
 
@@ -209,6 +210,142 @@ export async function createOrder(request: APIRequestContext, input: OrderSeedIn
   const body: unknown = await response.json();
   if (!isRecord(body) || typeof body.id !== 'string') {
     throw new Error('POST /api/testing/orders returned an unexpected body.');
+  }
+  return body.id;
+}
+
+/** One photo a seeded quote request sends after the create. */
+export interface QuoteSeedPhoto {
+  readonly name: string;
+  readonly mimeType: string;
+  readonly buffer: Buffer;
+}
+
+/** What a spec chooses for a quote request sent through the public form API. Fake data only. */
+export interface QuoteSeedInput {
+  readonly customerName: string;
+  readonly contactNumber: string;
+  readonly teamName?: string;
+  readonly productChoice?: 'custom' | 'not-sure';
+  readonly quantity?: '1-9' | '10-20' | '21-50' | '51-100' | '100+';
+  readonly message?: string;
+  /** Names declared with the request; only the files in `photos` are sent. */
+  readonly declaredPhotos?: readonly string[];
+  readonly photos?: readonly QuoteSeedPhoto[];
+}
+
+/**
+ * Sends a quote request the way the Contact form does: a form ticket, a wait past the host's minimum time (1 second on the
+ * E2E host), the create with a fresh Idempotency-Key, then each photo in `photos` to its slot. Returns the request id.
+ */
+export async function createQuoteRequest(request: APIRequestContext, input: QuoteSeedInput): Promise<string> {
+  const ticketResponse = await request.get('/api/v1/public/quote-requests/ticket');
+  expect(ticketResponse.status(), 'GET /api/v1/public/quote-requests/ticket').toBe(200);
+  const ticketBody: unknown = await ticketResponse.json();
+  const ticket = isRecord(ticketBody) ? ticketBody.ticket : null;
+  const minimumSeconds = isRecord(ticketBody) ? ticketBody.minimumSeconds : null;
+  if (typeof ticket !== 'string' || typeof minimumSeconds !== 'number') {
+    throw new Error('GET /api/v1/public/quote-requests/ticket returned an unexpected body.');
+  }
+  await new Promise((resolve) => setTimeout(resolve, minimumSeconds * 1000 + 300));
+
+  const photoNames = input.declaredPhotos ?? input.photos?.map((photo) => photo.name) ?? [];
+  const uploadKey = photoNames.length > 0 ? randomBytes(32).toString('base64url') : null;
+  const created = await request.post('/api/v1/public/quote-requests', {
+    headers: { 'Idempotency-Key': randomUUID() },
+    data: {
+      customerName: input.customerName,
+      contactNumber: input.contactNumber,
+      teamName: input.teamName ?? null,
+      email: null,
+      productChoice: input.productChoice ?? null,
+      productLineKey: null,
+      quantity: input.quantity ?? null,
+      message: input.message ?? null,
+      photos: photoNames,
+      uploadKey,
+      ticket,
+    },
+  });
+  expect(created.status(), 'POST /api/v1/public/quote-requests').toBe(200);
+  const body: unknown = await created.json();
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('POST /api/v1/public/quote-requests returned an unexpected body.');
+  }
+  for (const [slot, photo] of (input.photos ?? []).entries()) {
+    const uploaded = await request.post(`/api/v1/public/quote-requests/${body.id}/photos/${String(slot)}`, {
+      headers: { 'Idempotency-Key': randomUUID(), 'X-Upload-Key': uploadKey ?? '' },
+      multipart: { file: { name: photo.name, mimeType: photo.mimeType, buffer: photo.buffer } },
+    });
+    expect(uploaded.status(), `POST /api/v1/public/quote-requests/{id}/photos/${String(slot)}`).toBe(200);
+  }
+  return body.id;
+}
+
+/** The headers of a staff API call made with an access token (`apiToken` in photos.ts), with a fresh Idempotency-Key. */
+function staffHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}`, 'X-CSPS-CSRF': '1', 'Idempotency-Key': randomUUID() };
+}
+
+/** Reads a quote request's row version, which a status change must send back. */
+async function quoteRequestVersion(request: APIRequestContext, token: string, id: string): Promise<string> {
+  const response = await request.get(`/api/v1/quote-requests/${id}`, { headers: staffHeaders(token) });
+  expect(response.status(), 'GET /api/v1/quote-requests/{id}').toBe(200);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.version !== 'string') {
+    throw new Error('GET /api/v1/quote-requests/{id} returned an unexpected body.');
+  }
+  return body.version;
+}
+
+/** Moves a quote request to another status through the staff API (new, contacted, quoted, closed or spam). */
+export async function changeQuoteStatus(
+  request: APIRequestContext,
+  token: string,
+  id: string,
+  status: 'new' | 'contacted' | 'quoted' | 'closed' | 'spam',
+): Promise<void> {
+  const version = await quoteRequestVersion(request, token, id);
+  const response = await request.post(`/api/v1/quote-requests/${id}/status`, {
+    headers: staffHeaders(token),
+    data: { status, version },
+  });
+  expect(response.status(), 'POST /api/v1/quote-requests/{id}/status').toBe(200);
+}
+
+/** Adds an internal note to a quote request through the staff API. */
+export async function addQuoteNote(request: APIRequestContext, token: string, id: string, text: string): Promise<void> {
+  const response = await request.post(`/api/v1/quote-requests/${id}/notes`, {
+    headers: staffHeaders(token),
+    data: { text },
+  });
+  expect(response.status(), 'POST /api/v1/quote-requests/{id}/notes').toBe(200);
+}
+
+/** Turns a quote request into a one-item order through the staff API, so the request becomes Converted. Returns the order id. */
+export async function convertQuoteRequest(
+  request: APIRequestContext,
+  token: string,
+  id: string,
+  customer: {
+    readonly customerName: string;
+    readonly contactNumber: string;
+    readonly orderDate: string;
+    readonly dueDate: string;
+  },
+): Promise<string> {
+  const response = await request.post('/api/v1/orders', {
+    headers: staffHeaders(token),
+    data: {
+      ...customer,
+      items: [{ productTypeId: BASKETBALL_JERSEY_ID, description: 'E2E sweep jersey', quantity: 12, unitPrice: 780 }],
+      quoteRequestId: id,
+    },
+  });
+  expect(response.status(), 'POST /api/v1/orders (from a quote request)').toBe(201);
+  const body: unknown = await response.json();
+  if (!isRecord(body) || typeof body.id !== 'string') {
+    throw new Error('POST /api/v1/orders returned an unexpected body.');
   }
   return body.id;
 }

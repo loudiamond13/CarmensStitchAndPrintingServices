@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Csps.ArchitectureTests;
 
 /// <summary>
-/// JOB-01 rules for the monthly maintenance run (01 D-10, D-21, D-22): a scheduled and manual workflow with no token
+/// JOB-01 rules for the daily maintenance run (01 D-10, D-21, D-22): a scheduled and manual workflow with no token
 /// rights, one repository secret that reaches the script through env only, and the runbooks (threats T-09-54 to T-09-58).
 /// </summary>
 public sealed class MaintenanceWorkflowTests
@@ -22,16 +22,16 @@ public sealed class MaintenanceWorkflowTests
     private static readonly Regex DynamicLoad = new(@"\b(?:import|require)\s*\(", RegexOptions.CultureInvariant);
 
     [Fact]
-    public void RunsMonthlyAndOnRunNowOnly()
+    public void RunsDailyAndOnRunNowOnly()
     {
         var lines = WorkflowText.Lines(WorkflowPath);
-        lines.ShouldNotBeEmpty($"{WorkflowPath} is the JOB-01 monthly run and must exist.");
+        lines.ShouldNotBeEmpty($"{WorkflowPath} is the JOB-01 daily run and must exist.");
 
         var triggers = WorkflowText.Section(lines, "on");
         triggers.Where(line => IndentOf(line) == 2).Select(line => line.Trim()).ToList()
-            .ShouldBe(["schedule:", "workflow_dispatch:"], "D-21: the monthly schedule and Run now, never a push or a pull request.");
+            .ShouldBe(["schedule:", "workflow_dispatch:"], "D-21: the daily schedule and Run now, never a push or a pull request.");
         WorkflowText.Section(triggers, "schedule").Select(line => line.Trim()).ToList()
-            .ShouldBe(["- cron: \"17 19 1 * *\""], "19:17 UTC on the 1st is 03:17 Manila on the 2nd.");
+            .ShouldBe(["- cron: \"17 19 * * *\""], "D-34: 19:17 UTC every day is 03:17 Manila the next day.");
     }
 
     [Fact]
@@ -51,11 +51,11 @@ public sealed class MaintenanceWorkflowTests
         WorkflowText.Jobs(lines).Select(job => job.Id).ToList().ShouldBe(["run"]);
 
         var job = TheJob();
-        job.Lines.ShouldContain("    name: monthly maintenance");
+        job.Lines.ShouldContain("    name: daily maintenance");
         job.Lines.ShouldContain("    runs-on: ubuntu-24.04");
         job.Lines.ShouldContain("    timeout-minutes: 20");
         job.Lines.Where(line => line.TrimStart().StartsWith("if:", StringComparison.Ordinal)).Select(line => line.Trim()).ToList()
-            .ShouldBe(["if: github.ref == 'refs/heads/main'"], "The only condition is the branch guard: an accidental Run workflow from another branch must not read MAINTENANCE_KEY, and the monthly schedule always runs on main.");
+            .ShouldBe(["if: github.ref == 'refs/heads/main'"], "The only condition is the branch guard: an accidental Run workflow from another branch must not read MAINTENANCE_KEY, and the daily schedule always runs on main.");
         lines.ShouldNotContain(
             line => line.TrimStart().StartsWith("environment:", StringComparison.Ordinal),
             "A production environment's required reviewer would hold every cron run (Pitfall 17).");
@@ -166,13 +166,13 @@ public sealed class MaintenanceWorkflowTests
     public void TheRunbooksDescribeTheWorkflow()
     {
         var runbook = string.Join('\n', WorkflowText.Lines(RunbookPath));
-        foreach (var phrase in new[] { "17 19 1 * *", "Run now", "60 days", "delayed", "red run", "MAINTENANCE_KEY", "SITE_ORIGIN" })
+        foreach (var phrase in new[] { "17 19 * * *", "Run now", "60 days", "delayed", "red run", "MAINTENANCE_KEY", "SITE_ORIGIN" })
         {
             runbook.ShouldContain(phrase, Case.Sensitive, $"{RunbookPath} must explain: {phrase}.");
         }
 
         var guide = string.Join('\n', WorkflowText.Lines(CiGuidePath));
-        foreach (var phrase in new[] { "maintenance.yml", "monthly maintenance", "run maintenance" })
+        foreach (var phrase in new[] { "maintenance.yml", "daily maintenance", "run maintenance" })
         {
             guide.ShouldContain(phrase, Case.Sensitive, $"{CiGuidePath} must describe the maintenance workflow: {phrase}.");
         }
