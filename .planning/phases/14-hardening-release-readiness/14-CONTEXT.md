@@ -1,5 +1,5 @@
 # Phase 14: Hardening & Release Readiness - Context
-*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-27T00:20:00-06:00*
+*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-27T08:52:00-06:00*
 
 **Gathered:** 2026-11-26
 **Status:** Ready for planning
@@ -188,6 +188,9 @@ These answer the open questions in `14-RESEARCH.md` § Open Questions (numbers i
 - **D-44 (Q11):** the live Lighthouse re-audit runs from GitHub Actions. If a page scores under 95, it is re-run from the owner's PC before any shortfall is put down to the host.
 - **Review-pack item (Q12):** the spinners in `media.recipe.ts` and `orderPhotos.recipe.ts` stop fully under reduced motion, while D-30 keeps the button spinner's slow turn. Kept as built; listed in the D-26 review pack.
 - **Doc fixes, no ruling (Q13):** D-05's "D-27 review pack" means the D-26 pack; the `legalPrivacy.ts` header comment that calls the policy a draft is corrected.
+
+### Reserved ruling numbers (planning, 2026-11-27)
+- These numbers are taken. **D-45** is the ZAP image ruling (plan 14-01), **D-46** the vite-plugin-pwa ruling (plan 14-02), **D-47** the audit exceptions ruling (plan 14-14), and **D-48 onward** the D-26 review pack rulings in R order (plan 14-10). Each is first written in its plan's SUMMARY, and plan 14-26 copies them into this file. Any later ruling (for example plan 14-29's named acceptances) takes the next number after the pack's last one. Never reuse these numbers.
 
 ### Claude's Discretion
 - The installed app's name and short name, its icons (from `web/public/mark.svg`) and its theme colour. Final look goes through `/gsd-ui-phase 14`.

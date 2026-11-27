@@ -6,7 +6,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: "2026-11-27T00:25:00-06:00"
-updated: "2026-11-27T00:25:00-06:00"
+updated: "2026-11-27T08:10:00-06:00"
 ---
 
 # Phase 14: Validation Strategy
@@ -62,7 +62,7 @@ The planner fills the task IDs. Each row maps to a test from the research map.
 | PERF-06 | UpdateBanner and OfflineCard announcements, focus, zero axe | component | `npm --prefix web run test -- --run src/modules/admin/components/UpdateBanner.test.tsx src/modules/admin/components/OfflineCard.test.tsx` | ❌ W0 | ⬜ pending |
 | PERF-06 | Offline boot check | unit | `npm --prefix web run test -- --run src/modules/admin/guard.test.ts` | ✅ extend | ⬜ pending |
 | PERF-06 | E2E: worker scope, no API or authenticated HTML cached, offline screen, update banner, two tabs | e2e | `npm --prefix web run e2e -- --grep @pwa --project chromium` | ❌ W0 | ⬜ pending |
-| PERF-07 | UiLink passes `viewTransition` only when supported and motion allowed | unit | `npm --prefix web run test -- --run src/components/actions/UiLink.test.tsx` | ✅ extend | ⬜ pending |
+| PERF-07 | UiLink passes `viewTransition` only when supported and motion allowed | unit | `npm --prefix web run test -- --run src/components/actions/links.test.tsx` | ✅ extend | ⬜ pending |
 | PERF-07 | `usePrefersReducedMotion` follows media-query changes | unit | `npm --prefix web run test -- --run src/hooks/usePrefersReducedMotion.test.ts` | ❌ W0 | ⬜ pending |
 | PERF-07 | E2E: one transition per nav click, none under reduced motion or for filters, drawers, Back and Forward | e2e | `npm --prefix web run e2e -- --grep "@motion\|@view-transitions"` | ✅ extend | ⬜ pending |
 | PERF-07 | Motion inventory: every animation recipe has a reduced-motion rule (D-30 spinner kept) | unit (node) | `npm --prefix web run test -- --run src/test/motion-inventory.node.test.ts` | ❌ W0 | ⬜ pending |

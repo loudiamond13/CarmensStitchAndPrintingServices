@@ -1,6 +1,6 @@
 # Roadmap: CSPS — Carmen's Stitch & Printing Services
 
-*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-25T01:05:00-06:00*
+*Created: 2026-10-07T00:08:54-05:00 · Updated: 2026-11-27T08:52:00-06:00*
 
 ## Overview
 
@@ -1503,7 +1503,52 @@ Plans:
 
 **Research flag:** Standard patterns (checklist-driven).
 
-**Plans**: TBD
+**Plans:** 30 plans in 10 waves (planned 2026-11-27, revised 2026-11-27; plan 14-15 was split into 14-15 and 14-30). The builds the owner chooses in the D-26 pack are planned with `/gsd-plan-phase 14 --gaps`, added to the `depends_on` of plan 14-26, and run before it; 14-26 checks this first and stops, naming the build, if one is missing. Waves 8 to 10 run after `/gsd-ship 14` opens the pull request; plan 14-27 stops with no SUMMARY if no pull request is open, and plans 14-28 and 14-29 stop unless the plan before them finished without a PARKED outcome.
+
+**Verification:** the `/gsd-verify-work 14` run that gates `/gsd-ship 14` (workflow step 4) covers waves 1 to 7. Phase 14 is not marked complete, and Phase 15 does not start, until plans 14-27, 14-28 and 14-29 each have a SUMMARY with no PARKED outcome. A second `/gsd-verify-work 14` after wave 10 checks the release evidence: CodeQL and ZAP on the pull request, the gated deploy, the live audit, the screen-reader passes and the owner's signatures.
+
+Plans:
+**Wave 1**
+- [ ] 14-01-PLAN.md: scanner visits are not counted (D-06); the owner rules on the ZAP image (D-45)
+- [ ] 14-02-PLAN.md: the staff portal is installable (manifest, icons, admin head tags); the owner rules on vite-plugin-pwa (D-46)
+- [ ] 14-03-PLAN.md: the CodeQL alerts in our own code are fixed (X-Frame-Options, test cookie, review script)
+- [ ] 14-04-PLAN.md: a CI-only mailbox tool for the signed-in scan (D-36)
+- [ ] 14-05-PLAN.md: the CWE Top 25 (2025) and ATT&CK review with a test per mitigation (SEC-05)
+- [ ] 14-06-PLAN.md: page links fade between pages, never under reduced motion (PERF-07)
+- [ ] 14-07-PLAN.md: runbooks for data requests, breaches, broken mail, lockouts and installing the staff app (LEGAL-06)
+- [ ] 14-08-PLAN.md: the restore drill script and runbook (D-07, D-40)
+- [ ] 14-09-PLAN.md: keyboard and screen-reader scripts for the eight critical flows (A11Y-05)
+- [ ] 14-11-PLAN.md: the stable WebKit and iPhone e2e failures debugged (D-25)
+**Wave 2**
+- [ ] 14-10-PLAN.md: one review pack closes every open owner item (D-26)
+- [ ] 14-12-PLAN.md: CI runs a passive ZAP scan of a production build, weekly and before release (D-01 to D-03)
+- [ ] 14-13-PLAN.md: the build makes a staff-only worker that never caches the API (D-11 to D-13, D-34, D-42)
+- [ ] 14-14-PLAN.md: the two audit exceptions are renewed or fixed before 2026-12-14 (D-35)
+- [ ] 14-15-PLAN.md: page changes started by code fade too, through one hook: sign-in, account and sign-out steps (PERF-07)
+- [ ] 14-16-PLAN.md: all motion stops under reduced motion, checked by a source scan (PERF-07, D-30)
+- [ ] 14-17-PLAN.md: the owner's real backup is restored, checked and dropped on this PC (D-07)
+**Wave 3**
+- [ ] 14-19-PLAN.md: the CI scan also reads the staff API, signed in the real way (D-04, D-36)
+- [ ] 14-20-PLAN.md: the owner-started live audit: passive ZAP, Lighthouse on seven pages, exposure checks (D-05, D-44)
+- [ ] 14-21-PLAN.md: a deploy needs a passing ZAP scan for its commit; the certificate check keeps validation on (D-38, D-39)
+- [ ] 14-22-PLAN.md: the portal registers its worker and the device never keeps API or signed-in answers (D-13, D-41)
+- [ ] 14-30-PLAN.md: order and quote page changes fade too, and a lint rule keeps every new page change on the hook (PERF-07)
+**Wave 4**
+- [ ] 14-18-PLAN.md: the Firefox and WebKit full-suite flakes fixed as the owner ruled (D-25)
+- [ ] 14-23-PLAN.md: the "A new version is available." banner (D-14, D-27)
+**Wave 5**
+- [ ] 14-24-PLAN.md: the offline screen with Try Again (D-15, D-29, D-31, D-32)
+**Wave 6**
+- [ ] 14-25-PLAN.md: the security checklist ready to sign; the review covers Phase 14 (D-22 to D-24)
+**Wave 7**
+- [ ] 14-26-PLAN.md: phase gate: every build, test, budget, Lighthouse and e2e project green; the keyboard pass recorded
+**Wave 8** (after the pull request is open; 14-27 stops without it)
+- [ ] 14-27-PLAN.md: release evidence: CodeQL, ZAP, the gated deploy and the live audit
+**Wave 9** (after the release deploy)
+- [ ] 14-28-PLAN.md: the owner's NVDA, VoiceOver and device checks recorded
+**Wave 10**
+- [ ] 14-29-PLAN.md: the owner signs the security checklist and the screen-reader record
+
 **UI hint**: yes
 
 ### Phase 15: Legacy Discovery & Mapping
