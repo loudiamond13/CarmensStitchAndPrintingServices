@@ -1,5 +1,5 @@
 # Phase 14: Hardening & Release Readiness - Context
-*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-26T17:10:00-06:00*
+*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-27T00:20:00-06:00*
 
 **Gathered:** 2026-11-26
 **Status:** Ready for planning
@@ -172,6 +172,22 @@ These answer the open questions in `14-UI-SPEC.md` (OQ-1 to OQ-4) and the owner 
   - the manifest settings beyond name, icons and colour (`id`, `start_url` `/admin/login`, `display: standalone`, `background_color`, no orientation, no shortcuts), the manifest description and the iPhone app title;
   - no page fade for Back and Forward, the phone menu drawer, URL-only changes, dialogs or the lightbox;
   - the admin head tags are added on entry to `/admin` and removed on leaving.
+
+### Research rulings (owner, 2026-11-27, `/gsd-plan-phase 14`)
+These answer the open questions in `14-RESEARCH.md` § Open Questions (numbers in brackets).
+- **D-34 (Q2):** BlueOak-1.0.0 is allowed in the build scope too (the glob 11 / minimatch 10 tree that vite-plugin-pwa brings). Widen the existing exception's scopes; nothing from these packages ships in the app.
+- **D-35 (Q3):** before the two npm audit exceptions expire on 2026-12-14, a plan task first checks for a fixed version. If none exists, it renews both with reasons that also name the Workbox path and a new expiry, for the owner's approval. The CI audit gate must not fail on 2026-12-15.
+- **D-36 (Q4, D-04):** the CI ZAP scan signs in through a CI-only console tool (option A). The tool refuses any database but a loopback container DB (like DevSeed's guard) and reads the queued invite and sign-in code emails from the outbox, so a script walks the real flow: invite, set password, sign in, code. No token minting and no change to the app.
+- **D-37 (Q1, D-16):** a quote request that became an order is kept. No code change. The deletion runbook says it stays with its order as a bookkeeping record, and the reply to the person explains this in plain words.
+- **D-38 (Q5, D-02):** `deploy.mjs` refuses to deploy a commit unless a successful `zap.yml` run exists for that exact SHA, the same way it already looks up the CI package.
+- **D-39 (Q8):** the CodeQL high alert at `web/scripts/deploy.mjs:363` is fixed in code: normal certificate validation stays on and the SHA-256 pin is kept through a custom `checkServerIdentity`. No dismissal.
+- **D-40 (Q9, D-07):** the restore drill compares against the Orders, Users and Quote Requests counts the live admin shows at backup time, plus `RESTORE VERIFYONLY`, `DBCC CHECKDB`, the metadata-only receipt and the latest `__EFMigrationsHistory` row matching the deployed release. No SQL runs on production.
+- **D-41 (Q6):** if the service worker slows the e2e suite or breaks `page.route` mocking, service workers are blocked in the shared Playwright `use` and allowed only in the PWA specs.
+- **D-42 (Q7):** the three UI-SPEC deviations are accepted and recorded as SPEC-DEVIATION entries: scope `/admin` (not `/admin/`, so the dashboard is included); `injectRegister: false` (not the deprecated `null`); a committed manifest file with the plugin's `manifest: false` (so public pages get no manifest link). The owner sees them again at `/gsd-ui-review 14`.
+- **D-43 (Q10, D-08):** NVDA is allowed as a hand-run tool. The "never GPL" rule covers code and packages in the project, not separate programs on the owner's PC. The a11y record names NVDA as a tool, not a dependency.
+- **D-44 (Q11):** the live Lighthouse re-audit runs from GitHub Actions. If a page scores under 95, it is re-run from the owner's PC before any shortfall is put down to the host.
+- **Review-pack item (Q12):** the spinners in `media.recipe.ts` and `orderPhotos.recipe.ts` stop fully under reduced motion, while D-30 keeps the button spinner's slow turn. Kept as built; listed in the D-26 review pack.
+- **Doc fixes, no ruling (Q13):** D-05's "D-27 review pack" means the D-26 pack; the `legalPrivacy.ts` header comment that calls the policy a draft is corrected.
 
 ### Claude's Discretion
 - The installed app's name and short name, its icons (from `web/public/mark.svg`) and its theme colour. Final look goes through `/gsd-ui-phase 14`.
