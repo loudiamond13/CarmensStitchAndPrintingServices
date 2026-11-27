@@ -13,6 +13,9 @@ public sealed class AnalyticsBotsTests
     [InlineData("Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36 ptst/1")]
     [InlineData("Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36 LIGHTHOUSE")]
     [InlineData("Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36 headlesschrome/1")]
+    [InlineData("Mozilla/5.0 (compatible; OWASP-ZAP/2.17.0; CSPS security scan)")]
+    [InlineData("mozilla/5.0 (compatible; owasp-zap/2.17.0; csps security scan)")]
+    [InlineData("Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse")]
     public void BotsAndTestRunnersAreBots(string userAgent)
     {
         AnalyticsBots.IsBot(userAgent).ShouldBeTrue();
@@ -29,6 +32,7 @@ public sealed class AnalyticsBotsTests
 
     [Theory]
     [InlineData("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.5 Safari/537.36")]
+    [InlineData("Mozilla/5.0 (Linux; Android 14; SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Mobile Safari/537.36")]
     [InlineData("Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")]
     [InlineData("Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.7258.5 Mobile Safari/537.36")]
     [InlineData("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15")]
@@ -62,6 +66,15 @@ public sealed class AnalyticsBotsTests
     {
         const string chrome = "Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36 ";
         var userAgent = chrome + new string('a', 512 - chrome.Length - "PTST".Length + 1) + "PTST" + new string('a', 100);
+
+        AnalyticsBots.IsBot(userAgent).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ScannerTokenPastCharacter512IsNotRead()
+    {
+        const string chrome = "Mozilla/5.0 (Windows NT 10.0) Chrome/129.0.0.0 Safari/537.36 ";
+        var userAgent = chrome + new string('a', 600) + "OWASP-ZAP" + new string('a', 100);
 
         AnalyticsBots.IsBot(userAgent).ShouldBeFalse();
     }
