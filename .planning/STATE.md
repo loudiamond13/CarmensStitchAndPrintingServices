@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 14
 current_phase_name: Hardening & Release Readiness
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-11-28T00:21:53.519Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-11-28T00:30:35.416Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 14 execution started
-state_head: 41ee86ab585e6082e3829622cdf5fd381cc2d5d1
+state_head: 0d6d2320e5abc9bca0f36518c2938130f1e81ee3
 progress:
   total_phases: 19
   completed_phases: 10
   total_plans: 447
-  completed_plans: 419
+  completed_plans: 420
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-26T16:16:00-06:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 14 (Hardening & Release Readiness) — EXECUTING
-Plan: 3 of 30
+Plan: 4 of 30
 Status: Ready to execute
 Last activity: 2026-11-27 — Phase 14 execution started
 
@@ -323,6 +323,7 @@ Progress: [█████░░░░░] 53%
 | Phase 09 P09 | 70min | 3 tasks | 22 files |
 | Phase 14 P01 | 25min | 3 tasks | 3 files |
 | Phase 14 P02 | 19min | 3 tasks | 12 files |
+| Phase 14 P03 | 11 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -927,6 +928,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: Phase-end review fixed (merges dd854328, 22300b43, 81606503, 61a6f71d). Regression gate green: Vitest 9010/9010, all .NET but ExpenseListTimingTests (303.7 ms vs 300, known machine issue); all 88 e2e load failures passed on a quiet machine. Verifier: human_needed, no gaps (37f4deda). Sign-off parked as P10-BL-20; phase not marked complete.
 - [Phase 14]: 14 D-45: ZAP image ghcr.io/zaproxy/zaproxy:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af approved (owner, 2026-11-27)
 - [Phase 14]: 14 D-46: vite-plugin-pwa 2.0.0 exact pin as a dev dependency approved, including its prerelease transitive @trickfilm400/rollup-plugin-off-main-thread 3.0.0-pre1 (owner, 2026-11-27)
+- [Phase 14]: 14-03: X-Frame-Options DENY is sent from web.config only (IIS), never from SecurityHeadersMiddleware, so the live response carries it once
 
 ### Pending Todos
 
@@ -1201,8 +1203,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T00:21:47.659Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-11-28T00:30:29.699Z
+Stopped at: Completed 14-03-PLAN.md
 Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
