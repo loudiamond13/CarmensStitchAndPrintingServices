@@ -13,6 +13,8 @@ public sealed record CiMailboxTargetCheck(bool Allowed, string? DatabaseName, st
 /// Decides whether the CI mailbox tool may open a connection (14 D-36, T-14-08). CI only; never run against a real database.
 /// Pure: it never opens a connection. It allows one target: a loopback container (<c>127.0.0.1,&lt;port&gt;</c> or
 /// <c>localhost,&lt;port&gt;</c>) database named <see cref="DatabaseName"/>, and only when <c>GITHUB_ACTIONS</c> is exactly <c>true</c>.
+/// The loopback host and the database name are the real gate. <c>GITHUB_ACTIONS</c> only guards against a mistake: anyone can
+/// set it on their own PC, and a port forwarded to loopback that reaches a database named <c>CSPS_Zap</c> would pass.
 /// </summary>
 public static class CiMailboxTargetGuard
 {
