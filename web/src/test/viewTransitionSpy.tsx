@@ -14,9 +14,10 @@ export function withTransitionAttribute(actual: ReactRouter): ReactRouter {
   return { ...actual, Link: Link as ReactRouter['Link'] };
 }
 
-/** A browser with document.startViewTransition and a device that does not ask for reduced motion. */
+/** A Chromium-engine browser with document.startViewTransition and a device that does not ask for reduced motion. */
 export function allowViewTransitions(): void {
   Object.defineProperty(document, 'startViewTransition', { configurable: true, value: vi.fn() });
+  Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: {} });
   vi.spyOn(window, 'matchMedia').mockImplementation(
     (query) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as never,
   );
@@ -24,6 +25,7 @@ export function allowViewTransitions(): void {
 
 export function forgetViewTransitions(): void {
   Reflect.deleteProperty(document, 'startViewTransition');
+  Reflect.deleteProperty(navigator, 'userAgentData');
 }
 
 /** The viewTransition values of the given anchors, as the wrapped Link marked them. */

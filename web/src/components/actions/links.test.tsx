@@ -200,11 +200,14 @@ describe('UiLink', () => {
 });
 
 describe('UiLink page fade (PERF-07)', () => {
-  /** The browser has the View Transitions API and the device allows or refuses motion. */
-  function browser({ api, reduce }: { api: boolean; reduce: boolean }): void {
+  /** The browser has the View Transitions API (and is Chromium-engine unless `chromium` is false) and the device allows or refuses motion. */
+  function browser({ api, reduce, chromium = true }: { api: boolean; reduce: boolean; chromium?: boolean }): void {
     seenTransition.values = [];
     if (api) {
       Object.defineProperty(document, 'startViewTransition', { configurable: true, value: vi.fn() });
+    }
+    if (chromium) {
+      Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: {} });
     }
     vi.spyOn(window, 'matchMedia').mockImplementation(
       (query) => ({ matches: reduce, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as never,
@@ -217,6 +220,7 @@ describe('UiLink page fade (PERF-07)', () => {
 
   afterEach(() => {
     Reflect.deleteProperty(document, 'startViewTransition');
+    Reflect.deleteProperty(navigator, 'userAgentData');
   });
 
   it('asks for a View Transition on a link to another page when the browser can and motion is allowed', () => {
@@ -235,6 +239,13 @@ describe('UiLink page fade (PERF-07)', () => {
 
   it('asks for none when the browser has no View Transitions API', () => {
     browser({ api: false, reduce: false });
+    inRouter(<UiLink to="/products">Products</UiLink>);
+
+    expect(lastTransition()).toBe(false);
+  });
+
+  it('asks for none in a browser that is not Chromium-engine, even with the API (Safari and iPhone, 14 D-48)', () => {
+    browser({ api: true, reduce: false, chromium: false });
     inRouter(<UiLink to="/products">Products</UiLink>);
 
     expect(lastTransition()).toBe(false);

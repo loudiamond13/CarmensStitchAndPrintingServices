@@ -54,6 +54,7 @@ afterEach(() => {
     Object.defineProperty(window, 'matchMedia', original);
   }
   Reflect.deleteProperty(document, 'startViewTransition');
+  Reflect.deleteProperty(navigator, 'userAgentData');
 });
 
 describe('usePrefersReducedMotion', () => {
@@ -111,9 +112,16 @@ describe('canStartViewTransition', () => {
     expect(canStartViewTransition()).toBe(false);
   });
 
-  it('is true when the browser has document.startViewTransition', () => {
+  it('is true when a Chromium-engine browser has document.startViewTransition', () => {
     Object.defineProperty(document, 'startViewTransition', { configurable: true, value: vi.fn() });
+    Object.defineProperty(navigator, 'userAgentData', { configurable: true, value: {} });
 
     expect(canStartViewTransition()).toBe(true);
+  });
+
+  it('is false in a browser that has the API but is not Chromium-engine (Safari, iPhone; 14 D-48)', () => {
+    Object.defineProperty(document, 'startViewTransition', { configurable: true, value: vi.fn() });
+
+    expect(canStartViewTransition()).toBe(false);
   });
 });

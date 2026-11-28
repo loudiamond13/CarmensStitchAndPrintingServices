@@ -460,19 +460,21 @@ async function openHome(page: Page): Promise<void> {
   await expect(page.locator('h1')).toBeVisible();
 }
 
+// The fade runs only in Chromium-engine browsers (14 D-48): Safari and iPhone get none, and so does Firefox.
 for (const reduce of [false, true]) {
   const motion = reduce ? 'reduced motion' : 'motion allowed';
-  const expected = reduce ? 0 : 1;
 
-  test(`@view-transitions admin sidebar: a click on Orders starts ${String(expected)} transition (${motion})`, async ({
+  test(`@view-transitions admin sidebar: a click on Orders starts one transition in Chromium, none elsewhere (${motion})`, async ({
     page,
     request,
     guard,
+    browserName,
   }) => {
+    const expected = reduce || browserName !== 'chromium' ? 0 : 1;
     await page.addInitScript(COUNT_VIEW_TRANSITIONS);
     await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
     await openAdminAt(page, request, guard, 1440, 900);
-    if (!reduce) {
+    if (expected === 1) {
       await requireViewTransitions(page);
     }
     await resetViewTransitionCount(page);
@@ -484,13 +486,15 @@ for (const reduce of [false, true]) {
     expect(await viewTransitionCount(page)).toBe(expected);
   });
 
-  test(`@view-transitions public header: a click on Products starts ${String(expected)} transition (${motion})`, async ({
+  test(`@view-transitions public header: a click on Products starts one transition in Chromium, none elsewhere (${motion})`, async ({
     page,
+    browserName,
   }) => {
+    const expected = reduce || browserName !== 'chromium' ? 0 : 1;
     await page.addInitScript(COUNT_VIEW_TRANSITIONS);
     await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
     await openHome(page);
-    if (!reduce) {
+    if (expected === 1) {
       await requireViewTransitions(page);
     }
     await resetViewTransitionCount(page);
@@ -536,6 +540,56 @@ test('@view-transitions same page: a click on the nav item of the page already s
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.locator('h1')).toBeVisible();
   expect(await viewTransitionCount(page)).toBe(0);
+});
+
+test('@view-transitions history: Back and Forward start no transition, also after reduced motion is switched on (14 D-48)', async ({
+  page,
+}) => {
+  await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await openHome(page);
+  const mainNav = page.getByRole('navigation', { name: 'Main' });
+
+  await mainNav.getByRole('link', { name: 'Products', exact: true }).click();
+  await expect(page).toHaveURL(/\/products$/);
+  await expect(page.locator('h1')).toBeVisible();
+  await resetViewTransitionCount(page);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('h1')).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/products$/);
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await viewTransitionCount(page), 'motion allowed').toBe(0);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('h1')).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/products$/);
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await viewTransitionCount(page), 'reduced motion').toBe(0);
+});
+
+test('@view-transitions ordering: a second link click while the first page change is running ends on the second page', async ({
+  page,
+}) => {
+  await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await openHome(page);
+
+  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Products', exact: true }).click({
+    noWaitAfter: true,
+  });
+  await page.evaluate(
+    "document.querySelector('nav[aria-label=\"Main\"] a[href=\"/contact\"]').click()",
+  );
+
+  await expect(page).toHaveURL(/\/contact$/);
+  await expect(page.locator('h1')).toBeVisible();
+  await expect(page.locator('h1')).toContainText(/build your kit/i);
 });
 
 // ── D-39: the Signed-in devices dialogs ──
