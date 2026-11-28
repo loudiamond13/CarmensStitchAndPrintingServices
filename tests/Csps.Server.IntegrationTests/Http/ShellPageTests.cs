@@ -329,6 +329,7 @@ public sealed partial class ShellPageTests
         Link(body, "manifest").ShouldBe("/manifest.webmanifest", path);
         Meta(body, "name", "theme-color").ShouldBe("#572e2b", path);
         Meta(body, "name", "apple-mobile-web-app-title").ShouldBe("CSPS Admin", path);
+        Link(body, "apple-touch-icon").ShouldBe("/pwa/apple-touch-icon-180.png", path);
     }
 
     [Theory]
@@ -350,6 +351,7 @@ public sealed partial class ShellPageTests
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Link(body, "manifest").ShouldBeNull(path);
+        Link(body, "apple-touch-icon").ShouldBeNull(path);
         Meta(body, "name", "theme-color").ShouldBeNull(path);
         Meta(body, "name", "apple-mobile-web-app-title").ShouldBeNull(path);
         body.ShouldNotContain("manifest", Case.Insensitive, path);

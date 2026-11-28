@@ -118,7 +118,7 @@ internal static class PublicHeadWriter
     }
 
     /// <summary>
-    /// Appends the staff app install tags on new lines: the manifest link and the theme colour (PERF-06). Written only for
+    /// Appends the staff app install tags on new lines: the manifest link, the theme colour, the Apple icon and the app title (PERF-06). Written only for
     /// admin documents, never for a public page or the 404 (14 D-12).
     /// </summary>
     /// <param name="head">The builder to append to.</param>
@@ -127,6 +127,7 @@ internal static class PublicHeadWriter
         ArgumentNullException.ThrowIfNull(head);
         head.Append(LineBreak).Append("<link rel=\"manifest\" href=\"/manifest.webmanifest\">");
         AppendMeta(head, "name", "theme-color", "#572e2b");
+        head.Append(LineBreak).Append("<link rel=\"apple-touch-icon\" href=\"/pwa/apple-touch-icon-180.png\">");
         AppendMeta(head, "name", "apple-mobile-web-app-title", "CSPS Admin");
     }
 
