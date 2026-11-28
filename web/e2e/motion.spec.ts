@@ -421,6 +421,88 @@ for (const { label, width, height } of MENU_VIEWPORTS) {
   });
 }
 
+// ── PERF-07: the page fade between pages (View Transitions) ──
+
+// Wraps document.startViewTransition in every document, so a test counts how many transitions a click starts. An engine without
+// the API gets no wrapper and counts 0 (the positive cases skip there).
+const COUNT_VIEW_TRANSITIONS = `
+  window.__cspsViewTransitions = 0;
+  if (typeof document.startViewTransition === 'function') {
+    const original = document.startViewTransition.bind(document);
+    document.startViewTransition = (...args) => {
+      window.__cspsViewTransitions += 1;
+      return original(...args);
+    };
+  }
+`;
+
+async function viewTransitionCount(page: Page): Promise<number> {
+  return page.evaluate<number>('window.__cspsViewTransitions');
+}
+
+function resetViewTransitionCount(page: Page): Promise<number> {
+  return page.evaluate<number>('(window.__cspsViewTransitions = 0)');
+}
+
+/** Skips a positive case in an engine that has no View Transitions API; the fade is progressive. */
+async function requireViewTransitions(page: Page): Promise<void> {
+  test.skip(
+    !(await page.evaluate<boolean>("typeof document.startViewTransition === 'function'")),
+    'This engine has no View Transitions API; the page changes at once there.',
+  );
+}
+
+/** Shows the public home page on a desktop-wide page. */
+async function openHome(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const response = await page.goto('/');
+  expect(response?.status()).toBe(200);
+  await expect(page.locator('h1')).toBeVisible();
+}
+
+for (const reduce of [false, true]) {
+  const motion = reduce ? 'reduced motion' : 'motion allowed';
+  const expected = reduce ? 0 : 1;
+
+  test(`@view-transitions admin sidebar: a click on Orders starts ${String(expected)} transition (${motion})`, async ({
+    page,
+    request,
+    guard,
+  }) => {
+    await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+    await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
+    await openAdminAt(page, request, guard, 1440, 900);
+    if (!reduce) {
+      await requireViewTransitions(page);
+    }
+    await resetViewTransitionCount(page);
+
+    await page.locator('[data-ui="s-admin-side"]').getByRole('link', { name: 'Orders', exact: true }).click();
+
+    await expect(page).toHaveURL(/\/admin\/orders$/);
+    await expect(page.locator('h1')).toBeVisible();
+    expect(await viewTransitionCount(page)).toBe(expected);
+  });
+
+  test(`@view-transitions public header: a click on Products starts ${String(expected)} transition (${motion})`, async ({
+    page,
+  }) => {
+    await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+    await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
+    await openHome(page);
+    if (!reduce) {
+      await requireViewTransitions(page);
+    }
+    await resetViewTransitionCount(page);
+
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Products', exact: true }).click();
+
+    await expect(page).toHaveURL(/\/products$/);
+    await expect(page.locator('h1')).toBeVisible();
+    expect(await viewTransitionCount(page)).toBe(expected);
+  });
+}
+
 // ── D-39: the Signed-in devices dialogs ──
 
 // A second device with a label no project shares, so its row can be told apart.

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ReactNode } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as actionScenarios } from '@/dev/scenarios/groups/actions';
@@ -12,6 +12,19 @@ import { ButtonLink, buttonClasses, LinkProvider, UiLink } from '@/components/ac
 // The App. D.3 links (plan 02-17): UiLink and ButtonLink render react-router's Link (a real <a href>) for in-app paths
 // and a plain <a href> for external, mail, phone and in-page targets, as App. D.3 does; LinkProvider is kept for API
 // compatibility and renders its children unchanged.
+
+// Records the viewTransition prop each rendered Link receives (PERF-07), then renders the real Link.
+const seenTransition = vi.hoisted(() => ({ values: [] as unknown[] }));
+vi.mock('react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>();
+  return {
+    ...actual,
+    Link: (props: ComponentProps<typeof actual.Link>) => {
+      seenTransition.values.push(props.viewTransition);
+      return <actual.Link {...props} />;
+    },
+  };
+});
 
 function inRouter(ui: ReactNode, initialPath = '/') {
   return render(
@@ -183,6 +196,83 @@ describe('UiLink', () => {
     for (const name of ['My Profile', 'Example']) {
       expect(screen.getByRole('menuitem', { name })).toHaveAttribute('tabindex', '-1');
     }
+  });
+});
+
+describe('UiLink page fade (PERF-07)', () => {
+  /** The browser has the View Transitions API and the device allows or refuses motion. */
+  function browser({ api, reduce }: { api: boolean; reduce: boolean }): void {
+    seenTransition.values = [];
+    if (api) {
+      Object.defineProperty(document, 'startViewTransition', { configurable: true, value: vi.fn() });
+    }
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query) => ({ matches: reduce, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as never,
+    );
+  }
+
+  function lastTransition(): unknown {
+    return seenTransition.values.at(-1);
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, 'startViewTransition');
+  });
+
+  it('asks for a View Transition on a link to another page when the browser can and motion is allowed', () => {
+    browser({ api: true, reduce: false });
+    inRouter(<UiLink to="/products">Products</UiLink>);
+
+    expect(lastTransition()).toBe(true);
+  });
+
+  it('asks for none under reduced motion', () => {
+    browser({ api: true, reduce: true });
+    inRouter(<UiLink to="/products">Products</UiLink>);
+
+    expect(lastTransition()).toBe(false);
+  });
+
+  it('asks for none when the browser has no View Transitions API', () => {
+    browser({ api: false, reduce: false });
+    inRouter(<UiLink to="/products">Products</UiLink>);
+
+    expect(lastTransition()).toBe(false);
+  });
+
+  it.each(['/products', '/products?page=2', '/products#top'])('asks for none on a link to the page already shown (%s)', (to) => {
+    browser({ api: true, reduce: false });
+    inRouter(<UiLink to={to}>Products</UiLink>, '/products');
+
+    expect(lastTransition()).toBe(false);
+  });
+
+  it('asks for none when the link says noTransition (a drawer link)', () => {
+    browser({ api: true, reduce: false });
+    inRouter(
+      <UiLink to="/products" noTransition>
+        Products
+      </UiLink>,
+    );
+
+    expect(lastTransition()).toBe(false);
+  });
+
+  it('keeps external, mail, phone and in-page links as plain anchors with no router link', () => {
+    browser({ api: true, reduce: false });
+    render(<UiLink to="mailto:hello@example.com">Email</UiLink>);
+
+    expect(seenTransition.values).toEqual([]);
+  });
+
+  it('shows the next page after a click with no warning (the console guard is on)', async () => {
+    browser({ api: false, reduce: false });
+    const user = userEvent.setup();
+    inRouter(<UiLink to="/products">Products</UiLink>);
+
+    await user.click(onlyLink());
+
+    expect(screen.getByRole('heading', { name: 'Products page' })).toBeInTheDocument();
   });
 });
 
