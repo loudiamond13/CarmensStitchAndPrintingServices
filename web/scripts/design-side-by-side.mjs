@@ -297,6 +297,27 @@ ${sections}
 }
 
 /**
+ * The part of the page's document the theme script uses (the node project has no DOM types).
+ * @typedef {{ querySelectorAll: (selector: string) => { forEach: (run: (element: { setAttribute: (name: string, value: string) => void }) => void) => void } }} PageDocument
+ */
+
+/**
+ * Sets the screen's theme on every themed element. The value goes to the page as an evaluate argument, so it is data and
+ * never part of the code text the page runs (CWE-94).
+ * @param {{ evaluate: (script: (theme: string) => void, arg: string) => Promise<unknown> }} frame
+ * @param {string} theme
+ * @returns {Promise<void>}
+ */
+export async function applyThemeToFrame(frame, theme) {
+  await frame.evaluate((value) => {
+    const page = /** @type {{ document: PageDocument }} */ (/** @type {unknown} */ (globalThis)).document;
+    page.querySelectorAll('[data-theme]').forEach((element) => {
+      element.setAttribute('data-theme', value);
+    });
+  }, theme);
+}
+
+/**
  * Photographs every planned design screen. Every network request is blocked: the exports unpack themselves from their
  * own file and need nothing else.
  * @param {readonly SideBySideItem[]} items
@@ -341,9 +362,7 @@ async function captureDesign(items) {
           throw new Error(`The design screen "${item.board}" did not open.`);
         }
         await frame.locator('[data-theme]').first().waitFor({ timeout: 60_000 });
-        await frame.evaluate(
-          `document.querySelectorAll('[data-theme]').forEach((element) => element.setAttribute('data-theme', ${JSON.stringify(item.theme)}))`,
-        );
+        await applyThemeToFrame(frame, item.theme);
         // The screen can be shorter than its frame, and the export's wrappers around it keep the light page colour; they
         // take the themed screen's own background, so a dark screen is not followed by a light strip that is not part
         // of the design.

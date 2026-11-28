@@ -5,8 +5,9 @@
 // writes sits under artifacts/owner-review/side-by-side/. The design files and their renders never leave this machine.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  applyThemeToFrame,
   assertSideBySidePath,
   checkGuards,
   DESIGN_DIR,
@@ -186,5 +187,56 @@ describe('renderSideBySide', () => {
 
   it('tells the owner the design pictures stay on this computer', () => {
     expect(html).toContain('never put in git, uploaded or put on the live site');
+  });
+});
+
+describe('applyThemeToFrame (CWE-94)', () => {
+  const hostile = `dark'); window.pwned = true; ('`;
+
+  it('hands the theme to the page as an argument, never as code text', async () => {
+    const calls: { script: unknown; arg: unknown }[] = [];
+    const frame = {
+      evaluate: (script: unknown, arg: unknown) => {
+        calls.push({ script, arg });
+        return Promise.resolve();
+      },
+    };
+
+    await applyThemeToFrame(frame, hostile);
+
+    expect(calls).toHaveLength(1);
+    expect(typeof calls[0]?.script).toBe('function');
+    expect(String(calls[0]?.script)).not.toContain('pwned');
+    expect(calls[0]?.arg).toBe(hostile);
+  });
+
+  it('sets the value on every themed element exactly as given', async () => {
+    const themed = [{ attributes: new Map<string, string>() }, { attributes: new Map<string, string>() }].map(
+      (node) => ({
+        ...node,
+        setAttribute: (name: string, value: string) => {
+          node.attributes.set(name, value);
+        },
+      }),
+    );
+    const fakeDocument = {
+      querySelectorAll: () => ({
+        forEach: (run: (node: unknown) => void) => {
+          themed.forEach(run);
+        },
+      }),
+    };
+    const frame = {
+      evaluate: (script: (value: string) => void, arg: string) => {
+        vi.stubGlobal('document', fakeDocument);
+        script(arg);
+        vi.unstubAllGlobals();
+        return Promise.resolve();
+      },
+    };
+
+    await applyThemeToFrame(frame, hostile);
+
+    expect(themed.map((node) => node.attributes.get('data-theme'))).toEqual([hostile, hostile]);
   });
 });
