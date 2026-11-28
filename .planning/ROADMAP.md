@@ -1503,7 +1503,7 @@ Plans:
 
 **Research flag:** Standard patterns (checklist-driven).
 
-**Plans:** 9/30 plans executed in 10 waves (planned 2026-11-27, revised 2026-11-27; plan 14-15 was split into 14-15 and 14-30). The builds the owner chooses in the D-26 pack are planned with `/gsd-plan-phase 14 --gaps`, added to the `depends_on` of plan 14-26, and run before it; 14-26 checks this first and stops, naming the build, if one is missing. Waves 8 to 10 run after `/gsd-ship 14` opens the pull request; plan 14-27 stops with no SUMMARY if no pull request is open, and plans 14-28 and 14-29 stop unless the plan before them finished without a PARKED outcome.
+**Plans:** 10/30 plans executed in 10 waves (planned 2026-11-27, revised 2026-11-27; plan 14-15 was split into 14-15 and 14-30). The builds the owner chooses in the D-26 pack are planned with `/gsd-plan-phase 14 --gaps`, added to the `depends_on` of plan 14-26, and run before it; 14-26 checks this first and stops, naming the build, if one is missing. Waves 8 to 10 run after `/gsd-ship 14` opens the pull request; plan 14-27 stops with no SUMMARY if no pull request is open, and plans 14-28 and 14-29 stop unless the plan before them finished without a PARKED outcome.
 
 **Verification:** the `/gsd-verify-work 14` run that gates `/gsd-ship 14` (workflow step 4) covers waves 1 to 7. Phase 14 is not marked complete, and Phase 15 does not start, until plans 14-27, 14-28 and 14-29 each have a SUMMARY with no PARKED outcome. A second `/gsd-verify-work 14` after wave 10 checks the release evidence: CodeQL and ZAP on the pull request, the gated deploy, the live audit, the screen-reader passes and the owner's signatures.
 
@@ -1518,7 +1518,7 @@ Plans:
 - [x] 14-07-PLAN.md: runbooks for data requests, breaches, broken mail, lockouts and installing the staff app (LEGAL-06)
 - [x] 14-08-PLAN.md: the restore drill script and runbook (D-07, D-40)
 - [x] 14-09-PLAN.md: keyboard and screen-reader scripts for the eight critical flows (A11Y-05)
-- [ ] 14-11-PLAN.md: the stable WebKit and iPhone e2e failures debugged (D-25)
+- [x] 14-11-PLAN.md: the stable WebKit and iPhone e2e failures debugged (D-25)
 **Wave 2**
 - [ ] 14-10-PLAN.md: one review pack closes every open owner item (D-26)
 - [ ] 14-12-PLAN.md: CI runs a passive ZAP scan of a production build, weekly and before release (D-01 to D-03)
@@ -1721,7 +1721,7 @@ Phases execute in numeric order: 1 → 2 → 3 → … → 17. Decimal insertion
 | 11. Public Site & Content Management | 39/39 | In Progress | - |
 | 12. Consent, Analytics & Legal | 32/32 | Complete    | 2026-11-21 |
 | 13. Quote Inquiries | 27/27 | In Progress | - |
-| 14. Hardening & Release Readiness | 9/30 | In Progress | - |
+| 14. Hardening & Release Readiness | 10/30 | In Progress | - |
 | 15. Legacy Discovery & Mapping | 0/TBD | Not started | - |
 | 16. Legacy Data Import | 0/TBD | Not started | - |
 | 17. Legacy Data Cutover | 0/TBD | Not started | - |
