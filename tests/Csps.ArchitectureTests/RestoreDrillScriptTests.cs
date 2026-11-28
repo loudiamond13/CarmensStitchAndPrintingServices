@@ -157,6 +157,101 @@ public sealed partial class RestoreDrillScriptTests
         File.ReadAllLines(RepoRoot.PathOf(".gitignore")).ShouldContain("_local/", "_local/ must stay git-ignored.");
     }
 
+    [Fact]
+    public void RunbookHasItsSixSectionsInOrder()
+    {
+        var headings = RunbookHeading().Matches(ReadRunbook()).Select(match => match.Groups["title"].Value).ToList();
+
+        headings.ShouldBe(
+            [
+                "Make the backup",
+                "Restore it on this PC",
+                "Check it",
+                "Open the app against it",
+                "Drop the copy",
+                "What stays on this PC",
+            ]);
+    }
+
+    [Fact]
+    public void RunbookKeepsItsTimestampLineAndNamesTheOwner()
+    {
+        var runbook = ReadRunbook();
+
+        TimestampLine().IsMatch(runbook).ShouldBeTrue("The runbook needs a '*Created: <ISO time> · Updated: <ISO time>*' line.");
+        runbook.ShouldContain("the owner");
+    }
+
+    [Fact]
+    public void RunbookKeepsTheMailSafetyAndVersionFacts()
+    {
+        var runbook = ReadRunbook();
+
+        foreach (var phrase in new[]
+                 {
+                     "Restore-BackupDrill.ps1",
+                     "smtp.invalid",
+                     "-Drop",
+                     "never the production certificate",
+                     @"preflight.ps1 -Ports 5180,5115,7028,5199",
+                     "RTM-CU3",
+                     "17.0.4025.3",
+                     "D-51",
+                     "_local",
+                 })
+        {
+            runbook.ShouldContain(phrase, Case.Sensitive, $"The runbook must say '{phrase}'.");
+        }
+
+        Section(runbook, "Open the app against it").ShouldContain("do not sign in");
+        Section(runbook, "Drop the copy").ShouldContain("-Drop");
+        File.Exists(RepoRoot.PathOf(ScriptPath)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RunbookHoldsNoSecretOrPersonalDetail()
+    {
+        foreach (var (pattern, sample) in PersonalDetailDetectors)
+        {
+            pattern.IsMatch(sample).ShouldBeTrue($"Detector {pattern} must catch: {sample}");
+        }
+
+        var found = PersonalDetailDetectors.Select(detector => detector.Pattern).Distinct()
+            .SelectMany(pattern => pattern.Matches(ReadRunbook()).Select(match => match.Value))
+            .ToList();
+
+        found.ShouldBeEmpty("The runbook must never hold passwords, keys, emails, local user paths or long encoded values.");
+    }
+
+    // Each detector paired with a sample it must catch, so a broken pattern cannot pass silently.
+    private static readonly (Regex Pattern, string Sample)[] PersonalDetailDetectors =
+    [
+        (PasswordAssignment(), "Server=x;Password = hunter2"),
+        (PasswordAssignment(), "PWD=hunter2"),
+        (UserIdAssignment(), "User ID=csps_owner;"),
+        (PemBlock(), "-----BEGIN PRIVATE KEY-----"),
+        (EmailAddress(), "someone@example.com"),
+        (UserProfilePath(), "C:/Users/someone/"),
+        (UserProfilePath(), @"C:\Users\someone\Desktop"),
+        (LongEncodedValue(), new string('A', 220)),
+    ];
+
+    private static string ReadRunbook()
+    {
+        var path = RepoRoot.PathOf("docs/operations/backup-restore.md");
+        File.Exists(path).ShouldBeTrue("docs/operations/backup-restore.md is missing.");
+        return File.ReadAllText(path).ReplaceLineEndings("\n");
+    }
+
+    // The text of one "## " section, up to the next "## " heading.
+    private static string Section(string runbook, string heading)
+    {
+        var match = Regex.Match(
+            runbook, $@"^## {Regex.Escape(heading)}\s*$.*?(?=^## |\z)", RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        match.Success.ShouldBeTrue($"The runbook has no '## {heading}' section.");
+        return match.Value;
+    }
+
     private static string ReadScript()
     {
         var path = RepoRoot.PathOf(ScriptPath);
@@ -179,6 +274,33 @@ public sealed partial class RestoreDrillScriptTests
         match.Success.ShouldBeTrue("The script has no param() block.");
         return match.Groups["body"].Value;
     }
+
+    [GeneratedRegex(@"^## (?<title>.+?)\s*$", RegexOptions.CultureInvariant | RegexOptions.Multiline)]
+    private static partial Regex RunbookHeading();
+
+    [GeneratedRegex(
+        @"^\*Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} · Updated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}\*\s*$",
+        RegexOptions.CultureInvariant | RegexOptions.Multiline)]
+    private static partial Regex TimestampLine();
+
+    [GeneratedRegex(@"\b(password|pwd)\s*=", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex PasswordAssignment();
+
+    [GeneratedRegex(@"\bUser\s*ID\s*=", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex UserIdAssignment();
+
+    [GeneratedRegex("-----BEGIN", RegexOptions.CultureInvariant)]
+    private static partial Regex PemBlock();
+
+    [GeneratedRegex(@"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)+", RegexOptions.CultureInvariant)]
+    private static partial Regex EmailAddress();
+
+    [GeneratedRegex(@"[A-Za-z]:[\\/]Users[\\/]", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex UserProfilePath();
+
+    // A pasted certificate or key would be a long run of base64 characters.
+    [GeneratedRegex(@"[A-Za-z0-9+/]{200,}", RegexOptions.CultureInvariant)]
+    private static partial Regex LongEncodedValue();
 
     [GeneratedRegex(@"<#.*?#>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex HelpBlock();
