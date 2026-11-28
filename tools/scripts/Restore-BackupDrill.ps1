@@ -126,11 +126,17 @@ function Resolve-LocalBak([string]$path) {
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {
         Stop-Script 'Refusing to run: the .bak file was not found.'
     }
-    # A link inside _local could point anywhere, so a linked file or folder is refused.
+    # A link inside _local could point anywhere, so a linked file is refused, and so is a link on any folder between the file and _local.
     $item = Get-Item -LiteralPath $full -Force
-    $folder = Get-Item -LiteralPath $localRoot -Force
-    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or ($folder.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-        Stop-Script 'Refusing to run: the .bak and the _local folder must not be links.'
+    if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        Stop-Script 'Refusing to run: the .bak must not be a link.'
+    }
+    $dir = Split-Path -Parent $full
+    while ($dir.Length -ge $localRoot.Length) {
+        if ((Get-Item -LiteralPath $dir -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            Stop-Script 'Refusing to run: no folder on the way to the .bak, including _local, may be a link.'
+        }
+        $dir = Split-Path -Parent $dir
     }
     return $full
 }
@@ -172,6 +178,7 @@ $serverVersion = $null
 $compatibility = $null
 $checkDbResult = $null
 $latestMigration = $null
+$readProblems = New-Object System.Collections.Generic.List[string]
 $tables = New-Object System.Collections.Generic.List[object]
 try {
     if (-not $Drop) {
@@ -291,19 +298,28 @@ try {
     }
     catch {
         $checkDbResult = 'Failed'
+        # The text is metadata only (object and page ids). It goes to the console, never to the receipt.
+        [Console]::Error.WriteLine('DBCC CHECKDB reported: ' + $_.Exception.Message)
     }
 
+    # A read that fails after the restore must not lose the receipt: it is noted and the script goes on.
     $info = $connection.CreateCommand()
     $info.CommandText = 'SELECT CONVERT(nvarchar(64), SERVERPROPERTY(''ProductVersion'')), compatibility_level FROM master.sys.databases WHERE name = N''CSPS_RestoreDrill'';'
-    $reader = $info.ExecuteReader()
     try {
-        if ($reader.Read()) {
-            $serverVersion = $reader.GetString(0)
-            $compatibility = [int]$reader.GetByte(1)
+        $reader = $info.ExecuteReader()
+        try {
+            if ($reader.Read()) {
+                $serverVersion = $reader.GetString(0)
+                $compatibility = [int]$reader.GetByte(1)
+            }
+        }
+        finally {
+            $reader.Dispose()
         }
     }
-    finally {
-        $reader.Dispose()
+    catch {
+        $readProblems.Add('server version')
+        [Console]::Error.WriteLine('Could not read the server version: ' + $_.Exception.Message)
     }
 
     # Names and counts from catalog views only. No other user table is ever read.
@@ -317,29 +333,42 @@ GROUP BY s.name, t.name
 ORDER BY s.name, t.name;
 "@
     $counts.CommandTimeout = 0
-    $reader = $counts.ExecuteReader()
     try {
-        while ($reader.Read()) {
-            $tables.Add([pscustomobject]@{
-                    Name = $reader.GetString(0) + '.' + $reader.GetString(1)
-                    Rows = [int64]$reader.GetInt64(2)
-                })
+        $reader = $counts.ExecuteReader()
+        try {
+            while ($reader.Read()) {
+                $tables.Add([pscustomobject]@{
+                        Name = $reader.GetString(0) + '.' + $reader.GetString(1)
+                        Rows = [int64]$reader.GetInt64(2)
+                    })
+            }
+        }
+        finally {
+            $reader.Dispose()
         }
     }
-    finally {
-        $reader.Dispose()
+    catch {
+        $readProblems.Add('table row counts')
+        [Console]::Error.WriteLine('Could not read the table row counts: ' + $_.Exception.Message)
     }
 
     # The one user table that is read: the id of the latest applied migration.
+    # A backup with no migration history table (for example the old legacy database) lands in the catch.
     $migration = $connection.CreateCommand()
     $migration.CommandText = @"
 SELECT TOP (1) [MigrationId]
 FROM [CSPS_RestoreDrill].[dbo].[__EFMigrationsHistory]
 ORDER BY [MigrationId] DESC;
 "@
-    $latest = $migration.ExecuteScalar()
-    if ($null -ne $latest -and -not ($latest -is [System.DBNull])) {
-        $latestMigration = [string]$latest
+    try {
+        $latest = $migration.ExecuteScalar()
+        if ($null -ne $latest -and -not ($latest -is [System.DBNull])) {
+            $latestMigration = [string]$latest
+        }
+    }
+    catch {
+        $readProblems.Add('latest migration id')
+        [Console]::Error.WriteLine('Could not read the latest migration id: ' + $_.Exception.Message)
     }
 }
 finally {
@@ -352,7 +381,7 @@ foreach ($table in $tables) { $totalRows += $table.Rows }
 
 # Each number the owner passed in is compared with what the copy holds (14 D-40).
 $comparisons = New-Object System.Collections.Generic.List[object]
-$needsAttention = ($checkDbResult -ne 'Passed')
+$needsAttention = ($checkDbResult -ne 'Passed') -or ($readProblems.Count -gt 0)
 
 function Get-TableRows([string]$name) {
     $match = $tables | Where-Object { $_.Name -eq $name } | Select-Object -First 1
@@ -414,6 +443,8 @@ $lines.Add('| Local server version | ' + $serverVersion + ' |')
 $lines.Add('| Copy compatibility level | ' + $compatibility + ' |')
 $lines.Add('| RESTORE VERIFYONLY | Passed (a failure stops the script before anything changes) |')
 $lines.Add('| DBCC CHECKDB | ' + $checkDbResult + ' |')
+$readsResult = if ($readProblems.Count -gt 0) { 'Failed: ' + ($readProblems -join ', ') + ' (see the console)' } else { 'All read' }
+$lines.Add('| Reads after the restore | ' + $readsResult + ' |')
 $lines.Add('| Tables | ' + $tables.Count.ToString($culture) + ' |')
 $lines.Add('| Total rows | ' + $totalRows.ToString('N0', $culture) + ' |')
 $lines.Add('| Overall | ' + $overall + ' |')

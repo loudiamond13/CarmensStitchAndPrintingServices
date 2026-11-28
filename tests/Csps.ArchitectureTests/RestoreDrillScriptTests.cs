@@ -93,6 +93,65 @@ public sealed partial class RestoreDrillScriptTests
     }
 
     [Fact]
+    public void ScriptRefusesALinkOnEveryFolderBetweenTheBakAndLocal()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var loop = code.IndexOf("while ($dir.Length -ge $localRoot.Length)", StringComparison.Ordinal);
+        loop.ShouldBeGreaterThanOrEqualTo(0, "The script must walk every folder from the .bak up to _local.");
+
+        var linkCheck = code.IndexOf("ReparsePoint", loop, StringComparison.Ordinal);
+        linkCheck.ShouldBeGreaterThan(loop, "Each folder on the way must be checked for a link.");
+        code.IndexOf("Split-Path -Parent $dir", loop, StringComparison.Ordinal).ShouldBeGreaterThan(loop);
+        code.ShouldContain("no folder on the way", Case.Sensitive, "The refusal must name the folder rule.");
+    }
+
+    [Theory]
+    [InlineData("$info = $connection.CreateCommand()", "$info.ExecuteReader()", "$counts = $connection.CreateCommand()")]
+    [InlineData("$counts = $connection.CreateCommand()", "$counts.ExecuteReader()", "$migration = $connection.CreateCommand()")]
+    [InlineData("$migration = $connection.CreateCommand()", "$migration.ExecuteScalar()", "$connection.Dispose()")]
+    public void ScriptCatchesAReadThatFailsAfterTheRestoreSoTheReceiptIsStillWritten(string start, string read, string next)
+    {
+        var code = CodeOnly(ReadScript());
+
+        var startAt = code.IndexOf(start, StringComparison.Ordinal);
+        var readAt = code.IndexOf(read, StringComparison.Ordinal);
+        var nextAt = code.IndexOf(next, StringComparison.Ordinal);
+        startAt.ShouldBeGreaterThanOrEqualTo(0);
+        readAt.ShouldBeGreaterThan(startAt);
+        nextAt.ShouldBeGreaterThan(readAt);
+
+        var tryAt = code.IndexOf("try {", startAt, StringComparison.Ordinal);
+        (tryAt >= 0 && tryAt < readAt).ShouldBeTrue($"{read} must run inside a try block.");
+        var catchAt = code.IndexOf("catch {", readAt, StringComparison.Ordinal);
+        (catchAt >= 0 && catchAt < nextAt).ShouldBeTrue($"{read} must have a catch that records the failure.");
+        code.IndexOf("$readProblems.Add(", catchAt, StringComparison.Ordinal).ShouldBeLessThan(nextAt);
+    }
+
+    [Fact]
+    public void ScriptShowsAFailedReadInTheReceiptAndTheExitCode()
+    {
+        var code = CodeOnly(ReadScript());
+
+        code.ShouldContain("$readProblems.Count -gt 0");
+        code.ShouldContain("'| Reads after the restore |");
+    }
+
+    [Fact]
+    public void ScriptKeepsTheCheckDbErrorTextOnTheConsoleOnly()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var check = code.IndexOf("$check.ExecuteNonQuery()", StringComparison.Ordinal);
+        var next = code.IndexOf("$info = $connection.CreateCommand()", StringComparison.Ordinal);
+        var catchBlock = code.Substring(check, next - check);
+
+        catchBlock.ShouldContain("[Console]::Error.WriteLine", Case.Sensitive, "The CHECKDB error text must reach the console.");
+        catchBlock.ShouldContain("$_.Exception.Message", Case.Sensitive);
+        code.ShouldNotContain("'| DBCC CHECKDB | ' + $_", Case.Sensitive);
+    }
+
+    [Fact]
     public void ScriptValidatesTheBackupBeforeDroppingOrRestoring()
     {
         var code = CodeOnly(ReadScript());
