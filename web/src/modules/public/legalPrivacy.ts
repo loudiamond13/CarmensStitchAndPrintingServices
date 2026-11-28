@@ -1,9 +1,9 @@
-// SPEC-GAP: the Privacy Policy draft (UI-SPEC L2; LEGAL-01, D-01 to D-06, D-08, D-10 to D-13, D-15, D-36, D-40). Plain English,
-// drafted for the owner's review (D-09). It claims no lawyer review and promises nothing the owner has not ruled. The business and the
+// SPEC-GAP: the Privacy Policy (UI-SPEC L2; LEGAL-01, D-01 to D-06, D-08, D-10 to D-13, D-15, D-36, D-40). Plain English,
+// written for the owner's review (D-09). It claims no lawyer review and promises nothing the owner has not ruled. The business and the
 // contact lines come from the site settings at run time (D-11); the retention lines are the owner's rulings, word for word; the
 // handlers are the owner's list (D-40). The version, date and approval flag come from legalPages.ts.
-// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134). The owner approved
-// the wording at version 1.0 (D-73, D-135). Quote requests are covered; draft 1.1, wording for the owner to approve (D-28).
+// It covers the daily page count, the few necessary cookies and the one saved map setting (D-46, D-65, D-72, D-134).
+// Quote requests are covered too. Version 1.1 is the owner-approved policy (D-73, D-135).
 import type { LegalText } from './legalContent';
 import { LEGAL_PAGES } from './legalPages';
 

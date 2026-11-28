@@ -35,6 +35,35 @@ public sealed partial class OperationsRunbookTests
                 "data-protection-rotation.md",
             ]
         ),
+        (
+            "docs/operations/break-glass-mail.md",
+            [
+                "mail-setup.md",
+                "never a way around the emailed code",
+                "SMTP",
+            ]
+        ),
+        (
+            "docs/operations/lockout.md",
+            [
+                "15 minutes",
+                "Forgot password?",
+                "Unlock",
+                "reviewed one-off",
+                "the ORM",
+                "not built in advance",
+                "never inline SQL",
+            ]
+        ),
+        (
+            "docs/operations/install-staff-app.md",
+            [
+                "Install app",
+                "Add to Home Screen",
+                "sign in again",
+                "no install button",
+            ]
+        ),
     ];
 
     // Each detector paired with samples it must catch, so a broken pattern cannot pass silently.
