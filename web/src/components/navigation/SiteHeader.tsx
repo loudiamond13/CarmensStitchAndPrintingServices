@@ -149,6 +149,7 @@ export function SiteHeader({ links = SITE_LINKS, active = 'Home', onQuote }: Sit
             <UiLink
               key={link.label}
               to={link.to}
+              noTransition
               onClick={() => {
                 setOpen(false);
               }}

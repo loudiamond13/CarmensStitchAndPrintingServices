@@ -185,6 +185,8 @@ export interface SidebarProps {
   withQuoteRequests?: boolean | undefined;
   /** A count per section; above 0 the item shows it as a chip (a dot where the label is hidden) and in its name. */
   counts?: Partial<Record<AdminSection, number>> | undefined;
+  /** Skips the page fade on every item, for the copy inside the phone drawer (14 D-33). */
+  noTransition?: boolean | undefined;
 }
 
 export function Sidebar({
@@ -199,6 +201,7 @@ export function Sidebar({
   withMoney = false,
   withQuoteRequests = false,
   counts,
+  noTransition,
 }: SidebarProps) {
   const [collapsedState, setCollapsedState] = useState(defaultCollapsed);
   const collapsed = collapsedProp ?? collapsedState;
@@ -252,6 +255,7 @@ export function Sidebar({
               <UiLink
                 key={item.id}
                 to={item.to}
+                noTransition={noTransition}
                 onClick={() => onNavigate?.(item.id)}
                 className={navItemClasses({ collapsed })}
                 aria-current={active === item.id ? 'page' : undefined}

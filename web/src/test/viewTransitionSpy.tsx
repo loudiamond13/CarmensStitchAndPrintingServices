@@ -8,12 +8,10 @@ type ReactRouter = typeof import('react-router');
 
 /** react-router with Link wrapped to mark its anchor with the viewTransition value it received. */
 export function withTransitionAttribute(actual: ReactRouter): ReactRouter {
-  return {
-    ...actual,
-    Link: (props: ComponentProps<ReactRouter['Link']>) => (
-      <actual.Link {...props} data-view-transition={String(props.viewTransition ?? false)} />
-    ),
-  };
+  const Link = (props: ComponentProps<ReactRouter['Link']>) => (
+    <actual.Link {...props} data-view-transition={String(props.viewTransition ?? false)} />
+  );
+  return { ...actual, Link: Link as ReactRouter['Link'] };
 }
 
 /** A browser with document.startViewTransition and a device that does not ask for reduced motion. */
