@@ -38,7 +38,10 @@ export function usePrefersReducedMotion(): boolean {
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
-/** True when the browser has `document.startViewTransition`. */
+/**
+ * True in a Chromium-engine browser that has `document.startViewTransition`. `navigator.userAgentData` exists only there,
+ * so Safari, iPhone and Firefox get no page fade (14 D-48: WebKit stalls a page change under a fade).
+ */
 export function canStartViewTransition(): boolean {
-  return typeof document.startViewTransition === 'function';
+  return typeof document.startViewTransition === 'function' && 'userAgentData' in navigator;
 }

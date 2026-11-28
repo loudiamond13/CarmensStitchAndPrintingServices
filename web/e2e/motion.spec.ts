@@ -583,9 +583,7 @@ test('@view-transitions ordering: a second link click while the first page chang
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Products', exact: true }).click({
     noWaitAfter: true,
   });
-  await page.evaluate(
-    "document.querySelector('nav[aria-label=\"Main\"] a[href=\"/contact\"]').click()",
-  );
+  await page.evaluate('document.querySelector(\'nav[aria-label="Main"] a[href="/contact"]\').click()');
 
   await expect(page).toHaveURL(/\/contact$/);
   await expect(page.locator('h1')).toBeVisible();

@@ -19,6 +19,7 @@ import type { LegalPageKey } from '@/modules/public/legalPages';
 import { AdminRootErrorBoundary, RootErrorBoundary, RouteErrorBoundary } from './ErrorBoundary';
 import { lazyRoute } from './lazyRoute';
 import { ShellFallback } from './ShellFallback';
+import { guardViewTransitions } from './viewTransitionGuard';
 
 export { lazyRoute } from './lazyRoute';
 export type { RouteModule } from './lazyRoute';
@@ -170,3 +171,4 @@ export const discoverRoutes: PatchRoutesOnNavigationFunction = /* @__PURE__ */ r
 ]);
 
 export const router = createBrowserRouter(routes, { patchRoutesOnNavigation: discoverRoutes });
+guardViewTransitions(router);

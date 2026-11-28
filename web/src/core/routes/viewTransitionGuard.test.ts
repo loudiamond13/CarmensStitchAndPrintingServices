@@ -43,14 +43,14 @@ describe('guardViewTransitions', () => {
   it('does nothing in a browser with no View Transitions API', () => {
     const { doc, router } = setup({ api: false });
 
-    expect(doc.startViewTransition).toBeUndefined();
+    expect('startViewTransition' in doc).toBe(false);
     expect(router.listeners.size).toBe(0);
   });
 
   it('lets a forward click start a real transition when motion is allowed', async () => {
     const { real, doc, router } = setup();
     router.navigate('PUSH');
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
 
     const transition = doc.startViewTransition(update);
     await transition.finished;
@@ -59,22 +59,25 @@ describe('guardViewTransitions', () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['POP', 'PUSH'])('makes a %s change instant under reduced motion: the update runs, no real transition', async (action) => {
-    const { real, doc, router } = setup({ reduce: true });
-    router.navigate(action);
-    const update = vi.fn();
+  it.each(['POP', 'PUSH'])(
+    'makes a %s change instant under reduced motion: the update runs, no real transition',
+    async (action) => {
+      const { real, doc, router } = setup({ reduce: true });
+      router.navigate(action);
+      const update = vi.fn<() => void>();
 
-    const transition = doc.startViewTransition(update);
-    await transition.finished;
+      const transition = doc.startViewTransition(update);
+      await transition.finished;
 
-    expect(real).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledTimes(1);
-  });
+      expect(real).not.toHaveBeenCalled();
+      expect(update).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('makes Back and Forward instant even when motion is allowed', async () => {
     const { real, doc, router } = setup();
     router.navigate('POP');
-    const update = vi.fn();
+    const update = vi.fn<() => void>();
 
     const transition = doc.startViewTransition(update);
     await Promise.all([transition.finished, transition.ready, transition.updateCallbackDone]);
@@ -91,7 +94,7 @@ describe('guardViewTransitions', () => {
     router.navigate('POP');
     router.navigate('PUSH');
 
-    doc.startViewTransition(vi.fn());
+    doc.startViewTransition(vi.fn<() => void>());
 
     expect(real).toHaveBeenCalledTimes(1);
   });
@@ -126,7 +129,7 @@ describe('guardViewTransitions', () => {
     });
     router.navigate('PUSH');
 
-    doc.startViewTransition(vi.fn());
+    doc.startViewTransition(vi.fn<() => void>());
     await new Promise((resolve) => setTimeout(resolve, 20));
     process.off('unhandledRejection', unhandled);
 

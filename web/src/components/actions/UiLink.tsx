@@ -5,7 +5,7 @@
 // SPEC-DEVIATION: L-13 the props are explicit (no {...rest} spread onto the anchor); the ones App. D/E callers use are
 // listed in UiLinkProps.
 // SPEC-DEVIATION: MOTION-VT (PERF-07, 14 D-33) a link to another page asks the router for a View Transition (the browser's
-// own cross-fade) only when the browser has the API, the device allows motion, the link is not inside a drawer
+// own cross-fade) only when the browser is Chromium-engine with the API (14 D-48), the device allows motion, the link is not inside a drawer
 // (`noTransition`) and the target is not the page already shown. Otherwise it passes none, so the router never warns.
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
 import { Link, useLocation, useResolvedPath } from 'react-router';
