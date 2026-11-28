@@ -1,5 +1,5 @@
 # Phase 14: Hardening & Release Readiness - Context
-*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-27T08:52:00-06:00*
+*Created: 2026-11-26T13:45:00-06:00 · Updated: 2026-11-27T20:29:00-06:00*
 
 **Gathered:** 2026-11-26
 **Status:** Ready for planning
@@ -190,7 +190,7 @@ These answer the open questions in `14-RESEARCH.md` § Open Questions (numbers i
 - **Doc fixes, no ruling (Q13):** D-05's "D-27 review pack" means the D-26 pack; the `legalPrivacy.ts` header comment that calls the policy a draft is corrected.
 
 ### Reserved ruling numbers (planning, 2026-11-27)
-- These numbers are taken. **D-45** is the ZAP image ruling (plan 14-01), **D-46** the vite-plugin-pwa ruling (plan 14-02), **D-47** the audit exceptions ruling (plan 14-14), and **D-48 onward** the D-26 review pack rulings in R order (plan 14-10). Each is first written in its plan's SUMMARY, and plan 14-26 copies them into this file. Any later ruling (for example plan 14-29's named acceptances) takes the next number after the pack's last one. Never reuse these numbers.
+- These numbers are taken. **D-45** is the ZAP image ruling (plan 14-01), **D-46** the vite-plugin-pwa ruling (plan 14-02), **D-47** the audit exceptions ruling (plan 14-14), **D-48** the page-fade guard ruling (plan 14-06, owner 2026-11-27, during execution), and **D-49 onward** the D-26 review pack rulings in R order (plan 14-10). Each is first written in its plan's SUMMARY, and plan 14-26 copies them into this file. Any later ruling (for example plan 14-29's named acceptances) takes the next number after the pack's last one. Never reuse these numbers.
 
 ### Claude's Discretion
 - The installed app's name and short name, its icons (from `web/public/mark.svg`) and its theme colour. Final look goes through `/gsd-ui-phase 14`.
