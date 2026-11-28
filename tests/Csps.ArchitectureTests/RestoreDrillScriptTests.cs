@@ -1,0 +1,201 @@
+using System.Text.RegularExpressions;
+
+namespace Csps.ArchitectureTests;
+
+/// <summary>
+/// Text rules for the backup restore drill (plan 14-08, 14 D-07 and D-40, threats T-14-15 to T-14-17). The drill script may
+/// only restore into CSPS_RestoreDrill on the default LocalDB instance, may only take a .bak from the project's _local
+/// folder, must check the backup before it drops or restores anything, and may only read catalog metadata plus the latest
+/// migration id.
+/// </summary>
+public sealed partial class RestoreDrillScriptTests
+{
+    private const string ScriptPath = "tools/scripts/Restore-BackupDrill.ps1";
+    private const string DrillDatabase = "CSPS_RestoreDrill";
+
+    [Fact]
+    public void ScriptHasFixedTargets()
+    {
+        var script = ReadScript();
+
+        script.ShouldContain(@"(localdb)\MSSQLLocalDB");
+        script.ShouldContain(DrillDatabase);
+
+        var parameters = ParamBlock(script);
+        ForbiddenParameter().Matches(parameters).Select(match => match.Value).ShouldBeEmpty(
+            "The server and database are fixed in the script; they must never be parameters.");
+
+        var drops = DropStatement().Matches(CodeOnly(script)).Select(match => match.Groups["name"].Value).ToList();
+        drops.ShouldNotBeEmpty("The script must drop the drill database for -Replace and -Drop.");
+        drops.ShouldAllBe(name => string.Equals(name, "[CSPS_RestoreDrill]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ScriptTakesTheDocumentedParameters()
+    {
+        var names = ParameterName().Matches(ParamBlock(ReadScript())).Select(match => match.Groups["name"].Value).ToList();
+
+        names.ShouldBe(
+            ["BakPath", "Replace", "Drop", "ReceiptPath", "ExpectedOrders", "ExpectedUsers", "ExpectedQuoteRequests", "ExpectedMigration"],
+            ignoreOrder: true);
+    }
+
+    [Fact]
+    public void ScriptNeverNamesAnotherDatabaseAsATarget()
+    {
+        var code = CodeOnly(ReadScript());
+
+        foreach (var name in new[] { "CSPS_Dev", "CSPS_E2E", "CSPS_Legacy_Restore", "BetsLLC_" })
+        {
+            code.Contains(name, StringComparison.OrdinalIgnoreCase).ShouldBeFalse($"The script code must never name {name}.");
+        }
+    }
+
+    [Fact]
+    public void ScriptReadsMetadataAndTheMigrationIdOnly()
+    {
+        var code = CodeOnly(ReadScript());
+
+        code.ShouldContain("sys.tables");
+        code.ShouldContain("sys.schemas");
+        code.ShouldContain("sys.partitions");
+        code.ShouldNotContain("SELECT *");
+
+        var sources = SqlSource().Matches(code)
+            .Select(match => match.Groups["name"].Value)
+            .Where(name => !string.Equals(name, "DISK", StringComparison.Ordinal))
+            .ToList();
+        sources.ShouldNotBeEmpty();
+
+        var userTables = sources.Where(name => !name.Contains("sys.", StringComparison.Ordinal)).ToList();
+        userTables.ShouldNotBeEmpty("The script must read the latest migration id.");
+        userTables.ShouldAllBe(
+            name => string.Equals(name, "[CSPS_RestoreDrill].[dbo].[__EFMigrationsHistory]", StringComparison.Ordinal),
+            "Every query may read only catalog views and the migration history, never another user table.");
+        code.ShouldContain("SELECT TOP (1) [MigrationId]");
+    }
+
+    [Fact]
+    public void ScriptKeepsTheBakLocal()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var localCheck = code.IndexOf("'_local'", StringComparison.Ordinal);
+        var extensionCheck = code.IndexOf(".EndsWith('.bak'", StringComparison.OrdinalIgnoreCase);
+        var firstOpen = code.IndexOf(".Open()", StringComparison.Ordinal);
+
+        localCheck.ShouldBeGreaterThanOrEqualTo(0, "The script must check the path against the _local folder.");
+        extensionCheck.ShouldBeGreaterThanOrEqualTo(0, "The script must check that the file ends in .bak.");
+        firstOpen.ShouldBeGreaterThan(0, "The script must open a connection to restore.");
+        localCheck.ShouldBeLessThan(firstOpen, "The _local check must run before any connection is opened.");
+        extensionCheck.ShouldBeLessThan(firstOpen, "The .bak check must run before any connection is opened.");
+        code.ShouldContain("ReparsePoint", Case.Sensitive, "A link inside _local could point anywhere, so links are refused.");
+    }
+
+    [Fact]
+    public void ScriptValidatesTheBackupBeforeDroppingOrRestoring()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var fileList = code.IndexOf("RESTORE FILELISTONLY", StringComparison.Ordinal);
+        var verify = code.IndexOf("RESTORE VERIFYONLY", StringComparison.Ordinal);
+        var drop = code.IndexOf("DROP DATABASE", StringComparison.Ordinal);
+        var restore = code.IndexOf("RESTORE DATABASE", StringComparison.Ordinal);
+
+        fileList.ShouldBeGreaterThanOrEqualTo(0, "The script must read the backup's file list.");
+        verify.ShouldBeGreaterThanOrEqualTo(0, "The script must verify the backup (RESTORE VERIFYONLY).");
+        drop.ShouldBeGreaterThan(0, "The script must drop the drill database for -Replace and -Drop.");
+        restore.ShouldBeGreaterThan(0, "The script must restore the backup.");
+        fileList.ShouldBeLessThan(drop, "The backup's file list must be read before the drill database is dropped.");
+        verify.ShouldBeLessThan(drop, "The backup must be verified before the drill database is dropped.");
+        verify.ShouldBeLessThan(restore, "The backup must be verified before it is restored.");
+        drop.ShouldBeLessThan(restore, "An existing drill database is dropped before the restore, never after.");
+    }
+
+    [Fact]
+    public void ScriptChecksTheRestoredDatabaseWithCheckDb()
+    {
+        var code = CodeOnly(ReadScript());
+
+        var restore = code.IndexOf("RESTORE DATABASE", StringComparison.Ordinal);
+        // The script writes the SQL quotes doubled inside a single-quoted PowerShell string.
+        var check = code.IndexOf("DBCC CHECKDB (N''CSPS_RestoreDrill'') WITH NO_INFOMSGS, ALL_ERRORMSGS", StringComparison.Ordinal);
+
+        check.ShouldBeGreaterThanOrEqualTo(0, "The script must run DBCC CHECKDB on the restored copy.");
+        check.ShouldBeGreaterThan(restore, "DBCC CHECKDB runs after the restore.");
+    }
+
+    [Fact]
+    public void ScriptComparesTheOwnersCountsAndMigration()
+    {
+        var code = CodeOnly(ReadScript());
+
+        foreach (var table in new[] { "dbo.Orders", "dbo.AspNetUsers", "dbo.QuoteRequests" })
+        {
+            code.ShouldContain($"'{table}'", Case.Sensitive, $"The receipt must read the {table} row count.");
+        }
+
+        code.ShouldContain("Match");
+        code.ShouldContain("Mismatch");
+        code.ShouldContain("PSBoundParameters.ContainsKey('ExpectedOrders')");
+        code.ShouldContain("PSBoundParameters.ContainsKey('ExpectedMigration')");
+    }
+
+    [Fact]
+    public void ScriptWritesTheReceiptOnlyUnderTheGitIgnoredLocalFolder()
+    {
+        var code = CodeOnly(ReadScript());
+
+        code.ShouldContain("restore-drill-receipt.md");
+        code.ShouldNotContain(".planning", Case.Sensitive, "The receipt lists production table names and counts; it must not default to a tracked folder.");
+
+        var defaultPath = code.IndexOf("restore-drill-receipt.md", StringComparison.Ordinal);
+        var firstOpen = code.IndexOf(".Open()", StringComparison.Ordinal);
+        defaultPath.ShouldBeLessThan(firstOpen, "The receipt path must be settled before any connection is opened.");
+        code.ShouldContain("-ReceiptPath must be inside", Case.Sensitive, "A receipt inside the repository must be in the _local folder.");
+
+        File.ReadAllLines(RepoRoot.PathOf(".gitignore")).ShouldContain("_local/", "_local/ must stay git-ignored.");
+    }
+
+    private static string ReadScript()
+    {
+        var path = RepoRoot.PathOf(ScriptPath);
+        File.Exists(path).ShouldBeTrue($"{ScriptPath} is missing.");
+        return File.ReadAllText(path);
+    }
+
+    // The help block and comment lines describe the rules in words; only the code is judged.
+    private static string CodeOnly(string script)
+    {
+        var withoutHelp = HelpBlock().Replace(script, string.Empty);
+        var lines = withoutHelp.ReplaceLineEndings("\n").Split('\n')
+            .Where(line => !line.TrimStart().StartsWith('#'));
+        return string.Join('\n', lines);
+    }
+
+    private static string ParamBlock(string script)
+    {
+        var match = ParamSection().Match(CodeOnly(script));
+        match.Success.ShouldBeTrue("The script has no param() block.");
+        return match.Groups["body"].Value;
+    }
+
+    [GeneratedRegex(@"<#.*?#>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex HelpBlock();
+
+    [GeneratedRegex(@"param\((?<body>.*?)^\)", RegexOptions.CultureInvariant | RegexOptions.Singleline | RegexOptions.Multiline)]
+    private static partial Regex ParamSection();
+
+    [GeneratedRegex(@"^\s*(?:\[[^\]]+\])*\$(?<name>\w+)", RegexOptions.CultureInvariant | RegexOptions.Multiline)]
+    private static partial Regex ParameterName();
+
+    [GeneratedRegex(@"\$(Server|Database|ConnectionString|Instance|DataSource)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ForbiddenParameter();
+
+    [GeneratedRegex(@"DROP\s+DATABASE\s+(?<name>[^\s;]+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex DropStatement();
+
+    // Uppercase SQL keywords only: PowerShell code and messages use lowercase words.
+    [GeneratedRegex(@"\b(?:FROM|JOIN)\s+(?<name>[\[\]\w.]+)", RegexOptions.CultureInvariant)]
+    private static partial Regex SqlSource();
+}
