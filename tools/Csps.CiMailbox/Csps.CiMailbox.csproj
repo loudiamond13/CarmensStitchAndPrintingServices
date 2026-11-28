@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The CI mailbox tool (14 D-36). It runs only in GitHub Actions against the CI SQL container's CSPS_Zap database and
+    prints the newest queued sign-in code or invite token for one address. It never migrates, writes or mints anything.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Csps.Infrastructure\Csps.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Csps.CiMailbox.Tests" />
+  </ItemGroup>
+
+</Project>
