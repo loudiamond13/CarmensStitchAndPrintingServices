@@ -22,6 +22,19 @@ public sealed partial class OperationsRunbookTests
                 "audit-log.md",
             ]
         ),
+        (
+            "docs/operations/breach-response.md",
+            [
+                "72 hours",
+                "NPC Circular 16-03",
+                "RA 10173",
+                "confirm with the NPC or an adviser",
+                "Deactivate",
+                "Set Temporary Password",
+                "holding page",
+                "data-protection-rotation.md",
+            ]
+        ),
     ];
 
     // Each detector paired with samples it must catch, so a broken pattern cannot pass silently.
