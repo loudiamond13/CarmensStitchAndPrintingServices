@@ -484,6 +484,9 @@ public sealed class IdempotencyTests(CspsDatabase database) : IClassFixture<Csps
         using var again = await SendAsync(client, $"{ProbePrefix}/cookie", key.ToString("D"));
 
         first.Headers.Contains("Set-Cookie").ShouldBeTrue();
+        var cookie = first.Headers.GetValues("Set-Cookie").ShouldHaveSingleItem();
+        cookie.ShouldContain("secure", Case.Insensitive);
+        cookie.ShouldContain("httponly", Case.Insensitive);
         again.Headers.Contains(AuthClient.ReplayedHeader).ShouldBeFalse();
         probe.Runs.ShouldBe(2);
         (await ReadRecordsAsync(key)).ShouldBeEmpty();

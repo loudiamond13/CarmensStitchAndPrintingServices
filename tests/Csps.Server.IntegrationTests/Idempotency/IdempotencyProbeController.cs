@@ -121,7 +121,7 @@ public sealed class IdempotencyProbeController(IdempotencyProbe probe, CspsDbCon
     public IActionResult Cookie()
     {
         var runs = probe.Run();
-        Response.Cookies.Append("probe", "1");
+        Response.Cookies.Append("probe", "1", new CookieOptions { Secure = true, HttpOnly = true });
         return Ok(new { runs });
     }
 
