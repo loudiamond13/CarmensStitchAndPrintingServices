@@ -2,7 +2,7 @@
 // 02-43, owner ruling D-42): open /dev/components at a window size, open the Delete Order dialog in its Overlay region (App. C
 // `.s-overlay`), wait for its entry animation and measure the dialog and the region. Every measurement waits for the
 // animations to finish: the dialog's 0.2s rise moves its box. Page scripts that take no data are strings, because the
-// e2e TypeScript program has no DOM types; the two that need the dialog's name are functions that get it as an argument
+// e2e TypeScript program has no DOM types; the one that needs the dialog's name is a function that gets it as an argument
 // (CodeQL js/bad-code-sanitization, plan 14-11). Plan 02-43 adds the
 // helpers that prove a press which does not close the dialog leaves the caret in the confirm field and the scrolled
 // backdrop where it was (review WR-01): waitForFramesAndTask, waitForSettledScroll and readCaret.
@@ -20,8 +20,8 @@ export interface RegionMetrics {
   readonly overflowY: string;
 }
 
-// The two page functions below read the DOM through `globalThis`, typed by these shapes (the e2e program has no DOM
-// types). The dialog's name reaches them as the `evaluate` argument, never as code text.
+// The page function below reads the DOM through `globalThis`, typed by these shapes (the e2e program has no DOM
+// types). The dialog's name reaches it as the `evaluate` argument, never as code text.
 interface DialogNode {
   getAttribute(name: string): string | null;
 }
@@ -43,31 +43,29 @@ interface PageScope {
   getComputedStyle(node: RegionNode): { readonly overflowY: string };
 }
 
-/** Resolves once every animation inside the Delete Order region (the overlay fade, the modal rise) has finished. */
-async function settleRegion(name: string): Promise<boolean> {
-  const scope = globalThis as unknown as PageScope;
-  const region = Array.from(scope.document.querySelectorAll('[data-ui="s-overlay"]')).find((candidate) =>
-    Array.from(candidate.querySelectorAll('[role="dialog"]')).some(
-      (dialog) => scope.document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === name,
-    ),
-  );
-  if (region === undefined) {
-    throw new Error(`No Overlay region holds the dialog "${name}".`);
-  }
-  await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
-  return true;
+interface RegionRequest {
+  readonly name: string;
+  /** Wait for every animation inside the region (the overlay fade, the modal rise) to finish before measuring. */
+  readonly settle: boolean;
 }
 
-/** The Overlay region's scroll position, size and overflow, read in the page. */
-function measureRegion(name: string): RegionMetrics {
+/**
+ * The Overlay region's scroll position, size and overflow, read in the page. It is serialised into the page on its own,
+ * so it holds the one region lookup both callers need: with `settle` it first waits for the region's animations.
+ */
+async function readOverlayRegion(request: RegionRequest): Promise<RegionMetrics> {
   const scope = globalThis as unknown as PageScope;
   const region = Array.from(scope.document.querySelectorAll('[data-ui="s-overlay"]')).find((candidate) =>
     Array.from(candidate.querySelectorAll('[role="dialog"]')).some(
-      (dialog) => scope.document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === name,
+      (dialog) =>
+        scope.document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === request.name,
     ),
   );
   if (region === undefined) {
-    throw new Error(`No Overlay region holds the dialog "${name}".`);
+    throw new Error(`No Overlay region holds the dialog "${request.name}".`);
+  }
+  if (request.settle) {
+    await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
   }
   return {
     scrollHeight: region.scrollHeight,
@@ -106,7 +104,7 @@ export async function boxOf(locator: Locator, name: string): Promise<Box> {
 
 /** The region's scroll position and size, read now (it changes when the backdrop scrolls). */
 export async function readRegion(page: Page): Promise<RegionMetrics> {
-  return page.evaluate<RegionMetrics, string>(measureRegion, DIALOG_NAME);
+  return page.evaluate<RegionMetrics, RegionRequest>(readOverlayRegion, { name: DIALOG_NAME, settle: false });
 }
 
 /**
@@ -177,7 +175,7 @@ export async function openDeleteOrder(
   await page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }).click();
   const dialog = page.getByRole('dialog', { name: DIALOG_NAME });
   await expect(dialog).toBeVisible();
-  await page.evaluate<boolean, string>(settleRegion, DIALOG_NAME);
+  await page.evaluate<RegionMetrics, RegionRequest>(readOverlayRegion, { name: DIALOG_NAME, settle: true });
 
   const viewport = page.viewportSize();
   if (viewport === null) {
