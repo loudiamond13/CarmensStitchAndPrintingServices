@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 14
 current_phase_name: Hardening & Release Readiness
 status: executing
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-11-27T23:55:04.299Z"
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-11-28T00:01:22.326Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 14 execution started
-state_head: fc1064c8db5f887437098a2842eed9d638bf3227
+state_head: 0110b488adc77c3bd471261d5a2136fd12d8b3d9
 progress:
   total_phases: 19
   completed_phases: 10
   total_plans: 447
-  completed_plans: 417
+  completed_plans: 418
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-26T16:16:00-06:00"
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 14 (Hardening & Release Readiness) — EXECUTING
-Plan: 1 of 30
-Status: Executing Phase 14
+Plan: 2 of 30
+Status: Ready to execute
 Last activity: 2026-11-27 — Phase 14 execution started
 
 Progress: [█████░░░░░] 53%
@@ -321,6 +321,7 @@ Progress: [█████░░░░░] 53%
 | Phase 09 P07 | 40min | 2 tasks | 27 files |
 | Phase 09 P08 | 58 min | 3 tasks | 14 files |
 | Phase 09 P09 | 70min | 3 tasks | 22 files |
+| Phase 14 P01 | 25min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -923,6 +924,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 10]: Wave 10 (10-20) closed 2026-11-08: final gate build, format, types, lint, OpenAPI clean; Vitest 8849/0; .NET all green except ExpenseListTimingTests (five years last page p95 378 ms alone; known machine issue D-88/D-103, no expense code changed). Full e2e 1596 passed, 63 failed under load; on one worker 60 passed, 2 skipped, 1 failed: a11y-rulings O-6 iPhone toast test, which also fails 1 of 3 on the pre-wave-10 commit 6b8322f1 (pre-existing flaky test, fix queued for phase end). Review fixes merged af9b2683; money e2e 20/20.
 - [Phase 10]: Wave 11 closed (2026-11-09): the 10-21 review fixes merged (a1761fd2) plus a scoped-axe self-test fix (7b328251). Full gate green apart from load: 20 Vitest and 81 e2e failures under TheBETSLLC load all passed when re-run (531/531 Vitest, 80/81 e2e, the last one was the self-test bug); both list timing tests passed alone. P10-BL-16 parked (footer buttons at 320 px).
 - [Phase 10]: Phase-end review fixed (merges dd854328, 22300b43, 81606503, 61a6f71d). Regression gate green: Vitest 9010/9010, all .NET but ExpenseListTimingTests (303.7 ms vs 300, known machine issue); all 88 e2e load failures passed on a quiet machine. Verifier: human_needed, no gaps (37f4deda). Sign-off parked as P10-BL-20; phase not marked complete.
+- [Phase 14]: 14 D-45: ZAP image ghcr.io/zaproxy/zaproxy:2.17.0@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af approved (owner, 2026-11-27)
 
 ### Pending Todos
 
@@ -1197,9 +1199,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-26T22:47:00.927Z
-Stopped at: Phase 14 UI-SPEC approved
-Resume file: .planning/phases/14-hardening-release-readiness/14-UI-SPEC.md
+Last session: 2026-11-28T00:01:16.616Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
 
