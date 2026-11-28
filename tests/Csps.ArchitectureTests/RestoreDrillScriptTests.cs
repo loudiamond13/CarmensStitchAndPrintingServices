@@ -268,6 +268,16 @@ public sealed partial class RestoreDrillScriptTests
     }
 
     [Fact]
+    public void RunbookSaysTheReceiptCountsAreCatalogCountsAndNamesTheReadsRow()
+    {
+        var check = Section(ReadRunbook(), "Check it");
+
+        check.ShouldContain("Reads after the restore: All read");
+        check.ShouldContain("catalog", Case.Sensitive, "The runbook must say the counts come from catalog views.");
+        check.ShouldContain("confirm it in the admin", Case.Sensitive, "A small Mismatch after a clean CHECKDB is confirmed in the admin first.");
+    }
+
+    [Fact]
     public void RunbookHoldsNoSecretOrPersonalDetail()
     {
         foreach (var (pattern, sample) in PersonalDetailDetectors)

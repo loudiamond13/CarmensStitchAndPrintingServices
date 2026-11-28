@@ -1,6 +1,6 @@
 # Runbook: make a backup and prove it can be restored
 
-*Created: 2026-11-27T21:09:00-06:00 · Updated: 2026-11-27T21:09:00-06:00*
+*Created: 2026-11-27T21:09:00-06:00 · Updated: 2026-11-28T02:11:11-06:00*
 
 A backup you have never restored is only a hope. This page takes the owner from a fresh backup of the live database to a checked copy on this PC, and then drops the copy (SEC-05, 14 D-07, D-40). Nothing here changes the live site or runs anything on the live database.
 
@@ -54,10 +54,13 @@ Open `_local/restore-drill-receipt.md`. A good drill shows:
 
 - RESTORE VERIFYONLY: Passed.
 - DBCC CHECKDB: Passed.
+- Reads after the restore: All read. If it names something that failed, the console shows why (for example a backup with no migration history table), and the script exits with code 3.
 - Orders, Users and Quote Requests each say Match, and Last migration says Match.
 - Overall: All checks passed.
 
 A Mismatch means the copy holds a different number than the live admin showed at backup time. Look at the "Tables" list in the receipt. A small difference can be real work done between your count and the backup, so redo the count and the backup close together before you worry. A difference that stays is a real problem: tell Claude and do not go on.
+
+The row counts come from SQL Server's catalog views, which are exact on a fresh restore but are documented as approximate. If `DBCC CHECKDB` passed and a count is off by only a few rows, confirm it in the admin before you treat it as data loss.
 
 The script exits with code 3 when a check failed or a number did not match. The receipt still gets written so you can see which one.
 
