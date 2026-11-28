@@ -1,6 +1,6 @@
 # Security review: CWE Top 25 (2025) and ATT&CK
 
-*Created: 2026-11-27T18:58:00-06:00 · Updated: 2026-11-28T02:13:20-06:00*
+*Created: 2026-11-27T18:58:00-06:00 · Updated: 2026-11-28T02:15:02-06:00*
 
 This is the pre-release security review for CSPS (SEC-05). It lists every weakness on the MITRE CWE Top 25 list for 2025 and the ATT&CK attacker techniques that matter to this app. Each row says how CSPS defends against it and names the test files that prove it. A test in the architecture suite (`SecurityReviewDocTests.cs`) fails if a row is missing, out of order, has no status, or names a test file that does not exist.
 
@@ -58,7 +58,7 @@ This is the pre-release security review for CSPS (SEC-05). It lists every weakne
 | T1552 | Unsecured Credentials | Mitigated | No secret is kept in git or in settings files. Logs mask secrets. The host record and docs are scanned for keys and passwords. Gitleaks runs on every commit. | `AuthSecretsTests.cs`, `SensitiveDataMaskingTests.cs`, `ImageSecretExposureTests.cs`, `MaintenanceKeySafetyTests.cs`, `HostingRecordTests.cs`, `MailSafetyTests.cs` |
 | T1195 | Supply Chain Compromise | Mitigated | Actions are pinned by commit hash, versions are exact and at least 14 days old, lock files are committed, and packages need a recorded approval. | `CiWorkflowTests.cs`, `DependencyRegistryTests.cs`, `HygieneWorkflowTests.cs`, `package-check.test.ts` |
 | T1550.001 | Use Alternate Authentication Material: Application Access Token | Mitigated | Access tokens are signed and last 15 minutes. Refresh tokens rotate, and replaying a used one revokes the whole session. Signing out revokes the session too. | `AccessTokenTests.cs`, `RefreshRotationTests.cs`, `SessionRevocationTests.cs` |
-| T1621 | Multi-Factor Authentication Request Generation | Mitigated | Code resends are rate limited. Wrong codes are counted across tickets, so starting a new ticket does not reset the count, and ten wrong codes lock the account. | `ResendCodeEndpointTests.cs`, `CrossTicketCapTests.cs`, `RateLimitTests.cs` |
+| T1621 | Multi-Factor Authentication Request Generation | Mitigated | Code resends are rate limited. Wrong codes are counted across tickets, so starting a new ticket does not reset the count, and ten wrong codes in an hour pause the account for 15 minutes. | `ResendCodeEndpointTests.cs`, `CrossTicketCapTests.cs`, `RateLimitTests.cs` |
 | T1098 | Account Manipulation | Mitigated | Only a Manager can create users, change roles or reset access. The last Manager cannot be removed or demoted. Every change is written to the audit log. | `UserLifecycleTests.cs`, `LastManagerGuardTests.cs`, `ManagerEmailChangeTests.cs`, `AuthorizationMatrixTests.cs` |
 | T1531 | Account Access Removal | Mitigated | Locking, deactivating or deleting a user is a Manager action, and the last Manager is protected from all three. | `LastManagerGuardTests.cs`, `LockUserTests.cs`, `DeleteUserTests.cs` |
 | T1485 | Data Destruction | Mitigated | Orders and expenses are soft deleted and can be restored. Deleting needs the right role, and each deletion is audited. | `OrderDeletionTests.cs`, `CompanyExpenseDeletionTests.cs`, `AuthorizationMatrixTests.cs` |

@@ -154,7 +154,24 @@ public sealed partial class OperationsRunbookTests
         found.ShouldBeEmpty("A runbook must say 'the owner' and 'the shop mailbox', never a name, email, phone or local path.");
     }
 
+    // The code limit is ten wrong codes in an hour (AuthSettings.AccountFailureCap) and a pause of 15 minutes
+    // (AuthSettings.CodeLockoutDuration). Every doc that mentions it must say the same.
+    [Theory]
+    [InlineData("docs/operations/lockout.md")]
+    [InlineData("docs/operations/a11y-manual-passes.md")]
+    [InlineData("docs/operations/audit-log.md")]
+    [InlineData("docs/operations/security-review.md")]
+    public void TheWrongCodeLimitIsStatedTheSameWayInEveryDoc(string path) =>
+        CodeLimit().IsMatch(Read(path)).ShouldBeTrue($"{path} must say 'ten wrong codes in an hour' and the pause of 15 minutes.");
+
+    [Fact]
+    public void TheLockoutRunbookSaysAUsedUpCodeIsNotAPause() =>
+        Read("docs/operations/lockout.md").ShouldContain("This code can't be used anymore", Case.Sensitive);
+
     private static string Read(string path) => File.ReadAllText(RepoRoot.PathOf(path));
+
+    [GeneratedRegex(@"ten wrong codes in an hour[^.\n]{0,100}15 minutes", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex CodeLimit();
 
     [GeneratedRegex(
         @"^\*Created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} · Updated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}\*\s*$",

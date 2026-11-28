@@ -1,6 +1,6 @@
 # Manual accessibility passes: keyboard, NVDA and VoiceOver
 
-*Created: 2026-11-27T21:18:50-06:00 · Updated: 2026-11-27T21:24:38-06:00*
+*Created: 2026-11-27T21:18:50-06:00 · Updated: 2026-11-28T02:15:02-06:00*
 
 This page is the script and the results record for the hand-run accessibility passes (A11Y-05, 14 D-08 to D-10). The automated checks (axe, Lighthouse, the keyboard tests) catch a lot. They cannot say what a screen reader actually speaks, so a person has to listen.
 
@@ -43,7 +43,7 @@ How to mark a step:
 3. For every **Fail**, write in Outcome what happened and what should be done. A failed step is never left without an outcome. A WCAG 2.2 AA failure is fixed before release (14 D-08).
 4. If you could not run a step, leave it as **Not run** and write the reason in Outcome. A signed record cannot hold a Not run without a reason.
 
-Be careful with the sign-in code (flow 1). Too many wrong codes pause sign-in for 15 minutes. Use one wrong code, once.
+Be careful with the sign-in code (flow 1). Ten wrong codes in an hour, counted across every sign-in try, pause sign-in for 15 minutes. One code also stops working after five wrong tries ("This code can't be used anymore"), with no pause. Use one wrong code, once.
 
 ## How to read a script
 

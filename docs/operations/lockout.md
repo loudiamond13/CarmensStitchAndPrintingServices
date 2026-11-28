@@ -1,6 +1,6 @@
 # Runbook: a staff member cannot sign in (lockouts)
 
-*Created: 2026-11-27T21:08:00-06:00 · Updated: 2026-11-27T21:08:00-06:00*
+*Created: 2026-11-27T21:08:00-06:00 · Updated: 2026-11-28T02:15:02-06:00*
 
 This page covers the ways a staff account stops working, and how to get it back (14 D-20, D-21). If the problem is that the emailed code never arrives, read [break-glass-mail.md](break-glass-mail.md) instead.
 
@@ -11,7 +11,8 @@ The sign-in screen never says why a sign-in failed. A wrong password, a pause, a
 | What happened | How long | Who lifts it |
 |---|---|---|
 | Five wrong passwords in a row | A pause of 15 minutes | It ends by itself. A password reset also ends it. |
-| Too many wrong emailed codes | A pause of 15 minutes. The screen says "Too many wrong codes", and the person gets an email | It ends by itself. A password reset also ends it. |
+| Ten wrong codes in an hour (counted across every sign-in try) | A pause of 15 minutes. The screen says "Too many wrong codes", and the person gets an email | It ends by itself. A password reset also ends it. |
+| Five wrong tries on one emailed code | No pause. That code stops working and the screen says "This code can't be used anymore. Use Resend Code to get a new one." | The person presses Resend Code. Those wrong tries still count toward the ten in an hour. |
 | A Manager pressed **Lock** | No timer | A Manager, with **Unlock**. A password reset does not help. |
 | A Manager pressed **Deactivate** | No timer | A Manager, with **Activate**. |
 | The account was deleted | For good | A Manager invites the person again (the address is free for a new invitation). |
