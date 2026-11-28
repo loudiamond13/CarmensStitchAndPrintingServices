@@ -85,6 +85,118 @@ public sealed class OutboxReaderTests(CspsDatabase database) : IClassFixture<Csp
         stdout.ToString().ShouldBeEmpty();
     }
 
+    [Theory]
+    [InlineData("tok_abc-123", "tok_abc-123")]
+    [InlineData("ab%2B%2F%3Dcd", "ab+/=cd")]
+    public void ExtractsTheInviteTokenAndNothingElse(string linkToken, string expected) =>
+        OutboxReader.Extract(AuthEmailKind.Invite, InviteText(linkToken)).ShouldBe(expected);
+
+    [Fact]
+    public void ExtractsNothingFromATextWithoutACodeOrToken()
+    {
+        OutboxReader.Extract(AuthEmailKind.SignInCode, "Your sign-in code\n\nRequested Nov 27, 2026, 6:31 PM\n\n").ShouldBeNull();
+        OutboxReader.Extract(AuthEmailKind.Invite, "You're invited\n\nNo link here.\n").ShouldBeNull();
+        OutboxReader.Extract(AuthEmailKind.PasswordReset, InviteText("tok_abc-123")).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task TheNewerRowWinsEvenWhenSqlServerSortsItsIdLower()
+    {
+        var to = Address();
+        var protector = Protector();
+        await QueueAsync(protector, to, AuthEmailKind.SignInCode, SignInCodeText.Replace(Code, "111111", StringComparison.Ordinal), Noon, Guid.Parse("00000000-0000-7000-8000-ffffffffffff"));
+        await QueueAsync(protector, to, AuthEmailKind.SignInCode, SignInCodeText, Noon.AddMinutes(5), Guid.Parse("ffffffff-ffff-7fff-bfff-000000000000"));
+
+        var text = await Read(protector, to, AuthEmailKind.SignInCode);
+
+        OutboxReader.Extract(AuthEmailKind.SignInCode, text.ShouldNotBeNull()).ShouldBe(Code);
+    }
+
+    [Fact]
+    public async Task AClosedRowIsSkippedAndTheToolSaysSoInPlainWords()
+    {
+        var to = Address();
+        var protector = Protector();
+        await QueueAsync(protector, to, AuthEmailKind.SignInCode, SignInCodeText, Noon);
+        await CloseAsync(to);
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        (await Read(protector, to, AuthEmailKind.SignInCode)).ShouldBeNull();
+        var exit = await Program.PrintAsync(to, AuthEmailKind.SignInCode, database.ConnectionString, Settings(), stdout, stderr, TestContext.Current.CancellationToken);
+
+        exit.ShouldBe(1);
+        stderr.ToString().Trim().ShouldBe("No queued email of that kind for that address.");
+        stdout.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ARowForAnotherRecipientOrAnotherKindIsNeverReturned()
+    {
+        var to = Address();
+        var protector = Protector();
+        await QueueAsync(protector, Address(), AuthEmailKind.SignInCode, SignInCodeText, Noon);
+        await QueueAsync(protector, to, AuthEmailKind.Invite, InviteText("tok_abc-123"), Noon);
+
+        (await Read(protector, to, AuthEmailKind.SignInCode)).ShouldBeNull();
+        OutboxReader.Extract(AuthEmailKind.Invite, (await Read(protector, to, AuthEmailKind.Invite)).ShouldNotBeNull()).ShouldBe("tok_abc-123");
+    }
+
+    // Arguments are joined with "|" so a row reads as one line; "<empty>" stands for an empty argument.
+    [Theory]
+    [InlineData("")]
+    [InlineData("--kind|code")]
+    [InlineData("--to|a@example.test")]
+    [InlineData("--to|a@example.test|--kind|password")]
+    [InlineData("--to|<empty>|--kind|code")]
+    [InlineData("--to|a@example.test|--kind|code|--connection|Server=x")]
+    [InlineData("--to|a@example.test|--to|b@example.test")]
+    public async Task AMissingOrUnknownArgumentIsAUsageError(string joined)
+    {
+        string[] args = joined.Length == 0 ? [] : [.. joined.Split('|').Select(part => part == "<empty>" ? string.Empty : part)];
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exit = await RunAsync(args, stdout, stderr);
+
+        exit.ShouldBe(64);
+        stderr.ToString().ShouldStartWith("Usage:");
+        stdout.ToString().ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ARunWithoutTheConnectionVariableIsAUsageError()
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+
+        var exit = await Program.RunAsync(
+            ["--to", "a@example.test", "--kind", "invite"], name => name == "GITHUB_ACTIONS" ? "true" : null, stdout, stderr, TestContext.Current.CancellationToken);
+
+        exit.ShouldBe(64);
+        stderr.ToString().ShouldContain("CSPS_CI_MAILBOX_CONNECTION");
+        stdout.ToString().ShouldBeEmpty();
+    }
+
+    // The text part of an invite email, copied from EmailRenderer and EmailHtmlLayout (the renderer is internal to Csps.Infrastructure).
+    private static string InviteText(string linkToken) =>
+        "You're invited\n\nA staff account was set up for a@example.test. Set your password to start using CSPS Admin.\n\n"
+        + $"Set Your Password: https://csps.example.test/admin/accept-invite#token={linkToken}\n\nCSPS footer\n";
+
+    private static Task<int> RunAsync(string[] args, StringWriter stdout, StringWriter stderr) =>
+        Program.RunAsync(args, name => name == "GITHUB_ACTIONS" ? "true" : "Server=127.0.0.1,1433;Database=CSPS_Zap;User ID=sa;Password=NotARealSecret1", stdout, stderr, TestContext.Current.CancellationToken);
+
+    private async Task CloseAsync(string to)
+    {
+        await using var context = database.CreateContext();
+        foreach (var row in await context.EmailOutbox.Where(message => message.ToAddress == to).ToListAsync(TestContext.Current.CancellationToken))
+        {
+            row.MarkSent(Noon);
+        }
+
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
     private static string Address() => $"{Guid.NewGuid():N}@example.test";
 
     private static IDataProtector Protector() =>
