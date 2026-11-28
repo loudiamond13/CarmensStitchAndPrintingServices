@@ -52,6 +52,16 @@ public sealed class WebConfigTests
     }
 
     [Fact]
+    public void SendsXFrameOptionsDenyOnce()
+    {
+        var added = Load().Descendants("httpProtocol").Elements("customHeaders").Elements("add")
+            .Where(element => string.Equals(element.Attribute("name")?.Value, "X-Frame-Options", StringComparison.OrdinalIgnoreCase))
+            .ShouldHaveSingleItem();
+
+        added.Attribute("value").ShouldNotBeNull().Value.ShouldBe("DENY");
+    }
+
+    [Fact]
     public void TurnsIisCompressionOff()
     {
         var compression = Load().Descendants("system.webServer").Elements("urlCompression").ShouldHaveSingleItem();

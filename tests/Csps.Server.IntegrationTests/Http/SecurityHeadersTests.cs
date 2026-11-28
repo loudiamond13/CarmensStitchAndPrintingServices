@@ -80,6 +80,20 @@ public sealed class SecurityHeadersTests(CspsDatabase database) : IClassFixture<
         response.Headers.Contains("X-Powered-By").ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("/health")]
+    [InlineData("/api/v1/nope")]
+    public async Task TheAppNeverSendsXFrameOptionsBecauseIisDoes(string path)
+    {
+        await using var factory = CspsApiFactory.ForDatabase(database.ConnectionString);
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.Headers.Contains("X-Frame-Options").ShouldBeFalse();
+        Single(response, CspHeader).ShouldContain("frame-ancestors 'none'");
+    }
+
     [Fact]
     public async Task HeadHealthCarriesHeaders()
     {
