@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoAxeViolations } from '@/test/axe';
 import { server } from '@/test/msw';
 import { sessionResponse } from '@/test/sessionFixtures';
+import { allowViewTransitions, forgetViewTransitions, transitionOf } from '@/test/viewTransitionSpy';
 import { collectConsole } from '@/test/consoleGuard';
 import { AdminRootErrorBoundary, AdminRouteErrorBoundary, ERROR_BOUNDARY_COPY } from '@/core/routes/ErrorBoundary';
 import { discoverRoutes, lazyRoute, queryBranch, routes, type RouteModule } from '@/core/routes/router';
@@ -17,6 +18,11 @@ import { acceptSession, clearSession, getSessionUser, takeSignInNotice } from '@
 import { siteSettingsService } from '@/modules/admin/services/siteSettingsService';
 import AdminLayout, { AdminFrame } from '@/layouts/AdminLayout';
 import UrlStateLayout from '@/lib/url-state/UrlStateLayout';
+
+// Marks each Link's anchor with the viewTransition value it got, for the page fade case (PERF-07).
+vi.mock('react-router', async (importOriginal) =>
+  (await import('@/test/viewTransitionSpy')).withTransitionAttribute(await importOriginal()),
+);
 import { DEV_USER } from '@/modules/admin/sections';
 import { useAdminTheme } from '@/modules/admin/hooks/useAdminTheme';
 import { ProfileRoute } from '@/modules/admin/pages/ProfilePage';
@@ -1270,5 +1276,34 @@ describe('AdminLayout Quote Requests count (D-14, D-19)', () => {
     expect(sidebarLink('Quote Requests')).toHaveAccessibleName('Quote Requests');
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(probe.reads).toBe(0);
+  });
+});
+
+describe('AdminLayout page fade (PERF-07, 14 D-33)', () => {
+  afterEach(forgetViewTransitions);
+
+  it('fades from the desktop sidebar and does not fade from the phone drawer copy', async () => {
+    allowViewTransitions();
+    const router = createMemoryRouter([
+      {
+        path: '*',
+        element: (
+          <AdminFrame section="orders" user={{ name: 'Lito Santos', role: 'admin' }} theme="light">
+            <p>page</p>
+          </AdminFrame>
+        ),
+      },
+    ]);
+    render(<RouterProvider router={router} />);
+
+    const sidebar = transitionOf(within(sidebarNav()).getAllByRole('link'));
+    expect(sidebar.length).toBeGreaterThan(0);
+    expect(new Set(sidebar)).toEqual(new Set(['true']));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    const drawer = transitionOf(within(screen.getByRole('dialog', { name: 'Navigation' })).getAllByRole('link'));
+
+    expect(drawer).toHaveLength(sidebar.length);
+    expect(new Set(drawer)).toEqual(new Set(['false']));
   });
 });

@@ -503,6 +503,58 @@ for (const reduce of [false, true]) {
   });
 }
 
+test('@view-transitions drawer: a link tapped inside the phone drawer starts no transition', async ({
+  page,
+  request,
+  guard,
+}) => {
+  await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+  await openAdminOnPhone(page, request, guard);
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Navigation' });
+  await expect(drawer).toHaveAttribute('data-state', 'open');
+  await resetViewTransitionCount(page);
+
+  await drawer.getByRole('link', { name: 'Orders', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/admin\/orders$/);
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await viewTransitionCount(page)).toBe(0);
+});
+
+test('@view-transitions history: browser Back and Forward start no transition', async ({ page, request, guard }) => {
+  await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+  await openAdminAt(page, request, guard, 1440, 900);
+  await page.locator('[data-ui="s-admin-side"]').getByRole('link', { name: 'Orders', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/orders$/);
+  await resetViewTransitionCount(page);
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.locator('h1')).toBeVisible();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/admin\/orders$/);
+  await expect(page.locator('h1')).toBeVisible();
+
+  expect(await viewTransitionCount(page)).toBe(0);
+});
+
+test('@view-transitions same page: a click on the nav item of the page already shown starts no transition', async ({
+  page,
+  request,
+  guard,
+}) => {
+  await page.addInitScript(COUNT_VIEW_TRANSITIONS);
+  await openAdminAt(page, request, guard, 1440, 900);
+  await resetViewTransitionCount(page);
+
+  await page.locator('[data-ui="s-admin-side"]').getByRole('link', { name: 'Dashboard', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.locator('h1')).toBeVisible();
+  expect(await viewTransitionCount(page)).toBe(0);
+});
+
 // ── D-39: the Signed-in devices dialogs ──
 
 // A second device with a label no project shares, so its row can be told apart.

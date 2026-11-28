@@ -7,6 +7,7 @@ import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as navigationScenarios } from '@/dev/scenarios/groups/navigation';
 import { expectNoAxeViolations } from '@/test/axe';
+import { allowViewTransitions, forgetViewTransitions, transitionOf } from '@/test/viewTransitionSpy';
 import { SITE_LINKS, SiteHeader } from '@/components/navigation';
 import {
   siteBurgerClasses,
@@ -21,6 +22,11 @@ import {
   siteLinkClasses,
   siteNavClasses,
 } from './navigation.recipe';
+
+// Marks each Link's anchor with the viewTransition value it got, for the page fade cases (PERF-07).
+vi.mock('react-router', async (importOriginal) =>
+  (await import('@/test/viewTransitionSpy')).withTransitionAttribute(await importOriginal()),
+);
 
 // The converted App. D.3 SiteHeader (plan 02-26, CSPS-UI-SPEC.md §6.6, UI-SPEC Layout Contract "Header"): App. D.3's
 // markup, props and copy with the D-03 second cue on the current link (aria-current + weight 700) and the D-31 O-3
@@ -452,4 +458,25 @@ describe('SiteHeader scenarios and axe', () => {
       await expectNoAxeViolations(container);
     },
   );
+});
+
+describe('SiteHeader page fade (PERF-07, 14 D-33)', () => {
+  afterEach(forgetViewTransitions);
+
+  it('fades to another page from the header nav, not to the page already shown', () => {
+    allowViewTransitions();
+    render(inRouter(<SiteHeader />));
+
+    expect(mainLinks().map((item) => item.textContent)).toEqual(['Home', 'Products', 'Gallery', 'Contact']);
+    expect(transitionOf(mainLinks())).toEqual(['false', 'true', 'true', 'true']);
+  });
+
+  it('does not fade from the links inside the phone drawer', async () => {
+    allowViewTransitions();
+    render(inRouter(<SiteHeader />));
+    await userEvent.click(burger());
+
+    expect(drawerLinks()).toHaveLength(4);
+    expect(transitionOf(drawerLinks())).toEqual(['false', 'false', 'false', 'false']);
+  });
 });

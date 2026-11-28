@@ -2,12 +2,13 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { kit } from '@/dev/kit';
 import { renderNode } from '@/dev/renderScenario';
 import { scenarios as navigationScenarios } from '@/dev/scenarios/groups/navigation';
 import type { Role } from '@/utils/csps';
 import { expectNoAxeViolations } from '@/test/axe';
+import { allowViewTransitions, forgetViewTransitions, transitionOf } from '@/test/viewTransitionSpy';
 import {
   ADMIN_NAV,
   AUDIT_NAV_ITEM,
@@ -39,6 +40,11 @@ import {
 // props with the D-03 second cue (aria-current + weight 700), the D-27 Logout button and the D-31 D-BL-02 hidden
 // "Manager" tag on the current row. The look is proven by the parity suite (`--grep @navigation`); these tests pin the
 // markup, the names, the behaviour and the sidebar scenarios.
+
+// Marks each Link's anchor with the viewTransition value it got, for the page fade cases (PERF-07).
+vi.mock('react-router', async (importOriginal) =>
+  (await import('@/test/viewTransitionSpy')).withTransitionAttribute(await importOriginal()),
+);
 
 // L-20: the user role goes through a typed variable, never a literal role prop (jsx-a11y reads it as an ARIA role).
 const MANAGER: Role = 'manager';
@@ -885,4 +891,23 @@ describe('Sidebar scenarios, the D-27 Logout path and axe', () => {
       await expectNoAxeViolations(container);
     },
   );
+});
+
+describe('Sidebar page fade (PERF-07, 14 D-33)', () => {
+  afterEach(forgetViewTransitions);
+
+  it('fades to another page from every item an admin sees', () => {
+    allowViewTransitions();
+    render(inRouter(<Sidebar role={ADMIN} />));
+
+    expect(navLinks()).toHaveLength(4);
+    expect(transitionOf(navLinks())).toEqual(['true', 'true', 'true', 'true']);
+  });
+
+  it('does not fade from any item with noTransition (the phone drawer copy)', () => {
+    allowViewTransitions();
+    render(inRouter(<Sidebar role={ADMIN} noTransition />));
+
+    expect(transitionOf(navLinks())).toEqual(['false', 'false', 'false', 'false']);
+  });
 });
