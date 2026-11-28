@@ -311,6 +311,50 @@ public sealed partial class ShellPageTests
             .ShouldBe(1);
     }
 
+    [Theory]
+    [InlineData("/admin")]
+    [InlineData("/admin/")]
+    [InlineData("/admin/login")]
+    [InlineData("/admin/orders")]
+    public async Task AdminDocumentsCarryTheStaffAppInstallTags(string path)
+    {
+        // PERF-06, 14 D-12: the staff portal is the only installable part of the site.
+        await using var factory = Factory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, path);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Link(body, "manifest").ShouldBe("/manifest.webmanifest", path);
+        Meta(body, "name", "theme-color").ShouldBe("#572e2b", path);
+        Meta(body, "name", "apple-mobile-web-app-title").ShouldBe("CSPS Admin", path);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/products")]
+    [InlineData("/gallery")]
+    [InlineData("/contact")]
+    [InlineData("/privacy")]
+    [InlineData("/terms")]
+    [InlineData("/accessibility")]
+    [InlineData("/nope")]
+    public async Task PublicDocumentsCarryNoInstallTags(string path)
+    {
+        // 14 D-12, T-14-03: no manifest link, theme colour or app title on a public page or the 404.
+        await using var factory = Factory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Link(body, "manifest").ShouldBeNull(path);
+        Meta(body, "name", "theme-color").ShouldBeNull(path);
+        Meta(body, "name", "apple-mobile-web-app-title").ShouldBeNull(path);
+        body.ShouldNotContain("manifest", Case.Insensitive, path);
+    }
+
     private static ShellTestFactory Factory() => new();
 
     private static string? Meta(string html, string attribute, string key)

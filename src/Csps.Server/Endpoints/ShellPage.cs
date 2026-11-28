@@ -205,6 +205,7 @@ internal sealed partial class ShellRenderer(
             case PublicRouteKind.Admin:
                 var head = new StringBuilder(parts.DefaultHead);
                 PublicHeadWriter.AppendRobots(head);
+                PublicHeadWriter.AppendAdminAppTags(head);
                 return head.ToString();
 
             default:

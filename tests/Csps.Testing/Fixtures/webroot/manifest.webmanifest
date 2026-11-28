@@ -1,0 +1,6 @@
+{
+  "id": "/admin/",
+  "name": "CSPS fixture",
+  "start_url": "/admin/login",
+  "scope": "/admin"
+}

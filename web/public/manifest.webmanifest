@@ -1,0 +1,21 @@
+{
+  "id": "/admin/",
+  "name": "CSPS Admin",
+  "short_name": "CSPS Admin",
+  "description": "The staff portal of Carmen's Stitch & Printing Services: orders, payments, expenses and quote requests.",
+  "start_url": "/admin/login",
+  "scope": "/admin",
+  "display": "standalone",
+  "lang": "en",
+  "dir": "ltr",
+  "theme_color": "#572e2b",
+  "background_color": "#f6dfd1",
+  "icons": [
+    {
+      "src": "/mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

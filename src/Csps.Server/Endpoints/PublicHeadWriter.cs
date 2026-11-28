@@ -118,6 +118,19 @@ internal static class PublicHeadWriter
     }
 
     /// <summary>
+    /// Appends the staff app install tags on new lines: the manifest link and the theme colour (PERF-06). Written only for
+    /// admin documents, never for a public page or the 404 (14 D-12).
+    /// </summary>
+    /// <param name="head">The builder to append to.</param>
+    public static void AppendAdminAppTags(StringBuilder head)
+    {
+        ArgumentNullException.ThrowIfNull(head);
+        head.Append(LineBreak).Append("<link rel=\"manifest\" href=\"/manifest.webmanifest\">");
+        AppendMeta(head, "name", "theme-color", "#572e2b");
+        AppendMeta(head, "name", "apple-mobile-web-app-title", "CSPS Admin");
+    }
+
+    /// <summary>
     /// Builds the <c>LocalBusiness</c> JSON-LD of a page from a typed model (D-25): name, description (the about text, else the tagline),
     /// url, the main number as an E.164 telephone, a <c>PostalAddress</c> in the Philippines when any address part is set, and the social
     /// links that are set. A value that is not set is left out. The model has no contact-mail member, so none can be written.

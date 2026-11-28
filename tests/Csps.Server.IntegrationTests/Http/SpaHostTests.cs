@@ -201,6 +201,20 @@ public sealed class SpaHostTests
         RawCacheControl(response).ShouldBe("no-cache", path);
     }
 
+    [Fact]
+    public async Task ManifestIsServedAsManifestJsonAndRevalidates()
+    {
+        // PERF-06, 14 D-42: the committed manifest is a static file with its own media type, revalidated on every use.
+        await using var factory = new CspsApiFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("/manifest.webmanifest", UriKind.Relative), TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentType.ShouldNotBeNull().MediaType.ShouldBe("application/manifest+json");
+        RawCacheControl(response).ShouldBe("no-cache");
+    }
+
     private static string RawCacheControl(HttpResponseMessage response) =>
         response.Headers.NonValidated.TryGetValues("Cache-Control", out var values) ? values.ToString() : string.Empty;
 }
