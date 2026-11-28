@@ -99,6 +99,18 @@ describe('guardViewTransitions', () => {
     expect(real).toHaveBeenCalledTimes(1);
   });
 
+  it('guards again on a development hot reload without stacking: the new router decides, not the old one', () => {
+    const { real, doc, router } = setup();
+    router.navigate('POP');
+    const reloaded = fakeRouter();
+    guardViewTransitions(reloaded, doc, { matchMedia: () => ({ matches: false }) } as unknown as Window);
+    reloaded.navigate('PUSH');
+
+    doc.startViewTransition(vi.fn<() => void>());
+
+    expect(real).toHaveBeenCalledTimes(1);
+  });
+
   it('waits for an async update before the instant transition finishes', async () => {
     const { doc, router } = setup();
     router.navigate('POP');

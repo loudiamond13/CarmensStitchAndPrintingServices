@@ -6,16 +6,21 @@ interface GuardedRouter {
   subscribe: (listener: (state: { historyAction: string }) => void) => unknown;
 }
 
+type Start = Document['startViewTransition'];
+type Guarded = Start & { original?: Start };
+
 export function guardViewTransitions(router: GuardedRouter, doc: Document = document, win: Window = window): void {
   if (!('startViewTransition' in doc)) {
     return;
   }
-  const start = doc.startViewTransition.bind(doc);
+  // Development only: a hot reload runs this again, so it starts from the browser's own call that the earlier guard kept.
+  const earlier = import.meta.env.DEV ? (doc.startViewTransition as Guarded).original : undefined;
+  const start = earlier ?? doc.startViewTransition.bind(doc);
   let action = 'PUSH';
   router.subscribe((state) => {
     action = state.historyAction;
   });
-  doc.startViewTransition = (update?: ViewTransitionUpdateCallback) => {
+  const guarded: Guarded = (update?: ViewTransitionUpdateCallback) => {
     if (action === 'POP' || win.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       const done = Promise.resolve().then(async () => {
         await update?.();
@@ -31,4 +36,8 @@ export function guardViewTransitions(router: GuardedRouter, doc: Document = docu
     transition.ready.catch(() => undefined);
     return transition;
   };
+  if (import.meta.env.DEV) {
+    guarded.original = start;
+  }
+  doc.startViewTransition = guarded;
 }
