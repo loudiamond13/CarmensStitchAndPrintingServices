@@ -1,8 +1,9 @@
 // The Delete Order dialog helpers shared by dialog-fit.spec.ts and dialog-scrollbars.spec.ts (plans 02-41, 02-42 and
 // 02-43, owner ruling D-42): open /dev/components at a window size, open the Delete Order dialog in its Overlay region (App. C
 // `.s-overlay`), wait for its entry animation and measure the dialog and the region. Every measurement waits for the
-// animations to finish: the dialog's 0.2s rise moves its box. Page scripts are strings: the e2e TypeScript program has
-// no DOM types. Plan 02-43 adds the
+// animations to finish: the dialog's 0.2s rise moves its box. Page scripts that take no data are strings, because the
+// e2e TypeScript program has no DOM types; the two that need the dialog's name are functions that get it as an argument
+// (CodeQL js/bad-code-sanitization, plan 14-11). Plan 02-43 adds the
 // helpers that prove a press which does not close the dialog leaves the caret in the confirm field and the scrolled
 // backdrop where it was (review WR-01): waitForFramesAndTask, waitForSettledScroll and readCaret.
 import type { Locator, Page } from '@playwright/test';
@@ -10,16 +11,6 @@ import { expect, test } from './fixtures.ts';
 
 export const DIALOG_NAME = 'Delete order ORD-2026-0148?';
 export const ORDER = 'ORD-2026-0148';
-
-/** The Overlay region that holds the Delete Order dialog. */
-const REGION = `[...document.querySelectorAll('[data-ui="s-overlay"]')].find((region) => [...region.querySelectorAll('[role="dialog"]')].some((dialog) => document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === ${JSON.stringify(DIALOG_NAME)}))`;
-
-/** Resolves once every animation inside the region (the overlay fade, the modal rise) has finished. */
-const SETTLE = `(async () => {
-  const region = ${REGION};
-  await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
-  return true;
-})()`;
 
 export interface RegionMetrics {
   readonly scrollHeight: number;
@@ -29,16 +20,63 @@ export interface RegionMetrics {
   readonly overflowY: string;
 }
 
-const READ_REGION = `(() => {
-  const region = ${REGION};
+// The two page functions below read the DOM through `globalThis`, typed by these shapes (the e2e program has no DOM
+// types). The dialog's name reaches them as the `evaluate` argument, never as code text.
+interface DialogNode {
+  getAttribute(name: string): string | null;
+}
+
+interface RegionNode {
+  readonly scrollHeight: number;
+  readonly scrollTop: number;
+  readonly clientHeight: number;
+  readonly clientWidth: number;
+  querySelectorAll(selector: string): ArrayLike<DialogNode>;
+  getAnimations(options: { readonly subtree: boolean }): readonly { readonly finished: Promise<unknown> }[];
+}
+
+interface PageScope {
+  readonly document: {
+    querySelectorAll(selector: string): ArrayLike<RegionNode>;
+    getElementById(id: string): { readonly textContent: string | null } | null;
+  };
+  getComputedStyle(node: RegionNode): { readonly overflowY: string };
+}
+
+/** Resolves once every animation inside the Delete Order region (the overlay fade, the modal rise) has finished. */
+async function settleRegion(name: string): Promise<boolean> {
+  const scope = globalThis as unknown as PageScope;
+  const region = Array.from(scope.document.querySelectorAll('[data-ui="s-overlay"]')).find((candidate) =>
+    Array.from(candidate.querySelectorAll('[role="dialog"]')).some(
+      (dialog) => scope.document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === name,
+    ),
+  );
+  if (region === undefined) {
+    throw new Error(`No Overlay region holds the dialog "${name}".`);
+  }
+  await Promise.all(region.getAnimations({ subtree: true }).map((animation) => animation.finished));
+  return true;
+}
+
+/** The Overlay region's scroll position, size and overflow, read in the page. */
+function measureRegion(name: string): RegionMetrics {
+  const scope = globalThis as unknown as PageScope;
+  const region = Array.from(scope.document.querySelectorAll('[data-ui="s-overlay"]')).find((candidate) =>
+    Array.from(candidate.querySelectorAll('[role="dialog"]')).some(
+      (dialog) => scope.document.getElementById(dialog.getAttribute('aria-labelledby') ?? '')?.textContent === name,
+    ),
+  );
+  if (region === undefined) {
+    throw new Error(`No Overlay region holds the dialog "${name}".`);
+  }
   return {
     scrollHeight: region.scrollHeight,
     scrollTop: region.scrollTop,
     clientHeight: region.clientHeight,
     clientWidth: region.clientWidth,
-    overflowY: getComputedStyle(region).overflowY,
+    overflowY: scope.getComputedStyle(region).overflowY,
   };
-})()`;
+}
 
 export interface Box {
   readonly x: number;
@@ -68,7 +106,7 @@ export async function boxOf(locator: Locator, name: string): Promise<Box> {
 
 /** The region's scroll position and size, read now (it changes when the backdrop scrolls). */
 export async function readRegion(page: Page): Promise<RegionMetrics> {
-  return page.evaluate<RegionMetrics>(READ_REGION);
+  return page.evaluate<RegionMetrics, string>(measureRegion, DIALOG_NAME);
 }
 
 /**
@@ -139,7 +177,7 @@ export async function openDeleteOrder(
   await page.locator('[data-case="confirm-delete-order"]').getByRole('button', { name: 'Open Delete Order' }).click();
   const dialog = page.getByRole('dialog', { name: DIALOG_NAME });
   await expect(dialog).toBeVisible();
-  await page.evaluate(SETTLE);
+  await page.evaluate<boolean, string>(settleRegion, DIALOG_NAME);
 
   const viewport = page.viewportSize();
   if (viewport === null) {
