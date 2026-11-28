@@ -45,12 +45,23 @@ public sealed partial class NoUnsafeCodeTests
         "WebClient",
         "WebRequest",
         "TcpClient",
+        "UdpClient",
+        "new Socket(",
+        "SocketsHttpHandler",
+        "DelegatingHandler",
+        "Dns.",
+        "SmtpClient",
+        "ImapClient",
+        "Pop3Client",
+        "RestClient",
     ];
 
-    // The only files that reach an outside host: the Cloudinary photo store and its setup tool, and the breached
-    // password range lookup. Each has a fixed address from settings or code, never one a visitor supplies.
+    // The only files that reach an outside host: the Cloudinary photo store and its setup tool, the breached
+    // password range lookup, and the mail sender (the mail host from settings). Each has a fixed address from
+    // settings or code, never one a visitor supplies.
     private static readonly string[] OutboundAllowList =
     [
+        "src/Csps.Infrastructure/Email/MailKitTransport.cs",
         "src/Csps.Infrastructure/Images/CloudinaryImageStorage.cs",
         "src/Csps.Infrastructure/Images/CloudinarySetupCommand.cs",
         "src/Csps.Infrastructure/Images/ImagesRegistration.cs",
@@ -70,7 +81,7 @@ public sealed partial class NoUnsafeCodeTests
         var offenders = new List<string>();
         foreach (var file in BuildFiles())
         {
-            if (AllowUnsafeBlocksTrue().IsMatch(File.ReadAllText(file)))
+            if (AllowsUnsafeBlocks(File.ReadAllText(file)))
             {
                 offenders.Add(Relative(file));
             }
@@ -98,13 +109,18 @@ public sealed partial class NoUnsafeCodeTests
     [Theory]
     [InlineData("<AllowUnsafeBlocks>true</AllowUnsafeBlocks>")]
     [InlineData("  <AllowUnsafeBlocks> True </AllowUnsafeBlocks>")]
-    public void TheProjectScannerCatchesTheSetting(string text) => AllowUnsafeBlocksTrue().IsMatch(text).ShouldBeTrue();
+    [InlineData("<AllowUnsafeBlocks Condition=\"'$(Configuration)' == 'Release'\">true</AllowUnsafeBlocks>")]
+    [InlineData("<!-- a note --> <AllowUnsafeBlocks>true</AllowUnsafeBlocks>")]
+    [InlineData("<!-- a note\nover two lines -->\n<AllowUnsafeBlocks>true</AllowUnsafeBlocks>")]
+    public void TheProjectScannerCatchesTheSetting(string text) => AllowsUnsafeBlocks(text).ShouldBeTrue();
 
     [Theory]
     [InlineData("<AllowUnsafeBlocks>false</AllowUnsafeBlocks>")]
     [InlineData("<!-- <AllowUnsafeBlocks>true</AllowUnsafeBlocks> -->")]
+    [InlineData("<!--\n<AllowUnsafeBlocks>true</AllowUnsafeBlocks>\n-->")]
+    [InlineData("<AllowUnsafeBlocks Condition=\"false\">false</AllowUnsafeBlocks>")]
     [InlineData("<Nullable>enable</Nullable>")]
-    public void TheProjectScannerIgnoresOtherText(string text) => AllowUnsafeBlocksTrue().IsMatch(text).ShouldBeFalse();
+    public void TheProjectScannerIgnoresOtherText(string text) => AllowsUnsafeBlocks(text).ShouldBeFalse();
 
     [Fact]
     public void NoSourceFileStartsAnOperatingSystemProcess() =>
@@ -143,6 +159,18 @@ public sealed partial class NoUnsafeCodeTests
     [InlineData("var bytes = new BinaryFormatter();", true)]
     [InlineData("var assembly = Assembly.LoadFrom(path);", true)]
     [InlineData("var http = new HttpClient();", true)]
+    [InlineData("var handler = new SocketsHttpHandler();", true)]
+    [InlineData("var handler = new HttpClientHandler();", true)]
+    [InlineData("public sealed class Hook : DelegatingHandler { }", true)]
+    [InlineData("var socket = new Socket(family, type, protocol);", true)]
+    [InlineData("using var udp = new UdpClient();", true)]
+    [InlineData("var host = Dns.GetHostEntry(name);", true)]
+    [InlineData("using var client = new SmtpClient();", true)]
+    [InlineData("using var client = new ImapClient();", true)]
+    [InlineData("var rest = new RestClient(address);", true)]
+    [InlineData("using System.Net.Sockets;", false)]
+    [InlineData("SmtpSecurity.StartTls => SecureSocketOptions.StartTls,", false)]
+    [InlineData("SocketException or IOException => \"smtp-connect\",", false)]
     [InlineData("    // Process.Start is banned", false)]
     [InlineData("var text = \"BinaryFormatter\";", false)]
     [InlineData("var processor = new ProcessorOptions();", false)]
@@ -266,8 +294,14 @@ public sealed partial class NoUnsafeCodeTests
     [GeneratedRegex(@"\bunsafe\b", RegexOptions.CultureInvariant)]
     private static partial Regex UnsafeKeyword();
 
-    [GeneratedRegex(@"^(?!\s*<!--).*<AllowUnsafeBlocks>\s*true\s*</AllowUnsafeBlocks>", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    // Comments are removed first, then the element is matched with or without attributes such as Condition.
+    private static bool AllowsUnsafeBlocks(string xml) => AllowUnsafeBlocksTrue().IsMatch(XmlComment().Replace(xml, string.Empty));
+
+    [GeneratedRegex(@"<AllowUnsafeBlocks(\s[^>]*)?>\s*true\s*</AllowUnsafeBlocks>", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex AllowUnsafeBlocksTrue();
+
+    [GeneratedRegex(@"<!--.*?-->", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex XmlComment();
 
     [GeneratedRegex(@"""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*'", RegexOptions.CultureInvariant)]
     private static partial Regex QuotedText();

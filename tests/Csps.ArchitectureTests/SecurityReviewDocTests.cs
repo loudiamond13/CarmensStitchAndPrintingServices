@@ -137,6 +137,17 @@ public sealed partial class SecurityReviewDocTests
     }
 
     [Fact]
+    public void TheServerSideRequestForgeryRowNamesEveryOutboundTarget()
+    {
+        var row = TableAfter(ReadReview(), CweHeading).Rows.Single(candidate => candidate[1] == "CWE-918");
+
+        foreach (var target in new[] { "Cloudinary", "breached-password range lookup", "mail host from settings" })
+        {
+            row[4].ShouldContain(target, Case.Sensitive, $"The CWE-918 row must name the outbound target '{target}'.");
+        }
+    }
+
+    [Fact]
     public void EveryEarlierPhaseSecurityRecordIsLinkedAndTheLinkResolves()
     {
         var section = SectionAfter(ReadReview(), PhaseHeading);
