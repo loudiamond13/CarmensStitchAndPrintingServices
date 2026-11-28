@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 14
 current_phase_name: Hardening & Release Readiness
 status: executing
-stopped_at: Completed 14-05-PLAN.md
-last_updated: "2026-11-28T01:01:36.417Z"
+stopped_at: Completed 14-06-PLAN.md
+last_updated: "2026-11-28T02:51:51.506Z"
 last_activity: 2026-11-27
 last_activity_desc: Phase 14 execution started
-state_head: 85471bb39701f8f617f19e5fb2b5b260ef0ee18b
+state_head: 366f0b5d7774fff1557f2732590e8975193ab165
 progress:
   total_phases: 19
   completed_phases: 10
   total_plans: 447
-  completed_plans: 422
+  completed_plans: 423
   percent: 53
 created: "2026-10-07T00:08:54-05:00"
 updated: "2026-11-26T16:16:00-06:00"
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 14 (Hardening & Release Readiness) — EXECUTING
-Plan: 6 of 30
+Plan: 7 of 30
 Status: Ready to execute
 Last activity: 2026-11-27 — Phase 14 execution started
 
@@ -326,6 +326,7 @@ Progress: [█████░░░░░] 53%
 | Phase 14 P03 | 11 min | 2 tasks | 7 files |
 | Phase 14 P04 | 19min | 2 tasks | 11 files |
 | Phase 14 P05 | 20 min | 2 tasks | 3 files |
+| Phase 14 P06 | 22min (resumed) | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -934,6 +935,7 @@ Decisions are logged in the PROJECT.md Key Decisions table. Recent decisions tha
 - [Phase 14]: 14-04: the CI mailbox tool picks the newest outbox row by CreatedAt, not Id (SQL Server sorts a GUID by its last bytes)
 - [Phase 14]: 14-05: phase 07.1 SECURITY.md is linked in the security review next to phases 01 to 13 and 12.1 — 07.1 has its own SECURITY.md; the doc test requires each linked once
 - [Phase 14]: 14-05: added code scans (no process start, no run-time code, no unsafe deserializer, outbound HTTP allow list, no string eval in web code) so CWE-78, 94, 502, 918 and 77 each have a test — The plan forbids a mitigation without a test
+- [Phase 14]: 14 D-48: page fades never run for Back/Forward or under reduced motion (a guard at router creation), and run only in Chromium-engine browsers; Safari and iPhone get no fade (owner, 2026-11-27)
 
 ### Pending Todos
 
@@ -1208,8 +1210,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-28T01:01:30.578Z
-Stopped at: Completed 14-05-PLAN.md
+Last session: 2026-11-28T02:51:45.722Z
+Stopped at: Completed 14-06-PLAN.md
 Resume file: None
 
 Handoff for the next `/gsd-execute-phase 9` run (2026-11-04):
