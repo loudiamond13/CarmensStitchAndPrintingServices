@@ -64,7 +64,9 @@ public static partial class OutboxReader
     [GeneratedRegex(@"^(?<value>\d{6})\r?$", RegexOptions.Multiline | RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex CodeLine();
 
-    // The invite button's fallback link carries the token only in the fragment (AppLinksOptions).
-    [GeneratedRegex(@"/admin/accept-invite#token=(?<value>[^\s]+)", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    // The invite button's fallback link carries the token only in the fragment (AppLinksOptions), written with
+    // Uri.EscapeDataString: letters, digits, "-", ".", "_", "~" and "%XX". A closing bracket, comma or quote ends the value,
+    // and so does a full stop at the very end (the end of a sentence).
+    [GeneratedRegex(@"/admin/accept-invite#token=(?<value>[A-Za-z0-9\-._~%]*[A-Za-z0-9\-_~%])", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex InviteLink();
 }

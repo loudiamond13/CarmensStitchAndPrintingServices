@@ -91,6 +91,22 @@ public sealed class OutboxReaderTests(CspsDatabase database) : IClassFixture<Csp
     public void ExtractsTheInviteTokenAndNothingElse(string linkToken, string expected) =>
         OutboxReader.Extract(AuthEmailKind.Invite, InviteText(linkToken)).ShouldBe(expected);
 
+    // A link wrapped in brackets or ended by a full stop must not drag that punctuation into the token.
+    // "{0}" in the wrapper stands for the link.
+    [Theory]
+    [InlineData("({0})", "tok_abc-123", "tok_abc-123")]
+    [InlineData("Open {0}.", "tok_abc-123", "tok_abc-123")]
+    [InlineData("Open {0}, then sign in.", "tok_abc-123", "tok_abc-123")]
+    [InlineData("<{0}>", "tok_abc-123", "tok_abc-123")]
+    [InlineData("\"{0}\"", "ab%2B%2F%3Dcd", "ab+/=cd")]
+    [InlineData("{0}.", "tok.abc~123", "tok.abc~123")]
+    public void ExtractsTheInviteTokenWhenTheLinkIsWrappedInPunctuation(string wrapper, string linkToken, string expected)
+    {
+        var link = $"https://csps.example.test/admin/accept-invite#token={linkToken}";
+
+        OutboxReader.Extract(AuthEmailKind.Invite, wrapper.Replace("{0}", link, StringComparison.Ordinal)).ShouldBe(expected);
+    }
+
     [Fact]
     public void ExtractsNothingFromATextWithoutACodeOrToken()
     {
