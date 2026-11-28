@@ -4,8 +4,12 @@
 // the approved design. External, mail, phone and in-page targets stay plain anchors, exactly as App. D.3 decides.
 // SPEC-DEVIATION: L-13 the props are explicit (no {...rest} spread onto the anchor); the ones App. D/E callers use are
 // listed in UiLinkProps.
+// SPEC-DEVIATION: MOTION-VT (PERF-07, 14 D-33) a link to another page asks the router for a View Transition (the browser's
+// own cross-fade) only when the browser has the API, the device allows motion, the link is not inside a drawer
+// (`noTransition`) and the target is not the page already shown. Otherwise it passes none, so the router never warns.
 import type { AnchorHTMLAttributes, MouseEvent, ReactNode, Ref } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useResolvedPath } from 'react-router';
+import { canStartViewTransition, usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion';
 
 export interface UiLinkProps {
   /** An in-app path ("/products") or an external, mailto:, tel: or #in-page target. Never unparsed URL input. */
@@ -28,12 +32,58 @@ export interface UiLinkProps {
   /** The roving tab stop of a menu item (-1: reached by the arrow keys, not by Tab). */
   tabIndex?: number | undefined;
   ref?: Ref<HTMLAnchorElement> | undefined;
+  /** Skips the page fade, for links inside a drawer whose own exit is the change. */
+  noTransition?: boolean | undefined;
 }
 
 /** App. D.3's test: these targets are never router paths. */
 const EXTERNAL = /^(https?:|mailto:|tel:|#)/;
 
-export function UiLink({
+export function UiLink(props: UiLinkProps) {
+  if (!EXTERNAL.test(props.to)) {
+    return <AppLink {...props} />;
+  }
+  const {
+    to,
+    className,
+    children,
+    id,
+    title,
+    target,
+    rel,
+    onClick,
+    'aria-label': ariaLabel,
+    'aria-current': ariaCurrent,
+    'aria-describedby': ariaDescribedBy,
+    'aria-labelledby': ariaLabelledBy,
+    role,
+    tabIndex,
+    ref,
+  } = props;
+  return (
+    <a
+      ref={ref}
+      href={to}
+      className={className}
+      id={id}
+      title={title}
+      target={target}
+      rel={rel}
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-current={ariaCurrent}
+      aria-describedby={ariaDescribedBy}
+      aria-labelledby={ariaLabelledBy}
+      role={role}
+      tabIndex={tabIndex}
+    >
+      {children}
+    </a>
+  );
+}
+
+/** An in-app path: react-router's Link, with a View Transition only where the fade is wanted. */
+function AppLink({
   to,
   className,
   children,
@@ -49,33 +99,16 @@ export function UiLink({
   role,
   tabIndex,
   ref,
+  noTransition,
 }: UiLinkProps) {
-  if (EXTERNAL.test(to)) {
-    return (
-      <a
-        ref={ref}
-        href={to}
-        className={className}
-        id={id}
-        title={title}
-        target={target}
-        rel={rel}
-        onClick={onClick}
-        aria-label={ariaLabel}
-        aria-current={ariaCurrent}
-        aria-describedby={ariaDescribedBy}
-        aria-labelledby={ariaLabelledBy}
-        role={role}
-        tabIndex={tabIndex}
-      >
-        {children}
-      </a>
-    );
-  }
+  const reduce = usePrefersReducedMotion();
+  const samePage = useResolvedPath(to).pathname === useLocation().pathname;
+  const fade = noTransition !== true && !reduce && !samePage && canStartViewTransition();
   return (
     <Link
       ref={ref}
       to={to}
+      viewTransition={fade}
       className={className}
       id={id}
       title={title}

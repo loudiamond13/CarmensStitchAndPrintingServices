@@ -240,12 +240,19 @@ describe('UiLink page fade (PERF-07)', () => {
     expect(lastTransition()).toBe(false);
   });
 
-  it.each(['/products', '/products?page=2', '/products#top'])('asks for none on a link to the page already shown (%s)', (to) => {
-    browser({ api: true, reduce: false });
-    inRouter(<UiLink to={to}>Products</UiLink>, '/products');
+  it.each(['/products', '/products?page=2', '/products#top'])(
+    'asks for none on a link to the page already shown (%s)',
+    (to) => {
+      browser({ api: true, reduce: false });
+      render(
+        <MemoryRouter initialEntries={['/products']}>
+          <UiLink to={to}>Products</UiLink>
+        </MemoryRouter>,
+      );
 
-    expect(lastTransition()).toBe(false);
-  });
+      expect(lastTransition()).toBe(false);
+    },
+  );
 
   it('asks for none when the link says noTransition (a drawer link)', () => {
     browser({ api: true, reduce: false });
