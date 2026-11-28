@@ -113,6 +113,78 @@ public sealed partial class A11yManualRecordTests
     }
 
     [Fact]
+    public void NoPlaceholderRemains()
+    {
+        ReadRecord().ShouldNotContain("To be scripted");
+    }
+
+    [Fact]
+    public void ResultsHaveOneRowPerScriptStepInOrder()
+    {
+        var text = ReadRecord();
+        var expected = FlowTitles
+            .Select((title, index) => (Flow: $"Flow {index + 1}", Steps: ParseTable(FindSection(text, title) ?? []).Rows.Select(row => row[0])))
+            .SelectMany(flow => flow.Steps.Select(step => $"{flow.Flow} {step}"))
+            .ToList();
+
+        var actual = ResultsRows().Select(row => $"{row[0]} {row[1]}").ToList();
+
+        actual.ShouldBe(expected, "The Results table must have exactly one row for every script step, in script order.");
+    }
+
+    [Fact]
+    public void Flow1CoversTheUpdateBannerAndTheOfflineScreen()
+    {
+        var flow = FlowText(1);
+
+        foreach (var phrase in new[] { "A new version is available.", "Focus does not move", "You're offline", "Still no signal", "Try Again" })
+        {
+            flow.ShouldContain(phrase, Case.Insensitive);
+        }
+    }
+
+    [Fact]
+    public void Flow4And5SayHowTheTestDataIsRemoved()
+    {
+        FlowText(4).ShouldContain("TEST");
+        FlowText(4).ShouldContain("Delete Order Permanently");
+        FlowText(5).ShouldContain("TEST");
+        FlowText(5).ShouldContain("Delete Permanently");
+    }
+
+    [Fact]
+    public void Flow6IsWrittenForAPhone()
+    {
+        var flow = FlowText(6);
+
+        flow.ShouldContain("swipe", Case.Insensitive);
+        flow.ShouldContain("narrow", Case.Insensitive);
+        flow.ShouldContain("Choose Photos");
+        flow.ShouldContain("Send Inquiry");
+    }
+
+    [Fact]
+    public void Flow7CoversThePhoneTapZonesAndEscape()
+    {
+        var flow = FlowText(7);
+
+        flow.ShouldContain("Previous photo");
+        flow.ShouldContain("Next photo");
+        flow.ShouldContain("Escape");
+        flow.ShouldContain("Gallery image viewer");
+    }
+
+    [Fact]
+    public void Flow8CoversSpamAndTurnIntoOrder()
+    {
+        var flow = FlowText(8);
+
+        flow.ShouldContain("Mark as Spam");
+        flow.ShouldContain("Turn into Order");
+        flow.ShouldContain("Change Status");
+    }
+
+    [Fact]
     public void ToolsNamesNvdaAsAHandRunToolWithVersionSlots()
     {
         var tools = FindSection(ReadRecord(), "Tools");
@@ -252,6 +324,13 @@ public sealed partial class A11yManualRecordTests
         var path = RepoRoot.PathOf(RecordPath);
         File.Exists(path).ShouldBeTrue($"{RecordPath} is missing.");
         return File.ReadAllText(path);
+    }
+
+    private static string FlowText(int flow)
+    {
+        var section = FindSection(ReadRecord(), FlowTitles[flow - 1]);
+        section.ShouldNotBeNull($"Flow {flow} has no section.");
+        return string.Join('\n', section);
     }
 
     private static List<List<string>> ResultsRows()
